@@ -6,8 +6,8 @@ service_role 키는 절대 넣지 마세요.
 ====================================================
 */
 
-const SUPABASE_URL = "여기에_SUPABASE_PROJECT_URL";
-const SUPABASE_ANON_KEY = "여기에_SUPABASE_ANON_또는_PUBLISHABLE_KEY";
+const SUPABASE_URL = "https://qazjtevdljthbzmqmgrw.supabase.co/rest/v1/";
+const SUPABASE_ANON_KEY = "sb_publishable_rIARlWBpKPvFAv_TtTdgaQ_Po-hOGmX";
 
 /*
 예시:
