@@ -8,56 +8,247 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<div id="toast" class="toast"></div>
-<section id="auth" class="screen auth-screen">
-  <div class="auth-card">
-    <div class="logo">👑</div><p class="eyebrow">ONLINE ECONOMY GAME</p><h1>판매의 신</h1>
-    <p class="muted">계정에 모든 플레이 정보가 저장됩니다.</p>
-    <div class="tabs"><button id="loginTab" class="active" onclick="setAuthMode('login')">로그인</button><button id="signupTab" onclick="setAuthMode('signup')">회원가입</button></div>
-    <label id="nicknameWrap" class="field hidden">닉네임<input id="nickname" maxlength="12"></label>
-    <label class="field">이메일<input id="email" type="email"></label>
-    <label class="field">비밀번호<input id="password" type="password" minlength="6"></label>
-    <button id="authBtn" class="primary full" onclick="submitAuth()">로그인</button>
-    <p id="authMsg" class="error"></p>
-  </div>
-</section>
+  <div id="toast" class="toast"></div>
 
-<section id="game" class="screen hidden">
-<header class="topbar">
-  <div class="brand"><span>👑</span><div><small>SELLING GOD</small><b id="nicknameTop">판매왕</b></div></div>
-  <div class="actions"><b id="cashTop">0원</b><button class="phone-btn" onclick="openPhone()">📱 휴대폰 꺼내기</button><button class="ghost" onclick="logout()">로그아웃</button></div>
-</header>
-<main>
-  <section class="hero"><div><p class="eyebrow">MY BUSINESS LIFE</p><h1><span id="nicknameHero">판매왕</span>님의 하루</h1><p class="muted">탐색하고, 거래하고, 투자해서 최고가 되세요.</p></div><div class="stats"><div>신용<b id="credit">500</b></div><div>명성<b id="reputation">50</b></div><div>총자산<b id="networth">0원</b></div></div></section>
-  <section class="world-grid">
-    <article><div class="art">🏙️</div><h2>길거리</h2><p>발각 확률 8%</p><button class="primary" onclick="explore('street')">탐색</button></article>
-    <article><div class="art">🌃</div><h2>뒷골목</h2><p>발각 확률 15%</p><button class="primary" onclick="explore('alley')">탐색</button></article>
-    <article><div class="art">⛰️</div><h2>뒷산</h2><p>발각 확률 5%</p><button class="primary" onclick="explore('mountain')">탐색</button></article>
-    <article><div class="art">📦</div><h2>포장 알바</h2><p>간단 수익 활동</p><button class="primary" onclick="quickJob()">+5만원</button></article>
-  </section>
-  <section class="lower-grid">
-    <article class="panel"><div class="section-head"><h2>내 인벤토리</h2><button class="ghost" onclick="loadInventory()">새로고침</button></div><div id="inventory" class="item-grid"></div></article>
-    <article class="panel"><h2>최근 활동</h2><div id="activities"></div></article>
-  </section>
-</main>
+  <section id="auth" class="screen auth-screen">
+    <div class="auth-card">
+      <div class="logo">👑</div>
+      <p class="eyebrow">ONLINE ECONOMY GAME</p>
+      <h1>판매의 신</h1>
+      <p class="muted">계정에 모든 플레이 정보가 저장됩니다.</p>
 
-<div id="phoneOverlay" class="phone-overlay hidden" onclick="backdropClose(event)">
-  <div class="phone">
-    <div class="notch"></div><div class="phone-status"><span id="phoneTime"></span><span>판매폰 5G 🔋</span></div>
-    <section id="phoneHome" class="phone-screen home-screen"><h2 id="phoneOwner">판매왕</h2><div class="apps">
-      <button onclick="openApp('stocks')"><span class="app stock">📈</span>판매증권</button>
-      <button onclick="openApp('market')"><span class="app market">🥒</span>오이장터</button>
-      <button onclick="openApp('wallet')"><span class="app wallet">💳</span>내 자산</button>
-      <button onclick="openApp('ranking')"><span class="app ranking">🏆</span>랭킹</button>
-    </div></section>
-    <section id="app-stocks" class="phone-screen app-screen hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매증권</b><small>3분 공용 시세</small></div><button onclick="loadStocks()">↻</button></div><div class="summary">주식 평가액<b id="stockValue">0원</b></div><div id="stockList" class="phone-list"></div></section>
-    <section id="app-market" class="phone-screen app-screen hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>오이장터</b><small>유저 중고 거래</small></div><button onclick="loadMarket()">↻</button></div><div class="market-form"><select id="sellItem"><option value="">판매할 물건</option></select><input id="sellPrice" type="number" placeholder="가격"><button onclick="createListing()">등록</button></div><div id="marketList" class="phone-list"></div></section>
-    <section id="app-wallet" class="phone-screen app-screen hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>내 자산</b><small>계정 저장 정보</small></div><span></span></div><div id="walletView"></div></section>
-    <section id="app-ranking" class="phone-screen app-screen hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매왕 랭킹</b><small>보유 현금 순위</small></div><button onclick="loadRanking()">↻</button></div><div id="rankingList" class="phone-list"></div></section>
-    <button class="home-dot" onclick="phoneHome()">●</button><button class="phone-close" onclick="closePhone()">휴대폰 넣기</button>
-  </div>
-</div>
-</section>
-<script src="game.js"></script>
+      <div class="tabs">
+        <button id="loginTab" class="active" onclick="setAuthMode('login')">로그인</button>
+        <button id="signupTab" onclick="setAuthMode('signup')">회원가입</button>
+      </div>
+
+      <label id="nicknameWrap" class="field hidden">
+        닉네임
+        <input id="nickname" maxlength="12" placeholder="2~12글자">
+      </label>
+
+      <label class="field">
+        이메일
+        <input id="email" type="email" autocomplete="email" placeholder="example@email.com">
+      </label>
+
+      <label class="field">
+        비밀번호
+        <input id="password" type="password" minlength="6" autocomplete="current-password" placeholder="6자 이상">
+      </label>
+
+      <button id="authBtn" class="primary full" onclick="submitAuth()">로그인</button>
+      <p id="authMsg" class="error"></p>
+    </div>
+  </section>
+
+  <section id="game" class="screen hidden">
+    <header class="topbar">
+      <div class="brand">
+        <span>👑</span>
+        <div>
+          <small>SELLING GOD</small>
+          <b id="nicknameTop">판매왕</b>
+        </div>
+      </div>
+
+      <div class="actions">
+        <b id="cashTop">0원</b>
+        <button class="phone-btn" onclick="openPhone()">📱 휴대폰 꺼내기</button>
+        <button class="ghost" onclick="logout()">로그아웃</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">MY BUSINESS LIFE</p>
+          <h1><span id="nicknameHero">판매왕</span>님의 하루</h1>
+          <p class="muted">탐색하고, 거래하고, 투자해서 최고가 되세요.</p>
+        </div>
+
+        <div class="stats">
+          <div>신용<b id="credit">500</b></div>
+          <div>명성<b id="reputation">50</b></div>
+          <div>총자산<b id="networth">0원</b></div>
+        </div>
+      </section>
+
+      <section class="world-grid">
+        <article>
+          <div class="art">🏙️</div>
+          <h2>길거리</h2>
+          <p>생활용품과 전자기기를 찾을 수 있습니다. 발각 확률 8%</p>
+          <button class="primary" onclick="explore('street')">탐색</button>
+        </article>
+
+        <article>
+          <div class="art">🌃</div>
+          <h2>뒷골목</h2>
+          <p>희귀 아이템이 나올 수 있습니다. 발각 확률 15%</p>
+          <button class="primary" onclick="explore('alley')">탐색</button>
+        </article>
+
+        <article>
+          <div class="art">⛰️</div>
+          <h2>뒷산</h2>
+          <p>광석과 골동품을 찾을 수 있습니다. 발각 확률 5%</p>
+          <button class="primary" onclick="explore('mountain')">탐색</button>
+        </article>
+
+        <article>
+          <div class="art">📦</div>
+          <h2>포장 알바</h2>
+          <p>간단한 포장 일을 하고 수익을 얻습니다.</p>
+          <button class="primary" onclick="quickJob()">+5만원</button>
+        </article>
+      </section>
+
+      <section id="exploreResult" class="result-box hidden"></section>
+
+      <section class="lower-grid">
+        <article class="panel">
+          <div class="section-head">
+            <h2>내 인벤토리</h2>
+            <button class="ghost" onclick="loadInventory()">새로고침</button>
+          </div>
+          <div id="inventory" class="item-grid"></div>
+        </article>
+
+        <article class="panel">
+          <div class="section-head">
+            <h2>최근 활동</h2>
+            <button class="ghost" onclick="loadActivities()">새로고침</button>
+          </div>
+          <div id="activities" class="activity-list"></div>
+        </article>
+      </section>
+
+      <section class="panel business-panel">
+        <div class="section-head">
+          <h2>사업</h2>
+          <button class="ghost" onclick="loadBusinesses()">새로고침</button>
+        </div>
+
+        <div class="business-shop">
+          <button onclick="buyBusiness('food_cart', 5000000)">분식 포장마차<br><b>500만원</b></button>
+          <button onclick="buyBusiness('it_startup', 300000000)">IT 스타트업<br><b>3억원</b></button>
+          <button onclick="buyBusiness('idol_agency', 500000000)">아이돌 기획사<br><b>5억원</b></button>
+        </div>
+
+        <div id="businessList" class="business-list"></div>
+      </section>
+    </main>
+
+    <div id="phoneOverlay" class="phone-overlay hidden" onclick="backdropClose(event)">
+      <div class="phone">
+        <div class="notch"></div>
+
+        <div class="phone-status">
+          <span id="phoneTime"></span>
+          <span>판매폰 5G 🔋</span>
+        </div>
+
+        <section id="phoneHome" class="phone-screen home-screen">
+          <div class="phone-greeting">
+            <small>안녕하세요</small>
+            <h2 id="phoneOwner">판매왕</h2>
+          </div>
+
+          <div class="apps">
+            <button onclick="openApp('stocks')">
+              <span class="app stock">📈</span>
+              판매증권
+            </button>
+
+            <button onclick="openApp('market')">
+              <span class="app market">🥒</span>
+              오이장터
+            </button>
+
+            <button onclick="openApp('wallet')">
+              <span class="app wallet">💳</span>
+              내 자산
+            </button>
+
+            <button onclick="openApp('ranking')">
+              <span class="app ranking">🏆</span>
+              랭킹
+            </button>
+          </div>
+        </section>
+
+        <section id="app-stocks" class="phone-screen app-screen hidden">
+          <div class="app-head">
+            <button onclick="phoneHome()">‹</button>
+            <div>
+              <b>판매증권</b>
+              <small>3분 공용 시세</small>
+            </div>
+            <button onclick="refreshStockApp()">↻</button>
+          </div>
+
+          <div class="summary">
+            주식 평가액
+            <b id="stockValue">0원</b>
+          </div>
+
+          <div id="stockList" class="phone-list"></div>
+        </section>
+
+        <section id="app-market" class="phone-screen app-screen hidden">
+          <div class="app-head">
+            <button onclick="phoneHome()">‹</button>
+            <div>
+              <b>오이장터</b>
+              <small>유저 중고 거래</small>
+            </div>
+            <button onclick="loadMarket()">↻</button>
+          </div>
+
+          <div class="market-form">
+            <select id="sellItem">
+              <option value="">판매할 물건</option>
+            </select>
+            <input id="sellPrice" type="number" min="1" placeholder="가격">
+            <button onclick="createListing()">등록</button>
+          </div>
+
+          <div id="marketList" class="phone-list"></div>
+        </section>
+
+        <section id="app-wallet" class="phone-screen app-screen hidden">
+          <div class="app-head">
+            <button onclick="phoneHome()">‹</button>
+            <div>
+              <b>내 자산</b>
+              <small>계정 저장 정보</small>
+            </div>
+            <span></span>
+          </div>
+
+          <div id="walletView" class="wallet-view"></div>
+        </section>
+
+        <section id="app-ranking" class="phone-screen app-screen hidden">
+          <div class="app-head">
+            <button onclick="phoneHome()">‹</button>
+            <div>
+              <b>판매왕 랭킹</b>
+              <small>보유 현금 순위</small>
+            </div>
+            <button onclick="loadRanking()">↻</button>
+          </div>
+
+          <div id="rankingList" class="phone-list"></div>
+        </section>
+
+        <button class="home-dot" onclick="phoneHome()">●</button>
+        <button class="phone-close" onclick="closePhone()">휴대폰 넣기</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="game.js"></script>
 </body>
 </html>
