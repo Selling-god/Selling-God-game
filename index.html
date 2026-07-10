@@ -2,539 +2,62 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
-  <title>판매의 신</title>
-
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>판매의 신 v2</title>
   <link rel="stylesheet" href="style.css">
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-
 <body>
-  <div id="toast" class="toast"></div>
+<div id="toast" class="toast"></div>
+<section id="auth" class="screen auth-screen">
+  <div class="auth-card">
+    <div class="logo">👑</div><p class="eyebrow">ONLINE ECONOMY GAME</p><h1>판매의 신</h1>
+    <p class="muted">계정에 모든 플레이 정보가 저장됩니다.</p>
+    <div class="tabs"><button id="loginTab" class="active" onclick="setAuthMode('login')">로그인</button><button id="signupTab" onclick="setAuthMode('signup')">회원가입</button></div>
+    <label id="nicknameWrap" class="field hidden">닉네임<input id="nickname" maxlength="12"></label>
+    <label class="field">이메일<input id="email" type="email"></label>
+    <label class="field">비밀번호<input id="password" type="password" minlength="6"></label>
+    <button id="authBtn" class="primary full" onclick="submitAuth()">로그인</button>
+    <p id="authMsg" class="error"></p>
+  </div>
+</section>
 
-  <!-- 로그인 화면 -->
-  <section id="auth-screen" class="screen auth-screen">
-    <div class="auth-card">
-      <div class="logo-box">👑</div>
-
-      <p class="eyebrow">ONLINE ECONOMY GAME</p>
-
-      <h1>판매의 신</h1>
-
-      <p class="sub-text">
-        주식, 중고 거래, 사업으로 최고의 판매왕이 되어 보세요.
-      </p>
-
-      <div class="auth-tabs">
-        <button
-          id="login-tab"
-          class="tab-button active"
-          onclick="changeAuthMode('login')"
-        >
-          로그인
-        </button>
-
-        <button
-          id="signup-tab"
-          class="tab-button"
-          onclick="changeAuthMode('signup')"
-        >
-          회원가입
-        </button>
-      </div>
-
-      <div id="nickname-field" class="form-group hidden">
-        <label for="nickname">닉네임</label>
-
-        <input
-          id="nickname"
-          type="text"
-          maxlength="12"
-          placeholder="닉네임을 입력하세요"
-        >
-      </div>
-
-      <div class="form-group">
-        <label for="email">이메일</label>
-
-        <input
-          id="email"
-          type="email"
-          placeholder="example@email.com"
-        >
-      </div>
-
-      <div class="form-group">
-        <label for="password">비밀번호</label>
-
-        <input
-          id="password"
-          type="password"
-          minlength="6"
-          placeholder="6자 이상 입력하세요"
-        >
-      </div>
-
-      <button
-        id="auth-submit-button"
-        class="primary-button full-button"
-        onclick="submitAuth()"
-      >
-        로그인
-      </button>
-
-      <p id="auth-message" class="message"></p>
-    </div>
+<section id="game" class="screen hidden">
+<header class="topbar">
+  <div class="brand"><span>👑</span><div><small>SELLING GOD</small><b id="nicknameTop">판매왕</b></div></div>
+  <div class="actions"><b id="cashTop">0원</b><button class="phone-btn" onclick="openPhone()">📱 휴대폰 꺼내기</button><button class="ghost" onclick="logout()">로그아웃</button></div>
+</header>
+<main>
+  <section class="hero"><div><p class="eyebrow">MY BUSINESS LIFE</p><h1><span id="nicknameHero">판매왕</span>님의 하루</h1><p class="muted">탐색하고, 거래하고, 투자해서 최고가 되세요.</p></div><div class="stats"><div>신용<b id="credit">500</b></div><div>명성<b id="reputation">50</b></div><div>총자산<b id="networth">0원</b></div></div></section>
+  <section class="world-grid">
+    <article><div class="art">🏙️</div><h2>길거리</h2><p>발각 확률 8%</p><button class="primary" onclick="explore('street')">탐색</button></article>
+    <article><div class="art">🌃</div><h2>뒷골목</h2><p>발각 확률 15%</p><button class="primary" onclick="explore('alley')">탐색</button></article>
+    <article><div class="art">⛰️</div><h2>뒷산</h2><p>발각 확률 5%</p><button class="primary" onclick="explore('mountain')">탐색</button></article>
+    <article><div class="art">📦</div><h2>포장 알바</h2><p>간단 수익 활동</p><button class="primary" onclick="quickJob()">+5만원</button></article>
   </section>
-
-  <!-- 게임 화면 -->
-  <section id="game-screen" class="screen hidden">
-    <header class="top-header">
-      <div class="header-left">
-        <div class="small-logo">👑</div>
-
-        <div>
-          <p class="eyebrow">SELLING GOD</p>
-          <h2>판매의 신</h2>
-        </div>
-      </div>
-
-      <div class="header-right">
-        <span id="header-nickname">판매왕</span>
-
-        <button
-          class="secondary-button"
-          onclick="logout()"
-        >
-          로그아웃
-        </button>
-      </div>
-    </header>
-
-    <main class="game-layout">
-      <aside class="sidebar">
-        <button
-          class="menu-button active"
-          data-page="dashboard"
-          onclick="openPage('dashboard', this)"
-        >
-          🏠 대시보드
-        </button>
-
-        <button
-          class="menu-button"
-          data-page="stocks"
-          onclick="openPage('stocks', this)"
-        >
-          📈 판매증권
-        </button>
-
-        <button
-          class="menu-button"
-          data-page="explore"
-          onclick="openPage('explore', this)"
-        >
-          🗺️ 물건 탐색
-        </button>
-
-        <button
-          class="menu-button"
-          data-page="inventory"
-          onclick="openPage('inventory', this)"
-        >
-          🎒 인벤토리
-        </button>
-
-        <button
-          class="menu-button"
-          data-page="market"
-          onclick="openPage('market', this)"
-        >
-          🥒 오이장터
-        </button>
-
-        <button
-          class="menu-button"
-          data-page="business"
-          onclick="openPage('business', this)"
-        >
-          🏢 사업 경영
-        </button>
-
-        <button
-          class="menu-button"
-          data-page="rankings"
-          onclick="openPage('rankings', this)"
-        >
-          🏆 랭킹
-        </button>
-      </aside>
-
-      <section class="content">
-        <!-- 대시보드 -->
-        <article id="page-dashboard" class="page active-page">
-          <div class="page-title-row">
-            <div>
-              <p class="eyebrow">MY ECONOMY</p>
-              <h1>판매왕 대시보드</h1>
-            </div>
-
-            <button
-              class="secondary-button"
-              onclick="refreshAllData()"
-            >
-              새로고침
-            </button>
-          </div>
-
-          <div class="status-grid">
-            <div class="status-card">
-              <span class="status-icon">💰</span>
-              <p>보유 자금</p>
-              <strong id="cash-display">0원</strong>
-            </div>
-
-            <div class="status-card">
-              <span class="status-icon">🛡️</span>
-              <p>신용 점수</p>
-              <strong id="credit-display">500 / 1000</strong>
-            </div>
-
-            <div class="status-card">
-              <span class="status-icon">⭐</span>
-              <p>명성</p>
-              <strong id="reputation-display">50 / 100</strong>
-            </div>
-          </div>
-
-          <div class="dashboard-grid">
-            <div class="panel">
-              <h3>빠른 이동</h3>
-
-              <div class="quick-grid">
-                <button onclick="openPageByName('stocks')">
-                  📈 주식 투자
-                </button>
-
-                <button onclick="openPageByName('explore')">
-                  🗺️ 물건 찾기
-                </button>
-
-                <button onclick="openPageByName('market')">
-                  🥒 중고 거래
-                </button>
-
-                <button onclick="openPageByName('rankings')">
-                  🏆 랭킹 확인
-                </button>
-              </div>
-            </div>
-
-            <div class="panel">
-              <h3>오늘의 안내</h3>
-
-              <ul class="notice-list">
-                <li>모든 유저는 동일한 주식 가격을 봅니다.</li>
-                <li>탐색 중 발각되면 명성이 감소합니다.</li>
-                <li>신용이 높을수록 흥정 성공률이 높아집니다.</li>
-                <li>상태가 좋은 물건은 더 비싸게 판매됩니다.</li>
-              </ul>
-            </div>
-          </div>
-        </article>
-
-        <!-- 주식 -->
-        <article id="page-stocks" class="page">
-          <div class="page-title-row">
-            <div>
-              <p class="eyebrow">SELLING STOCK</p>
-              <h1>판매증권</h1>
-              <p class="sub-text">
-                모든 유저가 동일한 공용 주가로 거래합니다.
-              </p>
-            </div>
-
-            <button
-              class="secondary-button"
-              onclick="loadStocks()"
-            >
-              시세 새로고침
-            </button>
-          </div>
-
-          <div id="stock-list" class="card-grid"></div>
-        </article>
-
-        <!-- 탐색 -->
-        <article id="page-explore" class="page">
-          <div class="page-title-row">
-            <div>
-              <p class="eyebrow">ITEM SEARCH</p>
-              <h1>물건 탐색</h1>
-              <p class="sub-text">
-                장소별로 다른 물건을 찾을 수 있습니다.
-              </p>
-            </div>
-          </div>
-
-          <div class="location-grid">
-            <div class="location-card street-bg">
-              <div class="location-image">🏙️</div>
-
-              <h2>길거리</h2>
-
-              <p>
-                이어폰, 스마트폰, 우산 같은 생활용품을 찾을 수 있습니다.
-              </p>
-
-              <div class="probability-box">
-                <span>발각 확률</span>
-                <strong>8%</strong>
-              </div>
-
-              <div class="probability-box">
-                <span>발각 시 명성</span>
-                <strong>-2</strong>
-              </div>
-
-              <button
-                class="primary-button"
-                onclick="exploreLocation('street')"
-              >
-                길거리 탐색
-              </button>
-            </div>
-
-            <div class="location-card alley-bg">
-              <div class="location-image">🌃</div>
-
-              <h2>뒷골목</h2>
-
-              <p>
-                카메라, 노트북, 레코드판 같은 희귀품이 나옵니다.
-              </p>
-
-              <div class="probability-box">
-                <span>발각 확률</span>
-                <strong>15%</strong>
-              </div>
-
-              <div class="probability-box">
-                <span>발각 시 명성</span>
-                <strong>-4</strong>
-              </div>
-
-              <button
-                class="primary-button"
-                onclick="exploreLocation('alley')"
-              >
-                뒷골목 탐색
-              </button>
-            </div>
-
-            <div class="location-card mountain-bg">
-              <div class="location-image">⛰️</div>
-
-              <h2>뒷산</h2>
-
-              <p>
-                오래된 동전, 광석, 조각상 같은 물건이 나옵니다.
-              </p>
-
-              <div class="probability-box">
-                <span>발각 확률</span>
-                <strong>5%</strong>
-              </div>
-
-              <div class="probability-box">
-                <span>발각 시 명성</span>
-                <strong>-1</strong>
-              </div>
-
-              <button
-                class="primary-button"
-                onclick="exploreLocation('mountain')"
-              >
-                뒷산 탐색
-              </button>
-            </div>
-          </div>
-
-          <div id="explore-result" class="result-panel hidden"></div>
-        </article>
-
-        <!-- 인벤토리 -->
-        <article id="page-inventory" class="page">
-          <div class="page-title-row">
-            <div>
-              <p class="eyebrow">MY ITEMS</p>
-              <h1>인벤토리</h1>
-            </div>
-
-            <button
-              class="secondary-button"
-              onclick="loadInventory()"
-            >
-              새로고침
-            </button>
-          </div>
-
-          <div id="inventory-list" class="card-grid"></div>
-        </article>
-
-        <!-- 오이장터 -->
-        <article id="page-market" class="page">
-          <div class="page-title-row">
-            <div>
-              <p class="eyebrow">CUCUMBER MARKET</p>
-              <h1>오이장터</h1>
-              <p class="sub-text">
-                유저와 NPC가 올린 물건을 거래합니다.
-              </p>
-            </div>
-
-            <button
-              class="secondary-button"
-              onclick="loadMarket()"
-            >
-              매물 새로고침
-            </button>
-          </div>
-
-          <div class="panel market-register-panel">
-            <h3>내 물건 판매 등록</h3>
-
-            <div class="register-row">
-              <select id="market-item-select">
-                <option value="">판매할 물건 선택</option>
-              </select>
-
-              <input
-                id="market-price-input"
-                type="number"
-                min="1"
-                placeholder="판매 가격"
-              >
-
-              <button
-                class="primary-button"
-                onclick="createListing()"
-              >
-                판매 등록
-              </button>
-            </div>
-          </div>
-
-          <div id="market-list" class="card-grid"></div>
-        </article>
-
-        <!-- 사업 -->
-        <article id="page-business" class="page">
-          <div class="page-title-row">
-            <div>
-              <p class="eyebrow">MY BUSINESS</p>
-              <h1>사업 경영</h1>
-            </div>
-          </div>
-
-          <div class="card-grid">
-            <div class="business-card">
-              <div class="business-icon">🍜</div>
-              <h2>분식 포장마차</h2>
-              <p>초기 비용이 낮고 안정적인 음식 사업입니다.</p>
-              <strong>구매 비용: 500만 원</strong>
-
-              <button
-                class="primary-button"
-                onclick="buyBusiness('food_cart', 5000000)"
-              >
-                사업 구매
-              </button>
-            </div>
-
-            <div class="business-card">
-              <div class="business-icon">💻</div>
-              <h2>IT 스타트업</h2>
-              <p>위험은 높지만 성공하면 높은 수익을 얻습니다.</p>
-              <strong>구매 비용: 3억 원</strong>
-
-              <button
-                class="primary-button"
-                onclick="buyBusiness('it_startup', 300000000)"
-              >
-                사업 구매
-              </button>
-            </div>
-
-            <div class="business-card">
-              <div class="business-icon">🎤</div>
-              <h2>아이돌 기획사</h2>
-              <p>연습생을 키워 대박을 노리는 엔터 사업입니다.</p>
-              <strong>구매 비용: 5억 원</strong>
-
-              <button
-                class="primary-button"
-                onclick="buyBusiness('idol_agency', 500000000)"
-              >
-                사업 구매
-              </button>
-            </div>
-          </div>
-
-          <div class="panel">
-            <div class="page-title-row small-title-row">
-              <h3>내 사업</h3>
-
-              <button
-                class="secondary-button"
-                onclick="loadBusinesses()"
-              >
-                새로고침
-              </button>
-            </div>
-
-            <div id="business-list"></div>
-          </div>
-        </article>
-
-        <!-- 랭킹 -->
-        <article id="page-rankings" class="page">
-          <div class="page-title-row">
-            <div>
-              <p class="eyebrow">SELLING RANK</p>
-              <h1>판매왕 랭킹</h1>
-            </div>
-
-            <button
-              class="secondary-button"
-              onclick="loadRankings()"
-            >
-              새로고침
-            </button>
-          </div>
-
-          <div class="ranking-grid">
-            <div class="panel">
-              <h2>💰 최고 자금 랭킹</h2>
-              <div id="cash-ranking"></div>
-            </div>
-
-            <div class="panel">
-              <h2>🛡️ 최고 신용 랭킹</h2>
-              <div id="credit-ranking"></div>
-            </div>
-          </div>
-        </article>
-      </section>
-    </main>
+  <section class="lower-grid">
+    <article class="panel"><div class="section-head"><h2>내 인벤토리</h2><button class="ghost" onclick="loadInventory()">새로고침</button></div><div id="inventory" class="item-grid"></div></article>
+    <article class="panel"><h2>최근 활동</h2><div id="activities"></div></article>
   </section>
+</main>
 
-  <script src="game.js"></script>
+<div id="phoneOverlay" class="phone-overlay hidden" onclick="backdropClose(event)">
+  <div class="phone">
+    <div class="notch"></div><div class="phone-status"><span id="phoneTime"></span><span>판매폰 5G 🔋</span></div>
+    <section id="phoneHome" class="phone-screen home-screen"><h2 id="phoneOwner">판매왕</h2><div class="apps">
+      <button onclick="openApp('stocks')"><span class="app stock">📈</span>판매증권</button>
+      <button onclick="openApp('market')"><span class="app market">🥒</span>오이장터</button>
+      <button onclick="openApp('wallet')"><span class="app wallet">💳</span>내 자산</button>
+      <button onclick="openApp('ranking')"><span class="app ranking">🏆</span>랭킹</button>
+    </div></section>
+    <section id="app-stocks" class="phone-screen app-screen hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매증권</b><small>3분 공용 시세</small></div><button onclick="loadStocks()">↻</button></div><div class="summary">주식 평가액<b id="stockValue">0원</b></div><div id="stockList" class="phone-list"></div></section>
+    <section id="app-market" class="phone-screen app-screen hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>오이장터</b><small>유저 중고 거래</small></div><button onclick="loadMarket()">↻</button></div><div class="market-form"><select id="sellItem"><option value="">판매할 물건</option></select><input id="sellPrice" type="number" placeholder="가격"><button onclick="createListing()">등록</button></div><div id="marketList" class="phone-list"></div></section>
+    <section id="app-wallet" class="phone-screen app-screen hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>내 자산</b><small>계정 저장 정보</small></div><span></span></div><div id="walletView"></div></section>
+    <section id="app-ranking" class="phone-screen app-screen hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매왕 랭킹</b><small>보유 현금 순위</small></div><button onclick="loadRanking()">↻</button></div><div id="rankingList" class="phone-list"></div></section>
+    <button class="home-dot" onclick="phoneHome()">●</button><button class="phone-close" onclick="closePhone()">휴대폰 넣기</button>
+  </div>
+</div>
+</section>
+<script src="game.js"></script>
 </body>
 </html>
