@@ -60,17 +60,32 @@
     </header>
 
     <main>
-      <section class="hero">
-        <div>
-          <p class="eyebrow">MY BUSINESS LIFE</p>
-          <h1><span id="nicknameHero">판매왕</span>님의 하루</h1>
-          <p class="muted">탐색하고, 거래하고, 투자해서 최고가 되세요.</p>
+      <section class="hero tycoon-hero">
+        <div class="hero-copy">
+          <span class="level-pill">초보 판매왕 · 나의 첫 사업</span>
+          <p class="eyebrow">SELL · INVEST · GROW</p>
+          <h1><span id="nicknameHero">판매왕</span>님의 성장 일지</h1>
+          <p class="muted">반지하 창고에서 시작해 거대한 판매 제국을 만들어 보세요.</p>
+          <div class="hero-mission">
+            <span>오늘의 목표</span>
+            <b>탐색 1회 · 아이템 판매 · 첫 주식 매수</b>
+          </div>
+        </div>
+
+        <div class="hero-building" aria-hidden="true">
+          <div class="building-sky">☁️　　☀️</div>
+          <div class="building">
+            <div class="building-sign">SELLING GOD</div>
+            <div class="window-row"><i></i><i></i><i></i></div>
+            <div class="window-row"><i></i><i></i><i></i></div>
+            <div class="shop-floor">🏪　📦　💰</div>
+          </div>
         </div>
 
         <div class="stats">
-          <div>신용<b id="credit">500</b></div>
-          <div>명성<b id="reputation">50</b></div>
-          <div>총자산<b id="networth">0원</b></div>
+          <div><span>신용</span><b id="credit">500</b></div>
+          <div><span>명성</span><b id="reputation">50</b></div>
+          <div><span>총자산</span><b id="networth">0원</b></div>
         </div>
       </section>
 
@@ -188,9 +203,19 @@
             <button onclick="refreshStockApp()">↻</button>
           </div>
 
-          <div class="summary">
-            주식 평가액
-            <b id="stockValue">0원</b>
+          <div class="summary stock-summary">
+            <div>
+              <span>주식 평가액</span>
+              <b id="stockValue">0원</b>
+            </div>
+            <div>
+              <span>총 평가손익</span>
+              <b id="stockProfit">0원</b>
+            </div>
+          </div>
+
+          <div class="stock-guide">
+            그래프는 최근 시세 흐름이며, 오른쪽 변동폭은 직전 가격 대비 등락률입니다.
           </div>
 
           <div id="stockList" class="phone-list"></div>
