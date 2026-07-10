@@ -1,23 +1,17 @@
 /*
 ====================================================
-판매의 신 v1
-중요: 아래 두 값을 Supabase에서 복사해서 넣어야 합니다.
-service_role 키는 절대 넣지 마세요.
+판매의 신 v2 수정 완전판
+- 기존 기능 유지
+- 계정별 플레이 정보 저장
+- 3분 공용 주식 시세
+- 계정별 보유 주식/평균 매수가 저장
+- 오이장터와 주식을 휴대폰 앱 안에서 확인
+주의: service_role 키는 절대 넣지 마세요.
 ====================================================
 */
 
 const SUPABASE_URL = "https://qazjtevdljthbzmqmgrw.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_rIARlWBpKPvFAv_TtTdgaQ_Po-hOGmX";
-
-/*
-예시:
-
-const SUPABASE_URL =
-  "https://abcdefghijk.supabase.co";
-
-const SUPABASE_ANON_KEY =
-  "sb_publishable_xxxxxxxxxxxxxxxxx";
-*/
 
 const supabaseClient = window.supabase.createClient(
   SUPABASE_URL,
@@ -28,6 +22,11 @@ let authMode = "login";
 let currentUser = null;
 let currentProfile = null;
 let currentInventory = [];
+let currentStocks = [];
+let currentHoldings = [];
+let currentActivities = [];
+let toastTimer = null;
+let realtimeChannel = null;
 
 const itemEmoji = {
   "낡은 무선 이어폰": "🎧",
@@ -44,7 +43,8 @@ const itemEmoji = {
 document.addEventListener("DOMContentLoaded", initializeGame);
 
 async function initializeGame() {
-  validateSupabaseSettings();
+  updatePhoneTime();
+  setInterval(updatePhoneTime, 30000);
 
   const {
     data: { session }
@@ -57,54 +57,34 @@ async function initializeGame() {
     showAuthScreen();
   }
 
-  supabaseClient.auth.onAuthStateChange(
-    async (_event, sessionData) => {
-      if (sessionData?.user) {
-        currentUser = sessionData.user;
-      }
-    }
-  );
+  supabaseClient.auth.onAuthStateChange((_event, sessionData) => {
+    currentUser = sessionData?.user || null;
+  });
 }
 
-function validateSupabaseSettings() {
-  if (
-    SUPABASE_URL.includes("여기에_") ||
-    SUPABASE_ANON_KEY.includes("여기에_")
-  ) {
-    showToast(
-      "game.js 상단에 Supabase URL과 공개 키를 입력해야 합니다."
-    );
-  }
-}
+/* ====================================================
+인증
+==================================================== */
 
-function changeAuthMode(mode) {
+function setAuthMode(mode) {
   authMode = mode;
 
-  const nicknameField =
-    document.getElementById("nickname-field");
+  document
+    .getElementById("nicknameWrap")
+    .classList.toggle("hidden", mode !== "signup");
 
-  const loginTab =
-    document.getElementById("login-tab");
+  document
+    .getElementById("loginTab")
+    .classList.toggle("active", mode === "login");
 
-  const signupTab =
-    document.getElementById("signup-tab");
+  document
+    .getElementById("signupTab")
+    .classList.toggle("active", mode === "signup");
 
-  const submitButton =
-    document.getElementById("auth-submit-button");
+  document.getElementById("authBtn").textContent =
+    mode === "login" ? "로그인" : "회원가입";
 
-  document.getElementById("auth-message").textContent = "";
-
-  if (mode === "signup") {
-    nicknameField.classList.remove("hidden");
-    signupTab.classList.add("active");
-    loginTab.classList.remove("active");
-    submitButton.textContent = "회원가입";
-  } else {
-    nicknameField.classList.add("hidden");
-    loginTab.classList.add("active");
-    signupTab.classList.remove("active");
-    submitButton.textContent = "로그인";
-  }
+  document.getElementById("authMsg").textContent = "";
 }
 
 async function submitAuth() {
@@ -118,10 +98,10 @@ async function submitAuth() {
     document.getElementById("password").value;
 
   const message =
-    document.getElementById("auth-message");
+    document.getElementById("authMsg");
 
-  const submitButton =
-    document.getElementById("auth-submit-button");
+  const button =
+    document.getElementById("authBtn");
 
   message.textContent = "";
 
@@ -143,8 +123,8 @@ async function submitAuth() {
     return;
   }
 
-  submitButton.disabled = true;
-  submitButton.textContent = "처리 중...";
+  button.disabled = true;
+  button.textContent = "처리 중...";
 
   try {
     if (authMode === "signup") {
@@ -159,16 +139,14 @@ async function submitAuth() {
           }
         });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       if (data.session) {
         currentUser = data.user;
         await enterGame();
       } else {
         message.textContent =
-          "회원가입이 완료되었습니다. 이메일 인증 메일을 확인해 주세요.";
+          "회원가입 완료. 이메일 인증 후 로그인해 주세요.";
       }
     } else {
       const { data, error } =
@@ -177,9 +155,7 @@ async function submitAuth() {
           password
         });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       currentUser = data.user;
       await enterGame();
@@ -188,8 +164,8 @@ async function submitAuth() {
     message.textContent =
       translateAuthError(error.message);
   } finally {
-    submitButton.disabled = false;
-    submitButton.textContent =
+    button.disabled = false;
+    button.textContent =
       authMode === "login" ? "로그인" : "회원가입";
   }
 }
@@ -217,61 +193,81 @@ function translateAuthError(message) {
 async function enterGame() {
   showGameScreen();
 
-  await loadProfile();
-  await Promise.all([
-    loadStocks(),
-    loadInventory(),
-    loadMarket(),
-    loadRankings(),
-    loadBusinesses()
-  ]);
+  const { error } =
+    await supabaseClient.rpc("ensure_player_save");
+
+  if (error) {
+    showToast("저장 데이터 생성 실패: " + error.message);
+  }
+
+  await refreshAllData();
+  subscribeRealtime();
 }
 
 function showAuthScreen() {
-  document
-    .getElementById("auth-screen")
-    .classList.remove("hidden");
-
-  document
-    .getElementById("game-screen")
-    .classList.add("hidden");
+  document.getElementById("auth").classList.remove("hidden");
+  document.getElementById("game").classList.add("hidden");
 }
 
 function showGameScreen() {
-  document
-    .getElementById("auth-screen")
-    .classList.add("hidden");
-
-  document
-    .getElementById("game-screen")
-    .classList.remove("hidden");
+  document.getElementById("auth").classList.add("hidden");
+  document.getElementById("game").classList.remove("hidden");
 }
 
 async function logout() {
+  if (realtimeChannel) {
+    await supabaseClient.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+
   await supabaseClient.auth.signOut();
 
   currentUser = null;
   currentProfile = null;
+  currentInventory = [];
+  currentStocks = [];
+  currentHoldings = [];
 
+  closePhone();
   showAuthScreen();
   showToast("로그아웃되었습니다.");
 }
 
-async function loadProfile() {
-  if (!currentUser) {
-    return;
-  }
+/* ====================================================
+프로필 / 전체 새로고침
+==================================================== */
 
-  const { data, error } = await supabaseClient
-    .from("profiles")
-    .select(
-      "id, nickname, cash, credit_score, reputation"
-    )
-    .eq("id", currentUser.id)
-    .single();
+async function refreshAllData() {
+  await updateGlobalStockMarket();
+
+  await loadProfile();
+
+  await Promise.all([
+    loadStocks(),
+    loadInventory(),
+    loadMarket(),
+    loadRanking(),
+    loadBusinesses(),
+    loadActivities()
+  ]);
+
+  updateNetWorth();
+}
+
+async function loadProfile() {
+  if (!currentUser) return;
+
+  const { data, error } =
+    await supabaseClient
+      .from("profiles")
+      .select(
+        "id,nickname,cash,credit_score,reputation,job_count,updated_at"
+      )
+      .eq("id", currentUser.id)
+      .single();
 
   if (error) {
-    showToast(`프로필 오류: ${error.message}`);
+    showToast("프로필 오류: " + error.message);
     return;
   }
 
@@ -280,196 +276,34 @@ async function loadProfile() {
 }
 
 function updateProfileUI() {
-  if (!currentProfile) {
-    return;
-  }
+  if (!currentProfile) return;
 
-  document.getElementById("header-nickname").textContent =
+  document.getElementById("nicknameTop").textContent =
     currentProfile.nickname;
 
-  document.getElementById("cash-display").textContent =
+  document.getElementById("nicknameHero").textContent =
+    currentProfile.nickname;
+
+  document.getElementById("phoneOwner").textContent =
+    currentProfile.nickname;
+
+  document.getElementById("cashTop").textContent =
     formatMoney(currentProfile.cash);
 
-  document.getElementById("credit-display").textContent =
-    `${currentProfile.credit_score} / 1000`;
+  document.getElementById("credit").textContent =
+    currentProfile.credit_score;
 
-  document.getElementById("reputation-display").textContent =
-    `${currentProfile.reputation} / 100`;
-}
-
-function openPage(pageName, clickedButton) {
-  document
-    .querySelectorAll(".page")
-    .forEach((page) => {
-      page.classList.remove("active-page");
-    });
-
-  document
-    .querySelectorAll(".menu-button")
-    .forEach((button) => {
-      button.classList.remove("active");
-    });
-
-  const targetPage =
-    document.getElementById(`page-${pageName}`);
-
-  if (targetPage) {
-    targetPage.classList.add("active-page");
-  }
-
-  if (clickedButton) {
-    clickedButton.classList.add("active");
-  }
-
-  if (pageName === "stocks") loadStocks();
-  if (pageName === "inventory") loadInventory();
-  if (pageName === "market") loadMarket();
-  if (pageName === "rankings") loadRankings();
-  if (pageName === "business") loadBusinesses();
-}
-
-function openPageByName(pageName) {
-  const button = document.querySelector(
-    `.menu-button[data-page="${pageName}"]`
-  );
-
-  openPage(pageName, button);
-}
-
-async function refreshAllData() {
-  await Promise.all([
-    loadProfile(),
-    loadStocks(),
-    loadInventory(),
-    loadMarket(),
-    loadRankings(),
-    loadBusinesses()
-  ]);
-
-  showToast("전체 데이터를 새로고침했습니다.");
+  document.getElementById("reputation").textContent =
+    currentProfile.reputation;
 }
 
 /* ====================================================
-주식
+알바 / 탐색
 ==================================================== */
 
-async function loadStocks() {
-  const stockList =
-    document.getElementById("stock-list");
-
-  stockList.innerHTML =
-    `<div class="empty-state">시세를 불러오는 중입니다.</div>`;
-
-  const { data, error } = await supabaseClient
-    .from("stocks")
-    .select(
-      "id, symbol, name, current_price, previous_price"
-    )
-    .eq("is_active", true)
-    .order("name");
-
-  if (error) {
-    stockList.innerHTML =
-      `<div class="empty-state">${escapeHtml(error.message)}</div>`;
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    stockList.innerHTML =
-      `<div class="empty-state">등록된 주식이 없습니다.</div>`;
-    return;
-  }
-
-  stockList.innerHTML = data
-    .map((stock) => {
-      const current = Number(stock.current_price);
-      const previous = Number(stock.previous_price);
-
-      const difference = current - previous;
-
-      const rate =
-        previous > 0
-          ? (difference / previous) * 100
-          : 0;
-
-      const rising = difference >= 0;
-
-      return `
-        <div class="stock-card">
-          <div class="stock-top">
-            <div>
-              <span class="stock-symbol">
-                ${escapeHtml(stock.symbol)}
-              </span>
-
-              <h2>${escapeHtml(stock.name)}</h2>
-            </div>
-
-            <strong class="${rising ? "up" : "down"}">
-              ${rising ? "▲" : "▼"}
-              ${Math.abs(rate).toFixed(2)}%
-            </strong>
-          </div>
-
-          <div class="stock-price">
-            ${formatMoney(current)}
-          </div>
-
-          <p class="${rising ? "up" : "down"}">
-            ${rising ? "+" : "-"}
-            ${formatMoney(Math.abs(difference))}
-          </p>
-
-          <div class="stock-trade-row">
-            <input
-              id="stock-quantity-${stock.id}"
-              type="number"
-              min="1"
-              value="1"
-              placeholder="수량"
-            >
-
-            <button
-              class="buy-button"
-              onclick="tradeStock('${stock.id}', 'buy')"
-            >
-              매수
-            </button>
-
-            <button
-              class="sell-button"
-              onclick="tradeStock('${stock.id}', 'sell')"
-            >
-              매도
-            </button>
-          </div>
-        </div>
-      `;
-    })
-    .join("");
-}
-
-async function tradeStock(stockId, type) {
-  const input =
-    document.getElementById(`stock-quantity-${stockId}`);
-
-  const quantity = Number(input.value);
-
-  if (!Number.isInteger(quantity) || quantity <= 0) {
-    showToast("수량은 1 이상의 정수로 입력해 주세요.");
-    return;
-  }
-
-  const functionName =
-    type === "buy" ? "buy_stock" : "sell_stock";
-
-  const { data, error } = await supabaseClient.rpc(
-    functionName,
-    {
-      p_stock_id: stockId,
-      p_quantity: quantity
-    }
-  );
+async function quickJob() {
+  const { data, error } =
+    await supabaseClient.rpc("do_quick_job");
 
   if (error) {
     showToast(error.message);
@@ -477,76 +311,79 @@ async function tradeStock(stockId, type) {
   }
 
   showToast(
-    `${type === "buy" ? "매수" : "매도"} 성공: ` +
-    `${quantity}주, ${formatMoney(data.total)}`
+    "포장 알바 완료! +" + formatMoney(data.reward)
   );
 
-  await loadProfile();
-  await loadStocks();
+  await Promise.all([
+    loadProfile(),
+    loadActivities()
+  ]);
+
+  updateNetWorth();
 }
 
-/* ====================================================
-탐색
-==================================================== */
+async function explore(location) {
+  const box =
+    document.getElementById("exploreResult");
 
-async function exploreLocation(location) {
-  const resultBox =
-    document.getElementById("explore-result");
+  box.classList.remove("hidden");
+  box.innerHTML = "탐색 중입니다...";
 
-  resultBox.classList.remove("hidden");
-  resultBox.innerHTML = "탐색 중입니다...";
-
-  const { data, error } = await supabaseClient.rpc(
-    "explore_location",
-    {
+  const { data, error } =
+    await supabaseClient.rpc("explore_location", {
       p_location: location
-    }
-  );
+    });
 
   if (error) {
-    resultBox.innerHTML =
+    box.innerHTML =
       `<strong>오류:</strong> ${escapeHtml(error.message)}`;
     return;
   }
 
   if (data.caught) {
-    resultBox.innerHTML = `
-      <h3>🚨 사람에게 들켰습니다!</h3>
-      <p>발각 확률: ${data.caught_rate}%</p>
+    box.innerHTML = `
+      <h3>🚨 사람에게 들켰습니다.</h3>
       <p>명성 ${data.reputation_loss}점 감소</p>
     `;
 
-    await loadProfile();
+    await Promise.all([
+      loadProfile(),
+      loadActivities()
+    ]);
+
     return;
   }
 
   if (!data.success) {
-    resultBox.innerHTML = `
+    box.innerHTML = `
       <h3>아무것도 발견하지 못했습니다.</h3>
       <p>조금 뒤 다시 탐색해 보세요.</p>
     `;
     return;
   }
 
-  resultBox.innerHTML = `
+  box.innerHTML = `
     <h3>
       ${itemEmoji[data.item_name] || "📦"}
       ${escapeHtml(data.item_name)} 발견!
     </h3>
-
     <p>아이템 상태: ${data.condition_score}점</p>
-
     <p>
       평균가:
       ${
         data.average_price_known
           ? formatMoney(data.average_price)
-          : "알 수 없음 · 감정 필요"
+          : "가격 미상 · 감정 필요"
       }
     </p>
   `;
 
-  await loadInventory();
+  await Promise.all([
+    loadInventory(),
+    loadActivities()
+  ]);
+
+  updateNetWorth();
 }
 
 /* ====================================================
@@ -554,41 +391,41 @@ async function exploreLocation(location) {
 ==================================================== */
 
 async function loadInventory() {
-  const inventoryList =
-    document.getElementById("inventory-list");
+  const target =
+    document.getElementById("inventory");
 
-  inventoryList.innerHTML =
-    `<div class="empty-state">인벤토리를 불러오는 중입니다.</div>`;
+  if (!currentUser) return;
 
-  if (!currentUser) {
-    return;
-  }
+  target.innerHTML =
+    `<div class="empty">인벤토리를 불러오는 중입니다.</div>`;
 
-  const { data, error } = await supabaseClient
-    .from("user_items")
-    .select(`
-      id,
-      condition_score,
-      is_appraised,
-      appraised_price,
-      is_listed,
-      items (
+  const { data, error } =
+    await supabaseClient
+      .from("user_items")
+      .select(`
         id,
-        name,
-        category,
-        average_price,
-        is_average_price_known,
-        rarity
-      )
-    `)
-    .eq("user_id", currentUser.id)
-    .order("acquired_at", {
-      ascending: false
-    });
+        condition_score,
+        is_appraised,
+        appraised_price,
+        is_listed,
+        acquired_at,
+        items (
+          id,
+          name,
+          category,
+          average_price,
+          is_average_price_known,
+          rarity
+        )
+      `)
+      .eq("user_id", currentUser.id)
+      .order("acquired_at", {
+        ascending: false
+      });
 
   if (error) {
-    inventoryList.innerHTML =
-      `<div class="empty-state">${escapeHtml(error.message)}</div>`;
+    target.innerHTML =
+      `<div class="empty">${escapeHtml(error.message)}</div>`;
     return;
   }
 
@@ -597,122 +434,99 @@ async function loadInventory() {
   updateMarketItemSelect();
 
   if (currentInventory.length === 0) {
-    inventoryList.innerHTML = `
-      <div class="empty-state">
+    target.innerHTML = `
+      <div class="empty">
         보유한 물건이 없습니다.<br>
-        물건 탐색을 통해 아이템을 찾아보세요.
+        탐색으로 아이템을 찾아보세요.
       </div>
     `;
     return;
   }
 
-  inventoryList.innerHTML = currentInventory
-    .map((userItem) => {
-      const item = userItem.items;
-      const grade =
-        getConditionGrade(userItem.condition_score);
+  target.innerHTML =
+    currentInventory
+      .map((userItem) => {
+        const item = userItem.items;
 
-      const estimatedPrice =
-        userItem.is_appraised
-          ? userItem.appraised_price
-          : item.is_average_price_known
-            ? calculateConditionPrice(
-                item.average_price,
-                userItem.condition_score
-              )
-            : null;
+        const value =
+          userItem.is_appraised
+            ? Number(userItem.appraised_price)
+            : item.is_average_price_known
+              ? calculateConditionPrice(
+                  item.average_price,
+                  userItem.condition_score
+                )
+              : null;
 
-      return `
-        <div class="item-card">
-          <div class="item-top">
+        return `
+          <div class="item-card">
             <div>
-              <span class="tag">
-                ${escapeHtml(item.rarity.toUpperCase())}
-              </span>
-
-              <h2>
+              <span>
                 ${itemEmoji[item.name] || "📦"}
-                ${escapeHtml(item.name)}
-              </h2>
+              </span>
+              <h3>${escapeHtml(item.name)}</h3>
             </div>
 
-            <strong>등급 ${grade}</strong>
-          </div>
+            <p>
+              ${escapeHtml(item.rarity)}
+              · 상태 ${userItem.condition_score}/100
+              · 등급 ${getConditionGrade(userItem.condition_score)}
+            </p>
 
-          <p>${escapeHtml(item.category)}</p>
-
-          <div class="probability-box">
-            <span>상태</span>
-            <strong>${userItem.condition_score} / 100</strong>
-          </div>
-
-          <div class="condition-bar">
-            <div
-              class="condition-fill"
-              style="width: ${userItem.condition_score}%"
-            ></div>
-          </div>
-
-          <div class="probability-box">
-            <span>예상 가치</span>
-            <strong>
+            <div class="value">
               ${
-                estimatedPrice
-                  ? formatMoney(estimatedPrice)
+                value !== null
+                  ? formatMoney(value)
                   : "가격 미상"
               }
-            </strong>
-          </div>
+            </div>
 
-          <div class="item-actions">
-            ${
-              !item.is_average_price_known &&
-              !userItem.is_appraised
-                ? `
-                  <button
-                    class="primary-button"
-                    onclick="appraiseItem('${userItem.id}')"
-                  >
-                    전문가 감정
-                  </button>
-                `
-                : ""
-            }
+            <div class="item-actions">
+              ${
+                !item.is_average_price_known &&
+                !userItem.is_appraised
+                  ? `
+                    <button
+                      class="primary"
+                      onclick="appraiseItem('${userItem.id}')"
+                    >
+                      감정
+                    </button>
+                  `
+                  : ""
+              }
 
-            ${
-              userItem.is_listed
-                ? `
-                  <button
-                    class="secondary-button"
-                    disabled
-                  >
-                    판매 중
-                  </button>
-                `
-                : `
-                  <button
-                    class="secondary-button"
-                    onclick="openPageByName('market')"
-                  >
-                    장터에 판매
-                  </button>
-                `
-            }
+              ${
+                userItem.is_listed
+                  ? `
+                    <button class="ghost" disabled>
+                      판매 중
+                    </button>
+                  `
+                  : `
+                    <button
+                      class="ghost"
+                      onclick="openPhoneMarket()"
+                    >
+                      장터 판매
+                    </button>
+                  `
+              }
+            </div>
           </div>
-        </div>
-      `;
-    })
-    .join("");
+        `;
+      })
+      .join("");
+
+  renderWallet();
 }
 
 async function appraiseItem(userItemId) {
-  const { data, error } = await supabaseClient.rpc(
-    "appraise_item",
-    {
+  const { data, error } =
+    await supabaseClient.rpc("appraise_item", {
       p_user_item_id: userItemId,
       p_expert_level: "basic"
-    }
-  );
+    });
 
   if (error) {
     showToast(error.message);
@@ -720,11 +534,322 @@ async function appraiseItem(userItemId) {
   }
 
   showToast(
-    `감정 완료: 예상 가치 ${formatMoney(data.estimated_price)}`
+    "감정 완료: " +
+    formatMoney(data.estimated_price)
   );
 
-  await loadProfile();
-  await loadInventory();
+  await Promise.all([
+    loadProfile(),
+    loadInventory(),
+    loadActivities()
+  ]);
+
+  updateNetWorth();
+}
+
+/* ====================================================
+휴대폰
+==================================================== */
+
+function openPhone() {
+  document
+    .getElementById("phoneOverlay")
+    .classList.remove("hidden");
+
+  phoneHome();
+  updatePhoneTime();
+}
+
+function closePhone() {
+  document
+    .getElementById("phoneOverlay")
+    .classList.add("hidden");
+}
+
+function backdropClose(event) {
+  if (event.target.id === "phoneOverlay") {
+    closePhone();
+  }
+}
+
+function phoneHome() {
+  document
+    .querySelectorAll(".phone-screen")
+    .forEach((screen) => {
+      screen.classList.add("hidden");
+    });
+
+  document
+    .getElementById("phoneHome")
+    .classList.remove("hidden");
+}
+
+async function openApp(name) {
+  document
+    .querySelectorAll(".phone-screen")
+    .forEach((screen) => {
+      screen.classList.add("hidden");
+    });
+
+  document
+    .getElementById(`app-${name}`)
+    .classList.remove("hidden");
+
+  if (name === "stocks") {
+    await refreshStockApp();
+  }
+
+  if (name === "market") {
+    await loadMarket();
+  }
+
+  if (name === "wallet") {
+    renderWallet();
+  }
+
+  if (name === "ranking") {
+    await loadRanking();
+  }
+}
+
+async function openPhoneMarket() {
+  openPhone();
+  await openApp("market");
+}
+
+function updatePhoneTime() {
+  const element =
+    document.getElementById("phoneTime");
+
+  if (!element) return;
+
+  element.textContent =
+    new Date().toLocaleTimeString(
+      "ko-KR",
+      {
+        hour: "2-digit",
+        minute: "2-digit"
+      }
+    );
+}
+
+/* ====================================================
+주식
+==================================================== */
+
+async function updateGlobalStockMarket() {
+  const { error } =
+    await supabaseClient.rpc(
+      "update_global_stock_market"
+    );
+
+  if (error) {
+    console.warn(
+      "주식 시세 갱신:",
+      error.message
+    );
+  }
+}
+
+async function refreshStockApp() {
+  await updateGlobalStockMarket();
+  await loadStocks();
+}
+
+async function loadStocks() {
+  if (!currentUser) return;
+
+  const target =
+    document.getElementById("stockList");
+
+  target.innerHTML =
+    `<div class="empty">시세를 불러오는 중입니다.</div>`;
+
+  const [
+    { data: stockData, error: stockError },
+    { data: holdingData, error: holdingError }
+  ] = await Promise.all([
+    supabaseClient
+      .from("stocks")
+      .select(
+        "id,symbol,name,current_price,previous_price,is_active"
+      )
+      .eq("is_active", true)
+      .order("name"),
+
+    supabaseClient
+      .from("stock_holdings")
+      .select(
+        "stock_id,quantity,average_buy_price"
+      )
+      .eq("user_id", currentUser.id)
+  ]);
+
+  if (stockError || holdingError) {
+    target.innerHTML =
+      `<div class="empty">${
+        escapeHtml(
+          stockError?.message ||
+          holdingError?.message
+        )
+      }</div>`;
+    return;
+  }
+
+  currentStocks = stockData || [];
+  currentHoldings = holdingData || [];
+
+  let totalValue = 0;
+
+  target.innerHTML =
+    currentStocks
+      .map((stock) => {
+        const holding =
+          currentHoldings.find(
+            (row) =>
+              row.stock_id === stock.id
+          );
+
+        const owned =
+          Number(holding?.quantity || 0);
+
+        const current =
+          Number(stock.current_price);
+
+        const previous =
+          Number(stock.previous_price);
+
+        const difference =
+          current - previous;
+
+        const rate =
+          previous > 0
+            ? difference / previous * 100
+            : 0;
+
+        totalValue += owned * current;
+
+        return `
+          <div class="stock-row">
+            <div class="stock-row-top">
+              <div>
+                <div class="stock-name">
+                  ${escapeHtml(stock.name)}
+                </div>
+                <div class="stock-symbol">
+                  ${escapeHtml(stock.symbol)}
+                </div>
+              </div>
+
+              <div class="stock-price">
+                ${formatMoney(current)}
+                <div class="${
+                  difference >= 0
+                    ? "change-up"
+                    : "change-down"
+                }">
+                  ${
+                    difference >= 0
+                      ? "+"
+                      : ""
+                  }${rate.toFixed(2)}%
+                </div>
+              </div>
+            </div>
+
+            <div class="stock-meta">
+              보유 ${owned.toLocaleString()}주
+              · 평균 ${formatMoney(
+                holding?.average_buy_price || 0
+              )}
+            </div>
+
+            <div class="trade-row">
+              <input
+                id="stockQuantity-${stock.id}"
+                type="number"
+                min="1"
+                value="1"
+              >
+
+              <button
+                class="buy-btn"
+                onclick="tradeStock('${stock.id}', 'buy')"
+              >
+                매수
+              </button>
+
+              <button
+                class="sell-btn"
+                onclick="tradeStock('${stock.id}', 'sell')"
+              >
+                매도
+              </button>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+  document.getElementById("stockValue").textContent =
+    formatMoney(totalValue);
+
+  updateNetWorth();
+  renderWallet();
+}
+
+async function tradeStock(stockId, type) {
+  const input =
+    document.getElementById(
+      `stockQuantity-${stockId}`
+    );
+
+  const quantity =
+    Number(input.value);
+
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    showToast(
+      "수량은 1 이상의 정수로 입력해 주세요."
+    );
+    return;
+  }
+
+  const functionName =
+    type === "buy"
+      ? "buy_stock_v2"
+      : "sell_stock_v2";
+
+  const { data, error } =
+    await supabaseClient.rpc(
+      functionName,
+      {
+        p_stock_id: stockId,
+        p_quantity: quantity
+      }
+    );
+
+  if (error) {
+    showToast(error.message);
+    return;
+  }
+
+  const amount =
+    type === "buy"
+      ? data.total
+      : data.net;
+
+  showToast(
+    `${type === "buy" ? "매수" : "매도"} 완료 · ` +
+    `${quantity}주 · ${formatMoney(amount)}`
+  );
+
+  await Promise.all([
+    loadProfile(),
+    loadStocks(),
+    loadActivities()
+  ]);
+
+  updateNetWorth();
 }
 
 /* ====================================================
@@ -733,248 +858,194 @@ async function appraiseItem(userItemId) {
 
 function updateMarketItemSelect() {
   const select =
-    document.getElementById("market-item-select");
+    document.getElementById("sellItem");
 
-  if (!select) {
-    return;
-  }
-
-  const availableItems =
-    currentInventory.filter((item) => !item.is_listed);
+  if (!select) return;
 
   select.innerHTML =
-    `<option value="">판매할 물건 선택</option>`;
+    `<option value="">판매할 물건</option>`;
 
-  availableItems.forEach((item) => {
-    const option = document.createElement("option");
+  currentInventory
+    .filter((item) => !item.is_listed)
+    .forEach((item) => {
+      const option =
+        document.createElement("option");
 
-    option.value = item.id;
-    option.textContent =
-      `${item.items.name} · 상태 ${item.condition_score}`;
+      option.value = item.id;
+      option.textContent =
+        `${item.items.name} · 상태 ${item.condition_score}`;
 
-    select.appendChild(option);
-  });
+      select.appendChild(option);
+    });
 }
 
 async function createListing() {
   const userItemId =
-    document.getElementById("market-item-select").value;
+    document.getElementById("sellItem").value;
 
-  const askingPrice = Number(
-    document.getElementById("market-price-input").value
-  );
+  const askingPrice =
+    Math.floor(
+      Number(
+        document.getElementById("sellPrice").value
+      )
+    );
 
   if (!userItemId) {
-    showToast("판매할 물건을 선택해 주세요.");
+    showToast(
+      "판매할 물건을 선택해 주세요."
+    );
     return;
   }
 
-  if (!Number.isFinite(askingPrice) || askingPrice <= 0) {
-    showToast("판매 가격을 올바르게 입력해 주세요.");
+  if (
+    !Number.isFinite(askingPrice) ||
+    askingPrice <= 0
+  ) {
+    showToast(
+      "판매 가격을 올바르게 입력해 주세요."
+    );
     return;
   }
 
-  const selectedItem =
-    currentInventory.find((item) => item.id === userItemId);
-
-  if (!selectedItem) {
-    showToast("아이템 정보를 찾을 수 없습니다.");
-    return;
-  }
-
-  const { error } = await supabaseClient
-    .from("market_listings")
-    .insert({
-      seller_user_id: currentUser.id,
-      user_item_id: userItemId,
-      seller_type: "user",
-      title: selectedItem.items.name,
-      asking_price: Math.floor(askingPrice),
-      status: "active"
-    });
+  const { error } =
+    await supabaseClient.rpc(
+      "create_market_listing",
+      {
+        p_user_item_id: userItemId,
+        p_price: askingPrice
+      }
+    );
 
   if (error) {
     showToast(error.message);
     return;
   }
 
-  const { error: updateError } = await supabaseClient
-    .from("user_items")
-    .update({
-      is_listed: true
-    })
-    .eq("id", userItemId)
-    .eq("user_id", currentUser.id);
+  document.getElementById("sellPrice").value = "";
 
-  if (updateError) {
-    showToast(updateError.message);
-    return;
-  }
+  showToast(
+    "오이장터에 판매 등록했습니다."
+  );
 
-  showToast("오이장터에 판매 등록했습니다.");
-
-  document.getElementById("market-price-input").value = "";
-
-  await loadInventory();
-  await loadMarket();
+  await Promise.all([
+    loadInventory(),
+    loadMarket(),
+    loadActivities()
+  ]);
 }
 
 async function loadMarket() {
-  const marketList =
-    document.getElementById("market-list");
+  const target =
+    document.getElementById("marketList");
 
-  marketList.innerHTML =
-    `<div class="empty-state">매물을 불러오는 중입니다.</div>`;
+  target.innerHTML =
+    `<div class="empty">매물을 불러오는 중입니다.</div>`;
 
-  const { data, error } = await supabaseClient
-    .from("market_listings")
-    .select(`
-      id,
-      title,
-      asking_price,
-      seller_type,
-      seller_user_id,
-      npc_name,
-      status,
-      user_items (
+  const { data, error } =
+    await supabaseClient
+      .from("market_listings")
+      .select(`
         id,
-        condition_score,
-        items (
-          name,
-          average_price,
-          is_average_price_known
+        title,
+        asking_price,
+        seller_type,
+        seller_user_id,
+        npc_name,
+        status,
+        created_at,
+        user_items (
+          id,
+          condition_score,
+          items (
+            name,
+            average_price,
+            is_average_price_known
+          )
+        ),
+        profiles:seller_user_id (
+          nickname
         )
-      ),
-      profiles:seller_user_id (
-        nickname
-      )
-    `)
-    .eq("status", "active")
-    .order("created_at", {
-      ascending: false
-    });
+      `)
+      .eq("status", "active")
+      .order("created_at", {
+        ascending: false
+      })
+      .limit(50);
 
   if (error) {
-    marketList.innerHTML =
-      `<div class="empty-state">${escapeHtml(error.message)}</div>`;
+    target.innerHTML =
+      `<div class="empty">${escapeHtml(error.message)}</div>`;
     return;
   }
 
   if (!data || data.length === 0) {
-    marketList.innerHTML = `
-      <div class="empty-state">
-        현재 등록된 매물이 없습니다.
-      </div>
-    `;
+    target.innerHTML =
+      `<div class="empty">현재 등록된 매물이 없습니다.</div>`;
     return;
   }
 
-  marketList.innerHTML = data
-    .map((listing) => {
-      const isMine =
-        listing.seller_user_id === currentUser?.id;
+  target.innerHTML =
+    data
+      .map((listing) => {
+        const mine =
+          listing.seller_user_id ===
+          currentUser?.id;
 
-      const sellerName =
-        listing.seller_type === "npc"
-          ? listing.npc_name || "NPC 판매자"
-          : listing.profiles?.nickname || "유저";
+        const sellerName =
+          listing.seller_type === "npc"
+            ? listing.npc_name || "NPC 판매자"
+            : listing.profiles?.nickname || "유저";
 
-      const itemInfo = listing.user_items;
-      const baseItem = itemInfo?.items;
+        return `
+          <div class="market-row">
+            <div class="market-row-top">
+              <div>
+                <b>
+                  ${
+                    itemEmoji[listing.title] ||
+                    "📦"
+                  }
+                  ${escapeHtml(listing.title)}
+                </b>
+                <div class="market-meta">
+                  판매자 ${escapeHtml(sellerName)}
+                  ${
+                    listing.user_items
+                      ? `· 상태 ${listing.user_items.condition_score}`
+                      : ""
+                  }
+                </div>
+              </div>
 
-      const averageValue =
-        baseItem?.average_price &&
-        itemInfo?.condition_score
-          ? calculateConditionPrice(
-              baseItem.average_price,
-              itemInfo.condition_score
-            )
-          : null;
-
-      const successRate =
-        averageValue
-          ? calculateNegotiationChance(
-              listing.asking_price,
-              averageValue
-            )
-          : null;
-
-      return `
-        <div class="market-card">
-          <div class="market-top">
-            <div>
-              <span class="tag">
-                ${
-                  listing.seller_type === "npc"
-                    ? "NPC"
-                    : "USER"
-                }
-              </span>
-
-              <h2>
-                ${itemEmoji[listing.title] || "📦"}
-                ${escapeHtml(listing.title)}
-              </h2>
+              <strong>
+                ${formatMoney(listing.asking_price)}
+              </strong>
             </div>
 
-            <strong>
-              ${formatMoney(listing.asking_price)}
-            </strong>
+            <button
+              class="${mine ? "cancel" : ""}"
+              onclick="${
+                mine
+                  ? `cancelListing('${listing.id}')`
+                  : `buyListing('${listing.id}')`
+              }"
+            >
+              ${mine ? "판매 취소" : "구매하기"}
+            </button>
           </div>
-
-          <p>판매자: ${escapeHtml(sellerName)}</p>
-
-          ${
-            itemInfo
-              ? `<p>상태: ${itemInfo.condition_score} / 100</p>`
-              : ""
-          }
-
-          ${
-            successRate !== null
-              ? `
-                <div class="probability-box">
-                  <span>현재 거래 성공 확률</span>
-                  <strong>${successRate}%</strong>
-                </div>
-              `
-              : ""
-          }
-
-          <div class="market-actions">
-            ${
-              isMine
-                ? `
-                  <button
-                    class="secondary-button"
-                    onclick="cancelListing('${listing.id}', '${itemInfo?.id || ""}')"
-                  >
-                    판매 취소
-                  </button>
-                `
-                : `
-                  <button
-                    class="primary-button"
-                    onclick="buyListing('${listing.id}')"
-                  >
-                    구매하기
-                  </button>
-                `
-            }
-          </div>
-        </div>
-      `;
-    })
-    .join("");
+        `;
+      })
+      .join("");
 }
 
 async function buyListing(listingId) {
-  const { data, error } = await supabaseClient.rpc(
-    "buy_market_listing",
-    {
-      p_listing_id: listingId
-    }
-  );
+  const { data, error } =
+    await supabaseClient.rpc(
+      "buy_market_listing",
+      {
+        p_listing_id: listingId
+      }
+    );
 
   if (error) {
     showToast(error.message);
@@ -982,84 +1053,34 @@ async function buyListing(listingId) {
   }
 
   showToast(
-    `거래 성공! ${formatMoney(data.final_price)}에 구매했습니다.`
+    "거래 성공! " +
+    formatMoney(data.final_price)
   );
 
   await refreshAllData();
 }
 
-async function cancelListing(listingId, userItemId) {
-  const { error } = await supabaseClient
-    .from("market_listings")
-    .update({
-      status: "cancelled"
-    })
-    .eq("id", listingId)
-    .eq("seller_user_id", currentUser.id);
+async function cancelListing(listingId) {
+  const { error } =
+    await supabaseClient.rpc(
+      "cancel_market_listing",
+      {
+        p_listing_id: listingId
+      }
+    );
 
   if (error) {
     showToast(error.message);
     return;
   }
 
-  if (userItemId) {
-    await supabaseClient
-      .from("user_items")
-      .update({
-        is_listed: false
-      })
-      .eq("id", userItemId)
-      .eq("user_id", currentUser.id);
-  }
-
   showToast("판매를 취소했습니다.");
 
-  await loadInventory();
-  await loadMarket();
-}
-
-function calculateNegotiationChance(
-  askingPrice,
-  averageValue
-) {
-  const credit = Number(
-    currentProfile?.credit_score || 500
-  );
-
-  const reputation = Number(
-    currentProfile?.reputation || 50
-  );
-
-  let creditBonus = 0;
-
-  if (credit >= 800) creditBonus = 20;
-  else if (credit >= 600) creditBonus = 10;
-  else if (credit < 200) creditBonus = -15;
-  else if (credit < 400) creditBonus = -5;
-
-  let reputationBonus = 0;
-
-  if (reputation >= 80) reputationBonus = 10;
-  else if (reputation >= 60) reputationBonus = 5;
-  else if (reputation < 20) reputationBonus = -20;
-  else if (reputation < 40) reputationBonus = -10;
-
-  const priceRatio = askingPrice / averageValue;
-
-  let pricePenalty = 0;
-
-  if (priceRatio >= 1.5) pricePenalty = 35;
-  else if (priceRatio >= 1.3) pricePenalty = 25;
-  else if (priceRatio >= 1.2) pricePenalty = 15;
-  else if (priceRatio >= 1.1) pricePenalty = 8;
-
-  return Math.max(
-    5,
-    Math.min(
-      95,
-      60 + creditBonus + reputationBonus - pricePenalty
-    )
-  );
+  await Promise.all([
+    loadInventory(),
+    loadMarket(),
+    loadActivities()
+  ]);
 }
 
 /* ====================================================
@@ -1067,98 +1088,21 @@ function calculateNegotiationChance(
 ==================================================== */
 
 async function buyBusiness(type, price) {
-  if (!currentProfile) {
-    return;
-  }
+  if (!currentProfile) return;
 
   if (Number(currentProfile.cash) < price) {
     showToast("보유 자금이 부족합니다.");
     return;
   }
 
-  const { data, error } = await supabaseClient.rpc(
-    "buy_business",
-    {
-      p_business_type: type,
-      p_purchase_price: price
-    }
-  );
-
-  if (error) {
-    showToast(error.message);
-    return;
-  }
-
-  showToast(`${data.business_name} 사업을 구매했습니다.`);
-
-  await loadProfile();
-  await loadBusinesses();
-}
-
-async function loadBusinesses() {
-  const businessList =
-    document.getElementById("business-list");
-
-  if (!businessList || !currentUser) {
-    return;
-  }
-
-  const { data, error } = await supabaseClient
-    .from("user_businesses")
-    .select(
-      "id, business_type, business_name, level, income_per_minute, last_collected_at"
-    )
-    .eq("user_id", currentUser.id)
-    .order("created_at", {
-      ascending: false
-    });
-
-  if (error) {
-    businessList.innerHTML =
-      `<p>${escapeHtml(error.message)}</p>`;
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    businessList.innerHTML =
-      `<p class="sub-text">아직 보유한 사업이 없습니다.</p>`;
-    return;
-  }
-
-  businessList.innerHTML = data
-    .map((business) => {
-      return `
-        <div class="business-row">
-          <div>
-            <strong>
-              ${escapeHtml(business.business_name)}
-            </strong>
-
-            <p class="sub-text">
-              레벨 ${business.level} ·
-              분당 ${formatMoney(business.income_per_minute)}
-            </p>
-          </div>
-
-          <button
-            class="primary-button"
-            onclick="collectBusinessIncome('${business.id}')"
-          >
-            수익 받기
-          </button>
-        </div>
-      `;
-    })
-    .join("");
-}
-
-async function collectBusinessIncome(businessId) {
-  const { data, error } = await supabaseClient.rpc(
-    "collect_business_income",
-    {
-      p_business_id: businessId
-    }
-  );
+  const { data, error } =
+    await supabaseClient.rpc(
+      "buy_business",
+      {
+        p_business_type: type,
+        p_purchase_price: price
+      }
+    );
 
   if (error) {
     showToast(error.message);
@@ -1166,96 +1110,326 @@ async function collectBusinessIncome(businessId) {
   }
 
   showToast(
-    `사업 수익 ${formatMoney(data.collected_amount)}을 받았습니다.`
+    data.business_name +
+    " 사업을 구매했습니다."
   );
 
-  await loadProfile();
-  await loadBusinesses();
+  await Promise.all([
+    loadProfile(),
+    loadBusinesses(),
+    loadActivities()
+  ]);
+
+  updateNetWorth();
+}
+
+async function loadBusinesses() {
+  const target =
+    document.getElementById("businessList");
+
+  if (!currentUser || !target) return;
+
+  const { data, error } =
+    await supabaseClient
+      .from("user_businesses")
+      .select(
+        "id,business_type,business_name,level,income_per_minute,last_collected_at,created_at"
+      )
+      .eq("user_id", currentUser.id)
+      .order("created_at", {
+        ascending: false
+      });
+
+  if (error) {
+    target.innerHTML =
+      `<div class="empty">${escapeHtml(error.message)}</div>`;
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    target.innerHTML =
+      `<div class="empty">아직 보유한 사업이 없습니다.</div>`;
+    return;
+  }
+
+  target.innerHTML =
+    data
+      .map((business) => `
+        <div class="business-row">
+          <div>
+            <strong>
+              ${escapeHtml(business.business_name)}
+            </strong>
+            <p class="muted">
+              레벨 ${business.level}
+              · 분당 ${formatMoney(business.income_per_minute)}
+            </p>
+          </div>
+
+          <button
+            class="primary"
+            onclick="collectBusinessIncome('${business.id}')"
+          >
+            수익 받기
+          </button>
+        </div>
+      `)
+      .join("");
+}
+
+async function collectBusinessIncome(businessId) {
+  const { data, error } =
+    await supabaseClient.rpc(
+      "collect_business_income",
+      {
+        p_business_id: businessId
+      }
+    );
+
+  if (error) {
+    showToast(error.message);
+    return;
+  }
+
+  showToast(
+    "사업 수익 " +
+    formatMoney(data.collected_amount) +
+    "을 받았습니다."
+  );
+
+  await Promise.all([
+    loadProfile(),
+    loadBusinesses(),
+    loadActivities()
+  ]);
+
+  updateNetWorth();
 }
 
 /* ====================================================
-랭킹
+랭킹 / 활동 / 자산
 ==================================================== */
 
-async function loadRankings() {
-  const cashRanking =
-    document.getElementById("cash-ranking");
+async function loadRanking() {
+  const target =
+    document.getElementById("rankingList");
 
-  const creditRanking =
-    document.getElementById("credit-ranking");
-
-  const { data: cashData, error: cashError } =
+  const { data, error } =
     await supabaseClient
       .from("profiles")
-      .select("nickname, cash")
+      .select(
+        "nickname,cash,credit_score"
+      )
       .order("cash", {
         ascending: false
       })
       .limit(20);
 
-  const { data: creditData, error: creditError } =
-    await supabaseClient
-      .from("profiles")
-      .select("nickname, credit_score")
-      .order("credit_score", {
-        ascending: false
-      })
-      .limit(20);
-
-  if (cashError) {
-    cashRanking.innerHTML =
-      `<p>${escapeHtml(cashError.message)}</p>`;
-  } else {
-    cashRanking.innerHTML = createRankingRows(
-      cashData,
-      "cash"
-    );
+  if (error) {
+    target.innerHTML =
+      `<div class="empty">${escapeHtml(error.message)}</div>`;
+    return;
   }
 
-  if (creditError) {
-    creditRanking.innerHTML =
-      `<p>${escapeHtml(creditError.message)}</p>`;
-  } else {
-    creditRanking.innerHTML = createRankingRows(
-      creditData,
-      "credit"
-    );
-  }
-}
-
-function createRankingRows(data, type) {
-  if (!data || data.length === 0) {
-    return `<p class="sub-text">랭킹 정보가 없습니다.</p>`;
-  }
-
-  return data
-    .map((user, index) => {
-      const value =
-        type === "cash"
-          ? formatMoney(user.cash)
-          : `${user.credit_score}점`;
-
-      return `
+  target.innerHTML =
+    (data || [])
+      .map((user, index) => `
         <div class="rank-row">
           <div>
             <span class="rank-number">
               ${index + 1}
             </span>
-
-            <strong>
-              ${escapeHtml(user.nickname)}
-            </strong>
+            <b>${escapeHtml(user.nickname)}</b>
           </div>
 
-          <strong>${value}</strong>
+          <strong>
+            ${formatMoney(user.cash)}
+          </strong>
         </div>
-      `;
-    })
-    .join("");
+      `)
+      .join("");
+}
+
+async function loadActivities() {
+  const target =
+    document.getElementById("activities");
+
+  if (!currentUser) return;
+
+  const { data, error } =
+    await supabaseClient
+      .from("activity_logs")
+      .select("message,created_at")
+      .eq("user_id", currentUser.id)
+      .order("created_at", {
+        ascending: false
+      })
+      .limit(12);
+
+  if (error) {
+    target.innerHTML =
+      `<div class="empty">${escapeHtml(error.message)}</div>`;
+    return;
+  }
+
+  currentActivities = data || [];
+
+  target.innerHTML =
+    currentActivities.length
+      ? currentActivities
+          .map((row) => `
+            <div class="activity-row">
+              ${escapeHtml(row.message)}
+            </div>
+          `)
+          .join("")
+      : `<div class="empty">아직 활동 기록이 없습니다.</div>`;
+}
+
+function renderWallet() {
+  const target =
+    document.getElementById("walletView");
+
+  if (!target || !currentProfile) return;
+
+  const stockValue =
+    currentHoldings.reduce((sum, holding) => {
+      const stock =
+        currentStocks.find(
+          (item) =>
+            item.id === holding.stock_id
+        );
+
+      return (
+        sum +
+        Number(holding.quantity) *
+        Number(stock?.current_price || 0)
+      );
+    }, 0);
+
+  const itemValue =
+    currentInventory.reduce((sum, userItem) => {
+      const item = userItem.items;
+
+      const value =
+        userItem.is_appraised
+          ? Number(userItem.appraised_price)
+          : item.is_average_price_known
+            ? calculateConditionPrice(
+                item.average_price,
+                userItem.condition_score
+              )
+            : 0;
+
+      return sum + value;
+    }, 0);
+
+  target.innerHTML = `
+    <div class="wallet-card">
+      <span>현금</span>
+      <b>${formatMoney(currentProfile.cash)}</b>
+    </div>
+
+    <div class="wallet-card">
+      <span>주식 평가액</span>
+      <b>${formatMoney(stockValue)}</b>
+    </div>
+
+    <div class="wallet-card">
+      <span>아이템 추정가</span>
+      <b>${formatMoney(itemValue)}</b>
+    </div>
+
+    <div class="wallet-card">
+      <span>신용 / 명성</span>
+      <b>
+        ${currentProfile.credit_score}
+        /
+        ${currentProfile.reputation}
+      </b>
+    </div>
+  `;
+}
+
+function updateNetWorth() {
+  if (!currentProfile) return;
+
+  const stockValue =
+    currentHoldings.reduce((sum, holding) => {
+      const stock =
+        currentStocks.find(
+          (item) =>
+            item.id === holding.stock_id
+        );
+
+      return (
+        sum +
+        Number(holding.quantity) *
+        Number(stock?.current_price || 0)
+      );
+    }, 0);
+
+  const itemValue =
+    currentInventory.reduce((sum, userItem) => {
+      const item = userItem.items;
+
+      const value =
+        userItem.is_appraised
+          ? Number(userItem.appraised_price)
+          : item.is_average_price_known
+            ? calculateConditionPrice(
+                item.average_price,
+                userItem.condition_score
+              )
+            : 0;
+
+      return sum + value;
+    }, 0);
+
+  const total =
+    Number(currentProfile.cash) +
+    stockValue +
+    itemValue;
+
+  document.getElementById("networth").textContent =
+    formatMoney(total);
+
+  renderWallet();
 }
 
 /* ====================================================
-공통 함수
+실시간 갱신
+==================================================== */
+
+function subscribeRealtime() {
+  if (realtimeChannel) return;
+
+  realtimeChannel =
+    supabaseClient
+      .channel("selling-god-v2-live")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "stocks"
+        },
+        () => loadStocks()
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "market_listings"
+        },
+        () => loadMarket()
+      )
+      .subscribe();
+}
+
+/* ====================================================
+공통
 ==================================================== */
 
 function calculateConditionPrice(
@@ -1270,7 +1444,10 @@ function calculateConditionPrice(
   else if (conditionScore >= 50) multiplier = 0.8;
   else if (conditionScore >= 30) multiplier = 0.6;
 
-  return Math.round(Number(averagePrice) * multiplier);
+  return Math.round(
+    Number(averagePrice) *
+    multiplier
+  );
 }
 
 function getConditionGrade(score) {
@@ -1299,7 +1476,8 @@ function formatMoney(value) {
 
   for (const unit of units) {
     if (Math.abs(amount) >= unit.value) {
-      const divided = amount / unit.value;
+      const divided =
+        amount / unit.value;
 
       const digits =
         Math.abs(divided) >= 100
@@ -1309,26 +1487,33 @@ function formatMoney(value) {
             : 2;
 
       return (
-        Number(divided.toFixed(digits)).toLocaleString() +
+        Number(
+          divided.toFixed(digits)
+        ).toLocaleString() +
         unit.label +
         " 원"
       );
     }
   }
 
-  return `${Math.floor(amount).toLocaleString()}원`;
+  return (
+    Math.floor(amount).toLocaleString() +
+    "원"
+  );
 }
 
 function escapeHtml(value) {
-  const div = document.createElement("div");
+  const div =
+    document.createElement("div");
+
   div.textContent = value ?? "";
+
   return div.innerHTML;
 }
 
-let toastTimer = null;
-
 function showToast(message) {
-  const toast = document.getElementById("toast");
+  const toast =
+    document.getElementById("toast");
 
   toast.textContent = message;
   toast.classList.add("show");
