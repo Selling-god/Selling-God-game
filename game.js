@@ -6,7 +6,7 @@ service_role 키는 절대 넣지 마세요.
 ====================================================
 */
 
-const SUPABASE_URL = "https://qazjtevdljthbzmqmgrw.supabase.co/rest/v1/";
+const SUPABASE_URL = "https://qazjtevdljthbzmqmgrw.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_rIARlWBpKPvFAv_TtTdgaQ_Po-hOGmX";
 
 /*
