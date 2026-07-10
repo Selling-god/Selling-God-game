@@ -672,7 +672,7 @@ async function loadStocks() {
     supabaseClient
       .from("stocks")
       .select(
-        "id,symbol,name,current_price,previous_price,is_active"
+        "id,symbol,name,current_price,previous_price,is_active,history,updated_at"
       )
       .eq("is_active", true)
       .order("name"),
@@ -700,6 +700,7 @@ async function loadStocks() {
   currentHoldings = holdingData || [];
 
   let totalValue = 0;
+  let totalProfit = 0;
 
   target.innerHTML =
     currentStocks
@@ -712,6 +713,9 @@ async function loadStocks() {
 
         const owned =
           Number(holding?.quantity || 0);
+
+        const averageBuy =
+          Number(holding?.average_buy_price || 0);
 
         const current =
           Number(stock.current_price);
@@ -727,7 +731,29 @@ async function loadStocks() {
             ? difference / previous * 100
             : 0;
 
-        totalValue += owned * current;
+        const evaluation =
+          owned * current;
+
+        const invested =
+          owned * averageBuy;
+
+        const profit =
+          evaluation - invested;
+
+        const profitRate =
+          invested > 0
+            ? profit / invested * 100
+            : 0;
+
+        const history =
+          normalizeStockHistory(
+            stock.history,
+            previous,
+            current
+          );
+
+        totalValue += evaluation;
+        totalProfit += profit;
 
         return `
           <div class="stock-row">
@@ -757,11 +783,50 @@ async function loadStocks() {
               </div>
             </div>
 
-            <div class="stock-meta">
-              보유 ${owned.toLocaleString()}주
-              · 평균 ${formatMoney(
-                holding?.average_buy_price || 0
-              )}
+            <div class="stock-chart-wrap">
+              ${createStockChartSvg(history)}
+              <div class="range-box">
+                <span>변동폭</span>
+                <b class="${
+                  rate >= 0
+                    ? "change-up"
+                    : "change-down"
+                }">
+                  ${rate >= 0 ? "+" : ""}${rate.toFixed(2)}%
+                </b>
+                <small>
+                  저 ${formatMoney(Math.min(...history))}
+                  · 고 ${formatMoney(Math.max(...history))}
+                </small>
+              </div>
+            </div>
+
+            <div class="holding-dashboard">
+              <div>
+                <span>보유 수량</span>
+                <b>${owned.toLocaleString()}주</b>
+              </div>
+              <div>
+                <span>내 평균 매수가</span>
+                <b>${owned > 0 ? formatMoney(averageBuy) : "-"}</b>
+              </div>
+              <div>
+                <span>현재 평가액</span>
+                <b>${formatMoney(evaluation)}</b>
+              </div>
+              <div>
+                <span>평가손익</span>
+                <b class="${
+                  profit >= 0
+                    ? "change-up"
+                    : "change-down"
+                }">
+                  ${profit >= 0 ? "+" : ""}${formatMoney(profit)}
+                  <small>
+                    (${profitRate >= 0 ? "+" : ""}${profitRate.toFixed(2)}%)
+                  </small>
+                </b>
+              </div>
             </div>
 
             <div class="trade-row">
@@ -770,6 +835,7 @@ async function loadStocks() {
                 type="number"
                 min="1"
                 value="1"
+                aria-label="${escapeHtml(stock.name)} 거래 수량"
               >
 
               <button
@@ -793,6 +859,24 @@ async function loadStocks() {
 
   document.getElementById("stockValue").textContent =
     formatMoney(totalValue);
+
+  const profitElement =
+    document.getElementById("stockProfit");
+
+  if (profitElement) {
+    profitElement.textContent =
+      `${totalProfit >= 0 ? "+" : ""}${formatMoney(totalProfit)}`;
+
+    profitElement.classList.toggle(
+      "profit-up",
+      totalProfit >= 0
+    );
+
+    profitElement.classList.toggle(
+      "profit-down",
+      totalProfit < 0
+    );
+  }
 
   updateNetWorth();
   renderWallet();
@@ -1395,6 +1479,120 @@ function updateNetWorth() {
     formatMoney(total);
 
   renderWallet();
+}
+
+function normalizeStockHistory(
+  rawHistory,
+  previous,
+  current
+) {
+  let values = [];
+
+  if (Array.isArray(rawHistory)) {
+    values = rawHistory;
+  } else if (typeof rawHistory === "string") {
+    try {
+      const parsed = JSON.parse(rawHistory);
+      values = Array.isArray(parsed) ? parsed : [];
+    } catch (_error) {
+      values = [];
+    }
+  }
+
+  values = values
+    .map(Number)
+    .filter(Number.isFinite)
+    .slice(-24);
+
+  if (values.length === 0) {
+    values = [
+      Number(previous) || Number(current) || 0,
+      Number(current) || Number(previous) || 0
+    ];
+  } else if (
+    values[values.length - 1] !== Number(current)
+  ) {
+    values.push(Number(current));
+  }
+
+  while (values.length < 8) {
+    values.unshift(values[0]);
+  }
+
+  return values.slice(-24);
+}
+
+function createStockChartSvg(values) {
+  const width = 230;
+  const height = 92;
+  const padding = 8;
+
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const range = Math.max(maximum - minimum, 1);
+
+  const points = values
+    .map((value, index) => {
+      const x =
+        padding +
+        (
+          index /
+          Math.max(values.length - 1, 1)
+        ) *
+        (width - padding * 2);
+
+      const y =
+        height -
+        padding -
+        (
+          (value - minimum) /
+          range
+        ) *
+        (height - padding * 2);
+
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+
+  const isRising =
+    values[values.length - 1] >= values[0];
+
+  const lineClass =
+    isRising
+      ? "chart-line-up"
+      : "chart-line-down";
+
+  const fillClass =
+    isRising
+      ? "chart-fill-up"
+      : "chart-fill-down";
+
+  const polygonPoints =
+    `${padding},${height - padding} ` +
+    points +
+    ` ${width - padding},${height - padding}`;
+
+  return `
+    <svg
+      class="stock-chart"
+      viewBox="0 0 ${width} ${height}"
+      role="img"
+      aria-label="최근 주가 변동 그래프"
+      preserveAspectRatio="none"
+    >
+      <line x1="${padding}" y1="${height / 2}"
+        x2="${width - padding}" y2="${height / 2}"
+        class="chart-grid-line"></line>
+      <polygon
+        points="${polygonPoints}"
+        class="${fillClass}"
+      ></polygon>
+      <polyline
+        points="${points}"
+        class="${lineClass}"
+      ></polyline>
+    </svg>
+  `;
 }
 
 /* ====================================================
