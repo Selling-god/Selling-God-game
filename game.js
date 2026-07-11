@@ -1463,3 +1463,213 @@ renderNegotiation=renderNegotiationSafe;
 renderNpcBuyNegotiation=renderNpcBuyNegotiationSafe;
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installNegotiationControls,{once:true});else installNegotiationControls();
+
+/* ============================================================
+   v33 BUSINESS DIRECTOR EDITION
+   - 포트폴리오 대시보드 / 회사별 손익 분석 / 운영 전략
+   - 전체 수익 수령 / 투자 회수기간 / 활동 기록
+============================================================ */
+let businessState=null,businessRefreshTimer=null,businessTab='overview';
+
+const BUSINESS_STRATEGIES={
+  balanced:{name:'균형 운영',icon:'⚖️',desc:'매출과 비용을 안정적으로 유지',gross:1,cost:1},
+  growth:{name:'공격 성장',icon:'🚀',desc:'매출을 크게 늘리지만 운영비도 상승',gross:1.16,cost:1.13},
+  efficiency:{name:'효율 경영',icon:'🧮',desc:'매출은 조금 낮지만 비용을 크게 절감',gross:.98,cost:.78},
+  premium:{name:'프리미엄',icon:'💎',desc:'고급 상품과 서비스로 고수익을 노림',gross:1.24,cost:1.20}
+};
+
+function businessUpgradeCost(c,kind){
+  const base=Number(c.buy_price||0);
+  if(kind==='facility')return Math.round(base*(0.18+Number(c.facility_level||1)*0.12));
+  if(kind==='staff')return Math.round(base*(0.10+(Number(c.staff_level||0)+1)*0.08));
+  return Math.round(base*(0.14+(Number(c.product_level||0)+1)*0.11));
+}
+function businessRank(c){
+  const score=Number(c.facility_level||1)+Number(c.staff_level||0)+Number(c.product_level||0);
+  if(score>=27)return '초거대 기업';
+  if(score>=23)return '글로벌 기업';
+  if(score>=18)return '대기업';
+  if(score>=12)return '중견기업';
+  if(score>=7)return '지역 기업';
+  return '동네 회사';
+}
+function businessRankProgress(c){
+  const score=Number(c.facility_level||1)+Number(c.staff_level||0)+Number(c.product_level||0);
+  const steps=[{n:'동네 회사',min:1,max:7},{n:'지역 기업',min:7,max:12},{n:'중견기업',min:12,max:18},{n:'대기업',min:18,max:23},{n:'글로벌 기업',min:23,max:27},{n:'초거대 기업',min:27,max:30}];
+  const cur=steps.find(x=>score<x.max)||steps.at(-1);
+  const pct=cur.max===cur.min?100:Math.max(0,Math.min(100,(score-cur.min)/(cur.max-cur.min)*100));
+  const next=steps[steps.indexOf(cur)+1]?.n||'최고 등급';
+  return{score,pct,next};
+}
+function businessCountdown(sec){sec=Math.max(0,Number(sec||0));const m=Math.floor(sec/60),ss=sec%60;return `${m}:${String(ss).padStart(2,'0')}`}
+function businessDuration(ticks){
+  if(!Number.isFinite(ticks)||ticks<=0)return '계산 불가';
+  const mins=Math.ceil(ticks)*5;
+  if(mins<60)return `약 ${mins}분`;
+  const hours=Math.floor(mins/60),rest=mins%60;
+  if(hours<24)return `약 ${hours}시간${rest?` ${rest}분`:''}`;
+  return `약 ${(hours/24).toFixed(1)}일`;
+}
+function businessStrategy(c){return BUSINESS_STRATEGIES[c.strategy]||BUSINESS_STRATEGIES.balanced}
+function estimateCompany(c,patch={}){
+  const facility=Number(patch.facility_level??c.facility_level??1);
+  const staff=Number(patch.staff_level??c.staff_level??0);
+  const product=Number(patch.product_level??c.product_level??0);
+  const rep=Number(patch.company_reputation??c.company_reputation??50);
+  const strategy=BUSINESS_STRATEGIES[patch.strategy??c.strategy]||BUSINESS_STRATEGIES.balanced;
+  const gross=Number(c.base_income||0)*(1+(facility-1)*.34)*(1+staff*.20)*(1+product*.29)*(.72+rep/180)*strategy.gross;
+  const cost=Number(c.base_cost||0)*(1+(facility-1)*.13+staff*.17+product*.10)*strategy.cost;
+  return{gross:Math.round(gross),cost:Math.round(cost),net:Math.round(Math.max(0,gross-cost)),margin:gross>0?Math.max(0,(gross-cost)/gross*100):0};
+}
+function projectedUpgrade(c,kind){
+  const patch={};patch[`${kind}_level`]=Number(c[`${kind}_level`]||0)+1;
+  const cur=estimateCompany(c),next=estimateCompany(c,patch),cost=businessUpgradeCost(c,kind),delta=Math.max(0,next.net-cur.net);
+  return{cost,delta,payback:delta>0?cost/delta:Infinity,next};
+}
+function formatBusinessTime(value){
+  if(!value)return '';
+  const d=new Date(value);if(Number.isNaN(d.getTime()))return '';
+  return d.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+async function loadBusiness({silent=false}={}){
+  const host=document.getElementById('businessView');if(!host)return;
+  if(!silent)host.innerHTML='<div class="business-loading"><span class="business-spinner"></span><b>기업 장부 정산 중</b><small>오프라인 운영 기록과 5분 정산을 서버에서 확인하고 있습니다.</small></div>';
+  const{data,error}=await db.rpc('get_business_status_v33');
+  if(error){host.innerHTML=`<div class="business-error"><b>사업 데이터를 불러오지 못했습니다.</b><p>${esc(error.message)}</p><small>v33 Supabase SQL 전체 실행 여부를 확인하세요.</small><button onclick="loadBusiness()">다시 시도</button></div>`;return}
+  businessState=data||{};
+  renderBusiness();
+  if(!silent){await loadProfile();updateNetworth()}
+  clearInterval(businessRefreshTimer);
+  businessRefreshTimer=setInterval(()=>{
+    if(document.getElementById('phone-business')?.classList.contains('hidden'))return;
+    let reachedZero=false;
+    document.querySelectorAll('[data-business-countdown]').forEach(el=>{
+      const n=Math.max(0,Number(el.dataset.businessCountdown||0)-1);
+      el.dataset.businessCountdown=n;el.textContent=businessCountdown(n);if(n===0)reachedZero=true;
+    });
+    if(reachedZero){clearInterval(businessRefreshTimer);loadBusiness({silent:true})}
+  },1000);
+}
+
+function switchBusinessTab(tab){businessTab=tab;renderBusiness()}
+function renderBusiness(){
+  const host=document.getElementById('businessView');if(!host||!businessState)return;
+  const catalog=businessState.catalog||[],owned=catalog.filter(c=>c.owned),available=catalog.filter(c=>!c.owned),p=businessState.portfolio||{};
+  const tabs=[['overview','대시보드'],['companies','내 회사'],['acquire','회사 인수']];
+  host.innerHTML=`
+    <section class="business-command-center">
+      <div class="business-command-copy"><span>BUSINESS DIRECTOR</span><h2>기업 경영 본부</h2><p>5분 단위 자동 정산 · 오프라인 수익 최대 8시간</p></div>
+      <div class="business-command-value"><small>기업 제국 가치</small><b>${money(p.total_company_value||businessState.total_company_value||0)}</b><em>${Number(p.owned_count||businessState.owned_count||0)}개 회사 운영</em></div>
+    </section>
+    <nav class="business-tabs">${tabs.map(([k,v])=>`<button class="${businessTab===k?'active':''}" onclick="switchBusinessTab('${k}')">${v}</button>`).join('')}</nav>
+    <div class="business-tab-body">${businessTab==='overview'?renderBusinessOverview(owned,p):businessTab==='companies'?renderBusinessCompanies(owned):renderBusinessAcquisition(available)}</div>`;
+}
+function renderBusinessOverview(owned,p){
+  const totalCash=Number(p.total_company_cash||0),net=Number(p.total_net_per_tick||0),gross=Number(p.total_gross_per_tick||0),cost=Number(p.total_cost_per_tick||0),margin=gross?Math.max(0,(gross-cost)/gross*100):0,avgRep=Number(p.average_reputation||0);
+  const recommendation=businessAdvisor(owned);
+  return `
+    <div class="business-kpi-grid">
+      <div><span>회사 금고 합계</span><b>${money(totalCash)}</b><small>수령 가능한 사업 수익</small></div>
+      <div><span>5분 순이익</span><b class="up">+${money(net)}</b><small>매출 ${money(gross)} · 비용 ${money(cost)}</small></div>
+      <div><span>평균 평판</span><b>${avgRep.toFixed(1)}</b><small>100점 기준</small></div>
+      <div><span>영업이익률</span><b>${margin.toFixed(1)}%</b><small>포트폴리오 전체</small></div>
+    </div>
+    <button class="business-collect-all" ${totalCash<=0?'disabled':''} onclick="collectAllBusinessCash()"><span>💰</span><div><b>전체 회사 수익 받기</b><small>${money(totalCash)}를 현금으로 이동</small></div></button>
+    <section class="business-advisor"><div class="advisor-avatar">🧑‍💼</div><div><span>경영 고문 보고서</span><b>${esc(recommendation.title)}</b><p>${esc(recommendation.text)}</p></div></section>
+    <div class="business-mini-company-grid">${owned.map(renderBusinessMiniCard).join('')||'<div class="business-empty">회사를 인수하면 포트폴리오 분석이 시작됩니다.</div>'}</div>
+    <section class="business-activity"><div class="business-section-head"><h3>최근 경영 기록</h3><span>서버 저장</span></div>${renderBusinessActivity()}</section>`;
+}
+function businessAdvisor(owned){
+  if(!owned.length)return{title:'첫 회사를 인수하세요',text:'동네 편의점은 낮은 조건과 안정적인 수익으로 사업 시스템을 익히기에 가장 좋습니다.'};
+  const weak=[...owned].sort((a,b)=>Number(a.estimated_net_per_tick||0)-Number(b.estimated_net_per_tick||0))[0];
+  if(Number(weak.company_reputation||0)<55)return{title:`${weak.custom_name||weak.name} 평판 관리 필요`,text:'회사 평판이 낮으면 매출 배율이 크게 줄어듭니다. 시설보다 상품 개발이나 안정적인 운영 전략을 우선 고려하세요.'};
+  const options=owned.flatMap(c=>['facility','staff','product'].filter(k=>Number(c[`${k}_level`]||0)<10).map(k=>({c,k,...projectedUpgrade(c,k)}))).filter(x=>x.delta>0).sort((a,b)=>a.payback-b.payback);
+  if(options[0]){const labels={facility:'시설',staff:'직원',product:'상품'};return{title:`${options[0].c.custom_name||options[0].c.name} ${labels[options[0].k]} 투자 추천`,text:`예상 순익이 5분당 ${money(options[0].delta)} 증가하며 투자금 회수까지 ${businessDuration(options[0].payback)}가 예상됩니다.`}}
+  return{title:'기업 제국 완성 단계',text:'모든 핵심 투자가 완료되었습니다. 회사 금고 수령과 고급 회사 인수 조건 달성에 집중하세요.'};
+}
+function renderBusinessMiniCard(c){
+  const rp=businessRankProgress(c),strategy=businessStrategy(c);
+  return `<button class="business-mini-card theme-${esc(c.theme)}" onclick="businessTab='companies';renderBusiness();setTimeout(()=>document.getElementById('company-${c.company_id}')?.scrollIntoView({behavior:'smooth',block:'start'}),50)"><span>${c.icon}</span><div><small>${businessRank(c)} · ${strategy.icon} ${strategy.name}</small><b>${esc(c.custom_name||c.name)}</b><em>5분 +${money(c.estimated_net_per_tick||0)}</em><i><u style="width:${rp.pct}%"></u></i></div></button>`;
+}
+function renderBusinessActivity(){
+  const rows=businessState.recent_activity||[];
+  return rows.map(r=>`<div class="business-activity-row"><span>${r.icon||'📌'}</span><div><b>${esc(r.title||'경영 기록')}</b><small>${esc(r.company_name||'포트폴리오')} · ${formatBusinessTime(r.created_at)}</small><p>${esc(r.detail||'')}</p></div>${Number(r.amount||0)!==0?`<em class="${Number(r.amount)>0?'up':'down'}">${Number(r.amount)>0?'+':''}${money(r.amount)}</em>`:''}</div>`).join('')||'<div class="business-empty compact">아직 기록된 경영 활동이 없습니다.</div>';
+}
+function renderBusinessCompanies(owned){return `<div class="owned-company-list director">${owned.map(renderOwnedCompany).join('')||'<div class="business-empty">보유한 회사가 없습니다. 회사 인수 탭에서 첫 회사를 선택하세요.</div>'}</div>`}
+function renderOwnedCompany(c){
+  const name=esc(c.custom_name||c.name),cash=Number(c.company_cash||0),s=businessStrategy(c),rp=businessRankProgress(c),gross=Number(c.gross_per_tick||0),cost=Number(c.operating_cost_per_tick||0),net=Number(c.estimated_net_per_tick||0),margin=Number(c.margin_percent||0),value=Number(c.company_value||0);
+  return `<article id="company-${c.company_id}" class="owned-company director-card theme-${esc(c.theme)}">
+    <header class="company-banner premium"><span class="company-icon">${c.icon}</span><div><small>${businessRank(c)} · 평판 ${c.company_reputation}/100</small><h3>${name}</h3><p>${esc(c.description)}</p></div><button class="company-rename" onclick="renameBusinessCompany('${c.company_id}','${escAttr(name)}')" title="회사명 변경">✎</button></header>
+    <div class="company-rank-progress"><div><span>기업 성장도 ${rp.score}/30</span><b>다음: ${rp.next}</b></div><i><em style="width:${rp.pct}%"></em></i></div>
+    <div class="company-finance director"><div><span>회사 가치</span><b>${money(value)}</b></div><div><span>회사 금고</span><b>${money(cash)}</b></div><div><span>5분 매출</span><b>${money(gross)}</b></div><div><span>운영비</span><b class="down">-${money(cost)}</b></div><div><span>순이익</span><b class="up">+${money(net)}</b></div><div><span>이익률</span><b>${margin.toFixed(1)}%</b></div></div>
+    <div class="company-settlement-strip"><span>다음 정산</span><b data-business-countdown="${c.next_settlement_seconds||0}">${businessCountdown(c.next_settlement_seconds)}</b><small>누적 매출 ${money(c.total_revenue||0)} · 누적 순익 ${money(c.total_profit||0)}</small></div>
+    <div class="company-strategy"><div><b>운영 전략</b><small>${s.desc}</small></div><div class="strategy-buttons">${Object.entries(BUSINESS_STRATEGIES).map(([k,v])=>`<button class="${c.strategy===k?'active':''}" onclick="setBusinessStrategy('${c.company_id}','${k}')" title="${escAttr(v.desc)}">${v.icon}<span>${v.name}</span></button>`).join('')}</div></div>
+    ${c.last_event?`<div class="company-event"><span>📣 최근 경영 이벤트</span><b>${esc(c.last_event)}</b></div>`:''}
+    <div class="company-levels director">${renderCompanyLevel('시설','facility',c.facility_level,c,'🏗️','생산 공간과 기업 가치 증가')}${renderCompanyLevel('직원','staff',c.staff_level,c,'👥','판매력과 운영 효율 증가')}${renderCompanyLevel('상품','product',c.product_level,c,'🧪','상품 가치와 매출 배율 증가')}</div>
+    <button class="collect-company" ${cash<=0?'disabled':''} onclick="collectBusinessCash('${c.company_id}')"><span>회사 수익 받기</span><b>${money(cash)}</b></button>
+  </article>`;
+}
+function renderCompanyLevel(label,kind,level,c,icon,desc){
+  const max=10,projection=projectedUpgrade(c,kind),canAfford=Number(profile?.cash||0)>=projection.cost;
+  return `<div class="company-level director"><div class="level-head"><span>${icon}</span><div><b>${label} Lv.${level}</b><small>${desc}</small></div></div><div class="level-track">${Array.from({length:10},(_,i)=>`<i class="${i<Number(level)?'on':''}"></i>`).join('')}</div><div class="level-effect"><span>다음 순익</span><b class="up">+${money(projection.delta)} / 5분</b><small>회수 ${businessDuration(projection.payback)}</small></div><button ${Number(level)>=max||!canAfford?'disabled':''} onclick="upgradeBusiness('${c.company_id}','${kind}')">${Number(level)>=max?'MAX':`${money(projection.cost)} 투자`}</button></div>`;
+}
+function renderBusinessAcquisition(available){
+  return `<section class="business-acquisition-intro"><span>🏦</span><div><b>기업 인수 시장</b><p>인수 가격뿐 아니라 기본 영업이익, 예상 회수기간, 명성·신용 조건을 함께 비교하세요.</p></div></section><div class="company-market director">${available.map(renderCompanyMarketCard).join('')||'<div class="business-empty">모든 회사를 인수했습니다. 이제 기업 제국 칭호에 도전하세요.</div>'}</div>`;
+}
+function renderCompanyMarketCard(c){
+  const rep=Number(profile?.reputation||0),credit=Number(profile?.credit_score||0),cash=Number(profile?.cash||0),locked=rep<Number(c.required_reputation)||credit<Number(c.required_credit)||cash<Number(c.buy_price),est=estimateCompany({...c,facility_level:1,staff_level:0,product_level:0,company_reputation:50,strategy:'balanced'}),payback=est.net>0?Number(c.buy_price)/est.net:Infinity;
+  return `<article class="company-buy-card director theme-${esc(c.theme)}"><div class="company-buy-top"><span>${c.icon}</span><div><small>5분 예상 순익 +${money(est.net)}</small><h3>${esc(c.name)}</h3></div><em>${businessDuration(payback)} 회수</em></div><p>${esc(c.description)}</p><div class="acquisition-finance"><div><span>인수가</span><b>${money(c.buy_price)}</b></div><div><span>기본 매출</span><b>${money(c.base_income)}</b></div><div><span>기본 비용</span><b>${money(c.base_cost)}</b></div><div><span>이익률</span><b>${est.margin.toFixed(1)}%</b></div></div><div class="company-requirements"><span class="${cash>=c.buy_price?'ok':'bad'}">현금 ${money(c.buy_price)}</span><span class="${rep>=c.required_reputation?'ok':'bad'}">명성 ${c.required_reputation}</span><span class="${credit>=c.required_credit?'ok':'bad'}">신용 ${c.required_credit}</span></div><button ${locked?'disabled':''} onclick="buyBusiness('${c.code}')">${locked?'인수 조건 부족':'회사 인수 계약'}</button></article>`;
+}
+
+async function businessRpc(fn,args,success){
+  const buttons=[...document.querySelectorAll('#businessView button:not(:disabled)')];buttons.forEach(b=>b.disabled=true);
+  try{const{data,error}=await db.rpc(fn,args);if(error)throw error;toast(success);playSuccessSound();await loadBusiness();return data}catch(e){toast(e.message||'사업 처리 중 오류가 발생했습니다.');return null}finally{buttons.forEach(b=>b.disabled=false)}
+}
+async function buyBusiness(code){if(!confirm('이 회사를 인수할까요? 인수 금액은 현금에서 즉시 차감됩니다.'))return;await businessRpc('buy_company_v33',{p_code:code},'회사 인수 계약이 완료되었습니다.')}
+async function upgradeBusiness(id,kind){const labels={facility:'시설',staff:'직원',product:'상품 개발'};if(!confirm(`${labels[kind]} 투자를 진행할까요? 투자금은 개인 현금에서 차감됩니다.`))return;await businessRpc('upgrade_company_v33',{p_company_id:id,p_kind:kind},`${labels[kind]} 투자가 완료되었습니다.`)}
+async function collectBusinessCash(id){const d=await businessRpc('collect_company_cash_v33',{p_company_id:id},'회사 수익을 현금으로 수령했습니다.');if(d?.amount)toast(`사업 수익 +${money(d.amount)}`)}
+async function collectAllBusinessCash(){const d=await businessRpc('collect_all_company_cash_v33',{},'모든 회사의 수익을 한 번에 수령했습니다.');if(d?.amount)toast(`전체 사업 수익 +${money(d.amount)}`)}
+async function setBusinessStrategy(id,strategy){const s=BUSINESS_STRATEGIES[strategy];if(!s)return;if(!confirm(`${s.name} 전략으로 변경할까요?\n${s.desc}`))return;await businessRpc('set_company_strategy_v33',{p_company_id:id,p_strategy:strategy},`운영 전략을 ${s.name}(으)로 변경했습니다.`)}
+async function renameBusinessCompany(id,current){const name=prompt('새 회사명을 입력하세요. (2~16자)',current);if(name===null)return;await businessRpc('rename_company_v33',{p_company_id:id,p_name:name},'회사명이 변경되었습니다.')}
+
+/* 기존 휴대폰 함수에 사업 앱 연결 */
+function closePhone(){phoneOverlay.classList.add('hidden');if(chatRefreshTimer){clearInterval(chatRefreshTimer);chatRefreshTimer=null}if(businessRefreshTimer){clearInterval(businessRefreshTimer);businessRefreshTimer=null}}
+function phoneHome(){document.querySelectorAll('.phone-screen').forEach(x=>x.classList.add('hidden'));document.getElementById('phoneHome').classList.remove('hidden');closeStockDetail();if(businessRefreshTimer){clearInterval(businessRefreshTimer);businessRefreshTimer=null}}
+function openPhoneApp(name){
+  document.querySelectorAll('.phone-screen').forEach(x=>x.classList.add('hidden'));const screen=document.getElementById('phone-'+name);if(!screen)return;screen.classList.remove('hidden');
+  if(chatRefreshTimer){clearInterval(chatRefreshTimer);chatRefreshTimer=null}if(businessRefreshTimer){clearInterval(businessRefreshTimer);businessRefreshTimer=null}
+  if(name==='stocks')refreshStocks();else if(name==='wallet')renderWallet();else if(name==='ranking')loadRanking();else if(name==='property')loadProperties();else if(name==='bank')loadBank();else if(name==='business')loadBusiness();else if(name==='titles')loadTitles();else if(name==='chat'){loadChatMessages();chatRefreshTimer=setInterval(()=>{if(!document.getElementById('phone-chat')?.classList.contains('hidden'))loadChatMessages()},5000)}else if(name==='skills')loadNegotiationSkills();
+}
+
+/* v32 총자산에 회사 가치 포함 */
+async function loadBusinessStateSilent(){
+  const{data,error}=await db.rpc('get_business_status_v33');
+  if(!error)businessState=data||{};
+}
+function renderWallet(){
+  if(!profile)return;
+  const sv=holdings.reduce((s,h)=>s+Number(h.quantity)*Number(stocks.find(x=>x.id===h.stock_id)?.current_price||0),0),
+        iv=inventory.reduce((s,r)=>s+itemValue(r.items.average_price,r.condition_score),0),
+        cv=collectibles.reduce((s,r)=>s+Number(r.collectibles.effect_percent)*10000,0),
+        bv=Number(businessState?.total_company_value||0),
+        bank=Number(bankState?.deposit_balance||0)+Number(bankState?.savings_balance||0);
+  walletView.innerHTML=`<div class="wallet-card">현금 <b>${money(profile.cash)}</b></div><div class="wallet-card">주식 <b>${money(sv)}</b></div><div class="wallet-card">아이템 <b>${money(iv)}</b></div><div class="wallet-card">소장품 <b>${money(cv)}</b></div><div class="wallet-card">사업 가치 <b>${money(bv)}</b></div>${bank?`<div class="wallet-card">은행 자산 <b>${money(bank)}</b></div>`:''}`;
+}
+function updateNetworth(){
+  if(!profile)return;
+  const sv=holdings.reduce((s,h)=>s+Number(h.quantity)*Number(stocks.find(x=>x.id===h.stock_id)?.current_price||0),0),iv=inventory.reduce((s,r)=>s+itemValue(r.items.average_price,r.condition_score),0),cv=collectibles.reduce((s,r)=>s+Number(r.collectibles.effect_percent)*10000,0),bv=Number(businessState?.total_company_value||0),bank=Number(bankState?.deposit_balance||0)+Number(bankState?.savings_balance||0);
+  networth.textContent=money(Number(profile.cash)+sv+iv+cv+bv+bank);renderWallet();
+}
+async function enterGame(){
+  const{error:saveError}=await db.rpc('ensure_player_save');if(saveError){toast('저장 데이터 확인 실패: '+saveError.message);showAuth();return}
+  const{error:skillSyncError}=await db.rpc('sync_skill_points_v15');if(skillSyncError)console.warn('스킬 포인트 동기화 실패:',skillSyncError.message);
+  await loadProfile();if(!profile){showAuth();return}showGame();
+  await Promise.all([loadInventory(),loadStocks(),loadCollectibles(),loadEffects(),syncStockClock(),loadBusinessStateSilent()]);
+  await updateStocks();updateNetworth();subscribe();startGlobalStockTicker();startStockCountdown();setTimeout(hideBootScreen,280);
+}
+async function refreshAll(){
+  await loadProfile();if(!profile)return;
+  await Promise.all([loadInventory(),loadStocks(),loadCollectibles(),loadEffects(),syncStockClock(),loadBusinessStateSilent()]);
+  await updateStocks();updateNetworth();
+}
