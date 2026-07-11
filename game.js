@@ -25,7 +25,7 @@ async function submitAuth(){
     }
   }catch(e){authMsg.textContent=e.message}finally{authBtn.disabled=false;authBtn.textContent=authMode==="login"?"로그인":"회원가입"}
 }
-async function enterGame(){showGame();await db.rpc("ensure_player_save");await db.rpc("sync_skill_points_v15").catch(()=>{});await refreshAll();await grantStarterFundsIfNeeded();subscribe();setTimeout(hideBootScreen,280)}
+async function enterGame(){showGame();const{error:saveError}=await db.rpc("ensure_player_save");if(saveError){toast("저장 데이터 확인 실패: "+saveError.message);return}await db.rpc("sync_skill_points_v15").catch(()=>{});await refreshAll();subscribe();setTimeout(hideBootScreen,280)}
 function showAuth(){auth.classList.remove("hidden");game.classList.add("hidden");setTimeout(hideBootScreen,520)}
 function showGame(){auth.classList.add("hidden");game.classList.remove("hidden");setTimeout(renderTradeDashboard,0)}
 async function logout(){if(realtime)await db.removeChannel(realtime);await db.auth.signOut();showAuth()}
@@ -33,9 +33,10 @@ function openPage(name,btn){document.querySelectorAll(".page").forEach(x=>x.clas
 function openPageFromPhone(name){closePhone();openPage(name,document.querySelector(`[data-page="${name}"]`))}
 async function refreshAll(){await updateStocks();await loadProfile();await Promise.all([loadInventory(),loadStocks(),loadCollectibles(),loadEffects()]);updateNetworth()}
 async function loadProfile(){
-  const{data,error}=await db.from("profiles").select("*").eq("id",currentUser.id).single();
-  if(error)return toast(error.message);
-  profile=data;
+  const{data,error}=await db.rpc("get_player_profile_v24");
+  if(error){toast("저장 데이터를 불러오지 못했습니다: "+error.message);return}
+  profile=Array.isArray(data)?data[0]:data;
+  if(!profile){toast("저장 데이터가 없습니다.");return}
   renderTradeDashboard();
   nicknameTop.textContent=data.nickname;
   nicknameHero.textContent=data.nickname;
@@ -48,20 +49,11 @@ async function loadProfile(){
   if(t)applyTitleBadge(t,data.active_title||titleByProgress(data));
 }
 async function grantStarterFundsIfNeeded(){
-  const key=`starter_v8_${currentUser.id}`;
-  if(localStorage.getItem(key))return;
-  const stockAssets=(holdings||[]).reduce((sum,h)=>sum+Number(h.shares||0),0);
-  const hasAssets=(inventory||[]).length>0||stockAssets>0||(collectibles||[]).length>0;
-  if(profile&&Number(profile.cash)===0&&!hasAssets){
-    const{error}=await db.from("profiles").update({cash:500000}).eq("id",currentUser.id);
-    if(!error){
-      localStorage.setItem(key,"1");
-      toast("시작 지원금 50만원이 지급되었습니다.");
-      await loadProfile();
-      updateNetworth();
-    }
-  }
+  // v24부터 시작 자금은 신규 계정 생성 시 서버에서 단 한 번만 지급합니다.
+  // 기존 저장 데이터를 보호하기 위해 로그인 시 현금이나 명성을 절대 수정하지 않습니다.
+  return;
 }
+
 const JOB_TYPES={
   logistics:{name:"물류센터 분류",icon:"📦",desc:"주문표와 같은 물건을 빠르게 골라 분류합니다."},
   cashier:{name:"편의점 계산",icon:"🧾",desc:"상품 가격을 더해 정확한 결제 금액을 선택합니다."},
@@ -887,3 +879,91 @@ function playJackpotSound(){[523,659,784,1047,1319].forEach((f,i)=>setTimeout(()
 function playGachaBuild(){[220,277,330,392,466].forEach((f,i)=>setTimeout(()=>playUiTone(f,.04),i*260))}
 
 document.addEventListener('pointerdown',e=>{if(e.target.closest('button,.clickable,[onclick]'))playUiTone(420,.025)},{passive:true});
+
+
+/* ============================================================
+   v25 BANK / PROPERTY / SAVE / REPUTATION UPDATE
+============================================================ */
+let bankState=null;
+
+async function loadProfile(){
+  const{data,error}=await db.rpc('get_player_profile_v24');
+  if(error){toast('저장 데이터를 불러오지 못했습니다: '+error.message);return null}
+  profile=Array.isArray(data)?data[0]:data;
+  if(!profile){toast('저장 데이터가 없습니다.');return null}
+  renderTradeDashboard();
+  const map={nicknameTop:profile.nickname,nicknameHero:profile.nickname,phoneOwner:profile.nickname,cashTop:money(profile.cash),credit:profile.credit_score,reputation:profile.reputation};
+  Object.entries(map).forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.textContent=v});
+  updateGachaButtons();
+  const t=document.getElementById('titleTop');if(t)applyTitleBadge(t,profile.active_title||titleByProgress(profile));
+  return profile;
+}
+
+async function manualSave(){
+  const btn=document.getElementById('manualSaveBtn'),txt=document.getElementById('saveStateText');
+  if(btn)btn.disabled=true;if(txt)txt.textContent='저장 확인 중';
+  const{data,error}=await db.rpc('manual_save_v25');
+  if(error){if(txt)txt.textContent='저장 실패';if(btn)btn.disabled=false;return toast('저장 확인 실패: '+error.message)}
+  await refreshAll();
+  if(txt)txt.textContent='저장 완료';
+  toast('모든 자산과 진행 상황이 서버에 저장되어 있습니다.');
+  setTimeout(()=>{if(txt)txt.textContent='자동 저장'},2200);
+  if(btn)btn.disabled=false;
+}
+
+const PROPERTY_CATALOG=[
+  {tier:'basement',name:'반지하',icon:'🪟',price:0,capacity:1,desc:'기본 주거지 · 장식 1개'},
+  {tier:'studio',name:'원룸',icon:'🛏️',price:2000000,capacity:3,desc:'작지만 아늑한 첫 집'},
+  {tier:'apartment',name:'아파트',icon:'🏢',price:12000000,capacity:6,desc:'본격적인 수집가의 공간'},
+  {tier:'penthouse',name:'펜트하우스',icon:'🌆',price:80000000,capacity:10,desc:'도시 전망과 넉넉한 전시 공간'},
+  {tier:'mansion',name:'대저택',icon:'🏰',price:300000000,capacity:16,desc:'최고급 장식 전시를 위한 대형 저택'}
+];
+async function loadProperties(){
+  if(!profile)await loadProfile();
+  const host=document.getElementById('propertyList');if(!host)return;
+  const cap=Number(profile?.house_capacity||1),cash=Number(profile?.cash||0);
+  host.innerHTML=`<div class="property-current"><span>현재 거주지</span><b>${esc(profile?.property_name||'반지하')}</b><small>장식 슬롯 ${cap}개</small></div><div class="property-grid">${PROPERTY_CATALOG.map(x=>{const owned=cap>=x.capacity,current=cap===x.capacity,locked=cash<x.price;return `<article class="property-card ${current?'current':''}"><div class="property-art">${x.icon}</div><div><small>${x.tier.toUpperCase()}</small><h3>${x.name}</h3><p>${x.desc}</p><strong>${x.price?money(x.price):'기본 제공'}</strong></div><button ${owned||locked?'disabled':''} onclick="buyProperty('${x.tier}')">${current?'거주 중':owned?'구매 완료':locked?'자금 부족':'구매'}</button></article>`}).join('')}</div>`;
+}
+async function buyProperty(tier){
+  const{data,error}=await db.rpc('buy_property_v13',{p_tier:tier});
+  if(error)return toast(error.message);
+  toast(`${data.property_name} 구매 완료 · 장식 ${data.capacity}개 배치 가능`);playSuccessSound();
+  await Promise.all([loadProfile(),loadProperties(),loadHouse()]);updateNetworth();
+}
+
+function formatRemaining(seconds){seconds=Math.max(0,Math.floor(Number(seconds)||0));const m=Math.floor(seconds/60),s=seconds%60;return `${m}:${String(s).padStart(2,'0')}`}
+function bankInput(id){const n=Math.floor(Number(document.getElementById(id)?.value||0));return Number.isFinite(n)?n:0}
+async function loadBank(){
+  const host=document.getElementById('bankView');if(!host)return;
+  host.innerHTML='<div class="bank-loading">이자와 대출 상태를 정산하는 중...</div>';
+  const{data,error}=await db.rpc('get_bank_status_v25');
+  if(error){host.innerHTML=`<div class="bank-error">${esc(error.message)}</div>`;return}
+  bankState=data||{};renderBank();await loadProfile();updateNetworth();
+}
+function renderBank(){
+  const host=document.getElementById('bankView');if(!host||!bankState)return;
+  const b=bankState,loan=b.loan||null;
+  host.innerHTML=`
+    <div class="bank-hero"><div><span>판매은행 총 금융자산</span><b>${money(Number(b.deposit_balance||0)+Number(b.savings_balance||0))}</b></div><small>5분 단위 이자는 서버 시간으로 계산되며 로그아웃해도 유지됩니다.</small></div>
+    <section class="bank-product deposit"><div class="bank-product-head"><span>💳</span><div><h3>자유 예금</h3><p>한도 없이 5분마다 복리 2%</p></div><b>${money(b.deposit_balance||0)}</b></div><div class="bank-actions"><input id="depositAmount" type="number" min="1" placeholder="금액"><button onclick="bankDeposit()">입금</button><button class="sub" onclick="bankWithdrawDeposit()">출금</button></div><small>다음 이자까지 약 ${formatRemaining(b.deposit_next_seconds)} 남음</small></section>
+    <section class="bank-product savings"><div class="bank-product-head"><span>📈</span><div><h3>목표 적금</h3><p>5분마다 5% · 설정한 목표액에서 성장 종료</p></div><b>${money(b.savings_balance||0)}</b></div><div class="savings-progress"><i style="width:${Math.min(100,Number(b.savings_target||0)>0?Number(b.savings_balance||0)/Number(b.savings_target)*100:0)}%"></i></div><div class="bank-target">목표 ${money(b.savings_target||0)} · 다음 이자 ${formatRemaining(b.savings_next_seconds)}</div><div class="bank-actions savings-inputs"><input id="savingsAmount" type="number" min="1" placeholder="넣을 금액"><input id="savingsTarget" type="number" min="1" placeholder="목표 금액"><button onclick="bankSavingsDeposit()">적금 넣기</button><button class="sub" onclick="bankWithdrawSavings()">해지/출금</button></div></section>
+    <section class="bank-product loan"><div class="bank-product-head"><span>🏦</span><div><h3>신용 대출</h3><p>15분 만기 · 이자 1% · 최소 5분 후 상환</p></div><b>한도 ${money(b.loan_limit||0)}</b></div>${loan?`<div class="loan-active"><div><span>상환액</span><b>${money(loan.due_amount)}</b></div><div><span>상환 가능</span><b>${loan.repay_available? '지금 가능':formatRemaining(loan.repay_available_seconds)}</b></div><div><span>만기까지</span><b class="${loan.overdue?'down':''}">${loan.overdue?'연체 '+formatRemaining(loan.overdue_seconds):formatRemaining(loan.due_seconds)}</b></div></div><button class="bank-repay" ${loan.repay_available?'':'disabled'} onclick="repayLoan()">전액 상환</button><small>${loan.overdue?'연체 신용 패널티가 적용됩니다.':'빠르게 상환할수록 신용 상승 폭이 커집니다.'}</small>`:`<div class="bank-actions"><input id="loanAmount" type="number" min="10000" step="10000" placeholder="대출 금액"><button onclick="takeLoan()">대출 실행</button></div><small>대출 직후 상환으로 신용을 복사하지 못하도록 5분간 상환이 잠깁니다.</small>`}</section>`;
+}
+async function bankCall(fn,args={},success='처리 완료'){const{data,error}=await db.rpc(fn,args);if(error)return toast(error.message);toast(success);playSuccessSound();await loadBank();return data}
+async function bankDeposit(){const n=bankInput('depositAmount');if(n<=0)return toast('입금 금액을 입력하세요.');await bankCall('bank_deposit_v25',{p_amount:n},'예금 입금 완료')}
+async function bankWithdrawDeposit(){const n=bankInput('depositAmount');if(n<=0)return toast('출금 금액을 입력하세요.');await bankCall('bank_withdraw_deposit_v25',{p_amount:n},'예금 출금 완료')}
+async function bankSavingsDeposit(){const amount=bankInput('savingsAmount'),target=bankInput('savingsTarget');if(amount<=0||target<=0)return toast('넣을 금액과 목표 금액을 입력하세요.');await bankCall('bank_savings_deposit_v25',{p_amount:amount,p_target:target},'적금 입금 완료')}
+async function bankWithdrawSavings(){if(!confirm('적금을 해지하고 현재 적립액 전부를 현금으로 받을까요?'))return;await bankCall('bank_withdraw_savings_v25',{},'적금 출금 완료')}
+async function takeLoan(){const n=bankInput('loanAmount');if(n<=0)return toast('대출 금액을 입력하세요.');await bankCall('bank_take_loan_v25',{p_amount:n},'대출금이 지급되었습니다.')}
+async function repayLoan(){if(!confirm('이자 1%를 포함한 대출금을 전액 상환할까요?'))return;const data=await bankCall('bank_repay_loan_v25',{},'대출 상환 완료');if(data?.credit_delta)toast(`대출 상환 완료 · 신용 ${data.credit_delta>0?'+':''}${data.credit_delta}`)}
+
+function openPhoneApp(name){document.querySelectorAll('.phone-screen').forEach(x=>x.classList.add('hidden'));const screen=document.getElementById('phone-'+name);if(!screen)return;screen.classList.remove('hidden');if(name==='stocks')refreshStocks();else if(name==='wallet')renderWallet();else if(name==='ranking')loadRanking();else if(name==='property')loadProperties();else if(name==='bank')loadBank();else if(name==='titles')loadTitles();else if(name==='chat')loadChatMessages();else if(name==='skills')loadNegotiationSkills()}
+
+function reputationToast(data,prefix='거래 완료'){
+  if(!data)return toast(prefix);
+  const label=data.reputation_label||'거래 완료',delta=Number(data.reputation_delta||0);
+  toast(`${prefix} · ${label} · 명성 ${delta>=0?'+':''}${delta}`);
+}
+async function pawnSell(id,mode,pct){const{data,error}=await db.rpc('sell_item_to_pawnshop',{p_user_item_id:id,p_mode:mode,p_offer_percent:pct});if(error)return toast(error.message);reputationToast(data,'판매 '+money(data.final_price));await Promise.all([loadProfile(),loadPawnshop(),loadInventory()]);updateNetworth()}
+async function finishSellerAuctionAfterCountdown(){const s=sellerAuction;if(!s||s.ending)return;s.ending=true;const{data,error}=await db.rpc('finish_npc_seller_auction_v13',{p_session_id:s.session,p_final_price:s.current});if(error){s.ending=false;return toast(error.message)}reputationToast(data,'경매 판매 '+money(data.final_price));playSuccessSound();clearInterval(s.timer);sellerAuction=null;await Promise.all([loadProfile(),loadInventory()]);fillAuctionSellItems();sellerAuctionHall.innerHTML='<div class="auction-finished">3초 동안 추가 입찰이 없어 판매가 확정되었습니다.</div>'}
+async function acceptNpcBuyDeal(){const n=negotiation;if(!n||n.type!=='npc_buy')return;const{data,error}=await db.rpc('purchase_npc_offer_v18',{p_offer_id:n.offerId,p_final_price:Math.round(n.npcOffer)});if(error)return toast(error.message);reputationToast(data,`구매 ${money(data.final_price)} · ${money(n.asking-data.final_price)} 절약`);playSuccessSound();closeNegotiation();await Promise.all([loadProfile(),loadInventory(),loadNpcOffers()]);updateNetworth()}
