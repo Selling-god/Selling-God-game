@@ -3,11 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>판매의 신 v8</title>
+  <title>판매의 신 — Definitive Edition v11</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+<div id="bootScreen" class="boot-screen">
+  <div class="boot-emblem">♛</div>
+  <h1>판매의 신</h1><p>DEFINITIVE EDITION</p>
+  <div class="boot-bar"><i></i></div><small>상점 문을 여는 중...</small>
+</div>
+<div class="ambient-grain"></div><div class="ambient-vignette"></div>
 <div id="toast" class="toast"></div>
 
 <section id="auth" class="screen auth-screen">
@@ -41,8 +47,9 @@
       <div><span>총자산</span><b id="networth">0원</b></div>
     </div>
     <div class="hud-buttons">
-      <button onclick="openPhone()">📱</button>
-      <button onclick="logout()">🚪</button>
+      <button id="soundToggle" class="hud-icon" onclick="toggleSound()" title="효과음">🔊</button>
+      <button class="hud-icon" onclick="openPhone()" title="휴대폰">📱</button>
+      <button class="hud-icon danger" onclick="logout()" title="로그아웃">🚪</button>
     </div>
   </header>
 
@@ -63,7 +70,7 @@
         <div class="negotiation-game">
           <div class="game-day-bar">
             <div>
-              <span class="day-label">DAY 01</span>
+              <span class="day-label"><i></i> DAY 01</span>
               <b><span id="nicknameHero">판매왕</span>의 전당포 영업일지</b>
             </div>
             <div class="day-resources">
@@ -75,7 +82,7 @@
 
           <div class="shop-playfield">
             <div class="back-wall">
-              <div class="wall-sign">SELLING GOD</div>
+              <div class="wall-sign"><span>SELLING</span><strong>GOD</strong><small>PAWNSHOP &amp; TRADING</small></div>
               <div class="wall-clock">🕰️</div>
               <div class="wall-lamp left-lamp">💡</div>
               <div class="wall-lamp right-lamp">💡</div>
@@ -118,7 +125,8 @@
             </div>
           </div>
 
-          <div class="main-scene-tip">왼쪽 메뉴에서 경매장·중고장터·전당포·알바로 이동하세요. 화면 아래 선택지는 제거했습니다.</div>
+          <div class="main-scene-tip"><span class="live-dot"></span> 오늘의 상점이 영업 중입니다 <b>·</b> 좌측 메뉴에서 원하는 장소를 선택하세요.</div>
+          <div id="tradeDashboard" class="trade-dashboard"><div><span>누적 거래</span><b>0건</b></div><div><span>누적 추가이익</span><b>0원</b></div><div><span>성공 거래</span><b>0건</b></div><div><span>평균 추가이익</span><b>0원</b></div></div>
         </div>
       </section>
 
@@ -260,5 +268,6 @@
 </section>
 
 <script src="game.js"></script>
+<div id="clickFxLayer" class="click-fx-layer"></div>
 </body>
 </html>
