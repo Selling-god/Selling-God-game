@@ -2,7 +2,7 @@ const SUPABASE_URL="https://qazjtevdljthbzmqmgrw.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_rIARlWBpKPvFAv_TtTdgaQ_Po-hOGmX";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
-let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,negotiation=null,selectedStock=null,toastTimer=null,realtime=null;
+let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,negotiation=null,job=null,selectedStock=null,toastTimer=null,realtime=null;
 
 document.addEventListener("DOMContentLoaded",init);
 async function init(){
@@ -29,7 +29,7 @@ async function enterGame(){showGame();await db.rpc("ensure_player_save");await r
 function showAuth(){auth.classList.remove("hidden");game.classList.add("hidden")}
 function showGame(){auth.classList.add("hidden");game.classList.remove("hidden")}
 async function logout(){if(realtime)await db.removeChannel(realtime);await db.auth.signOut();showAuth()}
-function openPage(name,btn){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));document.getElementById("page-"+name).classList.add("active");btn?.classList.add("active");({inventory:loadInventory,pawnshop:loadPawnshop,auction:loadAuction,market:loadMarketHub,house:loadHouse,collection:loadCollectibles}[name]||(()=>{}))()}
+function openPage(name,btn){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));document.getElementById("page-"+name).classList.add("active");btn?.classList.add("active");({inventory:loadInventory,pawnshop:loadPawnshop,auction:loadAuction,market:loadMarketHub,house:loadHouse,collection:loadCollectibles,jobs:resetJobPage}[name]||(()=>{}))()}
 function openPageFromPhone(name){closePhone();openPage(name,document.querySelector(`[data-page="${name}"]`))}
 async function refreshAll(){await updateStocks();await loadProfile();await Promise.all([loadInventory(),loadStocks(),loadCollectibles(),loadEffects()]);updateNetworth()}
 async function loadProfile(){const{data,error}=await db.from("profiles").select("*").eq("id",currentUser.id).single();if(error)return toast(error.message);profile=data;nicknameTop.textContent=data.nickname;nicknameHero.textContent=data.nickname;phoneOwner.textContent=data.nickname;cashTop.textContent=money(data.cash);credit.textContent=data.credit_score;reputation.textContent=data.reputation}
@@ -48,7 +48,55 @@ async function grantStarterFundsIfNeeded(){
     }
   }
 }
-async function quickJob(){const{data,error}=await db.rpc("do_quick_job");if(error)return toast(error.message);toast("+"+money(data.reward));await loadProfile();updateNetworth()}
+function resetJobPage(){
+  clearJob();
+  job=null;
+  const intro=document.getElementById("jobIntro"),gameEl=document.getElementById("jobGame"),result=document.getElementById("jobResult");
+  if(intro)intro.classList.remove("hidden");
+  if(gameEl)gameEl.classList.add("hidden");
+  if(result){result.classList.add("hidden");result.innerHTML=""}
+  const stage=document.getElementById("jobStage");if(stage)stage.innerHTML="";
+}
+async function startJobMinigame(){
+  const{data,error}=await db.rpc("prepare_job_minigame");
+  if(error)return toast(error.message);
+  job={token:data.token,target:Number(data.target_count),time:Number(data.time_limit),score:0,miss:0,active:true};
+  jobIntro.classList.add("hidden");jobResult.classList.add("hidden");jobGame.classList.remove("hidden");
+  jobTarget.textContent=job.target;jobScore.textContent="0";jobTime.textContent=job.time;jobMiss.textContent="0";
+  renderJobOrder();spawnJobBox();
+  job.interval=setInterval(()=>{job.time--;jobTime.textContent=job.time;if(job.time<=0)finishJobMinigame()},1000);
+}
+function renderJobOrder(){
+  const types=["📦","🧊","📕","🧸"];
+  job.order=types[Math.floor(Math.random()*types.length)];
+  jobOrder.textContent=job.order;
+}
+function spawnJobBox(){
+  if(!job?.active)return;
+  const types=["📦","🧊","📕","🧸"],stage=document.getElementById("jobStage");
+  stage.innerHTML="";
+  for(let i=0;i<4;i++){
+    const icon=types.sort(()=>Math.random()-.5)[i];
+    const b=document.createElement("button");b.className="job-box";b.textContent=icon;
+    b.style.left=(8+Math.random()*72)+"%";b.style.top=(8+Math.random()*58)+"%";
+    b.onclick=()=>pickJobBox(icon);stage.appendChild(b);
+  }
+}
+function pickJobBox(icon){
+  if(!job?.active)return;
+  if(icon===job.order){job.score++;jobScore.textContent=job.score;renderJobOrder();spawnJobBox();if(job.score>=job.target)finishJobMinigame()}
+  else{job.miss++;jobMiss.textContent=job.miss;job.time=Math.max(0,job.time-2);jobTime.textContent=job.time;toast("오배송! 제한시간 -2초");if(job.time<=0)finishJobMinigame()}
+}
+function clearJob(){clearInterval(job?.interval)}
+async function finishJobMinigame(){
+  if(!job?.active)return;job.active=false;clearJob();
+  const{data,error}=await db.rpc("complete_job_minigame",{p_token:job.token,p_score:job.score,p_miss:job.miss});
+  jobGame.classList.add("hidden");jobResult.classList.remove("hidden");
+  if(error){jobResult.innerHTML=`<h2>정산 실패</h2><p>${esc(error.message)}</p><button class="btn primary" onclick="resetJobPage()">돌아가기</button>`;return}
+  const success=Boolean(data.success);
+  jobResult.innerHTML=`<div class="job-result-icon">${success?"💵":"🧾"}</div><h2>${success?"알바 완료":"목표 미달"}</h2><p>${job.score}개 처리 · 실수 ${job.miss}회</p><div class="job-pay">${success?"급여 "+money(data.reward):"이번 급여 0원"}</div><button class="btn primary" onclick="resetJobPage()">다시 도전</button>`;
+  if(success){toast("알바비 "+money(data.reward)+" 지급");await loadProfile();updateNetworth()}
+}
 
 /* 메인 미니게임(탐색 기능은 메인 UI에서 제거됨) */
 async function prepareExplore(location){
@@ -99,26 +147,53 @@ function inventoryEl(){return document.getElementById("inventory")}
 function cardItem(r){const i=r.items,v=itemValue(i.average_price,r.condition_score);return `<article class="item-card"><div class="item-image"><img src="${itemImage(i.name,i.category)}"></div><div class="item-body"><h3>${esc(i.name)}</h3><div class="meta">${esc(i.category)} · ${esc(i.rarity)}</div><div class="condition"><i style="width:${r.condition_score}%"></i></div><div class="meta">상태 ${r.condition_score}/100</div><div class="price">${money(v)}</div><div class="item-actions"><button class="btn light" onclick="openPage('pawnshop',document.querySelector('[data-page=pawnshop]'))">전당포</button><button class="btn primary" onclick="openPage('market',document.querySelector('[data-page=market]'))">장터</button></div></div></article>`}
 async function loadPawnshop(){await loadInventory();pawnshopList.innerHTML=inventory.filter(x=>!x.is_listed).map(r=>{const v=itemValue(r.items.average_price,r.condition_score);return `<article class="item-card"><div class="item-image"><img src="${itemImage(r.items.name,r.items.category)}"></div><div class="item-body"><h3>${esc(r.items.name)}</h3><div class="meta">상태 ${r.condition_score}/100</div><div class="price">원가 ${money(v)}</div><div class="item-actions"><button class="btn light" onclick="pawnSell('${r.id}','instant',100)">원가 판매</button><button class="btn primary" onclick="startPawnNegotiation('${r.id}')">흥정 판매</button></div></div></article>`}).join("")||`<div class="panel" style="padding:20px">판매할 아이템이 없습니다.</div>`}
 async function pawnSell(id,mode,pct){const{data,error}=await db.rpc("sell_item_to_pawnshop",{p_user_item_id:id,p_mode:mode,p_offer_percent:pct});if(error)return toast(error.message);toast("판매 완료 "+money(data.final_price));await Promise.all([loadProfile(),loadPawnshop(),loadInventory()]);updateNetworth()}
-function startPawnNegotiation(id){const r=inventory.find(x=>x.id===id),base=itemValue(r.items.average_price,r.condition_score);negotiation={type:"pawn",id,title:r.items.name,base,offer:Math.round(base*1.08),limit:Math.round(base*(1.08+Math.random()*.26)),attempts:3};renderNegotiation()}
+function startPawnNegotiation(id){
+  const r=inventory.find(x=>x.id===id),base=itemValue(r.items.average_price,r.condition_score);
+  const maxPct=128+Math.min(20,Number(effects.pawn_bonus||0));
+  negotiation={type:"pawn",id,title:r.items.name,base,min:base,npcOffer:Math.round(base*1.03),limit:Math.round(base*maxPct/100),ask:Math.round(base*1.18),round:1,patience:4,mood:"neutral",history:[`조 아저씨: ${money(Math.round(base*1.03))}이면 어떻겠나?`]};
+  renderNegotiation()
+}
 function renderNegotiation(){
   negotiationModal.classList.remove("hidden");
-  const n=negotiation,p=Math.min(100,n.offer/n.limit*100);
-  const mood=p<68?"흠… 시작은 나쁘지 않군.":p<86?"조금 욕심을 부리는군. 그래도 들어보지.":p<96?"이제 내 인내심이 거의 바닥이야.":"한 번만 더 무리하면 거래는 끝일세.";
+  const n=negotiation;
+  const patience=Math.max(0,n.patience),mood=n.mood==="good"?"🙂":n.mood==="bad"?"😠":"🤨";
+  const line=n.mood==="good"?"좋아, 이제 말이 좀 통하는군.":n.mood==="bad"?"그 가격은 너무 심하군. 마지막 기회일세.":"물건은 괜찮지만 가격은 더 봐야겠어.";
   negotiationContent.innerHTML=`
-    <p class="eyebrow">PRICE NEGOTIATION</p>
+    <p class="eyebrow">REAL NEGOTIATION · ROUND ${n.round}</p>
     <h2>${esc(n.title)}</h2>
-    <p class="dealer-line">“${mood}”</p>
-    <p>현재 제안가 <b>${money(n.offer)}</b></p>
-    <div class="neg-track"><i style="width:${p}%"></i></div>
-    <p class="muted">조 아저씨의 인내심 · 남은 흥정 ${n.attempts}회</p>
+    <div class="deal-status"><div><span>NPC 제안</span><b>${money(n.npcOffer)}</b></div><div><span>내 요구가</span><b>${money(n.ask)}</b></div><div><span>인내심</span><b>${"●".repeat(patience)}${"○".repeat(4-patience)}</b></div></div>
+    <p class="dealer-line">${mood} “${line}”</p>
+    <div class="neg-history">${n.history.slice(-4).map(x=>`<p>${esc(x)}</p>`).join("")}</div>
+    <label class="neg-input-label">내가 원하는 판매가<input id="negAskInput" type="number" min="${Math.ceil(n.npcOffer)}" max="${Math.floor(n.limit*1.15)}" value="${Math.round(n.ask)}"></label>
+    <div class="neg-quick"><button onclick="setNegotiationAsk(3)">현재 제안 +3%</button><button onclick="setNegotiationAsk(7)">현재 제안 +7%</button><button onclick="setNegotiationAsk(12)">강하게 +12%</button></div>
     <div class="item-actions">
-      <button class="btn light" onclick="raiseOffer(5)">조금 더 +5%</button>
-      <button class="btn light" onclick="raiseOffer(10)">강하게 +10%</button>
-      <button class="btn primary" onclick="acceptNegotiation()">이 가격에 거래</button>
+      <button class="btn light" onclick="acceptNpcCounter()">NPC 제안 수락</button>
+      <button class="btn primary" onclick="submitNegotiationAsk()">이 가격으로 흥정</button>
     </div>`;
 }
-function raiseOffer(pct){if(negotiation.attempts<=0)return;negotiation.attempts--;const next=Math.round(negotiation.offer*(1+pct/100));if(next<=negotiation.limit){negotiation.offer=next;toast("NPC가 수락했습니다.")}else toast("NPC가 거절했습니다.");renderNegotiation()}
-async function acceptNegotiation(){const n=negotiation;if(n.type==="pawn")await pawnSell(n.id,"negotiated",Math.round(n.offer/n.base*100));else{const{data,error}=await db.rpc("accept_npc_market_offer",{p_offer_id:n.offerId,p_final_price:n.offer});if(error)return toast(error.message);toast("NPC 거래 완료 "+money(data.final_price));await Promise.all([loadProfile(),loadNpcOffers(),loadInventory()])}closeNegotiation()}
+function setNegotiationAsk(pct){const n=negotiation;n.ask=Math.round(n.npcOffer*(1+pct/100));renderNegotiation()}
+function submitNegotiationAsk(){
+  const n=negotiation,input=Number(document.getElementById("negAskInput").value);
+  if(!Number.isFinite(input)||input<n.npcOffer)return toast("NPC 제안보다 높은 금액을 입력하세요.");
+  n.ask=Math.round(input);n.round++;n.patience--;
+  const gap=(n.ask-n.npcOffer)/Math.max(1,n.limit-n.min);
+  const acceptChance=Math.max(.06,Math.min(.88,1-gap*.95+(n.patience*.04)));
+  if(n.ask<=n.limit&&Math.random()<acceptChance){
+    n.npcOffer=n.ask;n.mood="good";n.history.push(`나: ${money(n.ask)} / 조 아저씨: 좋아, 그 가격에 하지.`);renderNegotiation();setTimeout(acceptNpcCounter,450);return;
+  }
+  if(n.patience<=0){n.mood="bad";n.history.push(`조 아저씨: 더는 못 듣겠군. 거래는 끝이야.`);renderNegotiation();setTimeout(()=>{toast("흥정이 결렬되었습니다.");closeNegotiation()},850);return}
+  const room=Math.max(0,n.limit-n.npcOffer),step=Math.max(1,Math.round(room*(.22+Math.random()*.25)));
+  n.npcOffer=Math.min(n.limit,n.npcOffer+step);
+  n.mood=gap>.72?"bad":gap<.35?"good":"neutral";
+  n.history.push(`나: ${money(n.ask)} / 조 아저씨: ${money(n.npcOffer)}까지는 주지.`);
+  renderNegotiation();
+}
+async function acceptNpcCounter(){
+  const n=negotiation,final=Math.round(n.npcOffer);
+  if(n.type==="pawn")await pawnSell(n.id,"negotiated",Math.round(final/n.base*100));
+  else{const{data,error}=await db.rpc("accept_npc_market_offer",{p_offer_id:n.offerId,p_final_price:final});if(error)return toast(error.message);toast("NPC 거래 완료 "+money(data.final_price));await Promise.all([loadProfile(),loadNpcOffers(),loadInventory()])}
+  closeNegotiation()
+}
 function closeNegotiation(){negotiation=null;negotiationModal.classList.add("hidden")}
 
 /* 경매 */
@@ -141,7 +216,7 @@ async function loadMarket(){const{data,error}=await db.from("market_listings").s
 async function buyListing(id){const{data,error}=await db.rpc("buy_market_listing",{p_listing_id:id});if(error)return toast(error.message);toast("구매 완료 "+money(data.final_price));await refreshAll();loadMarket()}
 async function cancelListing(id){const{error}=await db.rpc("cancel_market_listing",{p_listing_id:id});if(error)return toast(error.message);await Promise.all([loadInventory(),loadMarket()])}
 async function loadNpcOffers(){await db.rpc("generate_npc_market_offers");const{data,error}=await db.from("npc_market_offers").select(`id,offer_price,max_price,user_items(id,condition_score,items(name,category))`).eq("user_id",currentUser.id).eq("status","active").order("created_at",{ascending:false});if(error)return toast(error.message);npcOfferList.innerHTML=(data||[]).map(o=>`<article class="market-card"><div class="item-image"><img src="${itemImage(o.user_items.items.name,o.user_items.items.category)}"></div><div class="market-body"><span class="badge normal">NPC 제안</span><h3>${esc(o.user_items.items.name)}</h3><div class="price">${money(o.offer_price)}</div><button class="btn primary full" onclick="startNpcOffer('${o.id}')">거래하기</button></div></article>`).join("")||`<div class="panel" style="padding:20px">NPC 제안이 없습니다.</div>`}
-async function startNpcOffer(id){const{data,error}=await db.from("npc_market_offers").select(`id,offer_price,max_price,user_items(items(name))`).eq("id",id).single();if(error)return toast(error.message);negotiation={type:"npc",offerId:id,title:data.user_items.items.name,base:Number(data.offer_price),offer:Number(data.offer_price),limit:Number(data.max_price),attempts:3};renderNegotiation()}
+async function startNpcOffer(id){const{data,error}=await db.from("npc_market_offers").select(`id,offer_price,max_price,user_items(items(name))`).eq("id",id).single();if(error)return toast(error.message);negotiation={type:"npc",offerId:id,title:data.user_items.items.name,base:Number(data.offer_price),min:Number(data.offer_price),npcOffer:Number(data.offer_price),limit:Number(data.max_price),ask:Math.round(Number(data.offer_price)*1.12),round:1,patience:4,mood:"neutral",history:[`구매자: ${money(data.offer_price)}에 사고 싶습니다.`]};renderNegotiation()}
 
 /* 소장품/집 */
 async function drawCollectible(){const{data,error}=await db.rpc("draw_collectible");if(error)return toast(error.message);toast(`${data.rarity} ${data.name} · ${data.effect_name} +${data.effect_percent}%`);await Promise.all([loadProfile(),loadCollectibles()]);updateNetworth()}
@@ -161,7 +236,7 @@ function effectName(k){return{pawn_bonus:"전당포 판매가",market_bonus:"NPC
 function openPhone(){phoneOverlay.classList.remove("hidden");phoneHome();updatePhoneTime()}function closePhone(){phoneOverlay.classList.add("hidden")}function phoneBackdrop(e){if(e.target.id==="phoneOverlay")closePhone()}function phoneHome(){document.querySelectorAll(".phone-screen").forEach(x=>x.classList.add("hidden"));document.getElementById("phoneHome").classList.remove("hidden");closeStockDetail()}function openPhoneApp(name){document.querySelectorAll(".phone-screen").forEach(x=>x.classList.add("hidden"));document.getElementById("phone-"+name).classList.remove("hidden");name==="stocks"?refreshStocks():renderWallet()}function updatePhoneTime(){phoneTime.textContent=new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}
 async function updateStocks(){await db.rpc("update_global_stock_market")}
 async function refreshStocks(){await updateStocks();await loadStocks()}
-async function loadStocks(){const[{data:s},{data:h}]=await Promise.all([db.from("stocks").select("id,symbol,name,current_price,previous_price,history").eq("is_active",true).order("name"),db.from("stock_holdings").select("*").eq("user_id",currentUser.id)]);stocks=s||[];holdings=h||[];let total=0,profit=0;stockList.innerHTML=stocks.map(st=>{const hd=holdings.find(x=>x.stock_id===st.id),q=Number(hd?.quantity||0),avg=Number(hd?.average_buy_price||0),cur=Number(st.current_price),prev=Number(st.previous_price),r=prev?(cur-prev)/prev*100:0,val=q*cur,p=val-q*avg;total+=val;profit+=p;return `<button class="stock-row" onclick="openStockDetail('${st.id}')"><div><b>${esc(st.name)}</b><small>${esc(st.symbol)} · ${q}주</small></div>${stockSvg(history(st.history,prev,cur),95,40,true)}<b class="${r>=0?"up":"down"}">${r>=0?"+":""}${r.toFixed(2)}%</b></button>`}).join("");stockValue.textContent=money(total);stockProfit.textContent=(profit>=0?"+":"")+money(profit);stockProfit.className=profit>=0?"up":"down";if(selectedStock)renderStockDetail(selectedStock);renderWallet()}
+async function loadStocks(){const[{data:s},{data:h}]=await Promise.all([db.from("stocks").select("id,symbol,name,current_price,previous_price,history").eq("is_active",true).order("name"),db.from("stock_holdings").select("*").eq("user_id",currentUser.id)]);stocks=s||[];holdings=h||[];let total=0,profit=0;stockList.innerHTML=stocks.map(st=>{const hd=holdings.find(x=>x.stock_id===st.id),q=Number(hd?.quantity||0),avg=Number(hd?.average_buy_price||0),cur=Number(st.current_price),prev=Number(st.previous_price),r=prev?(cur-prev)/prev*100:0,val=q*cur,p=val-q*avg;total+=val;profit+=p;return `<button class="stock-row" onclick="openStockDetail('${st.id}')"><div class="stock-name"><b>${esc(st.name)}</b><small>${esc(st.symbol)} · ${q}주</small></div><div class="stock-price"><b>${money(cur)}</b><small>현재가</small></div>${stockSvg(history(st.history,prev,cur),95,40,true)}<b class="stock-rate ${r>=0?"up":"down"}">${r>=0?"+":""}${r.toFixed(2)}%</b></button>`}).join("");stockValue.textContent=money(total);stockProfit.textContent=(profit>=0?"+":"")+money(profit);stockProfit.className=profit>=0?"up":"down";if(selectedStock)renderStockDetail(selectedStock);renderWallet()}
 function openStockDetail(id){selectedStock=id;stockListView.classList.add("hidden");stockDetailView.classList.remove("hidden");renderStockDetail(id)}function closeStockDetail(){selectedStock=null;stockListView?.classList.remove("hidden");stockDetailView?.classList.add("hidden")}
 function renderStockDetail(id){const st=stocks.find(x=>x.id===id),hd=holdings.find(x=>x.stock_id===id),q=Number(hd?.quantity||0),avg=Number(hd?.average_buy_price||0),cur=Number(st.current_price),hist=history(st.history,st.previous_price,cur),val=q*cur,p=val-q*avg;stockDetail.innerHTML=`<h2>${esc(st.name)}</h2>${stockSvg(hist,340,220,false)}<div class="metrics"><div>보유 <b>${q}주</b></div><div>평균 <b>${q?money(avg):"-"}</b></div><div>평가액 <b>${money(val)}</b></div><div>손익 <b class="${p>=0?"up":"down"}">${p>=0?"+":""}${money(p)}</b></div></div><div class="trade"><input id="qty-${id}" type="number" min="1" value="1"><button class="buy" onclick="tradeStock('${id}','buy')">매수</button><button class="sell" onclick="tradeStock('${id}','sell')">매도</button></div>`}
 async function tradeStock(id,type){const q=Number(document.getElementById("qty-"+id).value);const{error}=await db.rpc(type==="buy"?"buy_stock_v2":"sell_stock_v2",{p_stock_id:id,p_quantity:q});if(error)return toast(error.message);await Promise.all([loadProfile(),loadStocks()])}
