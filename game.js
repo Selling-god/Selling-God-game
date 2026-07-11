@@ -559,8 +559,14 @@ function groupedCollectibleRow(group,options={}){
   }else{
     if(group.placedCount>0)state=`<em class="collectible-state">배치 ${group.placedCount}/${group.count}</em>`;
     const fullyPlaced=group.placedCount>=group.count;
-    const label=fullyPlaced?'모두 배치됨':group.placedCount>0?'추가 배치':'배치';
-    button=`<button class="btn light" ${fullyPlaced?'disabled':''} onclick="equipGroupedCollectible('${escAttr(String(c.id))}','place')">${label}</button>`;
+    const canPlace=group.rows.some(r=>!r.is_placed&&!r.is_listed);
+    const canUnplace=group.rows.some(r=>r.is_placed);
+    const placeLabel=group.placedCount>0?'추가 배치':'배치';
+    button=`<div class="collectible-actions">
+      ${canPlace?`<button class="btn light" onclick="equipGroupedCollectible('${escAttr(String(c.id))}','place')">${placeLabel}</button>`:''}
+      ${canUnplace?`<button class="btn unplace" onclick="equipGroupedCollectible('${escAttr(String(c.id))}','unplace')">1개 해제</button>`:''}
+      ${!canPlace&&!canUnplace?'<button class="btn light" disabled>사용 불가</button>':''}
+    </div>`;
   }
 
   return `<div class="collectible ${rc}">
@@ -582,10 +588,11 @@ async function equipGroupedCollectible(collectibleId,action){
 
   let target=null;
   if(action==='equip')target=pool.find(r=>!r.is_equipped&&!r.is_listed)||pool.find(r=>!r.is_equipped)||pool[0];
-  else if(action==='place')target=pool.find(r=>!r.is_placed&&!r.is_listed)||pool.find(r=>!r.is_placed)||pool[0];
+  else if(action==='place')target=pool.find(r=>!r.is_placed&&!r.is_listed)||pool.find(r=>!r.is_placed)||null;
+  else if(action==='unplace')target=pool.find(r=>r.is_placed)||null;
 
-  if(!target)return toast('사용 가능한 소장품이 없습니다.');
-  await equipCollectible(target.id,action);
+  if(!target)return toast(action==='unplace'?'배치 해제할 소장품이 없습니다.':'사용 가능한 소장품이 없습니다.');
+  await equipCollectible(target.id,action==='unplace'?'place':action);
 }
 
 function renderCollectiblePages(){
