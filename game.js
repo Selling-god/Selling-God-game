@@ -37,7 +37,7 @@ async function enterGame(){
   setTimeout(hideBootScreen,280);
 }
 function showAuth(){auth.classList.remove("hidden");game.classList.add("hidden");setTimeout(hideBootScreen,520)}
-function showGame(){auth.classList.add("hidden");game.classList.remove("hidden");setTimeout(renderTradeDashboard,0)}
+function showGame(){auth.classList.add("hidden");game.classList.remove("hidden");restoreChatUnreadState();setTimeout(renderTradeDashboard,0)}
 async function logout(){
   if(stockTickerTimer){clearInterval(stockTickerTimer);stockTickerTimer=null;}
   if(realtime)await db.removeChannel(realtime);
@@ -1862,3 +1862,115 @@ async function repayLoan(){
     toast(`대출 상환 완료 · 신용 ${d>=0?'+':''}${d}${Number.isFinite(Number(data.credit_before))?` (${data.credit_before} → ${data.credit_after})`:''}`);
   }
 }
+
+
+/* ============================================================
+   v33.5 GLOBAL CHAT UNREAD BADGE
+   ============================================================ */
+function chatUnreadStorageKey(){
+  return `sellingGodChatUnread:${currentUser?.id||'guest'}`;
+}
+function chatLastSeenStorageKey(){
+  return `sellingGodChatLastSeen:${currentUser?.id||'guest'}`;
+}
+function updateChatUnreadDots(unread){
+  const on=Boolean(unread);
+  document.getElementById('phoneChatUnreadDot')?.classList.toggle('hidden',!on);
+  document.getElementById('chatAppUnreadDot')?.classList.toggle('hidden',!on);
+  document.getElementById('hudPhoneButton')?.classList.toggle('has-chat-unread',on);
+  document.getElementById('chatAppButton')?.classList.toggle('has-chat-unread',on);
+}
+function setChatUnread(unread){
+  const on=Boolean(unread);
+  try{localStorage.setItem(chatUnreadStorageKey(),on?'1':'0')}catch{}
+  updateChatUnreadDots(on);
+}
+function restoreChatUnreadState(){
+  let unread=false;
+  try{unread=localStorage.getItem(chatUnreadStorageKey())==='1'}catch{}
+  updateChatUnreadDots(unread);
+}
+function markChatRead(latestCreatedAt=null){
+  setChatUnread(false);
+  try{localStorage.setItem(chatLastSeenStorageKey(),latestCreatedAt||new Date().toISOString())}catch{}
+}
+function isChatScreenOpen(){
+  const phone=document.getElementById('phoneOverlay');
+  const screen=document.getElementById('phone-chat');
+  return Boolean(phone&&!phone.classList.contains('hidden')&&screen&&!screen.classList.contains('hidden'));
+}
+async function syncChatUnreadFromServer(){
+  if(!currentUser)return;
+  let lastSeen='';
+  try{lastSeen=localStorage.getItem(chatLastSeenStorageKey())||''}catch{}
+  const{data,error}=await db.rpc('get_global_chat_v31',{p_limit:1});
+  if(error||!Array.isArray(data)||!data.length)return;
+  const latest=data[0];
+  if(latest.sender_user_id===currentUser.id)return;
+  if(!lastSeen||new Date(latest.created_at).getTime()>new Date(lastSeen).getTime())setChatUnread(true);
+}
+
+async function handleRealtimeChatInsert(payload){
+  const row=payload?.new||{};
+  if(!row.id||!currentUser||row.user_id===currentUser.id)return;
+
+  if(isChatScreenOpen()){
+    await loadChatMessages();
+    markChatRead(row.created_at);
+  }else{
+    setChatUnread(true);
+  }
+
+  let sender=null;
+  try{
+    const {data,error}=await db.rpc('get_global_chat_message_v34',{p_message_id:row.id});
+    if(!error)sender=Array.isArray(data)?data[0]:data;
+  }catch(error){
+    console.warn('채팅 알림 발신자 조회 실패:',error);
+  }
+  showChatNotification({
+    nickname:sender?.nickname||'새 메시지',
+    active_title:sender?.active_title||'초보 장사꾼',
+    chat_text:sender?.chat_text||row.message||'',
+    created_at:sender?.created_at||row.created_at
+  });
+}
+
+async function loadChatMessages(){
+  const host=document.getElementById('globalChatList');
+  if(!host)return;
+  const{data,error}=await db.rpc('get_global_chat_v31',{p_limit:60});
+  if(error){host.innerHTML=`<p class="muted">${esc(error.message)}</p>`;return}
+  host.innerHTML=(data||[]).map(r=>`<article class="global-chat-message ${r.sender_user_id===currentUser.id?'mine':''}"><div class="chat-user"><strong>${esc(r.nickname)}</strong><span class="title-badge ${titleClass(r.active_title)}">${esc(r.active_title||'초보 장사꾼')}</span><time>${chatTime(r.created_at)}</time></div><p>${esc(r.chat_text)}</p></article>`).join('')||'<p class="muted chat-empty">첫 메시지를 남겨 보세요.</p>';
+  const latest=(data||[])[0];
+  if(isChatScreenOpen())markChatRead(latest?.created_at||new Date().toISOString());
+  requestAnimationFrame(()=>{host.scrollTop=host.scrollHeight});
+}
+
+function openPhoneApp(name){
+  document.querySelectorAll('.phone-screen').forEach(x=>x.classList.add('hidden'));
+  const screen=document.getElementById('phone-'+name);
+  if(!screen)return;
+  screen.classList.remove('hidden');
+  if(chatRefreshTimer){clearInterval(chatRefreshTimer);chatRefreshTimer=null}
+  if(typeof businessRefreshTimer!=='undefined'&&businessRefreshTimer){clearInterval(businessRefreshTimer);businessRefreshTimer=null}
+  if(name==='stocks')refreshStocks();
+  else if(name==='wallet')renderWallet();
+  else if(name==='ranking')loadRanking();
+  else if(name==='property')loadProperties();
+  else if(name==='bank')loadBank();
+  else if(name==='business')loadBusiness();
+  else if(name==='titles')loadTitles();
+  else if(name==='chat'){
+    markChatRead();
+    loadChatMessages();
+    chatRefreshTimer=setInterval(()=>{
+      if(isChatScreenOpen())loadChatMessages();
+    },5000);
+  }else if(name==='skills')loadNegotiationSkills();
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  restoreChatUnreadState();
+  setTimeout(syncChatUnreadFromServer,1800);
+});
