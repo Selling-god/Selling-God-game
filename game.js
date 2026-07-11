@@ -2,7 +2,7 @@ const SUPABASE_URL="https://qazjtevdljthbzmqmgrw.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_rIARlWBpKPvFAv_TtTdgaQ_Po-hOGmX";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
-let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,auctionChoices=[],sellerAuction=null,negotiation=null,job=null,selectedStock=null,toastTimer=null,realtime=null,negotiationSkills={},collectiblePage=1,casePage=1,decorationPage=1,chatBusy=false;
+let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,auctionChoices=[],sellerAuction=null,negotiation=null,job=null,selectedStock=null,toastTimer=null,realtime=null,negotiationSkills={},collectiblePage=1,casePage=1,decorationPage=1,chatBusy=false,auctionRotationTimer=null,marketRotationTimer=null;
 
 document.addEventListener("DOMContentLoaded",()=>{init();initPremiumUI()});
 async function init(){
@@ -282,21 +282,42 @@ async function acceptNpcCounter(){
 }
 function closeNegotiation(){negotiation=null;negotiationModal.classList.add("hidden")}
 
+
+function formatRotationTime(ms){const total=Math.max(0,Math.ceil(ms/1000)),m=Math.floor(total/60),sec=total%60;return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`}
+function startRotationCountdown(kind,refreshAt,bannerId,onExpire){
+  if(kind==='auction'&&auctionRotationTimer)clearInterval(auctionRotationTimer);
+  if(kind==='market'&&marketRotationTimer)clearInterval(marketRotationTimer);
+  let fired=false,timer=null;
+  const tick=()=>{const banner=document.getElementById(bannerId),span=banner?.querySelector('strong span'),left=new Date(refreshAt).getTime()-Date.now();if(span)span.textContent=formatRotationTime(left);if(left<=0&&!fired){fired=true;clearInterval(timer);if(kind==='auction')auctionRotationTimer=null;else marketRotationTimer=null;setTimeout(()=>onExpire?.(),300)}};
+  tick();timer=setInterval(tick,1000);if(kind==='auction')auctionRotationTimer=timer;else marketRotationTimer=timer;
+}
+
 /* 경매 v13 */
 function switchAuctionMode(mode,btn){document.querySelectorAll('.auction-tabs button').forEach(x=>x.classList.remove('active'));btn?.classList.add('active');auctionBuyPanel.classList.toggle('hidden',mode!=='buy');auctionSellPanel.classList.toggle('hidden',mode!=='sell');if(mode==='sell')fillAuctionSellItems();else loadAuctionLobby()}
 async function loadAuction(){return loadAuctionLobby()}
-async function loadAuctionLobby(){clearInterval(auction?.interval);auction=null;auctionHall.innerHTML='';const{data,error}=await db.rpc('get_auction_choices_v13');if(error){auctionChoices=localAuctionChoices();}else auctionChoices=data||[];renderAuctionChoices()}
-function localAuctionChoices(){return inventory.slice(0,3).map((r,i)=>({item_id:r.items.id,item_name:r.items.name,category:r.items.category,rarity:r.items.rarity,condition_score:r.condition_score,start_price:Math.max(1000,Math.round(itemValue(r.items.average_price,r.condition_score)*(.55+i*.06)))}))}
-function renderAuctionChoices(){const el=document.getElementById('auctionChoices');el.innerHTML=(auctionChoices||[]).map((a,i)=>`<button class="auction-choice" onclick="enterAuctionChoice(${i})"><img src="${itemImage(a.item_name,a.category)}"><span class="badge normal">${esc(a.rarity)}</span><h3>${esc(a.item_name)}</h3><div>상태 ${a.condition_score}/100</div><b>시작가 ${money(a.start_price)}</b><small>입장하기 →</small></button>`).join('')||'<div class="panel empty-state">현재 경매품이 없습니다.</div>'}
+async function loadAuctionLobby(){
+  clearInterval(auction?.interval);auction=null;auctionHall.innerHTML='';
+  const{data,error}=await db.rpc('get_auction_choices_v23');
+  if(error){toast('경매 목록을 불러오지 못했습니다: '+error.message);auctionChoices=localAuctionChoices();renderAuctionChoices();return}
+  auctionChoices=Array.isArray(data?.choices)?data.choices:[];
+  renderAuctionChoices(data?.refresh_at);
+}
+function localAuctionChoices(){return inventory.slice(0,3).map((r,i)=>({item_id:r.items.id,item_name:r.items.name,category:r.items.category,rarity:r.items.rarity,condition_score:Math.max(75,r.condition_score),start_price:Math.max(1000,Math.round(itemValue(r.items.average_price,r.condition_score)*(.78+i*.06)))}))}
+function renderAuctionChoices(refreshAt){
+  const el=document.getElementById('auctionChoices');
+  el.innerHTML=`<div id="auctionRotationBanner" class="rotation-banner auction-rotation"><div><b>프리미엄 경매 라인업</b><small>고등급·고가·양호한 상태의 물건만 출품됩니다.</small></div><strong>다음 교체 <span>--:--</span></strong></div>`+
+    ((auctionChoices||[]).map((a,i)=>`<button class="auction-choice ${rarityClass(a.rarity)}" onclick="enterAuctionChoice(${i})"><img src="${itemImage(a.item_name,a.category)}"><span class="badge ${rarityClass(a.rarity)}">${esc(a.rarity)}</span><h3>${esc(a.item_name)}</h3><div>상태 ${a.condition_score}/100</div><b>시작가 ${money(a.start_price)}</b><small>입장하기 →</small></button>`).join('')||'<div class="panel empty-state">현재 경매품이 없습니다.</div>');
+  if(refreshAt)startRotationCountdown('auction',refreshAt,'auctionRotationBanner',()=>{if(!auction)loadAuctionLobby()});
+}
 async function enterAuctionChoice(i){const c=auctionChoices[i];const{data,error}=await db.rpc('create_auction_choice_v13',{p_item_id:c.item_id,p_condition:c.condition_score,p_start_price:c.start_price});if(error)return toast(error.message);auction={id:data.auction_id,name:c.item_name,category:c.category,rarity:c.rarity,price:Number(data.current_price),highest:false,stopped:false,bids:0,countdown:0,log:[`경매 시작 ${money(data.current_price)}`]};document.getElementById('auctionChoices').classList.add('hidden');renderAuction();startAuctionLoop()}
-function renderAuction(){if(!auction)return;auctionHall.innerHTML=`<div class="auction-card v13"><img src="${itemImage(auction.name,auction.category)}"><div><span class="badge normal">${esc(auction.rarity)}</span><h2>${esc(auction.name)}</h2><div class="bid-price"><span>현재 최고가</span><b>${money(auction.price)}</b>${auction.countdown?`<em>낙찰까지 ${auction.countdown}</em>`:''}</div><div class="bid-log">${auction.log.slice(-8).map(x=>`<p>${esc(x)}</p>`).join('')}</div><div class="auction-actions"><button class="btn light" onclick="playerBid(5)">+5%</button><button class="btn light" onclick="playerBid(12)">+12%</button><button class="btn primary" onclick="leaveAuction()">경매 나가기</button></div></div></div>`}
+function renderAuction(){if(!auction)return;auctionHall.innerHTML=`<div class="auction-card v13"><img src="${itemImage(auction.name,auction.category)}"><div><span class="badge ${rarityClass(auction.rarity)}">${esc(auction.rarity)}</span><h2>${esc(auction.name)}</h2><div class="bid-price"><span>현재 최고가</span><b>${money(auction.price)}</b>${auction.countdown?`<em>낙찰까지 ${auction.countdown}</em>`:''}</div><div id="auctionBidLog" class="bid-log">${auction.log.map(x=>`<p>${esc(x)}</p>`).join('')}</div><div class="auction-actions"><button class="btn light" onclick="playerBid(5)">+5%</button><button class="btn light" onclick="playerBid(12)">+12%</button><button class="btn primary" onclick="leaveAuction()">경매 나가기</button></div></div></div>`;requestAnimationFrame(()=>{const log=document.getElementById('auctionBidLog');if(log)log.scrollTop=log.scrollHeight})}
 function leaveAuction(){clearInterval(auction?.interval);auction=null;document.getElementById('auctionChoices').classList.remove('hidden');auctionHall.innerHTML=''}
 function startAuctionLoop(){clearInterval(auction.interval);auction.interval=setInterval(async()=>{if(!auction)return;const{data,error}=await db.rpc('npc_auction_step',{p_auction_id:auction.id});if(error){clearInterval(auction.interval);return toast(error.message)}auction.price=Number(data.current_price);if(data.action==='hold'){auction.stopped=true;auction.log.push('입찰이 멈췄습니다. 3초 카운트다운');clearInterval(auction.interval);startAuctionCountdown()}else{auction.bids++;auction.log.push(data.action==='raise'?`NPC 입찰 +${money(data.increment)}`:`NPC 강한 입찰 +${money(data.increment)}`);renderAuction()}},1800)}
 function startAuctionCountdown(){auction.countdown=3;renderAuction();const t=setInterval(async()=>{if(!auction)return clearInterval(t);auction.countdown--;renderAuction();if(auction.countdown<=0){clearInterval(t);if(auction.highest){const{data,error}=await db.rpc('claim_auction',{p_auction_id:auction.id});if(error)return toast(error.message);if(data.won){toast('낙찰 성공 '+money(data.final_price));playSuccessSound();await Promise.all([loadProfile(),loadInventory()])}}else toast('입찰자가 없어 유찰되었습니다.');leaveAuction()}},1000)}
 async function playerBid(pct){if(!auction)return;const bid=Math.round(auction.price*(1+pct/100));const{data,error}=await db.rpc('place_auction_bid',{p_auction_id:auction.id,p_bid_amount:bid});if(error)return toast(error.message);auction.price=Number(data.current_price);auction.highest=true;auction.bids++;auction.log.push('내 입찰 '+money(bid));renderAuction()}
 function fillAuctionSellItems(){auctionSellItem.innerHTML='<option value="">출품할 아이템 선택</option>';inventory.filter(x=>!x.is_listed).forEach(x=>auctionSellItem.add(new Option(`${x.items.name} · ${x.items.rarity} · 상태 ${x.condition_score}`,x.id)))}
 async function startSellerAuction(){const id=auctionSellItem.value,r=inventory.find(x=>x.id===id);if(!r)return toast('출품할 아이템을 선택하세요.');const{data,error}=await db.rpc('start_npc_seller_auction_v13',{p_user_item_id:id});if(error)return toast(error.message);sellerAuction={session:data.session_id,item:r,current:Number(data.start_price),step:0,maxSteps:Number(data.max_steps),log:[`시작가 ${money(data.start_price)}`],countdown:0,lastBidAt:Date.now(),timer:null,ending:false};renderSellerAuction();runSellerAuction()}
-function renderSellerAuction(){const s=sellerAuction;if(!s)return;sellerAuctionHall.innerHTML=`<div class="seller-live"><img src="${itemImage(s.item.items.name,s.item.items.category)}"><div><p class="eyebrow">NPC COLLECTOR BATTLE</p><h2>${esc(s.item.items.name)}</h2><div class="seller-price">현재 입찰가 <b>${money(s.current)}</b>${s.countdown?`<em class="seller-countdown">판매까지 ${s.countdown}</em>`:''}</div><div class="collector-row"><span>🧐 감정가</span><span>🤑 수집가</span><span>😎 리셀러</span></div><div class="bid-log">${s.log.slice(-7).map(x=>`<p>${esc(x)}</p>`).join('')}</div></div></div>`}
+function renderSellerAuction(){const s=sellerAuction;if(!s)return;sellerAuctionHall.innerHTML=`<div class="seller-live"><img src="${itemImage(s.item.items.name,s.item.items.category)}"><div><p class="eyebrow">NPC COLLECTOR BATTLE</p><h2>${esc(s.item.items.name)}</h2><div class="seller-price">현재 입찰가 <b>${money(s.current)}</b>${s.countdown?`<em class="seller-countdown">판매까지 ${s.countdown}</em>`:''}</div><div class="collector-row"><span>🧐 감정가</span><span>🤑 수집가</span><span>😎 리셀러</span></div><div id="sellerBidLog" class="bid-log">${s.log.map(x=>`<p>${esc(x)}</p>`).join('')}</div></div></div>`;requestAnimationFrame(()=>{const log=document.getElementById('sellerBidLog');if(log)log.scrollTop=log.scrollHeight})}
 async function finishSellerAuctionAfterCountdown(){const s=sellerAuction;if(!s||s.ending)return;s.ending=true;const{data,error}=await db.rpc('finish_npc_seller_auction_v13',{p_session_id:s.session,p_final_price:s.current});if(error){s.ending=false;return toast(error.message)}toast(`판매 완료 ${money(data.final_price)}`);playSuccessSound();clearInterval(s.timer);sellerAuction=null;await Promise.all([loadProfile(),loadInventory()]);fillAuctionSellItems();sellerAuctionHall.innerHTML='<div class="auction-finished">3초 동안 추가 입찰이 없어 판매가 확정되었습니다.</div>'}
 function startSellerAuctionCountdown(){const s=sellerAuction;if(!s||s.countdown||s.ending)return;s.countdown=3;s.log.push('추가 입찰이 없습니다. 3초 후 판매됩니다.');renderSellerAuction();const countdownTimer=setInterval(async()=>{if(!sellerAuction||sellerAuction!==s){clearInterval(countdownTimer);return}s.countdown--;renderSellerAuction();if(s.countdown<=0){clearInterval(countdownTimer);await finishSellerAuctionAfterCountdown()}},1000)}
 function runSellerAuction(){const s=sellerAuction;if(!s)return;clearInterval(s.timer);s.timer=setInterval(()=>{if(!sellerAuction||sellerAuction!==s||s.ending){clearInterval(s.timer);return}if(s.countdown)return;const rarityWeight=rarityScore(s.item.items.rarity),cond=s.item.condition_score;const quality=Math.min(.96,.34+rarityWeight*.085+cond/220);const canBid=s.step<s.maxSteps&&Math.random()<quality;if(canBid){s.step++;const jump=.018+Math.random()*(.018+rarityWeight*.012+cond/3000);const before=s.current;s.current=Math.round(s.current*(1+jump));s.lastBidAt=Date.now();s.log.push(`${['감정가','수집가','리셀러'][s.step%3]} +${money(s.current-before)}`);renderSellerAuction();return}if(Date.now()-s.lastBidAt>=1800||s.step>=s.maxSteps)startSellerAuctionCountdown()},700)}
@@ -312,21 +333,23 @@ async function loadMarket(){const{data,error}=await db.from("market_listings").s
 async function buyListing(id){const{data,error}=await db.rpc("buy_market_listing",{p_listing_id:id});if(error)return toast(error.message);toast("구매 완료 "+money(data.final_price));await refreshAll();loadMarket()}
 async function cancelListing(id){const{error}=await db.rpc("cancel_market_listing",{p_listing_id:id});if(error)return toast(error.message);await Promise.all([loadInventory(),loadMarket()])}
 async function loadNpcOffers(){
-  const{error:gerr}=await db.rpc('generate_npc_purchase_offers_v18');
+  const{data:cycle,error:gerr}=await db.rpc('generate_npc_purchase_offers_v23');
   if(gerr)return toast(gerr.message);
   const{data,error}=await db.from('npc_purchase_offers')
-    .select(`id,condition_score,asking_price,min_price,items(id,name,category,rarity,average_price)`)
+    .select(`id,condition_score,asking_price,min_price,expires_at,items(id,name,category,rarity,average_price)`)
     .eq('user_id',currentUser.id).eq('status','active')
     .gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false});
   if(error)return toast(error.message);
-  npcOfferList.innerHTML=(data||[]).map(o=>{
-    const p=getNpcMarketPersona(o.id);
-    return `<article class="market-card npc-buy-card npc-theme-${p.theme}">
-      <div class="npc-seller-strip"><span class="npc-mini-avatar">${p.face}</span><div><b>${esc(p.name)}</b><small>${esc(p.role)} · ${esc(p.temperament)}</small></div></div>
-      <div class="item-image"><img src="${itemImage(o.items.name,o.items.category)}"></div>
-      <div class="market-body"><span class="badge normal">NPC 판매</span><h3>${esc(o.items.name)}</h3><div class="meta">${esc(o.items.rarity)} · 상태 ${o.condition_score}/100</div><div class="price">판매가 ${money(o.asking_price)}</div><small class="market-hint">${esc(p.preview)}</small><button class="btn primary full" onclick="startNpcOffer('${o.id}')">${esc(p.name)}와 흥정</button></div>
-    </article>`
-  }).join('')||'<div class="panel" style="padding:20px">현재 NPC 판매 상품이 없습니다.</div>'
+  npcOfferList.innerHTML=`<div id="marketRotationBanner" class="rotation-banner market-rotation"><div><b>중고 매물 라인업</b><small>낮은 등급·저렴한 가격·사용감 있는 상품이 중심입니다.</small></div><strong>다음 교체 <span>--:--</span></strong></div>`+
+    ((data||[]).map(o=>{
+      const p=getNpcMarketPersona(o.id);
+      return `<article class="market-card npc-buy-card npc-theme-${p.theme}">
+        <div class="npc-seller-strip"><span class="npc-mini-avatar">${p.face}</span><div><b>${esc(p.name)}</b><small>${esc(p.role)} · ${esc(p.temperament)}</small></div></div>
+        <div class="item-image"><img src="${itemImage(o.items.name,o.items.category)}"></div>
+        <div class="market-body"><span class="badge ${rarityClass(o.items.rarity)}">중고 NPC 판매</span><h3>${esc(o.items.name)}</h3><div class="meta">${esc(o.items.rarity)} · 상태 ${o.condition_score}/100</div><div class="price">판매가 ${money(o.asking_price)}</div><small class="market-hint">${esc(p.preview)}</small><button class="btn primary full" onclick="startNpcOffer('${o.id}')">${esc(p.name)}와 흥정</button></div>
+      </article>`
+    }).join('')||'<div class="panel" style="padding:20px">현재 NPC 판매 상품이 없습니다.</div>');
+  if(cycle?.refresh_at)startRotationCountdown('market',cycle.refresh_at,'marketRotationBanner',loadNpcOffers);
 }
 
 const NPC_MARKET_PERSONAS=[
