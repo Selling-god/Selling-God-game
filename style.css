@@ -1,7 +1,0 @@
-판매의 신 v13 적용 안내
-
-1. 이 폴더 안의 파일과 assets 폴더를 GitHub 저장소 최상단에 업로드합니다.
-2. Supabase SQL Editor에서 supabase_SQL_v13.sql을 실행합니다.
-3. Render Static Site 설정: Root Directory 비움, Build Command 비움, Publish Directory .
-4. 기존 로그인과 휴대폰 앱 기능을 유지하고 전당포 화면만 집중적으로 개편한 버전입니다.
-5. 아이템 이미지는 이름/분류/해시값을 조합해 서로 다른 SVG 외형으로 자동 생성됩니다.
