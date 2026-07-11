@@ -1,16 +1,37 @@
-const SUPABASE_URL="https://qazjtevdljthbzmqmgrw.supabase.co";
-const SUPABASE_ANON_KEY="sb_publishable_rIARlWBpKPvFAv_TtTdgaQ_Po-hOGmX";
-const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const APP_CONFIG=window.APP_CONFIG||{};
+const SUPABASE_URL=APP_CONFIG.SUPABASE_URL||"";
+const SUPABASE_ANON_KEY=APP_CONFIG.SUPABASE_ANON_KEY||"";
+let db=null;
 
 let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,negotiation=null,selectedStock=null,toastTimer=null,realtime=null;
 
 document.addEventListener("DOMContentLoaded",init);
+window.addEventListener("error",e=>console.error("[GLOBAL]",e.error||e.message));
+window.addEventListener("unhandledrejection",e=>{console.error("[PROMISE]",e.reason);toast?.("처리 중 오류가 발생했습니다.")});
+window.addEventListener("offline",()=>showNetworkBadge(true));
+window.addEventListener("online",()=>showNetworkBadge(false));
+
 async function init(){
-  updatePhoneTime();setInterval(updatePhoneTime,30000);
-  const{data:{session}}=await db.auth.getSession();
-  if(session?.user){currentUser=session.user;await enterGame()}else showAuth();
-  db.auth.onAuthStateChange((_e,s)=>currentUser=s?.user||null);
+  try{
+    setBootText("환경 설정을 확인하는 중...");
+    if(!window.supabase)throw new Error("Supabase 라이브러리를 불러오지 못했습니다.");
+    if(!SUPABASE_URL||!SUPABASE_ANON_KEY)throw new Error("config.js의 Supabase 설정이 비어 있습니다.");
+    db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    updatePhoneTime();setInterval(updatePhoneTime,30000);
+    showNetworkBadge(!navigator.onLine);
+    setBootText("로그인 정보를 확인하는 중...");
+    const{data:{session},error}=await db.auth.getSession();
+    if(error)throw error;
+    if(session?.user){currentUser=session.user;await enterGame()}else showAuth();
+    db.auth.onAuthStateChange((_e,s)=>currentUser=s?.user||null);
+    hideBoot();
+  }catch(e){showFatal(e)}
 }
+function setBootText(t){const el=document.getElementById("bootText");if(el)el.textContent=t}
+function hideBoot(){document.getElementById("bootLoader")?.classList.add("done")}
+function showFatal(e){hideBoot();const box=document.getElementById("fatalError"),msg=document.getElementById("fatalMessage");if(msg)msg.textContent=e?.message||"알 수 없는 오류";box?.classList.remove("hidden")}
+function showNetworkBadge(show){let el=document.getElementById("offlineBadge");if(show&&!el){el=document.createElement("div");el.id="offlineBadge";el.className="offline-badge";el.textContent="오프라인: 네트워크 연결을 확인하세요";document.body.appendChild(el)}else if(!show)el?.remove()}
+
 function setAuthMode(m){authMode=m;nicknameWrap.classList.toggle("hidden",m!=="signup");loginTab.classList.toggle("active",m==="login");signupTab.classList.toggle("active",m==="signup");authBtn.textContent=m==="login"?"로그인":"회원가입";authMsg.textContent=""}
 async function submitAuth(){
   const nick=nickname.value.trim(),mail=email.value.trim(),pw=password.value;
@@ -25,7 +46,15 @@ async function submitAuth(){
     }
   }catch(e){authMsg.textContent=e.message}finally{authBtn.disabled=false;authBtn.textContent=authMode==="login"?"로그인":"회원가입"}
 }
-async function enterGame(){showGame();await db.rpc("ensure_player_save");await refreshAll();subscribe()}
+async function enterGame(){
+  setBootText("플레이어 데이터를 준비하는 중...");
+  const{error}=await db.rpc("ensure_player_save");
+  if(error)throw new Error("플레이어 저장 생성 실패: "+error.message);
+  showGame();
+  await refreshAll();
+  await grantStarterFundsIfNeeded();
+  subscribe();
+}
 function showAuth(){auth.classList.remove("hidden");game.classList.add("hidden")}
 function showGame(){auth.classList.add("hidden");game.classList.remove("hidden")}
 async function logout(){if(realtime)await db.removeChannel(realtime);await db.auth.signOut();showAuth()}
@@ -33,9 +62,17 @@ function openPage(name,btn){document.querySelectorAll(".page").forEach(x=>x.clas
 function openPageFromPhone(name){closePhone();openPage(name,document.querySelector(`[data-page="${name}"]`))}
 async function refreshAll(){await updateStocks();await loadProfile();await Promise.all([loadInventory(),loadStocks(),loadCollectibles(),loadEffects()]);updateNetworth()}
 async function loadProfile(){const{data,error}=await db.from("profiles").select("*").eq("id",currentUser.id).single();if(error)return toast(error.message);profile=data;nicknameTop.textContent=data.nickname;nicknameHero.textContent=data.nickname;phoneOwner.textContent=data.nickname;cashTop.textContent=money(data.cash);credit.textContent=data.credit_score;reputation.textContent=data.reputation}
+async function grantStarterFundsIfNeeded(){
+  if(!profile)return;
+  const key=`starter_v12_${currentUser.id}`;
+  if(Number(profile.cash)>=500000&&!localStorage.getItem(key)){
+    localStorage.setItem(key,"1");
+    toast("시작 지원금 50만원이 준비되었습니다.");
+  }
+}
 async function quickJob(){const{data,error}=await db.rpc("do_quick_job");if(error)return toast(error.message);toast("+"+money(data.reward));await loadProfile();updateNetworth()}
 
-/* 탐색 */
+/* 메인 미니게임(탐색 기능은 메인 UI에서 제거됨) */
 async function prepareExplore(location){
   const{data,error}=await db.rpc("prepare_exploration",{p_location:location});if(error)return toast(error.message);
   explore={...data,location,score:0,time:Math.max(5,13-data.difficulty)};
@@ -73,7 +110,7 @@ function closeExplore(){clearExplore();exploreModal.classList.add("hidden")}
 
 /* 아이템/전당포 */
 async function loadInventory(){
-  const{data,error}=await db.from("user_items").select(`id,condition_score,is_listed,items(id,name,category,average_price,rarity)`).eq("user_id",currentUser.id).order("acquired_at",{ascending:false});
+  const{data,error}=await db.from("user_items").select(`id,condition_score,is_listed,items(id,name,icon,category,average_price,rarity)`).eq("user_id",currentUser.id).order("acquired_at",{ascending:false});
   if(error)return toast(error.message);inventory=data||[];fillItemSelect();
   const homeCount=document.getElementById("homeInventoryCount");
   if(homeCount)homeCount.textContent=inventory.length;
@@ -81,8 +118,8 @@ async function loadInventory(){
   inventoryEl().innerHTML=inventory.map(cardItem).join("")
 }
 function inventoryEl(){return document.getElementById("inventory")}
-function cardItem(r){const i=r.items,v=itemValue(i.average_price,r.condition_score);return `<article class="item-card"><div class="item-image"><img src="${itemImage(i.name,i.category)}"></div><div class="item-body"><h3>${esc(i.name)}</h3><div class="meta">${esc(i.category)} · ${esc(i.rarity)}</div><div class="condition"><i style="width:${r.condition_score}%"></i></div><div class="meta">상태 ${r.condition_score}/100</div><div class="price">${money(v)}</div><div class="item-actions"><button class="btn light" onclick="openPage('pawnshop',document.querySelector('[data-page=pawnshop]'))">전당포</button><button class="btn primary" onclick="openPage('market',document.querySelector('[data-page=market]'))">장터</button></div></div></article>`}
-async function loadPawnshop(){await loadInventory();pawnshopList.innerHTML=inventory.filter(x=>!x.is_listed).map(r=>{const v=itemValue(r.items.average_price,r.condition_score);return `<article class="item-card"><div class="item-image"><img src="${itemImage(r.items.name,r.items.category)}"></div><div class="item-body"><h3>${esc(r.items.name)}</h3><div class="meta">상태 ${r.condition_score}/100</div><div class="price">원가 ${money(v)}</div><div class="item-actions"><button class="btn light" onclick="pawnSell('${r.id}','instant',100)">원가 판매</button><button class="btn primary" onclick="startPawnNegotiation('${r.id}')">흥정 판매</button></div></div></article>`}).join("")||`<div class="panel" style="padding:20px">판매할 아이템이 없습니다.</div>`}
+function cardItem(r){const i=r.items,v=itemValue(i.average_price,r.condition_score);return `<article class="item-card"><div class="item-image"><img src="${itemImage(i.name,i.category,i.icon)}" onerror="handleImageError(this,'${esc(i.name)}')"></div><div class="item-body"><h3>${esc(i.name)}</h3><div class="meta">${esc(i.category)} · ${esc(i.rarity)}</div><div class="condition"><i style="width:${r.condition_score}%"></i></div><div class="meta">상태 ${r.condition_score}/100</div><div class="price">${money(v)}</div><div class="item-actions"><button class="btn light" onclick="openPage('pawnshop',document.querySelector('[data-page=pawnshop]'))">전당포</button><button class="btn primary" onclick="openPage('market',document.querySelector('[data-page=market]'))">장터</button></div></div></article>`}
+async function loadPawnshop(){await loadInventory();pawnshopList.innerHTML=inventory.filter(x=>!x.is_listed).map(r=>{const v=itemValue(r.items.average_price,r.condition_score);return `<article class="item-card"><div class="item-image"><img src="${itemImage(r.items.name,r.items.category,r.items.icon)}"></div><div class="item-body"><h3>${esc(r.items.name)}</h3><div class="meta">상태 ${r.condition_score}/100</div><div class="price">원가 ${money(v)}</div><div class="item-actions"><button class="btn light" onclick="pawnSell('${r.id}','instant',100)">원가 판매</button><button class="btn primary" onclick="startPawnNegotiation('${r.id}')">흥정 판매</button></div></div></article>`}).join("")||`<div class="panel" style="padding:20px">판매할 아이템이 없습니다.</div>`}
 async function pawnSell(id,mode,pct){const{data,error}=await db.rpc("sell_item_to_pawnshop",{p_user_item_id:id,p_mode:mode,p_offer_percent:pct});if(error)return toast(error.message);toast("판매 완료 "+money(data.final_price));await Promise.all([loadProfile(),loadPawnshop(),loadInventory()]);updateNetworth()}
 function startPawnNegotiation(id){const r=inventory.find(x=>x.id===id),base=itemValue(r.items.average_price,r.condition_score);negotiation={type:"pawn",id,title:r.items.name,base,offer:Math.round(base*1.08),limit:Math.round(base*(1.08+Math.random()*.26)),attempts:3};renderNegotiation()}
 function renderNegotiation(){
@@ -122,10 +159,10 @@ function switchMarketTab(name,btn){document.querySelectorAll(".market-tabs butto
 async function loadMarketHub(){await Promise.all([loadInventory(),loadMarket(),loadNpcOffers(),loadCollectibles(),loadCollectibleMarket()])}
 function fillItemSelect(){sellItem.innerHTML=`<option value="">판매할 아이템</option>`;inventory.filter(x=>!x.is_listed).forEach(x=>sellItem.add(new Option(`${x.items.name} · 상태 ${x.condition_score}`,x.id)))}
 async function createListing(){const id=sellItem.value,p=Math.floor(Number(sellPrice.value));if(!id||p<=0)return toast("아이템과 가격을 확인하세요.");const{error}=await db.rpc("create_market_listing",{p_user_item_id:id,p_price:p});if(error)return toast(error.message);sellPrice.value="";toast("장터 등록 완료");await Promise.all([loadInventory(),loadMarket()])}
-async function loadMarket(){const{data,error}=await db.from("market_listings").select(`id,title,asking_price,seller_user_id,user_items(condition_score,items(category)),profiles:seller_user_id(nickname)`).eq("status","active").order("created_at",{ascending:false});if(error)return toast(error.message);marketList.innerHTML=(data||[]).map(r=>{const mine=r.seller_user_id===currentUser.id;return `<article class="market-card"><div class="item-image"><img src="${itemImage(r.title,r.user_items?.items?.category)}"></div><div class="market-body"><h3>${esc(r.title)}</h3><div class="meta">${esc(r.profiles?.nickname||"유저")} · 상태 ${r.user_items?.condition_score||"-"}</div><div class="price">${money(r.asking_price)}</div><button class="btn ${mine?"light":"primary"} full" onclick="${mine?`cancelListing('${r.id}')`:`buyListing('${r.id}')`}">${mine?"판매 취소":"구매"}</button></div></article>`}).join("")||`<div class="panel" style="padding:20px">매물이 없습니다.</div>`}
+async function loadMarket(){const{data,error}=await db.from("market_listings").select(`id,title,asking_price,seller_user_id,user_items(condition_score,items(category,icon)),profiles:seller_user_id(nickname)`).eq("status","active").order("created_at",{ascending:false});if(error)return toast(error.message);marketList.innerHTML=(data||[]).map(r=>{const mine=r.seller_user_id===currentUser.id;return `<article class="market-card"><div class="item-image"><img src="${itemImage(r.title,r.user_items?.items?.category,r.user_items?.items?.icon)}"></div><div class="market-body"><h3>${esc(r.title)}</h3><div class="meta">${esc(r.profiles?.nickname||"유저")} · 상태 ${r.user_items?.condition_score||"-"}</div><div class="price">${money(r.asking_price)}</div><button class="btn ${mine?"light":"primary"} full" onclick="${mine?`cancelListing('${r.id}')`:`buyListing('${r.id}')`}">${mine?"판매 취소":"구매"}</button></div></article>`}).join("")||`<div class="panel" style="padding:20px">매물이 없습니다.</div>`}
 async function buyListing(id){const{data,error}=await db.rpc("buy_market_listing",{p_listing_id:id});if(error)return toast(error.message);toast("구매 완료 "+money(data.final_price));await refreshAll();loadMarket()}
 async function cancelListing(id){const{error}=await db.rpc("cancel_market_listing",{p_listing_id:id});if(error)return toast(error.message);await Promise.all([loadInventory(),loadMarket()])}
-async function loadNpcOffers(){await db.rpc("generate_npc_market_offers");const{data,error}=await db.from("npc_market_offers").select(`id,offer_price,max_price,user_items(id,condition_score,items(name,category))`).eq("user_id",currentUser.id).eq("status","active").order("created_at",{ascending:false});if(error)return toast(error.message);npcOfferList.innerHTML=(data||[]).map(o=>`<article class="market-card"><div class="item-image"><img src="${itemImage(o.user_items.items.name,o.user_items.items.category)}"></div><div class="market-body"><span class="badge normal">NPC 제안</span><h3>${esc(o.user_items.items.name)}</h3><div class="price">${money(o.offer_price)}</div><button class="btn primary full" onclick="startNpcOffer('${o.id}')">거래하기</button></div></article>`).join("")||`<div class="panel" style="padding:20px">NPC 제안이 없습니다.</div>`}
+async function loadNpcOffers(){await db.rpc("generate_npc_market_offers");const{data,error}=await db.from("npc_market_offers").select(`id,offer_price,max_price,user_items(id,condition_score,items(name,category,icon))`).eq("user_id",currentUser.id).eq("status","active").order("created_at",{ascending:false});if(error)return toast(error.message);npcOfferList.innerHTML=(data||[]).map(o=>`<article class="market-card"><div class="item-image"><img src="${itemImage(o.user_items.items.name,o.user_items.items.category,o.user_items.items.icon)}"></div><div class="market-body"><span class="badge normal">NPC 제안</span><h3>${esc(o.user_items.items.name)}</h3><div class="price">${money(o.offer_price)}</div><button class="btn primary full" onclick="startNpcOffer('${o.id}')">거래하기</button></div></article>`).join("")||`<div class="panel" style="padding:20px">NPC 제안이 없습니다.</div>`}
 async function startNpcOffer(id){const{data,error}=await db.from("npc_market_offers").select(`id,offer_price,max_price,user_items(items(name))`).eq("id",id).single();if(error)return toast(error.message);negotiation={type:"npc",offerId:id,title:data.user_items.items.name,base:Number(data.offer_price),offer:Number(data.offer_price),limit:Number(data.max_price),attempts:3};renderNegotiation()}
 
 /* 소장품/집 */
@@ -155,17 +192,24 @@ function stockSvg(a,w,h,small){const p=small?2:10,min=Math.min(...a),max=Math.ma
 function renderWallet(){if(!profile)return;const sv=holdings.reduce((s,h)=>s+Number(h.quantity)*Number(stocks.find(x=>x.id===h.stock_id)?.current_price||0),0),iv=inventory.reduce((s,r)=>s+itemValue(r.items.average_price,r.condition_score),0),cv=collectibles.reduce((s,r)=>s+Number(r.collectibles.effect_percent)*10000,0);walletView.innerHTML=`<div class="wallet-card">현금 <b>${money(profile.cash)}</b></div><div class="wallet-card">주식 <b>${money(sv)}</b></div><div class="wallet-card">아이템 <b>${money(iv)}</b></div><div class="wallet-card">소장품 <b>${money(cv)}</b></div>`}
 function updateNetworth(){if(!profile)return;const sv=holdings.reduce((s,h)=>s+Number(h.quantity)*Number(stocks.find(x=>x.id===h.stock_id)?.current_price||0),0),iv=inventory.reduce((s,r)=>s+itemValue(r.items.average_price,r.condition_score),0),cv=collectibles.reduce((s,r)=>s+Number(r.collectibles.effect_percent)*10000,0);networth.textContent=money(Number(profile.cash)+sv+iv+cv);renderWallet()}
 
+function handleImageError(img,name){
+  if(img.dataset.fallback)return;
+  img.dataset.fallback="1";
+  img.alt=name||"아이템 이미지";
+  img.src=itemImage(name||"아이템","기타","📦");
+}
+
 /* 유틸 */
 function closeByBackdrop(e,id){if(e.target.id===id)document.getElementById(id).classList.add("hidden")}
 function itemValue(p,s){const m=s>=95?1.35:s>=85?1.18:s>=70?1:s>=50?.78:s>=30?.55:.3;return Math.round(Number(p||0)*m)}
-function itemImage(name,category){
+function itemImage(name,category,dbIcon){
   const seed=hash(name);
   const palette=[
     ["#b77fd3","#a43d79"],["#d886a7","#b96f42"],["#80b7d8","#3e6f96"],
     ["#d3b265","#8f6438"],["#8fbd8b","#4f7f58"],["#c79175","#82513e"]
   ][seed%6];
 
-  const descriptor=getItemVisual(name,category);
+  const descriptor=getItemVisual(name,category,dbIcon);
   const accent=palette[0],accent2=palette[1];
 
   let objectSvg="";
@@ -223,8 +267,9 @@ function itemImage(name,category){
   return"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg)
 }
 
-function getItemVisual(name,category){
+function getItemVisual(name,category,dbIcon){
   const n=String(name);
+  const exactIcon=dbIcon&&dbIcon!=="📦"?dbIcon:null;
   const tests=[
     [["동전","코인","메달"],"🪙","coin"],
     [["우산"],"☂️","umbrella"],
@@ -248,7 +293,7 @@ function getItemVisual(name,category){
     "의류":"👕","도서":"📚","완구":"🧸","주방용품":"🍳","음향기기":"🎵","스포츠":"🏅",
     "공구":"🔧","가구":"🪑","문구":"✏️"
   };
-  return{icon:categoryMap[category]||"📦",shape:"generic"};
+  return{icon:exactIcon||categoryMap[category]||"📦",shape:"generic"};
 }
 function hash(t){let h=2166136261;for(const c of t){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return Math.abs(h)}
 function escSvg(v){return String(v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[m]))}
@@ -256,3 +301,126 @@ function money(v){const n=Number(v)||0,u=[[1e20,"해"],[1e16,"경"],[1e12,"조"]
 function esc(v){const d=document.createElement("div");d.textContent=v??"";return d.innerHTML}
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),3400)}
 function subscribe(){if(realtime)return;realtime=db.channel("selling-god-v5").on("postgres_changes",{event:"UPDATE",schema:"public",table:"stocks"},loadStocks).on("postgres_changes",{event:"*",schema:"public",table:"market_listings"},loadMarket).on("postgres_changes",{event:"*",schema:"public",table:"collectible_listings"},loadCollectibleMarket).subscribe()}
+
+
+/* =========================
+   V10 PREMIUM MAIN SCREEN
+   ========================= */
+let premiumSelectedItemId = null;
+let premiumSoldCount = Number(localStorage.getItem('premium_sold_count') || 0);
+let premiumDealCount = Number(localStorage.getItem('premium_deal_count') || 0);
+
+function premiumImageForItem(item){
+  const n=String(item?.name||'');
+  if(/우산/.test(n)) return 'assets/umbrella.png';
+  if(/동전|코인|메달/.test(n)) return 'assets/coin.png';
+  if(/라디오|카세트|스피커|턴테이블/.test(n)) return 'assets/radio.png';
+  if(/도자기|항아리|화병|주전자/.test(n)) return 'assets/vase.png';
+  if(/카메라/.test(n)) return 'assets/camera.png';
+  return itemImage(item?.name||'아이템',item?.category||'수집품');
+}
+
+function renderPremiumHome(){
+  const cashEl=document.getElementById('premiumCash');
+  const creditEl=document.getElementById('premiumCredit');
+  const repEl=document.getElementById('premiumRep');
+  const netEl=document.getElementById('premiumNet');
+  if(cashEl&&profile) cashEl.textContent=money(profile.cash);
+  if(creditEl&&profile) creditEl.textContent=profile.credit_score;
+  if(repEl&&profile) repEl.textContent=profile.reputation;
+  if(netEl) netEl.textContent=document.getElementById('networth')?.textContent||money(profile?.cash||0);
+
+  const missionSell=document.getElementById('missionSell');
+  const missionDeal=document.getElementById('missionDeal');
+  if(missionSell) missionSell.textContent=`${Math.min(premiumSoldCount,2)} / 2`;
+  if(missionDeal) missionDeal.textContent=`${Math.min(premiumDealCount,3)} / 3`;
+  const bars=document.querySelectorAll('.mission-progress i');
+  if(bars[0]) bars[0].style.width=`${Math.min(100,premiumSoldCount/2*100)}%`;
+  if(bars[1]) bars[1].style.width=`${Math.min(100,premiumDealCount/3*100)}%`;
+
+  const bag=document.getElementById('premiumBag');
+  if(!bag)return;
+  if(!inventory.length){
+    bag.innerHTML='<div class="premium-bag-card"><div>🎒</div><div><h4>가방이 비어 있습니다</h4><small>경매장 또는 중고장터에서 물건을 구매하세요.</small></div></div>';
+    renderPremiumCurrent(null);
+    return;
+  }
+  if(!premiumSelectedItemId||!inventory.some(x=>x.id===premiumSelectedItemId)) premiumSelectedItemId=inventory[0].id;
+  bag.innerHTML=inventory.slice(0,8).map(row=>{
+    const item=row.items;
+    return `<button class="premium-bag-card ${row.id===premiumSelectedItemId?'active':''}" onclick="selectPremiumItem('${row.id}')">
+      <img src="${premiumImageForItem(item)}" alt="${esc(item.name)}">
+      <span><h4>${esc(item.name)}</h4><small>${esc(item.category)} · ${esc(item.rarity)}</small><small>상태 ${row.condition_score}/100</small><b>${money(itemValue(item.average_price,row.condition_score))}</b></span>
+    </button>`;
+  }).join('');
+  renderPremiumCurrent(inventory.find(x=>x.id===premiumSelectedItemId));
+}
+
+function selectPremiumItem(id){premiumSelectedItemId=id;renderPremiumHome()}
+function renderPremiumCurrent(row){
+  const card=document.getElementById('premiumCurrentItem');
+  if(!card)return;
+  if(!row){
+    card.innerHTML='<div style="grid-column:1/-1;padding:25px;text-align:center">거래할 아이템이 없습니다.</div>';
+    document.getElementById('premiumEstimate').textContent='0원';
+    document.getElementById('premiumSellPrice').textContent='0원';
+    document.getElementById('premiumCondition').textContent='-';
+    document.getElementById('premiumConditionBar').style.width='0%';
+    return;
+  }
+  const item=row.items;
+  const value=itemValue(item.average_price,row.condition_score);
+  card.innerHTML=`<img src="${premiumImageForItem(item)}" alt="${esc(item.name)}"><div><h2>${esc(item.name)}</h2><p>${esc(item.category)} · ${esc(item.rarity)}</p></div>`;
+  document.getElementById('premiumEstimate').textContent=money(value);
+  document.getElementById('premiumSellPrice').textContent=money(value);
+  document.getElementById('premiumCondition').textContent=`${row.condition_score} / 100`;
+  document.getElementById('premiumConditionBar').style.width=`${row.condition_score}%`;
+}
+
+async function premiumQuickSell(){
+  const row=inventory.find(x=>x.id===premiumSelectedItemId);
+  if(!row)return toast('판매할 아이템이 없습니다.');
+  const before=inventory.length;
+  await pawnSell(row.id,'instant',100);
+  await loadInventory();
+  if(inventory.length<before){
+    premiumSoldCount++;
+    localStorage.setItem('premium_sold_count',String(premiumSoldCount));
+  }
+  renderPremiumHome();
+}
+
+function premiumBargain(){
+  const row=inventory.find(x=>x.id===premiumSelectedItemId);
+  if(!row)return toast('흥정할 아이템이 없습니다.');
+  startPawnNegotiation(row.id);
+}
+
+function premiumReject(){toast('손님의 거래 제안을 거절했습니다.')}
+
+const _originalAcceptNegotiation=acceptNegotiation;
+acceptNegotiation=async function(){
+  const wasNegotiating=Boolean(negotiation);
+  const before=inventory.length;
+  await _originalAcceptNegotiation();
+  await loadInventory();
+  if(wasNegotiating&&inventory.length<before){
+    premiumDealCount++;
+    premiumSoldCount++;
+    localStorage.setItem('premium_deal_count',String(premiumDealCount));
+    localStorage.setItem('premium_sold_count',String(premiumSoldCount));
+  }
+  renderPremiumHome();
+};
+
+const _originalLoadInventory=loadInventory;
+loadInventory=async function(){
+  const result=await _originalLoadInventory();
+  renderPremiumHome();
+  return result;
+};
+
+const _originalUpdateProfileUI=typeof updateProfileUI==='function'?updateProfileUI:null;
+if(_originalUpdateProfileUI){
+  updateProfileUI=function(){_originalUpdateProfileUI();renderPremiumHome()};
+}
