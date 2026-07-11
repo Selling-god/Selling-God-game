@@ -266,7 +266,7 @@ function renderNegotiation(){
       <div class="manual-offer advanced"><div class="offer-copy"><label>내 희망 판매가</label><small>추천 ${money(recommended)} · 희망가는 자유롭게 입력 가능</small></div><div class="offer-controls"><button onclick="adjustHaggleAsk(-10000)">-1만</button><button onclick="adjustHaggleAsk(-1000)">-1천</button><input id="haggleAsk" type="number" min="${n.npcOffer+1}" step="1000" value="${recommended}"><button onclick="adjustHaggleAsk(1000)">+1천</button><button onclick="adjustHaggleAsk(10000)">+1만</button><button class="recommend" onclick="setRecommendedHaggle(${recommended})">추천가</button></div></div>
       <div class="haggle-actions skill-grid">${actionHtml}</div>`}
     <button class="accept-now" onclick="acceptNpcCounter()">현재 제안 확정 · 순이익 ${profit>=0?'+':''}${money(profit)}</button>`;
-  requestAnimationFrame(()=>{const chat=document.getElementById('negChat');if(chat)chat.scrollTop=chat.scrollHeight});
+  scrollNegotiationToLatest();
 }
 function adjustHaggleAsk(delta){const el=document.getElementById('haggleAsk'),n=negotiation;if(!el||!n)return;el.value=Math.max(n.npcOffer+1,Math.round(Number(el.value||n.npcOffer)+delta))}
 function setRecommendedHaggle(value){const el=document.getElementById('haggleAsk');if(el)el.value=value}
@@ -427,7 +427,7 @@ function renderNpcBuyNegotiation(){
     <div class="haggle-bars"><label>판매자 인내심 <i><em style="width:${patiencePct}%"></em></i></label><label>할인 진행 <i><em style="width:${Math.min(100,discount/Math.max(1,n.asking-n.minPrice)*100)}%"></em></i></label></div>
     <div id="negChat" class="neg-chat">${history}</div>
     ${n.ended?`<div class="final-offer"><b>최종 판매가</b><strong>${money(n.npcOffer)}</strong><button onclick="acceptNpcBuyDeal()">이 가격에 구매</button></div>`:`
-      <div class="manual-offer advanced npc-offer-box"><div class="offer-copy"><label>내 희망 구매가</label><small>직접 입력 후 아래의 <b>희망가 제시</b> 버튼을 누르세요 · 추천 ${money(recommended)}</small></div><div class="offer-controls"><button onclick="adjustNpcBuyAsk(-10000)">-1만</button><button onclick="adjustNpcBuyAsk(-1000)">-1천</button><input id="npcBuyAsk" type="number" min="${n.minPrice}" max="${n.npcOffer-1}" value="${recommended}"><button onclick="adjustNpcBuyAsk(1000)">+1천</button><button onclick="adjustNpcBuyAsk(10000)">+1만</button><button class="recommend" onclick="setNpcBuyRecommended(${recommended})">추천가</button></div></div>
+      <div class="manual-offer advanced npc-offer-box"><div class="offer-copy"><label>내 희망 구매가</label><small>직접 입력 후 아래의 <b>희망가 제시</b> 버튼을 누르세요 · 추천 ${money(recommended)}</small></div><div class="offer-controls"><button onclick="adjustNpcBuyAsk(-10000)">-1만</button><button onclick="adjustNpcBuyAsk(-1000)">-1천</button><input id="npcBuyAsk" type="number" min="1" step="1000" inputmode="numeric" value="${recommended}" aria-label="내 희망 구매가"><button onclick="adjustNpcBuyAsk(1000)">+1천</button><button onclick="adjustNpcBuyAsk(10000)">+1만</button><button class="recommend" onclick="setNpcBuyRecommended(${recommended})">추천가</button></div></div>
       <div class="npc-tactic-grid">${tactics.map(([code,icon,title,desc])=>`<button class="npc-tactic ${n.selectedStyle===code?'selected':''}" onclick="selectNpcBuyStyle('${code}')"><b>${icon} ${title}</b><small>${desc}</small></button>`).join('')}</div>
       <button class="submit-price-offer" onclick="submitNpcBuyOffer()">💬 내 희망가 제시</button>
     `}
@@ -436,14 +436,14 @@ function renderNpcBuyNegotiation(){
 }
 
 function selectNpcBuyStyle(style){if(!negotiation||negotiation.type!=='npc_buy')return;negotiation.selectedStyle=style;document.querySelectorAll('.npc-tactic').forEach(x=>x.classList.toggle('selected',x.getAttribute('onclick')?.includes(`'${style}'`)))}
-function adjustNpcBuyAsk(delta){const el=document.getElementById('npcBuyAsk'),n=negotiation;if(!el||!n)return;el.value=Math.max(n.minPrice,Math.min(n.npcOffer-1,Math.round(Number(el.value||n.npcOffer)+delta)))}
+function adjustNpcBuyAsk(delta){const el=document.getElementById('npcBuyAsk'),n=negotiation;if(!el||!n)return;const current=Number(el.value);const base=Number.isFinite(current)?current:n.npcOffer;el.value=Math.max(1,Math.round(base+delta))}
 function setNpcBuyRecommended(v){const el=document.getElementById('npcBuyAsk');if(el)el.value=v}
 
 function submitNpcBuyOffer(){
   const n=negotiation;if(!n||n.type!=='npc_buy'||n.ended)return;
   const style=n.selectedStyle||'direct';
   const el=document.getElementById('npcBuyAsk');
-  const ask=Math.max(n.minPrice,Math.min(n.npcOffer-1,Math.round(Number(el?.value)||n.npcOffer-1)));
+  const rawAsk=Number(el?.value);if(!Number.isFinite(rawAsk)||rawAsk<1)return toast('희망 구매가를 1원 이상으로 입력하세요.');const ask=Math.round(rawAsk);if(ask>=n.npcOffer)return toast('현재 구매가보다 낮은 가격을 제시하세요.');
   const cfg={
     direct:{risk:.16,power:.34,cost:1,label:'희망 가격을 단도직입적으로 제시했다.'},
     polite:{risk:.08,power:.28,cost:0,label:'예의를 갖춰 가격 조정을 부탁했다.'},
@@ -1210,13 +1210,13 @@ let negotiationControlBound=false;
 let negotiationActionBusy=false;
 
 function installNegotiationControls(){
-  if(negotiationControlBound)return;
-  negotiationControlBound=true;
-  document.addEventListener('click',async(e)=>{
+  const host=document.getElementById('negotiationContent');
+  if(!host||host.dataset.controlsBound==='1')return;
+  host.dataset.controlsBound='1';
+  host.addEventListener('click',async(e)=>{
     const btn=e.target.closest('[data-neg-action]');
-    if(!btn)return;
+    if(!btn||!host.contains(btn))return;
     e.preventDefault();
-    e.stopPropagation();
     if(negotiationActionBusy||btn.disabled)return;
     const action=btn.dataset.negAction;
     const value=btn.dataset.value;
@@ -1231,7 +1231,8 @@ function installNegotiationControls(){
         negotiationActionBusy=true;setNegotiationButtonsDisabled(true);
         await acceptNpcCounterSafe();
       }else if(action==='npc-style'){
-        selectNpcBuyStyle(value);renderNpcBuyNegotiationSafe();
+        selectNpcBuyStyle(value);
+        renderNpcBuyNegotiationSafe('전략을 선택했습니다. 희망가를 입력한 뒤 제시하세요.','info');
       }else if(action==='npc-adjust'){
         adjustNpcBuyAsk(Number(value||0));
       }else if(action==='npc-recommend'){
@@ -1244,14 +1245,24 @@ function installNegotiationControls(){
       }
     }catch(err){
       console.error('Negotiation action failed:',err);
+      negotiationFeedback(`흥정 처리 중 오류: ${err?.message||err}`,'error');
       toast(`흥정 처리 중 오류: ${err?.message||err}`);
     }finally{
       negotiationActionBusy=false;
       setNegotiationButtonsDisabled(false);
     }
-  },true);
+  });
+  host.addEventListener('keydown',(e)=>{
+    if(e.key!=='Enter')return;
+    if(e.target?.id==='npcBuyAsk'){
+      e.preventDefault();
+      submitNpcBuyOfferSafe();
+    }else if(e.target?.id==='haggleAsk'){
+      e.preventDefault();
+      submitNegotiationOfferSafe('polite');
+    }
+  });
 }
-
 function setNegotiationButtonsDisabled(disabled){
   document.querySelectorAll('#negotiationContent [data-neg-action]').forEach(b=>b.disabled=disabled);
 }
@@ -1321,7 +1332,8 @@ function submitNpcBuyOfferSafe(){
   const el=document.getElementById('npcBuyAsk');
   const raw=Number(el?.value);
   if(!Number.isFinite(raw))return negotiationFeedback('희망 구매가를 숫자로 입력하세요.','error');
-  const ask=Math.max(n.minPrice,Math.min(n.npcOffer-1,Math.round(raw)));
+  const ask=Math.max(1,Math.round(raw));
+  if(ask>=n.npcOffer)return negotiationFeedback(`현재 구매가 ${money(n.npcOffer)}보다 낮은 금액을 제시하세요.`,'error');
   if(el)el.value=ask;
   const cfg={
     direct:{risk:.16,power:.34,cost:1,label:'희망 가격을 단도직입적으로 제시했다.'},
@@ -1357,6 +1369,15 @@ function submitNpcBuyOfferSafe(){
   renderNpcBuyNegotiationSafe(`흥정 성공! 현재 구매가가 ${money(n.npcOffer)}로 내려갔습니다.`,'success');
 }
 
+function scrollNegotiationToLatest(){
+  requestAnimationFrame(()=>{
+    const chat=document.getElementById('negChat');
+    if(chat)chat.scrollTop=chat.scrollHeight;
+    const content=document.getElementById('negotiationContent');
+    if(content&&content.scrollTop<0)content.scrollTop=0;
+  });
+}
+
 function renderNegotiationSafe(feedback='',feedbackType='info'){
   const n=negotiation;
   if(!n||n.type!=='pawn')return;
@@ -1388,7 +1409,7 @@ function renderNegotiationSafe(feedback='',feedbackType='info'){
       <div class="haggle-actions skill-grid">${actionHtml}</div>`}
     <button type="button" class="accept-now" data-neg-action="pawn-accept">현재 제안 확정 · 순이익 ${profit>=0?'+':''}${money(profit)}</button>`;
   injectPatienceTradePreview();
-  requestAnimationFrame(()=>{const chat=document.getElementById('negChat');if(chat)chat.scrollTop=chat.scrollHeight});
+  scrollNegotiationToLatest();
 }
 
 function renderNpcBuyNegotiationSafe(feedback='',feedbackType='info'){
@@ -1408,12 +1429,12 @@ function renderNpcBuyNegotiationSafe(feedback='',feedbackType='info'){
     <div id="negotiationFeedback" class="negotiation-feedback ${feedbackType}">${esc(feedback||'전략과 희망가를 선택한 뒤 제시 버튼을 누르세요.')}</div>
     <div id="negChat" class="neg-chat">${history}</div>
     ${n.ended?`<div class="final-offer"><b>최종 판매가</b><strong>${money(n.npcOffer)}</strong><button type="button" data-neg-action="npc-accept">이 가격에 구매</button></div>`:`
-      <div class="manual-offer advanced npc-offer-box"><div class="offer-copy"><label>내 희망 구매가</label><small>직접 입력 후 희망가 제시 · 추천 ${money(recommended)}</small></div><div class="offer-controls"><button type="button" data-neg-action="npc-adjust" data-value="-10000">-1만</button><button type="button" data-neg-action="npc-adjust" data-value="-1000">-1천</button><input id="npcBuyAsk" type="number" min="${n.minPrice}" max="${n.npcOffer-1}" value="${recommended}"><button type="button" data-neg-action="npc-adjust" data-value="1000">+1천</button><button type="button" data-neg-action="npc-adjust" data-value="10000">+1만</button><button type="button" class="recommend" data-neg-action="npc-recommend" data-value="${recommended}">추천가</button></div></div>
+      <div class="manual-offer advanced npc-offer-box"><div class="offer-copy"><label>내 희망 구매가</label><small>1원부터 자유롭게 입력 가능 · 추천 ${money(recommended)}</small></div><div class="offer-controls"><button type="button" data-neg-action="npc-adjust" data-value="-10000">-1만</button><button type="button" data-neg-action="npc-adjust" data-value="-1000">-1천</button><input id="npcBuyAsk" type="number" min="1" step="1000" inputmode="numeric" value="${recommended}" aria-label="내 희망 구매가"><button type="button" data-neg-action="npc-adjust" data-value="1000">+1천</button><button type="button" data-neg-action="npc-adjust" data-value="10000">+1만</button><button type="button" class="recommend" data-neg-action="npc-recommend" data-value="${recommended}">추천가</button></div></div>
       <div class="npc-tactic-grid">${tactics.map(([code,icon,title,desc])=>`<button type="button" class="npc-tactic ${n.selectedStyle===code?'selected':''}" data-neg-action="npc-style" data-value="${code}"><b>${icon} ${title}</b><small>${desc}</small></button>`).join('')}</div>
       <button type="button" class="submit-price-offer" data-neg-action="npc-submit">💬 내 희망가 제시</button>`}
     <button type="button" class="accept-now" data-neg-action="npc-accept">현재 가격으로 구매 · ${money(n.npcOffer)}</button>`;
   injectPatienceTradePreview();
-  requestAnimationFrame(()=>{const chat=document.getElementById('negChat');if(chat)chat.scrollTop=chat.scrollHeight});
+  scrollNegotiationToLatest();
 }
 
 async function acceptNpcCounterSafe(){
