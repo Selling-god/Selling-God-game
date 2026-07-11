@@ -75,6 +75,8 @@ function closeExplore(){clearExplore();exploreModal.classList.add("hidden")}
 async function loadInventory(){
   const{data,error}=await db.from("user_items").select(`id,condition_score,is_listed,items(id,name,category,average_price,rarity)`).eq("user_id",currentUser.id).order("acquired_at",{ascending:false});
   if(error)return toast(error.message);inventory=data||[];fillItemSelect();
+  const homeCount=document.getElementById("homeInventoryCount");
+  if(homeCount)homeCount.textContent=inventory.length+"개";
   if(!inventory.length){inventoryEl().innerHTML=`<div class="panel" style="padding:20px">가방이 비어 있습니다.</div>`;return}
   inventoryEl().innerHTML=inventory.map(cardItem).join("")
 }
@@ -83,7 +85,23 @@ function cardItem(r){const i=r.items,v=itemValue(i.average_price,r.condition_sco
 async function loadPawnshop(){await loadInventory();pawnshopList.innerHTML=inventory.filter(x=>!x.is_listed).map(r=>{const v=itemValue(r.items.average_price,r.condition_score);return `<article class="item-card"><div class="item-image"><img src="${itemImage(r.items.name,r.items.category)}"></div><div class="item-body"><h3>${esc(r.items.name)}</h3><div class="meta">상태 ${r.condition_score}/100</div><div class="price">원가 ${money(v)}</div><div class="item-actions"><button class="btn light" onclick="pawnSell('${r.id}','instant',100)">원가 판매</button><button class="btn primary" onclick="startPawnNegotiation('${r.id}')">흥정 판매</button></div></div></article>`}).join("")||`<div class="panel" style="padding:20px">판매할 아이템이 없습니다.</div>`}
 async function pawnSell(id,mode,pct){const{data,error}=await db.rpc("sell_item_to_pawnshop",{p_user_item_id:id,p_mode:mode,p_offer_percent:pct});if(error)return toast(error.message);toast("판매 완료 "+money(data.final_price));await Promise.all([loadProfile(),loadPawnshop(),loadInventory()]);updateNetworth()}
 function startPawnNegotiation(id){const r=inventory.find(x=>x.id===id),base=itemValue(r.items.average_price,r.condition_score);negotiation={type:"pawn",id,title:r.items.name,base,offer:Math.round(base*1.08),limit:Math.round(base*(1.08+Math.random()*.26)),attempts:3};renderNegotiation()}
-function renderNegotiation(){negotiationModal.classList.remove("hidden");const n=negotiation,p=Math.min(100,n.offer/n.limit*100);negotiationContent.innerHTML=`<p class="eyebrow">PRICE NEGOTIATION</p><h2>${esc(n.title)}</h2><p>현재 제안 <b>${money(n.offer)}</b></p><div class="neg-track"><i style="width:${p}%"></i></div><p>남은 기회 ${n.attempts}회</p><div class="item-actions"><button class="btn light" onclick="raiseOffer(5)">+5%</button><button class="btn light" onclick="raiseOffer(10)">+10%</button><button class="btn primary" onclick="acceptNegotiation()">판매</button></div>`}
+function renderNegotiation(){
+  negotiationModal.classList.remove("hidden");
+  const n=negotiation,p=Math.min(100,n.offer/n.limit*100);
+  const mood=p<70?"흠… 그 정도면 생각해 볼 만하군.":p<92?"욕심이 꽤 많군. 그래도 아직은 가능해.":"더 올리면 거래는 없던 일이 될 수도 있네.";
+  negotiationContent.innerHTML=`
+    <p class="eyebrow">PRICE NEGOTIATION</p>
+    <h2>${esc(n.title)}</h2>
+    <p class="dealer-line">“${mood}”</p>
+    <p>현재 제안가 <b>${money(n.offer)}</b></p>
+    <div class="neg-track"><i style="width:${p}%"></i></div>
+    <p class="muted">조 아저씨의 인내심 · 남은 흥정 ${n.attempts}회</p>
+    <div class="item-actions">
+      <button class="btn light" onclick="raiseOffer(5)">조금 더 +5%</button>
+      <button class="btn light" onclick="raiseOffer(10)">강하게 +10%</button>
+      <button class="btn primary" onclick="acceptNegotiation()">이 가격에 거래</button>
+    </div>`;
+}
 function raiseOffer(pct){if(negotiation.attempts<=0)return;negotiation.attempts--;const next=Math.round(negotiation.offer*(1+pct/100));if(next<=negotiation.limit){negotiation.offer=next;toast("NPC가 수락했습니다.")}else toast("NPC가 거절했습니다.");renderNegotiation()}
 async function acceptNegotiation(){const n=negotiation;if(n.type==="pawn")await pawnSell(n.id,"negotiated",Math.round(n.offer/n.base*100));else{const{data,error}=await db.rpc("accept_npc_market_offer",{p_offer_id:n.offerId,p_final_price:n.offer});if(error)return toast(error.message);toast("NPC 거래 완료 "+money(data.final_price));await Promise.all([loadProfile(),loadNpcOffers(),loadInventory()])}closeNegotiation()}
 function closeNegotiation(){negotiation=null;negotiationModal.classList.add("hidden")}
