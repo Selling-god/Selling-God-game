@@ -422,3 +422,78 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 .phone-shell[data-rarity="0"]{box-shadow:0 0 0 2px #9a9a9a55,0 24px 60px #000b}.phone-shell[data-rarity="1"]{border-color:#2e76d2!important;box-shadow:0 0 22px #2e76d288,0 24px 60px #000b}.phone-shell[data-rarity="2"]{border-color:#7bd46c!important;box-shadow:0 0 28px #73d66d99,0 24px 60px #000b}.phone-shell[data-rarity="3"]{border-color:#b676ef!important;box-shadow:0 0 35px #ad66efaa,0 0 75px #8f54d144,0 24px 60px #000b}.phone-shell[data-rarity="4"]{border-color:#f3c338!important;box-shadow:0 0 38px #ffca3aaa,0 0 90px #f0a90055,0 24px 60px #000b;animation:caseGoldPulse 2.2s infinite}.phone-shell[data-rarity="5"]{border-color:#f04d42!important;box-shadow:0 0 42px #ff4433bb,0 0 100px #d3222266,0 24px 60px #000b;animation:caseRelicPulse 1.7s infinite}.phone-shell[data-rarity="6"]{border-color:transparent!important;background:linear-gradient(#0c0907,#0c0907) padding-box,conic-gradient(from var(--case-angle),#ff4747,#ffd43b,#55dc77,#48a7ff,#9a66ff,#ff55ca,#ff4747) border-box;box-shadow:0 0 42px #ff4b4b88,0 0 80px #42cbff66,0 0 120px #a855ff55;animation:caseRainbow 2.8s linear infinite}@property --case-angle{syntax:'<angle>';initial-value:0deg;inherits:false}@keyframes caseRainbow{to{--case-angle:360deg}}@keyframes caseGoldPulse{50%{box-shadow:0 0 55px #ffd64dcc,0 0 110px #edaa0066,0 24px 60px #000b}}@keyframes caseRelicPulse{50%{box-shadow:0 0 62px #ff3322dd,0 0 115px #c4121266,0 24px 60px #000b}}
 .phone-home[data-rarity="3"]{background:radial-gradient(circle at 30% 20%,#d9a8ff,#6f3c8f 48%,#291d35)}.phone-home[data-rarity="4"]{background:radial-gradient(circle at 30% 18%,#fff3a4,#a76d12 45%,#3a2511)}.phone-home[data-rarity="5"]{background:radial-gradient(circle at 30% 18%,#ff9b8e,#751e20 48%,#260d13)}.phone-home[data-rarity="6"]{background:radial-gradient(circle at 25% 20%,#ffffffaa,transparent 14%),linear-gradient(135deg,#ff5f57,#ffbd2e,#28c840,#35a7ff,#7b61ff,#e14cff);background-size:200% 200%;animation:wallRainbow 5s ease infinite}@keyframes wallRainbow{50%{background-position:100% 100%}}
 @media(max-width:760px){.hud-save{min-width:48px}.hud-save b,.hud-save small{display:none}.hud-save span{grid-row:auto}.savings-inputs,.bank-actions{grid-template-columns:1fr 1fr}.loan-active{grid-template-columns:1fr}.property-card{grid-template-columns:48px 1fr}.property-card button{grid-column:1/-1}}
+
+
+/* =========================================================
+   v26 PHONE CASE PERSISTENCE + STOCK APP LAYOUT FIX
+========================================================= */
+.phone-screen{overflow-x:hidden!important;overscroll-behavior:contain}
+#phone-stocks{padding-left:12px!important;padding-right:12px!important}
+#phone-stocks #stockList{width:100%;min-width:0}
+#phone-stocks .stock-row{
+  width:100%!important;
+  min-width:0!important;
+  height:96px!important;
+  padding:10px 11px!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 84px 66px!important;
+  grid-template-rows:auto 38px!important;
+  grid-template-areas:
+    "name price rate"
+    "name chart chart"!important;
+  column-gap:8px!important;
+  row-gap:3px!important;
+  overflow:hidden!important;
+}
+#phone-stocks .stock-name{grid-area:name;align-self:center;min-width:0;text-align:left}
+#phone-stocks .stock-price{grid-area:price;align-self:center;min-width:0;text-align:right}
+#phone-stocks .stock-rate{grid-area:rate;align-self:center;min-width:0;text-align:right;font-size:12px;overflow:hidden;text-overflow:ellipsis}
+#phone-stocks .sparkline{grid-area:chart;width:100%!important;height:38px!important;min-width:0!important}
+#phone-stocks .stock-name b{font-size:15px;line-height:1.25}
+#phone-stocks .stock-name small{font-size:11px;margin-top:4px}
+#phone-stocks .stock-price b{font-size:12px;line-height:1.2}
+#phone-stocks .stock-price small{font-size:9px}
+#phone-stocks .summary{position:sticky;top:4px;z-index:2}
+
+/* 장착 케이스의 외형은 로그인 직후 서버 저장값으로 복원됨 */
+.phone-shell[data-rarity="4"],.phone-shell[data-rarity="5"],.phone-shell[data-rarity="6"]{will-change:box-shadow,background}
+.phone-home[data-rarity="4"]{background:radial-gradient(circle at 28% 18%,#ffef9b66,transparent 24%),linear-gradient(145deg,#513713,#bd8c2e,#2c1c0d)!important}
+.phone-home[data-rarity="5"]{background:radial-gradient(circle at 72% 18%,#ff8d7a55,transparent 24%),linear-gradient(145deg,#4c0d0d,#a82620,#210707)!important}
+.phone-home[data-rarity="6"]{background:linear-gradient(135deg,#3d102f,#1d3970,#136a58,#715316,#5a185f)!important;background-size:300% 300%!important;animation:caseWallpaperRainbow 6s ease infinite!important}
+@keyframes caseWallpaperRainbow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+@media(max-width:430px){
+  #phone-stocks .stock-row{
+    grid-template-columns:minmax(0,1fr) 74px 58px!important;
+    padding:9px!important;
+  }
+  #phone-stocks .stock-name b{font-size:14px}
+  #phone-stocks .stock-price b,#phone-stocks .stock-rate{font-size:11px}
+}
+
+/* =========================================================
+   v27: 인내심 기반 거래 평가 UI
+========================================================= */
+.patience-trade-preview{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  gap:8px 12px;
+  margin:10px 0 12px;
+  padding:11px 13px;
+  border:2px solid #8c6947;
+  border-radius:9px;
+  background:#fff3dc;
+  box-shadow:inset 0 1px #fff,0 4px 12px #0001;
+}
+.patience-trade-preview span{font-size:11px;color:#765f49;font-weight:800}
+.patience-trade-preview b{font-size:16px}
+.patience-trade-preview em{font-style:normal;font-size:14px;font-weight:1000;white-space:nowrap}
+.patience-trade-preview small{grid-column:1/-1;color:#806b56;font-size:10px}
+.trade-grade-perfect{border-color:#d49b00;background:linear-gradient(100deg,#fff8dc,#ffe8a3);box-shadow:inset 0 0 20px #ffd54a33,0 4px 14px #d49b0022}.trade-grade-perfect b,.trade-grade-perfect em{color:#9b6900}
+.trade-grade-good{border-color:#4f8c58;background:linear-gradient(100deg,#f2ffe9,#dff5c8)}.trade-grade-good b,.trade-grade-good em{color:#397342}
+.trade-grade-normal{border-color:#5f7891;background:linear-gradient(100deg,#f5f8fb,#e5edf3)}.trade-grade-normal b,.trade-grade-normal em{color:#45657f}
+.trade-grade-awkward{border-color:#b0793e;background:linear-gradient(100deg,#fff5e7,#f2d6b3)}.trade-grade-awkward b,.trade-grade-awkward em{color:#9a5d25}
+.trade-grade-worst{border-color:#b53b34;background:linear-gradient(100deg,#fff0ed,#f3c2bb);animation:worstDealPulse 1.1s ease-in-out infinite}.trade-grade-worst b,.trade-grade-worst em{color:#a12621}
+@keyframes worstDealPulse{50%{box-shadow:inset 0 0 24px #d63b3130,0 0 16px #d63b3138}}
+@media(max-width:760px){.patience-trade-preview{grid-template-columns:1fr auto}.patience-trade-preview span{grid-column:1/-1}}
