@@ -2172,3 +2172,89 @@ openPhoneApp=function(name){
     },0);
   }
 };
+
+/* ============================================================
+   v33.9 HOTFIX: stable auction countdown + instant relisting
+   ============================================================ */
+function renderAuction(options={}){
+  if(!auction)return;
+  const oldLog=document.getElementById('auctionBidLog');
+  const oldTop=oldLog?oldLog.scrollTop:0;
+  const wasNearBottom=oldLog?oldLog.scrollHeight-oldLog.scrollTop-oldLog.clientHeight<32:true;
+  auctionHall.innerHTML=`<div class="auction-card v13"><img src="${itemImage(auction.name,auction.category)}"><div><span class="badge ${rarityClass(auction.rarity)}">${esc(auction.rarity)}</span><h2>${esc(auction.name)}</h2><div class="bid-price"><span>현재 최고가</span><b>${money(auction.price)}</b><em id="auctionCountdownLabel" class="${auction.countdown?'':'hidden'}">${auction.countdown?`낙찰까지 ${auction.countdown}`:''}</em></div><div id="auctionBidLog" class="bid-log">${auction.log.map(x=>`<p>${esc(x)}</p>`).join('')}</div><div class="auction-actions"><button class="btn light" onclick="playerBid(5)">+5%</button><button class="btn light" onclick="playerBid(12)">+12%</button><button class="btn primary" onclick="leaveAuction()">경매 나가기</button></div></div></div>`;
+  requestAnimationFrame(()=>{
+    const log=document.getElementById('auctionBidLog');
+    if(!log)return;
+    if(options.forceBottom||wasNearBottom)log.scrollTop=log.scrollHeight;
+    else log.scrollTop=oldTop;
+  });
+}
+function updateAuctionCountdownLabel(){
+  const label=document.getElementById('auctionCountdownLabel');
+  if(!label||!auction)return;
+  label.classList.toggle('hidden',!auction.countdown);
+  label.textContent=auction.countdown?`낙찰까지 ${auction.countdown}`:'';
+}
+async function refreshInventoryAfterAuction(userItemId){
+  for(let i=0;i<3;i++){
+    await loadInventory();
+    if(!userItemId||inventory.some(x=>String(x.id)===String(userItemId)))break;
+    await new Promise(r=>setTimeout(r,180*(i+1)));
+  }
+  fillAuctionSellItems();
+  updateNetworth();
+}
+function startAuctionCountdown(){
+  if(!auction)return;
+  auction.countdown=3;
+  auction.log.push('추가 입찰이 없습니다. 3초 후 경매가 종료됩니다.');
+  renderAuction({forceBottom:true});
+  const target=auction;
+  const timer=setInterval(async()=>{
+    if(!auction||auction!==target){clearInterval(timer);return;}
+    auction.countdown--;
+    updateAuctionCountdownLabel();
+    if(auction.countdown>0)return;
+    clearInterval(timer);
+    const finished={...auction};
+    if(auction.highest){
+      const{data,error}=await db.rpc('claim_auction_v31',{p_auction_id:auction.id});
+      if(error){auction.countdown=0;updateAuctionCountdownLabel();return toast(error.message);}
+      if(data?.won){
+        toast('낙찰 성공 '+money(data.final_price)+' · 바로 내 물건 출품에서 판매할 수 있습니다.');
+        playSuccessSound();
+        await loadProfile();
+        await refreshInventoryAfterAuction(data.user_item_id);
+      }
+    }else{
+      const{data,error}=await db.rpc('close_auction_without_winner_v31',{p_auction_id:auction.id});
+      if(error)console.warn(error.message);
+      toast(data?.npc_won?`NPC 낙찰 ${money(data.final_price)}`:'입찰자가 없어 유찰되었습니다.');
+    }
+    auctionChoices=auctionChoices.map(x=>x.cycle_key===finished.cycleKey&&x.slot_no===finished.slotNo?{...x,ended:true}:x);
+    leaveAuction();
+    renderAuctionChoices();
+  },1000);
+}
+async function playerBid(pct){
+  if(!auction)return;
+  const bid=Math.round(auction.price*(1+pct/100));
+  const{data,error}=await db.rpc('place_auction_bid',{p_auction_id:auction.id,p_bid_amount:bid});
+  if(error)return toast(error.message);
+  auction.price=Number(data.current_price);
+  auction.highest=true;
+  auction.bids++;
+  auction.log.push('내 입찰 '+money(bid));
+  renderAuction({forceBottom:true});
+}
+function fillAuctionSellItems(){
+  const select=document.getElementById('auctionSellItem');
+  if(!select)return;
+  const previous=select.value;
+  const available=inventory.filter(x=>!x.is_listed);
+  select.innerHTML='<option value="">출품할 아이템 선택</option>';
+  available.forEach(x=>select.add(new Option(`${x.items.name} · ${x.items.rarity} · 상태 ${x.condition_score}`,x.id)));
+  if(available.some(x=>String(x.id)===String(previous)))select.value=previous;
+  const button=select.closest('.auction-seller')?.querySelector('button');
+  if(button)button.disabled=!available.length;
+}
