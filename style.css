@@ -1193,3 +1193,40 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
   .chat-unread-dot{width:11px;height:11px}
   #phoneChatUnreadDot{top:-4px;right:-4px}
 }
+
+
+/* v33.6 실제 사용 가능 금액 표시 */
+.spendable-funds-card{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 12px;padding:12px 14px;margin-bottom:10px;border:1px solid #ae8958;border-radius:12px;background:linear-gradient(135deg,#fff7e5,#ead2a5);box-shadow:inset 0 1px #fff9,0 7px 16px #2b1b1120;color:#3e2b1f}.spendable-funds-card span{font-size:11px;font-weight:900;color:#76573e}.spendable-funds-card b{grid-row:1/3;grid-column:2;font-size:21px;color:#4d7a4e;white-space:nowrap}.spendable-funds-card small{font-size:10px;color:#8a6d51;line-height:1.35}.stock-funds{margin:0 0 9px}.detail-spendable{display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:center;padding:10px 12px;margin-bottom:10px;border:2px solid #8f6a43;background:#fff2d5}.detail-spendable span{font-size:11px;color:#755a43}.detail-spendable b{grid-row:1/3;grid-column:2;font-size:20px;color:#3e7547}.detail-spendable small{font-size:10px;color:#80664f}.property-funds{margin-bottom:12px}.property-afford{display:block;margin-top:5px;font-style:normal;font-size:10px;font-weight:900;color:#47784a}.property-afford.short{color:#a4483e}.bank-liquidity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}.bank-liquidity-grid .spendable-funds-card{margin:0;min-width:0}.bank-liquidity-grid .bank-net{grid-column:1/-1}.bank-cash b{color:#4d7a4e}.bank-liquid b{color:#466d91}.bank-net b{color:#8d4c3f}@media(max-width:520px){.bank-liquidity-grid{grid-template-columns:1fr}.bank-liquidity-grid .bank-net{grid-column:auto}.spendable-funds-card b{font-size:18px}.spendable-funds-card{padding:10px 11px}}
+
+/* ============================================================
+   v33.7 RELIABLE CHAT NOTIFICATION VISIBILITY
+   ============================================================ */
+.chat-notification-stack{
+  position:fixed!important;
+  right:22px!important;
+  bottom:22px!important;
+  z-index:2147483000!important;
+  display:flex!important;
+  width:min(390px,calc(100vw - 32px))!important;
+  flex-direction:column!important;
+  gap:10px!important;
+  pointer-events:none!important;
+}
+.chat-phone-notice{
+  pointer-events:auto!important;
+}
+.hud-phone-button,.chat-app-button,.app-chat{position:relative!important;overflow:visible!important}
+.hud-phone-button .chat-unread-dot{
+  top:-5px!important;
+  right:-5px!important;
+  z-index:50!important;
+}
+.app-chat .chat-unread-dot.app-dot{
+  top:-5px!important;
+  right:-5px!important;
+  z-index:50!important;
+}
+.chat-unread-dot:not(.hidden){display:block!important}
+@media(max-width:760px){
+  .chat-notification-stack{right:10px!important;bottom:84px!important;width:calc(100vw - 20px)!important}
+}
