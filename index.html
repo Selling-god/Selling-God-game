@@ -49,6 +49,7 @@
   <div class="layout">
     <nav class="nav">
       <button class="active" data-page="city" onclick="openPage('city',this)">🎭<span>메인</span></button>
+      <button data-page="jobs" onclick="openPage('jobs',this)">📦<span>알바</span></button>
       <button data-page="inventory" onclick="openPage('inventory',this)">🎒<span>가방</span></button>
       <button data-page="pawnshop" onclick="openPage('pawnshop',this)">🏚️<span>전당포</span></button>
       <button data-page="auction" onclick="openPage('auction',this)">🔨<span>경매장</span></button>
@@ -111,34 +112,36 @@
               <div class="speaker-name">전당포 주인 조</div>
               <div class="dialogue-copy">
                 <b>“오늘은 탐색 없이 바로 장사다. 가진 돈 50만원으로 물건을 돌리고, 비싸게 팔아 보라고.”</b>
-                <p>탐색 기능은 제거되었습니다. 경매장과 중고장터에서 물건을 사거나, 전당포에서 아이템을 흥정 판매하세요.</p>
+                <p>아래 이동 버튼은 제거했습니다. 왼쪽 메뉴에서 이동하고, 알바는 실제 미니게임을 완료해야 급여를 받을 수 있습니다.</p>
               </div>
               <div class="dialogue-arrow">▼</div>
             </div>
           </div>
 
-          <div class="choice-menu business-menu">
-            <button onclick="openPage('auction',document.querySelector('[data-page=auction]'))">
-              <span class="choice-number">1</span>
-              <span class="choice-art">🔨</span>
-              <span><b>경매장 입장</b><small>희귀품 입찰에 참여하기</small></span>
-            </button>
-            <button onclick="openPage('market',document.querySelector('[data-page=market]'))">
-              <span class="choice-number">2</span>
-              <span class="choice-art">🛒</span>
-              <span><b>중고 장터</b><small>유저 거래와 NPC 제안 확인</small></span>
-            </button>
-            <button onclick="openPage('pawnshop',document.querySelector('[data-page=pawnshop]'))">
-              <span class="choice-number">3</span>
-              <span class="choice-art">🏚️</span>
-              <span><b>전당포 판매</b><small>원가 판매 또는 흥정 판매</small></span>
-            </button>
-            <button onclick="quickJob()">
-              <span class="choice-number">4</span>
-              <span class="choice-art">📦</span>
-              <span><b>물류센터 알바</b><small>간단 일거리로 +5만원</small></span>
-            </button>
+          <div class="main-scene-tip">왼쪽 메뉴에서 경매장·중고장터·전당포·알바로 이동하세요. 화면 아래 선택지는 제거했습니다.</div>
+        </div>
+      </section>
+
+
+      <section id="page-jobs" class="page">
+        <div class="title"><div><p class="eyebrow">PART-TIME JOB</p><h1>물류센터 분류 알바</h1><p>주문표와 같은 물건을 빠르게 골라 목표 수량을 채우면 급여를 받습니다.</p></div><button class="btn light" onclick="resetJobPage()">초기화</button></div>
+        <div class="job-layout">
+          <div class="job-warehouse">
+            <div class="warehouse-sign">SELLING LOGISTICS</div>
+            <div class="warehouse-shelf left">📦<br>🧊<br>📕</div>
+            <div class="warehouse-shelf right">🧸<br>📦<br>📕</div>
+            <div id="jobIntro" class="job-intro panel">
+              <h2>클릭 보상은 없어졌습니다</h2>
+              <p>게임을 시작하면 주문표와 같은 상자를 찾아야 합니다. 오배송하면 제한시간이 2초 줄어듭니다.</p>
+              <button class="btn primary" onclick="startJobMinigame()">알바 시작</button>
+            </div>
+            <div id="jobGame" class="job-game hidden">
+              <div class="job-hud"><span>주문 <b id="jobOrder">📦</b></span><span>처리 <b id="jobScore">0</b>/<b id="jobTarget">0</b></span><span>실수 <b id="jobMiss">0</b></span><span>남은 시간 <b id="jobTime">0</b>초</span></div>
+              <div id="jobStage" class="job-stage"></div>
+            </div>
+            <div id="jobResult" class="job-result panel hidden"></div>
           </div>
+          <aside class="panel job-guide"><h3>급여 기준</h3><p>목표 달성 시 기본급과 처리량 보너스가 합산됩니다.</p><p>매번 목표 수량과 제한시간이 달라집니다.</p><p>버튼 한 번으로 돈을 받는 방식은 사용하지 않습니다.</p></aside>
         </div>
       </section>
 
