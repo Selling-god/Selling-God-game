@@ -1,426 +1,273 @@
-const APP_CONFIG=window.APP_CONFIG||{};
-const SUPABASE_URL=APP_CONFIG.SUPABASE_URL||"";
-const SUPABASE_ANON_KEY=APP_CONFIG.SUPABASE_ANON_KEY||"";
-let db=null;
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>판매의 신 v12 RELEASE</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+<div id="bootLoader" class="boot-loader"><div class="boot-card"><div class="boot-logo">👑</div><b>판매의 신</b><span id="bootText">게임 데이터를 불러오는 중...</span><div class="boot-bar"><i></i></div></div></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="fatalError" class="fatal-error hidden"><div class="fatal-card"><h2>게임을 시작할 수 없습니다</h2><p id="fatalMessage"></p><button onclick="location.reload()">다시 시도</button></div></div>
 
-let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,negotiation=null,selectedStock=null,toastTimer=null,realtime=null;
+<section id="auth" class="screen auth-screen">
+  <div class="auth-card panel">
+    <div class="logo">👑</div>
+    <p class="eyebrow">SELLING TYCOON ONLINE</p>
+    <h1>판매의 신</h1>
+    <p class="muted">흥정·경매·거래·하우징이 계정에 저장됩니다. 서로 다른 거래 아이템 500종이 등장합니다.</p>
+    <div class="tabs">
+      <button id="loginTab" class="active" onclick="setAuthMode('login')">로그인</button>
+      <button id="signupTab" onclick="setAuthMode('signup')">회원가입</button>
+    </div>
+    <label id="nicknameWrap" class="field hidden">닉네임<input id="nickname" maxlength="12"></label>
+    <label class="field">이메일<input id="email" type="email"></label>
+    <label class="field">비밀번호<input id="password" type="password" minlength="6"></label>
+    <button id="authBtn" class="btn primary full" onclick="submitAuth()">로그인</button>
+    <p id="authMsg" class="error"></p>
+  </div>
+</section>
 
-document.addEventListener("DOMContentLoaded",init);
-window.addEventListener("error",e=>console.error("[GLOBAL]",e.error||e.message));
-window.addEventListener("unhandledrejection",e=>{console.error("[PROMISE]",e.reason);toast?.("처리 중 오류가 발생했습니다.")});
-window.addEventListener("offline",()=>showNetworkBadge(true));
-window.addEventListener("online",()=>showNetworkBadge(false));
+<section id="game" class="screen hidden">
+  <header class="hud">
+    <div class="player">
+      <div class="avatar">👑</div>
+      <div><small>전당포 초보 사장</small><b id="nicknameTop">판매왕</b></div>
+    </div>
+    <div class="resources">
+      <div><span>현금</span><b id="cashTop">0원</b></div>
+      <div><span>신용</span><b id="credit">500</b></div>
+      <div><span>명성</span><b id="reputation">50</b></div>
+      <div><span>총자산</span><b id="networth">0원</b></div>
+    </div>
+    <div class="hud-buttons">
+      <button onclick="openPhone()">📱</button>
+      <button onclick="logout()">🚪</button>
+    </div>
+  </header>
 
-async function init(){
-  try{
-    setBootText("환경 설정을 확인하는 중...");
-    if(!window.supabase)throw new Error("Supabase 라이브러리를 불러오지 못했습니다.");
-    if(!SUPABASE_URL||!SUPABASE_ANON_KEY)throw new Error("config.js의 Supabase 설정이 비어 있습니다.");
-    db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-    updatePhoneTime();setInterval(updatePhoneTime,30000);
-    showNetworkBadge(!navigator.onLine);
-    setBootText("로그인 정보를 확인하는 중...");
-    const{data:{session},error}=await db.auth.getSession();
-    if(error)throw error;
-    if(session?.user){currentUser=session.user;await enterGame()}else showAuth();
-    db.auth.onAuthStateChange((_e,s)=>currentUser=s?.user||null);
-    hideBoot();
-  }catch(e){showFatal(e)}
-}
-function setBootText(t){const el=document.getElementById("bootText");if(el)el.textContent=t}
-function hideBoot(){document.getElementById("bootLoader")?.classList.add("done")}
-function showFatal(e){hideBoot();const box=document.getElementById("fatalError"),msg=document.getElementById("fatalMessage");if(msg)msg.textContent=e?.message||"알 수 없는 오류";box?.classList.remove("hidden")}
-function showNetworkBadge(show){let el=document.getElementById("offlineBadge");if(show&&!el){el=document.createElement("div");el.id="offlineBadge";el.className="offline-badge";el.textContent="오프라인: 네트워크 연결을 확인하세요";document.body.appendChild(el)}else if(!show)el?.remove()}
+  <div class="layout">
+    <nav class="nav">
+      <button class="active" data-page="city" onclick="openPage('city',this)">🎭<span>메인</span></button>
+      <button data-page="inventory" onclick="openPage('inventory',this)">🎒<span>가방</span></button>
+      <button data-page="pawnshop" onclick="openPage('pawnshop',this)">🏚️<span>전당포</span></button>
+      <button data-page="auction" onclick="openPage('auction',this)">🔨<span>경매장</span></button>
+      <button data-page="market" onclick="openPage('market',this)">🛒<span>중고장터</span></button>
+      <button data-page="house" onclick="openPage('house',this)">🏠<span>내 집</span></button>
+      <button data-page="collection" onclick="openPage('collection',this)">✨<span>소장품</span></button>
+    </nav>
 
-function setAuthMode(m){authMode=m;nicknameWrap.classList.toggle("hidden",m!=="signup");loginTab.classList.toggle("active",m==="login");signupTab.classList.toggle("active",m==="signup");authBtn.textContent=m==="login"?"로그인":"회원가입";authMsg.textContent=""}
-async function submitAuth(){
-  const nick=nickname.value.trim(),mail=email.value.trim(),pw=password.value;
-  if(!mail||pw.length<6||(authMode==="signup"&&nick.length<2)){authMsg.textContent="입력값을 확인해 주세요.";return}
-  authBtn.disabled=true;authBtn.textContent="처리 중...";
-  try{
-    if(authMode==="signup"){
-      const{data,error}=await db.auth.signUp({email:mail,password:pw,options:{data:{nickname:nick}}});if(error)throw error;
-      if(data.session){currentUser=data.user;await enterGame()}else authMsg.textContent="가입 완료. 이메일 인증 후 로그인하세요."
-    }else{
-      const{data,error}=await db.auth.signInWithPassword({email:mail,password:pw});if(error)throw error;currentUser=data.user;await enterGame()
-    }
-  }catch(e){authMsg.textContent=e.message}finally{authBtn.disabled=false;authBtn.textContent=authMode==="login"?"로그인":"회원가입"}
-}
-async function enterGame(){
-  setBootText("플레이어 데이터를 준비하는 중...");
-  const{error}=await db.rpc("ensure_player_save");
-  if(error)throw new Error("플레이어 저장 생성 실패: "+error.message);
-  showGame();
-  await refreshAll();
-  await grantStarterFundsIfNeeded();
-  subscribe();
-}
-function showAuth(){auth.classList.remove("hidden");game.classList.add("hidden")}
-function showGame(){auth.classList.add("hidden");game.classList.remove("hidden")}
-async function logout(){if(realtime)await db.removeChannel(realtime);await db.auth.signOut();showAuth()}
-function openPage(name,btn){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));document.getElementById("page-"+name).classList.add("active");btn?.classList.add("active");({inventory:loadInventory,pawnshop:loadPawnshop,auction:loadAuction,market:loadMarketHub,house:loadHouse,collection:loadCollectibles}[name]||(()=>{}))()}
-function openPageFromPhone(name){closePhone();openPage(name,document.querySelector(`[data-page="${name}"]`))}
-async function refreshAll(){await updateStocks();await loadProfile();await Promise.all([loadInventory(),loadStocks(),loadCollectibles(),loadEffects()]);updateNetworth()}
-async function loadProfile(){const{data,error}=await db.from("profiles").select("*").eq("id",currentUser.id).single();if(error)return toast(error.message);profile=data;nicknameTop.textContent=data.nickname;nicknameHero.textContent=data.nickname;phoneOwner.textContent=data.nickname;cashTop.textContent=money(data.cash);credit.textContent=data.credit_score;reputation.textContent=data.reputation}
-async function grantStarterFundsIfNeeded(){
-  if(!profile)return;
-  const key=`starter_v12_${currentUser.id}`;
-  if(Number(profile.cash)>=500000&&!localStorage.getItem(key)){
-    localStorage.setItem(key,"1");
-    toast("시작 지원금 50만원이 준비되었습니다.");
-  }
-}
-async function quickJob(){const{data,error}=await db.rpc("do_quick_job");if(error)return toast(error.message);toast("+"+money(data.reward));await loadProfile();updateNetworth()}
+    <main class="stage">
+      <section id="page-city" class="page active">
+        <div class="premium-game-ui">
+          <div class="premium-topbar">
+            <div class="premium-title-wrap">
+              <div class="premium-emblem">👑</div>
+              <div>
+                <p class="eyebrow">PAWNSHOP NEGOTIATION TYCOON</p>
+                <h1>판매의 신</h1>
+                <small>전설의 흥정가가 되어라</small>
+              </div>
+            </div>
+            <div class="premium-stats">
+              <div><span>현금</span><b id="premiumCash">500,000원</b></div>
+              <div><span>신용도</span><b id="premiumCredit">500</b></div>
+              <div><span>평판</span><b id="premiumRep">50</b></div>
+              <div><span>총자산</span><b id="premiumNet">500,000원</b></div>
+            </div>
+          </div>
 
-/* 메인 미니게임(탐색 기능은 메인 UI에서 제거됨) */
-async function prepareExplore(location){
-  const{data,error}=await db.rpc("prepare_exploration",{p_location:location});if(error)return toast(error.message);
-  explore={...data,location,score:0,time:Math.max(5,13-data.difficulty)};
-  exploreModal.classList.remove("hidden");
-  if(location==="street")streetGame();else if(location==="alley")memoryGame();else miningGame()
-}
-function preview(title,desc){return `<p class="eyebrow">EXPLORATION</p><h2>${title}</h2><p class="muted">${desc}</p><div class="preview"><div><span>예상 상태</span><b>${explore.target_condition}/100</b></div><div><span>난도</span><b>${explore.difficulty}/10</b></div><div><span>희귀도</span><b>${esc(explore.rarity_hint)}</b></div><div><span>지역</span><b>${{street:"길거리",alley:"뒷골목",mountain:"뒷산"}[explore.location]}</b></div></div>`}
-function streetGame(){
-  explore.required=4+explore.difficulty;
-  exploreContent.innerHTML=preview("움직이는 상자를 클릭하세요",`${explore.time}초 안에 ${explore.required}개를 찾으세요.`)+`<div id="gameStage" class="game-stage"></div><p>남은 시간 <b id="time">${explore.time}</b>초 · <b id="score">0</b>/${explore.required}</p>`;
-  spawnTarget();explore.interval=setInterval(()=>{explore.time--;time.textContent=explore.time;if(explore.time<=0)finishExplore(false,"시간 초과")},1000)
-}
-function spawnTarget(){gameStage.innerHTML="";const b=document.createElement("button");b.className="target";const s=Math.max(34,64-explore.difficulty*3);b.style.width=b.style.height=s+"px";b.style.left=(Math.random()*82+3)+"%";b.style.top=(Math.random()*72+5)+"%";b.textContent="📦";b.onclick=()=>{explore.score++;score.textContent=explore.score;explore.score>=explore.required?finishExplore(true):spawnTarget()};gameStage.appendChild(b)}
-function memoryGame(){
-  const a=["⬆️","⬇️","⬅️","➡️"],len=3+Math.ceil(explore.difficulty/2);explore.seq=Array.from({length:len},()=>a[Math.floor(Math.random()*4)]);explore.input=[];explore.lock=true;
-  exploreContent.innerHTML=preview("방향 순서를 기억하세요",`${len}개의 방향을 순서대로 입력하세요.`)+`<div id="memory" class="memory">${explore.seq.join("")}</div><div class="memory-buttons">${a.map(x=>`<button onclick="pressMemory('${x}')">${x}</button>`).join("")}</div><p id="memoryStatus">잠시 후 사라집니다.</p>`;
-  explore.timeout=setTimeout(()=>{memory.textContent="❓ ".repeat(len);memoryStatus.textContent="입력하세요.";explore.lock=false},Math.max(1000,3200-explore.difficulty*180))
-}
-function pressMemory(x){if(explore.lock)return;const i=explore.input.length;if(explore.seq[i]!==x)return finishExplore(false,"순서 오류");explore.input.push(x);memoryStatus.textContent=`${explore.input.length}/${explore.seq.length}`;if(explore.input.length===explore.seq.length)finishExplore(true)}
-function miningGame(){
-  const w=Math.max(8,32-explore.difficulty*2),l=50-w/2;explore.pos=0;explore.dir=1;explore.left=l;explore.right=l+w;
-  exploreContent.innerHTML=preview("초록 구간에 멈추세요","상태가 좋을수록 성공 구간이 좁아집니다.")+`<div class="track"><div class="zone" style="left:${l}%;width:${w}%"></div><div id="marker" class="marker"></div></div><button class="big" onclick="stopMining()">지금 멈추기</button>`;
-  explore.interval=setInterval(()=>{explore.pos+=explore.dir*(1.7+explore.difficulty*.18);if(explore.pos>=97)explore.dir=-1;if(explore.pos<=0)explore.dir=1;marker.style.left=explore.pos+"%"},24)
-}
-function stopMining(){finishExplore(explore.pos>=explore.left&&explore.pos<=explore.right,"구간 실패")}
-function clearExplore(){clearInterval(explore?.interval);clearTimeout(explore?.timeout)}
-async function finishExplore(ok,msg=""){
-  clearExplore();
-  if(!ok){exploreContent.innerHTML=`<h2>실패</h2><p>${esc(msg)}</p><button class="big" onclick="prepareExplore('${explore.location}')">다시 도전</button>`;return}
-  const{data,error}=await db.rpc("complete_exploration",{p_token:explore.token});if(error)return exploreContent.innerHTML=`<p>${esc(error.message)}</p>`;
-  exploreContent.innerHTML=`<div class="item-image"><img src="${itemImage(data.item_name,data.category)}"></div><h2>${esc(data.item_name)}</h2><p>${esc(data.category)} · ${esc(data.rarity)} · 상태 ${data.condition_score}/100</p><button class="big" onclick="closeExplore()">가방으로 보내기</button>`;
-  await loadInventory()
-}
-function closeExplore(){clearExplore();exploreModal.classList.add("hidden")}
+          <div class="premium-main-grid">
+            <aside class="mission-board">
+              <div class="board-title">오늘의 목표</div>
+              <div class="mission-row"><span>물건 2개 판매하기</span><b id="missionSell">0 / 2</b></div>
+              <div class="mission-progress"><i style="width:0%"></i></div>
+              <div class="mission-reward">보상 +50,000원</div>
+              <div class="mission-row"><span>흥정 3회 성공하기</span><b id="missionDeal">0 / 3</b></div>
+              <div class="mission-progress"><i style="width:0%"></i></div>
+              <div class="mission-reward">보상 신용도 +10</div>
+              <button class="btn light" onclick="openPage('inventory',document.querySelector('[data-page=inventory]'))">가방 확인</button>
+              <div class="market-note">
+                <b>오늘의 시세</b>
+                <span>골동품 ▲ 5%</span>
+                <span>전자제품 ▼ 3%</span>
+                <span>명품 ▲ 2%</span>
+              </div>
+            </aside>
 
-/* 아이템/전당포 */
-async function loadInventory(){
-  const{data,error}=await db.from("user_items").select(`id,condition_score,is_listed,items(id,name,icon,category,average_price,rarity)`).eq("user_id",currentUser.id).order("acquired_at",{ascending:false});
-  if(error)return toast(error.message);inventory=data||[];fillItemSelect();
-  const homeCount=document.getElementById("homeInventoryCount");
-  if(homeCount)homeCount.textContent=inventory.length;
-  if(!inventory.length){inventoryEl().innerHTML=`<div class="panel" style="padding:20px">가방이 비어 있습니다.</div>`;return}
-  inventoryEl().innerHTML=inventory.map(cardItem).join("")
-}
-function inventoryEl(){return document.getElementById("inventory")}
-function cardItem(r){const i=r.items,v=itemValue(i.average_price,r.condition_score);return `<article class="item-card"><div class="item-image"><img src="${itemImage(i.name,i.category,i.icon)}" onerror="handleImageError(this,'${esc(i.name)}')"></div><div class="item-body"><h3>${esc(i.name)}</h3><div class="meta">${esc(i.category)} · ${esc(i.rarity)}</div><div class="condition"><i style="width:${r.condition_score}%"></i></div><div class="meta">상태 ${r.condition_score}/100</div><div class="price">${money(v)}</div><div class="item-actions"><button class="btn light" onclick="openPage('pawnshop',document.querySelector('[data-page=pawnshop]'))">전당포</button><button class="btn primary" onclick="openPage('market',document.querySelector('[data-page=market]'))">장터</button></div></div></article>`}
-async function loadPawnshop(){await loadInventory();pawnshopList.innerHTML=inventory.filter(x=>!x.is_listed).map(r=>{const v=itemValue(r.items.average_price,r.condition_score);return `<article class="item-card"><div class="item-image"><img src="${itemImage(r.items.name,r.items.category,r.items.icon)}"></div><div class="item-body"><h3>${esc(r.items.name)}</h3><div class="meta">상태 ${r.condition_score}/100</div><div class="price">원가 ${money(v)}</div><div class="item-actions"><button class="btn light" onclick="pawnSell('${r.id}','instant',100)">원가 판매</button><button class="btn primary" onclick="startPawnNegotiation('${r.id}')">흥정 판매</button></div></div></article>`}).join("")||`<div class="panel" style="padding:20px">판매할 아이템이 없습니다.</div>`}
-async function pawnSell(id,mode,pct){const{data,error}=await db.rpc("sell_item_to_pawnshop",{p_user_item_id:id,p_mode:mode,p_offer_percent:pct});if(error)return toast(error.message);toast("판매 완료 "+money(data.final_price));await Promise.all([loadProfile(),loadPawnshop(),loadInventory()]);updateNetworth()}
-function startPawnNegotiation(id){const r=inventory.find(x=>x.id===id),base=itemValue(r.items.average_price,r.condition_score);negotiation={type:"pawn",id,title:r.items.name,base,offer:Math.round(base*1.08),limit:Math.round(base*(1.08+Math.random()*.26)),attempts:3};renderNegotiation()}
-function renderNegotiation(){
-  negotiationModal.classList.remove("hidden");
-  const n=negotiation,p=Math.min(100,n.offer/n.limit*100);
-  const mood=p<68?"흠… 시작은 나쁘지 않군.":p<86?"조금 욕심을 부리는군. 그래도 들어보지.":p<96?"이제 내 인내심이 거의 바닥이야.":"한 번만 더 무리하면 거래는 끝일세.";
-  negotiationContent.innerHTML=`
-    <p class="eyebrow">PRICE NEGOTIATION</p>
-    <h2>${esc(n.title)}</h2>
-    <p class="dealer-line">“${mood}”</p>
-    <p>현재 제안가 <b>${money(n.offer)}</b></p>
-    <div class="neg-track"><i style="width:${p}%"></i></div>
-    <p class="muted">조 아저씨의 인내심 · 남은 흥정 ${n.attempts}회</p>
-    <div class="item-actions">
-      <button class="btn light" onclick="raiseOffer(5)">조금 더 +5%</button>
-      <button class="btn light" onclick="raiseOffer(10)">강하게 +10%</button>
-      <button class="btn primary" onclick="acceptNegotiation()">이 가격에 거래</button>
-    </div>`;
-}
-function raiseOffer(pct){if(negotiation.attempts<=0)return;negotiation.attempts--;const next=Math.round(negotiation.offer*(1+pct/100));if(next<=negotiation.limit){negotiation.offer=next;toast("NPC가 수락했습니다.")}else toast("NPC가 거절했습니다.");renderNegotiation()}
-async function acceptNegotiation(){const n=negotiation;if(n.type==="pawn")await pawnSell(n.id,"negotiated",Math.round(n.offer/n.base*100));else{const{data,error}=await db.rpc("accept_npc_market_offer",{p_offer_id:n.offerId,p_final_price:n.offer});if(error)return toast(error.message);toast("NPC 거래 완료 "+money(data.final_price));await Promise.all([loadProfile(),loadNpcOffers(),loadInventory()])}closeNegotiation()}
-function closeNegotiation(){negotiation=null;negotiationModal.classList.add("hidden")}
+            <section class="shop-stage premium-stage">
+              <div class="shop-stage-bg"></div>
+              <div class="npc-portrait">
+                <img src="assets/shop_npc.jpg" alt="전당포 손님">
+              </div>
+              <div class="green-lamp">💡</div>
+              <div class="service-bell">🔔</div>
+              <div class="customer-dialogue">
+                <span class="dialogue-name">손님</span>
+                <b>“이거 참 오래됐는데, 누가 좀 봐주겠소?”</b>
+                <p>당신 눈썰미라면 좋은 값을 쳐줄 것 같아서 말이오.</p>
+              </div>
+            </section>
 
-/* 경매 */
-async function loadAuction(){
-  const{data,error}=await db.rpc("get_or_create_auction");if(error)return auctionHall.innerHTML=`<p>${esc(error.message)}</p>`;
-  auction={id:data.auction_id,name:data.item_name,category:data.category,rarity:data.rarity,price:Number(data.current_price),highest:data.player_highest,stopped:data.npc_stopped,log:[`시작가 ${money(data.current_price)}`]};
-  renderAuction();if(!auction.stopped)startAuctionLoop()
-}
-function renderAuction(){auctionHall.innerHTML=`<div class="auction-card"><img src="${itemImage(auction.name,auction.category)}"><div><span class="badge normal">${esc(auction.rarity)}</span><h2>${esc(auction.name)}</h2><div class="bid-price"><span>현재 최고가</span><b>${money(auction.price)}</b></div><div class="bid-log">${auction.log.map(x=>`<p>${esc(x)}</p>`).join("")}</div><div class="auction-actions"><button class="btn light" onclick="playerBid(5)">+5%</button><button class="btn light" onclick="playerBid(12)">+12%</button><button class="btn primary" onclick="claimAuction()">낙찰 시도</button></div></div></div>`}
-function startAuctionLoop(){clearInterval(auction.interval);auction.interval=setInterval(async()=>{const{data,error}=await db.rpc("npc_auction_step",{p_auction_id:auction.id});if(error){clearInterval(auction.interval);return toast(error.message)}auction.price=Number(data.current_price);if(data.action==="hold"){auction.stopped=true;auction.log.push("NPC 가격 유지 → 입찰 종료");clearInterval(auction.interval)}else if(data.action==="raise")auction.log.push("NPC 소폭 인상 +"+money(data.increment));else auction.log.push("NPC 대폭 인상 +"+money(data.increment));renderAuction()},2200)}
-async function playerBid(pct){const bid=Math.round(auction.price*(1+pct/100));const{data,error}=await db.rpc("place_auction_bid",{p_auction_id:auction.id,p_bid_amount:bid});if(error)return toast(error.message);auction.price=Number(data.current_price);auction.highest=true;auction.log.push("플레이어 입찰 "+money(bid));renderAuction()}
-async function claimAuction(){const{data,error}=await db.rpc("claim_auction",{p_auction_id:auction.id});if(error)return toast(error.message);if(!data.won)return toast("현재 최고 입찰자가 아니거나 NPC 입찰이 끝나지 않았습니다.");clearInterval(auction.interval);toast("낙찰 성공 "+money(data.final_price));await Promise.all([loadProfile(),loadInventory()]);loadAuction()}
+            <aside class="appraisal-panel">
+              <div class="appraisal-header">감정할 물건</div>
+              <div id="premiumCurrentItem" class="premium-item-card">
+                <img src="assets/umbrella.png" alt="빈티지 우산">
+                <div>
+                  <h2>빈티지 우산</h2>
+                  <p>생활용품 · 일반</p>
+                </div>
+              </div>
+              <div class="premium-condition">
+                <span>상태 <b id="premiumCondition">50 / 100</b></span>
+                <div><i id="premiumConditionBar" style="width:50%"></i></div>
+              </div>
+              <div class="premium-price-box">
+                <span>예상 시세</span>
+                <b id="premiumEstimate">17,900원</b>
+              </div>
+              <div class="decision-title">어떻게 하시겠습니까?</div>
+              <div class="decision-buttons">
+                <button class="decision sell-now" onclick="premiumQuickSell()"><span>🪙</span><b>원가 판매</b><small id="premiumSellPrice">17,900원</small></button>
+                <button class="decision bargain" onclick="premiumBargain()"><span>🤝</span><b>흥정하기</b><small>더 좋은 가격 제안</small></button>
+                <button class="decision reject" onclick="premiumReject()"><span>✕</span><b>거절하기</b><small>거래 안 함</small></button>
+              </div>
+            </aside>
+          </div>
 
-/* 시장 */
-function switchMarketTab(name,btn){document.querySelectorAll(".market-tabs button").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".market-panel").forEach(x=>x.classList.add("hidden"));btn.classList.add("active");document.getElementById("market-"+name).classList.remove("hidden");if(name==="offers")loadNpcOffers();if(name==="collectibles")loadCollectibleMarket()}
-async function loadMarketHub(){await Promise.all([loadInventory(),loadMarket(),loadNpcOffers(),loadCollectibles(),loadCollectibleMarket()])}
-function fillItemSelect(){sellItem.innerHTML=`<option value="">판매할 아이템</option>`;inventory.filter(x=>!x.is_listed).forEach(x=>sellItem.add(new Option(`${x.items.name} · 상태 ${x.condition_score}`,x.id)))}
-async function createListing(){const id=sellItem.value,p=Math.floor(Number(sellPrice.value));if(!id||p<=0)return toast("아이템과 가격을 확인하세요.");const{error}=await db.rpc("create_market_listing",{p_user_item_id:id,p_price:p});if(error)return toast(error.message);sellPrice.value="";toast("장터 등록 완료");await Promise.all([loadInventory(),loadMarket()])}
-async function loadMarket(){const{data,error}=await db.from("market_listings").select(`id,title,asking_price,seller_user_id,user_items(condition_score,items(category,icon)),profiles:seller_user_id(nickname)`).eq("status","active").order("created_at",{ascending:false});if(error)return toast(error.message);marketList.innerHTML=(data||[]).map(r=>{const mine=r.seller_user_id===currentUser.id;return `<article class="market-card"><div class="item-image"><img src="${itemImage(r.title,r.user_items?.items?.category,r.user_items?.items?.icon)}"></div><div class="market-body"><h3>${esc(r.title)}</h3><div class="meta">${esc(r.profiles?.nickname||"유저")} · 상태 ${r.user_items?.condition_score||"-"}</div><div class="price">${money(r.asking_price)}</div><button class="btn ${mine?"light":"primary"} full" onclick="${mine?`cancelListing('${r.id}')`:`buyListing('${r.id}')`}">${mine?"판매 취소":"구매"}</button></div></article>`}).join("")||`<div class="panel" style="padding:20px">매물이 없습니다.</div>`}
-async function buyListing(id){const{data,error}=await db.rpc("buy_market_listing",{p_listing_id:id});if(error)return toast(error.message);toast("구매 완료 "+money(data.final_price));await refreshAll();loadMarket()}
-async function cancelListing(id){const{error}=await db.rpc("cancel_market_listing",{p_listing_id:id});if(error)return toast(error.message);await Promise.all([loadInventory(),loadMarket()])}
-async function loadNpcOffers(){await db.rpc("generate_npc_market_offers");const{data,error}=await db.from("npc_market_offers").select(`id,offer_price,max_price,user_items(id,condition_score,items(name,category,icon))`).eq("user_id",currentUser.id).eq("status","active").order("created_at",{ascending:false});if(error)return toast(error.message);npcOfferList.innerHTML=(data||[]).map(o=>`<article class="market-card"><div class="item-image"><img src="${itemImage(o.user_items.items.name,o.user_items.items.category,o.user_items.items.icon)}"></div><div class="market-body"><span class="badge normal">NPC 제안</span><h3>${esc(o.user_items.items.name)}</h3><div class="price">${money(o.offer_price)}</div><button class="btn primary full" onclick="startNpcOffer('${o.id}')">거래하기</button></div></article>`).join("")||`<div class="panel" style="padding:20px">NPC 제안이 없습니다.</div>`}
-async function startNpcOffer(id){const{data,error}=await db.from("npc_market_offers").select(`id,offer_price,max_price,user_items(items(name))`).eq("id",id).single();if(error)return toast(error.message);negotiation={type:"npc",offerId:id,title:data.user_items.items.name,base:Number(data.offer_price),offer:Number(data.offer_price),limit:Number(data.max_price),attempts:3};renderNegotiation()}
+          <div class="premium-bag-strip">
+            <div class="strip-title">가방 속 물건</div>
+            <div id="premiumBag" class="premium-bag-list"></div>
+          </div>
 
-/* 소장품/집 */
-async function drawCollectible(){const{data,error}=await db.rpc("draw_collectible");if(error)return toast(error.message);toast(`${data.rarity} ${data.name} · ${data.effect_name} +${data.effect_percent}%`);await Promise.all([loadProfile(),loadCollectibles()]);updateNetworth()}
-async function loadCollectibles(){const{data,error}=await db.from("user_collectibles").select(`id,is_equipped,is_placed,is_listed,collectibles(id,name,type,rarity,effect_code,effect_name,effect_percent,icon)`).eq("user_id",currentUser.id).order("acquired_at",{ascending:false});if(error)return toast(error.message);collectibles=data||[];const eq=collectibles.find(x=>x.is_equipped&&x.collectibles.type==="phone_case");equippedCase.innerHTML=eq?collectibleRow(eq):`<p class="muted">장착 케이스 없음</p>`;collectibleInventory.innerHTML=collectibles.map(collectibleRow).join("")||`<p class="muted">소장품 없음</p>`;fillCollectibleSelect()}
-function collectibleRow(r){const c=r.collectibles;return `<div class="collectible"><span>${c.icon} ${esc(c.name)}<br><small>${esc(c.rarity)} · ${esc(c.effect_name)} +${c.effect_percent}%</small></span><button class="btn light" onclick="${c.type==="phone_case"?`equipCollectible('${r.id}','equip')`:`equipCollectible('${r.id}','place')`}">${c.type==="phone_case"?(r.is_equipped?"장착 중":"장착"):(r.is_placed?"배치됨":"배치")}</button></div>`}
-async function equipCollectible(id,action){const{error}=await db.rpc("equip_collectible",{p_user_collectible_id:id,p_action:action});if(error)return toast(error.message);await Promise.all([loadCollectibles(),loadHouse(),loadEffects()])}
-function fillCollectibleSelect(){sellCollectible.innerHTML=`<option value="">판매할 소장품</option>`;collectibles.filter(x=>!x.is_equipped&&!x.is_placed&&!x.is_listed).forEach(x=>sellCollectible.add(new Option(`${x.collectibles.name} · ${x.collectibles.effect_percent}%`,x.id)))}
-async function createCollectibleListing(){const id=sellCollectible.value,p=Math.floor(Number(collectiblePrice.value));if(!id||p<=0)return toast("소장품과 가격을 확인하세요.");const{error}=await db.rpc("create_collectible_listing",{p_user_collectible_id:id,p_price:p});if(error)return toast(error.message);collectiblePrice.value="";await loadCollectibleMarket()}
-async function loadCollectibleMarket(){const{data,error}=await db.from("collectible_listings").select(`id,asking_price,seller_user_id,user_collectibles(collectibles(name,rarity,effect_name,effect_percent,icon)),profiles:seller_user_id(nickname)`).eq("status","active").order("created_at",{ascending:false});if(error)return toast(error.message);collectibleMarketList.innerHTML=(data||[]).map(r=>{const c=r.user_collectibles.collectibles,mine=r.seller_user_id===currentUser.id;return `<article class="market-card"><div class="item-image" style="display:grid;place-items:center;font-size:68px">${c.icon}</div><div class="market-body"><h3>${esc(c.name)}</h3><div class="meta">${esc(c.rarity)} · ${esc(c.effect_name)} +${c.effect_percent}%</div><div class="price">${money(r.asking_price)}</div><button class="btn ${mine?"light":"primary"} full" onclick="${mine?`cancelCollectible('${r.id}')`:`buyCollectible('${r.id}')`}">${mine?"판매 취소":"구매"}</button></div></article>`}).join("")||`<div class="panel" style="padding:20px">소장품 매물 없음</div>`}
-async function buyCollectible(id){const{data,error}=await db.rpc("buy_collectible_listing",{p_listing_id:id});if(error)return toast(error.message);toast("구매 완료 "+money(data.final_price));await Promise.all([loadProfile(),loadCollectibles(),loadCollectibleMarket()])}
-async function cancelCollectible(id){const{error}=await db.rpc("cancel_collectible_listing",{p_listing_id:id});if(error)return toast(error.message);await loadCollectibleMarket()}
-async function loadEffects(){const{data}=await db.rpc("get_active_effects");effects=data||{}}
-async function loadHouse(){await Promise.all([loadCollectibles(),loadEffects()]);const placed=collectibles.filter(x=>x.is_placed&&x.collectibles.type==="decoration");placedDecorations.innerHTML=placed.map((r,i)=>`<div class="placed" style="left:${8+(i%4)*22}%;top:${34+Math.floor(i/4)*24}%">${r.collectibles.icon}</div>`).join("");houseEffects.innerHTML=Object.entries(effects).map(([k,v])=>`<div class="effect"><span>${effectName(k)}</span><b>+${Number(v).toFixed(1)}%</b></div>`).join("")||`<p class="muted">활성 효과 없음</p>`;decorationInventory.innerHTML=collectibles.filter(x=>x.collectibles.type==="decoration").map(collectibleRow).join("")||`<p class="muted">장식 없음</p>`}
-function effectName(k){return{pawn_bonus:"전당포 판매가",market_bonus:"NPC 제안가",auction_discount:"경매 할인",stock_fee_discount:"주식 수수료",exploration_luck:"탐색 희귀도",gacha_luck:"뽑기 희귀도"}[k]||k}
+          <div class="premium-bottom-menu">
+            <button onclick="openPage('pawnshop',document.querySelector('[data-page=pawnshop]'))">🏚️<span>전당포</span></button>
+            <button onclick="openPage('auction',document.querySelector('[data-page=auction]'))">🔨<span>경매장</span></button>
+            <button onclick="openPage('market',document.querySelector('[data-page=market]'))">🛒<span>중고장터</span></button>
+            <button onclick="openPage('inventory',document.querySelector('[data-page=inventory]'))">🎒<span>내 가방</span></button>
+            <button onclick="openPhone()">📱<span>휴대폰</span></button>
+            <button onclick="openPage('house',document.querySelector('[data-page=house]'))">🏠<span>내 집</span></button>
+          </div>
+        </div>
+      </section>
 
-/* 휴대폰/주식 */
-function openPhone(){phoneOverlay.classList.remove("hidden");phoneHome();updatePhoneTime()}function closePhone(){phoneOverlay.classList.add("hidden")}function phoneBackdrop(e){if(e.target.id==="phoneOverlay")closePhone()}function phoneHome(){document.querySelectorAll(".phone-screen").forEach(x=>x.classList.add("hidden"));document.getElementById("phoneHome").classList.remove("hidden");closeStockDetail()}function openPhoneApp(name){document.querySelectorAll(".phone-screen").forEach(x=>x.classList.add("hidden"));document.getElementById("phone-"+name).classList.remove("hidden");name==="stocks"?refreshStocks():renderWallet()}function updatePhoneTime(){phoneTime.textContent=new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}
-async function updateStocks(){await db.rpc("update_global_stock_market")}
-async function refreshStocks(){await updateStocks();await loadStocks()}
-async function loadStocks(){const[{data:s},{data:h}]=await Promise.all([db.from("stocks").select("id,symbol,name,current_price,previous_price,history").eq("is_active",true).order("name"),db.from("stock_holdings").select("*").eq("user_id",currentUser.id)]);stocks=s||[];holdings=h||[];let total=0,profit=0;stockList.innerHTML=stocks.map(st=>{const hd=holdings.find(x=>x.stock_id===st.id),q=Number(hd?.quantity||0),avg=Number(hd?.average_buy_price||0),cur=Number(st.current_price),prev=Number(st.previous_price),r=prev?(cur-prev)/prev*100:0,val=q*cur,p=val-q*avg;total+=val;profit+=p;return `<button class="stock-row" onclick="openStockDetail('${st.id}')"><div><b>${esc(st.name)}</b><small>${esc(st.symbol)} · ${q}주</small></div>${stockSvg(history(st.history,prev,cur),95,40,true)}<b class="${r>=0?"up":"down"}">${r>=0?"+":""}${r.toFixed(2)}%</b></button>`}).join("");stockValue.textContent=money(total);stockProfit.textContent=(profit>=0?"+":"")+money(profit);stockProfit.className=profit>=0?"up":"down";if(selectedStock)renderStockDetail(selectedStock);renderWallet()}
-function openStockDetail(id){selectedStock=id;stockListView.classList.add("hidden");stockDetailView.classList.remove("hidden");renderStockDetail(id)}function closeStockDetail(){selectedStock=null;stockListView?.classList.remove("hidden");stockDetailView?.classList.add("hidden")}
-function renderStockDetail(id){const st=stocks.find(x=>x.id===id),hd=holdings.find(x=>x.stock_id===id),q=Number(hd?.quantity||0),avg=Number(hd?.average_buy_price||0),cur=Number(st.current_price),hist=history(st.history,st.previous_price,cur),val=q*cur,p=val-q*avg;stockDetail.innerHTML=`<h2>${esc(st.name)}</h2>${stockSvg(hist,340,220,false)}<div class="metrics"><div>보유 <b>${q}주</b></div><div>평균 <b>${q?money(avg):"-"}</b></div><div>평가액 <b>${money(val)}</b></div><div>손익 <b class="${p>=0?"up":"down"}">${p>=0?"+":""}${money(p)}</b></div></div><div class="trade"><input id="qty-${id}" type="number" min="1" value="1"><button class="buy" onclick="tradeStock('${id}','buy')">매수</button><button class="sell" onclick="tradeStock('${id}','sell')">매도</button></div>`}
-async function tradeStock(id,type){const q=Number(document.getElementById("qty-"+id).value);const{error}=await db.rpc(type==="buy"?"buy_stock_v2":"sell_stock_v2",{p_stock_id:id,p_quantity:q});if(error)return toast(error.message);await Promise.all([loadProfile(),loadStocks()])}
-function history(raw,prev,cur){let a=[];if(Array.isArray(raw))a=raw;else try{a=JSON.parse(raw||"[]")}catch{}a=a.map(Number).filter(Number.isFinite);if(a.length<2)a=[Number(prev),Number(cur)];if(a.at(-1)!==Number(cur))a.push(Number(cur));return a.slice(-32)}
-function stockSvg(a,w,h,small){const p=small?2:10,min=Math.min(...a),max=Math.max(...a),range=Math.max(max-min,1),pts=a.map((v,i)=>`${(p+i/Math.max(a.length-1,1)*(w-2*p)).toFixed(1)},${(h-p-(v-min)/range*(h-2*p)).toFixed(1)}`).join(" "),up=a.at(-1)>=a[0],c=up?"up":"down";return `<svg class="${small?"sparkline":"detail-chart"}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polygon points="${p},${h-p} ${pts} ${w-p},${h-p}" class="fill-${c}"></polygon><polyline points="${pts}" class="line-${c}"></polyline></svg>`}
-function renderWallet(){if(!profile)return;const sv=holdings.reduce((s,h)=>s+Number(h.quantity)*Number(stocks.find(x=>x.id===h.stock_id)?.current_price||0),0),iv=inventory.reduce((s,r)=>s+itemValue(r.items.average_price,r.condition_score),0),cv=collectibles.reduce((s,r)=>s+Number(r.collectibles.effect_percent)*10000,0);walletView.innerHTML=`<div class="wallet-card">현금 <b>${money(profile.cash)}</b></div><div class="wallet-card">주식 <b>${money(sv)}</b></div><div class="wallet-card">아이템 <b>${money(iv)}</b></div><div class="wallet-card">소장품 <b>${money(cv)}</b></div>`}
-function updateNetworth(){if(!profile)return;const sv=holdings.reduce((s,h)=>s+Number(h.quantity)*Number(stocks.find(x=>x.id===h.stock_id)?.current_price||0),0),iv=inventory.reduce((s,r)=>s+itemValue(r.items.average_price,r.condition_score),0),cv=collectibles.reduce((s,r)=>s+Number(r.collectibles.effect_percent)*10000,0);networth.textContent=money(Number(profile.cash)+sv+iv+cv);renderWallet()}
+      <section id="page-inventory" class="page">
+        <div class="title"><div><p class="eyebrow">INVENTORY</p><h1>내 가방</h1><p>수집한 아이템을 확인합니다.</p></div><button class="btn light" onclick="loadInventory()">새로고침</button></div>
+        <div id="inventory" class="card-grid"></div>
+      </section>
 
-function handleImageError(img,name){
-  if(img.dataset.fallback)return;
-  img.dataset.fallback="1";
-  img.alt=name||"아이템 이미지";
-  img.src=itemImage(name||"아이템","기타","📦");
-}
+      <section id="page-pawnshop" class="page">
+        <div class="title"><div><p class="eyebrow">PAWNSHOP</p><h1>조 아저씨의 전당포</h1><p>원가로 즉시 팔거나 흥정하여 더 비싸게 판매하세요.</p></div><button class="btn light" onclick="loadPawnshop()">새로고침</button></div>
+        <div class="pawn-scene">
+          <div class="pawn-room">
+            <div class="pawn-back-sign">OLD JOE'S</div>
+            <div class="pawn-shelf pawn-left">
+              <span>📻</span><span>🏺</span><span>⌚</span><span>📚</span>
+            </div>
+            <div class="pawn-shelf pawn-right">
+              <span>🎸</span><span>📷</span><span>🧭</span><span>💎</span>
+            </div>
+            <div class="pawn-dealer">
+              <div class="pawn-face">🧓🏻</div>
+              <div class="pawn-body">🦺</div>
+            </div>
+            <div class="pawn-counter">
+              <div>🧾</div>
+              <div class="pawn-item-slot">아이템을 선택하세요</div>
+              <div>💰</div>
+            </div>
+            <div class="pawn-dialogue">
+              <span>조 아저씨</span>
+              <b>“원가에 바로 넘기겠나, 아니면 내 인내심을 시험해 보겠나?”</b>
+            </div>
+          </div>
+        </div>
+        <div id="pawnshopList" class="card-grid deal-inventory"></div>
+      </section>
 
-/* 유틸 */
-function closeByBackdrop(e,id){if(e.target.id===id)document.getElementById(id).classList.add("hidden")}
-function itemValue(p,s){const m=s>=95?1.35:s>=85?1.18:s>=70?1:s>=50?.78:s>=30?.55:.3;return Math.round(Number(p||0)*m)}
-function itemImage(name,category,dbIcon){
-  const seed=hash(name);
-  const palette=[
-    ["#b77fd3","#a43d79"],["#d886a7","#b96f42"],["#80b7d8","#3e6f96"],
-    ["#d3b265","#8f6438"],["#8fbd8b","#4f7f58"],["#c79175","#82513e"]
-  ][seed%6];
+      <section id="page-auction" class="page">
+        <div class="title"><div><p class="eyebrow">RARE AUCTION</p><h1>희귀품 경매장</h1><p>NPC는 소폭 인상·대폭 인상·가격 유지를 무작위로 선택합니다. 가격 유지가 나오면 NPC 입찰은 종료됩니다.</p></div><button class="btn light" onclick="loadAuction()">새 경매</button></div>
+        <div id="auctionHall"></div>
+      </section>
 
-  const descriptor=getItemVisual(name,category,dbIcon);
-  const accent=palette[0],accent2=palette[1];
+      <section id="page-market" class="page">
+        <div class="title"><div><p class="eyebrow">SECONDHAND MARKET</p><h1>중고 장터</h1><p>일반 아이템과 소장품을 유저끼리 거래하거나 NPC 제안을 흥정할 수 있습니다.</p></div><button class="btn light" onclick="loadMarketHub()">새로고침</button></div>
+        <div class="market-tabs">
+          <button class="active" onclick="switchMarketTab('items',this)">아이템 거래</button>
+          <button onclick="switchMarketTab('offers',this)">NPC 제안</button>
+          <button onclick="switchMarketTab('collectibles',this)">소장품 거래</button>
+        </div>
+        <div id="market-items" class="market-panel">
+          <div class="sell-form panel"><select id="sellItem"><option value="">판매할 아이템</option></select><input id="sellPrice" type="number" placeholder="희망 가격"><button class="btn primary" onclick="createListing()">등록</button></div>
+          <div id="marketList" class="card-grid"></div>
+        </div>
+        <div id="market-offers" class="market-panel hidden"><div id="npcOfferList" class="card-grid"></div></div>
+        <div id="market-collectibles" class="market-panel hidden">
+          <div class="sell-form panel"><select id="sellCollectible"><option value="">판매할 소장품</option></select><input id="collectiblePrice" type="number" placeholder="희망 가격"><button class="btn primary" onclick="createCollectibleListing()">등록</button></div>
+          <div id="collectibleMarketList" class="card-grid"></div>
+        </div>
+      </section>
 
-  let objectSvg="";
-  if(descriptor.shape==="coin"){
-    objectSvg=`<circle cx="260" cy="145" r="74" fill="#d6ad45" stroke="#7b5426" stroke-width="14"/>
-      <circle cx="260" cy="145" r="51" fill="none" stroke="#f0d378" stroke-width="7"/>
-      <text x="260" y="166" text-anchor="middle" font-size="54">${descriptor.icon}</text>`;
-  }else if(descriptor.shape==="umbrella"){
-    objectSvg=`<path d="M155 138 Q260 35 365 138 Q330 126 300 145 Q260 118 220 145 Q190 126 155 138Z" fill="${accent}" stroke="#6b3d3c" stroke-width="10"/>
-      <path d="M260 135 V235 Q260 272 225 250" fill="none" stroke="#6e5238" stroke-width="15" stroke-linecap="round"/>`;
-  }else if(descriptor.shape==="vase"){
-    objectSvg=`<path d="M225 70 H295 L285 105 Q337 155 300 239 Q260 267 220 239 Q183 155 235 105Z" fill="${accent}" stroke="#704733" stroke-width="11"/>
-      <path d="M224 158 Q260 130 296 158" fill="none" stroke="#f0cc86" stroke-width="10"/>`;
-  }else if(descriptor.shape==="radio"){
-    objectSvg=`<rect x="150" y="92" width="220" height="145" rx="20" fill="${accent}" stroke="#503c31" stroke-width="11"/>
-      <circle cx="220" cy="165" r="46" fill="#3f4650"/><circle cx="320" cy="135" r="14" fill="#e1c56f"/>
-      <rect x="284" y="174" width="57" height="11" fill="#513b2e"/><path d="M180 90 L325 40" stroke="#4a3a31" stroke-width="9"/>`;
-  }else if(descriptor.shape==="book"){
-    objectSvg=`<path d="M145 82 Q205 62 255 92 V234 Q205 204 145 226Z" fill="${accent}" stroke="#5b4030" stroke-width="10"/>
-      <path d="M375 82 Q315 62 265 92 V234 Q315 204 375 226Z" fill="${accent2}" stroke="#5b4030" stroke-width="10"/>
-      <path d="M260 92 V234" stroke="#5b4030" stroke-width="8"/>`;
-  }else if(descriptor.shape==="camera"){
-    objectSvg=`<rect x="145" y="95" width="230" height="145" rx="22" fill="${accent}" stroke="#463832" stroke-width="11"/>
-      <circle cx="260" cy="168" r="55" fill="#243445" stroke="#d8c79b" stroke-width="12"/>
-      <rect x="185" y="70" width="75" height="32" rx="8" fill="${accent2}"/>`;
-  }else if(descriptor.shape==="clock"){
-    objectSvg=`<circle cx="260" cy="150" r="91" fill="#f1e4c6" stroke="#735039" stroke-width="15"/>
-      <path d="M260 150 L260 92 M260 150 L308 179" stroke="#3a2c24" stroke-width="11" stroke-linecap="round"/>
-      <circle cx="260" cy="150" r="10" fill="#9b433b"/>`;
-  }else if(descriptor.shape==="gem"){
-    objectSvg=`<path d="M180 95 L230 55 H290 L340 95 L310 210 L260 255 L210 210Z" fill="${accent}" stroke="#334a5e" stroke-width="11"/>
-      <path d="M180 95 H340 M230 55 L260 255 M290 55 L260 255" fill="none" stroke="#ffffff99" stroke-width="7"/>`;
-  }else if(descriptor.shape==="tool"){
-    objectSvg=`<path d="M175 230 L330 75" stroke="#6c4b31" stroke-width="24" stroke-linecap="round"/>
-      <path d="M290 55 Q355 80 350 125 L310 105 L275 70Z" fill="${accent}" stroke="#46342c" stroke-width="10"/>`;
-  }else{
-    objectSvg=`<circle cx="260" cy="150" r="93" fill="${accent}" stroke="#563e31" stroke-width="11"/>
-      <text x="260" y="185" text-anchor="middle" font-size="105">${descriptor.icon}</text>`;
-  }
+      <section id="page-house" class="page">
+        <div class="title"><div><p class="eyebrow">MY HOME</p><h1>내 집 꾸미기</h1><p>장식을 배치하면 표시된 특수 효과가 실제 적용됩니다.</p></div><button class="btn light" onclick="loadHouse()">새로고침</button></div>
+        <div class="house-layout">
+          <div id="houseRoom" class="house-room"><div class="window">☀️</div><div id="placedDecorations"></div></div>
+          <aside class="house-side panel"><h3>활성 효과</h3><div id="houseEffects"></div><h3>보유 장식</h3><div id="decorationInventory"></div></aside>
+        </div>
+      </section>
 
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="520" height="320">
-    <defs>
-      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-        <stop stop-color="${accent}"/><stop offset="1" stop-color="${accent2}"/>
-      </linearGradient>
-      <filter id="shadow"><feDropShadow dx="0" dy="9" stdDeviation="5" flood-opacity=".35"/></filter>
-    </defs>
-    <rect width="520" height="320" fill="url(#bg)"/>
-    <circle cx="72" cy="63" r="41" fill="#ffffff20"/>
-    <circle cx="440" cy="238" r="60" fill="#00000012"/>
-    <g filter="url(#shadow)">${objectSvg}</g>
-    <rect x="42" y="252" width="436" height="50" rx="13" fill="#fff9ed" stroke="#5a4030" stroke-width="5"/>
-    <text x="260" y="285" text-anchor="middle" font-family="Arial" font-size="23" font-weight="700" fill="#2e261f">${escSvg(name.slice(0,15))}</text>
-  </svg>`;
-  return"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg)
-}
+      <section id="page-collection" class="page">
+        <div class="title"><div><p class="eyebrow">COLLECTION GACHA</p><h1>소장품 뽑기</h1><p>휴대폰 케이스 스킨과 집 장식을 뽑습니다.</p></div></div>
+        <div class="gacha-layout">
+          <div class="machine"><div class="machine-glass">✨<br>🎁</div><button class="btn gacha-btn" onclick="drawCollectible()">1회 뽑기 · 10만원</button></div>
+          <div class="panel collection-panel"><h3>장착 케이스</h3><div id="equippedCase"></div><h3>내 소장품</h3><div id="collectibleInventory"></div></div>
+        </div>
+      </section>
+    </main>
+  </div>
 
-function getItemVisual(name,category,dbIcon){
-  const n=String(name);
-  const exactIcon=dbIcon&&dbIcon!=="📦"?dbIcon:null;
-  const tests=[
-    [["동전","코인","메달"],"🪙","coin"],
-    [["우산"],"☂️","umbrella"],
-    [["항아리","도자기","병","화병","주전자"],"🏺","vase"],
-    [["라디오","스피커","카세트","녹음기","앰프","턴테이블","CD"],"📻","radio"],
-    [["책","도감","소설","만화","앨범","일지","노트","설명서"],"📖","book"],
-    [["카메라"],"📷","camera"],
-    [["시계","워치"],"🕰️","clock"],
-    [["수정","원석","광석","보석","자수정","석영","흑요석","운석"],"💎","gem"],
-    [["망치","드릴","스패너","펜치","톱","드라이버","렌치","공구"],"🔨","tool"],
-    [["게임기"],"🎮","generic"],[["기타","악기","마이크"],"🎸","generic"],
-    [["거울"],"🪞","generic"],[["나침반"],"🧭","generic"],[["전화기"],"☎️","generic"],
-    [["의자","책상","선반","서랍","스툴","캐비닛"],"🪑","generic"],
-    [["인형","곰","로봇","장난감","피규어"],"🧸","generic"],
-    [["모자","셔츠","재킷","코트","조끼","스카프","청바지","신발"],"👕","generic"],
-    [["프라이팬","냄비","식칼","도마","토스터","도시락"],"🍳","generic"]
-  ];
-  for(const [words,icon,shape] of tests)if(words.some(w=>n.includes(w)))return{icon,shape};
-  const categoryMap={
-    "전자기기":"⚡","생활용품":"🏠","수집품":"✨","골동품":"🏺","광물":"💎","공예품":"🧵",
-    "의류":"👕","도서":"📚","완구":"🧸","주방용품":"🍳","음향기기":"🎵","스포츠":"🏅",
-    "공구":"🔧","가구":"🪑","문구":"✏️"
-  };
-  return{icon:exactIcon||categoryMap[category]||"📦",shape:"generic"};
-}
-function hash(t){let h=2166136261;for(const c of t){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return Math.abs(h)}
-function escSvg(v){return String(v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[m]))}
-function money(v){const n=Number(v)||0,u=[[1e20,"해"],[1e16,"경"],[1e12,"조"],[1e8,"억"],[1e4,"만"]];for(const[x,l]of u)if(Math.abs(n)>=x){const d=n/x;return Number(d.toFixed(Math.abs(d)>=100?0:Math.abs(d)>=10?1:2)).toLocaleString()+l+" 원"}return Math.floor(n).toLocaleString()+"원"}
-function esc(v){const d=document.createElement("div");d.textContent=v??"";return d.innerHTML}
-function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),3400)}
-function subscribe(){if(realtime)return;realtime=db.channel("selling-god-v5").on("postgres_changes",{event:"UPDATE",schema:"public",table:"stocks"},loadStocks).on("postgres_changes",{event:"*",schema:"public",table:"market_listings"},loadMarket).on("postgres_changes",{event:"*",schema:"public",table:"collectible_listings"},loadCollectibleMarket).subscribe()}
+  <div id="exploreModal" class="overlay hidden" onclick="closeByBackdrop(event,'exploreModal')"><div class="modal panel"><button class="x" onclick="closeExplore()">×</button><div id="exploreContent"></div></div></div>
+  <div id="negotiationModal" class="overlay hidden" onclick="closeByBackdrop(event,'negotiationModal')">
+    <div class="modal negotiation-window">
+      <button class="x" onclick="closeNegotiation()">×</button>
+      <div class="negotiation-room">
+        <div class="negotiation-sign">OLD JOE'S PAWNSHOP</div>
+        <div class="negotiator-character">
+          <div class="negotiator-head">🧓🏻</div>
+          <div class="negotiator-torso">🦺</div>
+        </div>
+        <div class="negotiation-counter">
+          <div class="negotiation-item">📦</div>
+        </div>
+        <div class="negotiation-name">조 아저씨</div>
+        <div id="negotiationContent"></div>
+      </div>
+    </div>
+  </div>
 
+  <div id="phoneOverlay" class="phone-overlay hidden" onclick="phoneBackdrop(event)">
+    <div class="phone-shell">
+      <div class="phone-notch"></div><div class="phone-status"><span id="phoneTime"></span><span>판매폰 5G 🔋</span></div>
+      <section id="phoneHome" class="phone-screen phone-home"><h2 id="phoneOwner">판매왕</h2><div class="apps">
+        <button onclick="openPhoneApp('stocks')"><span class="app app-stock">📈</span>판매증권</button>
+        <button onclick="openPageFromPhone('market')"><span class="app app-market">🛒</span>중고장터</button>
+        <button onclick="openPageFromPhone('collection')"><span class="app app-gacha">🎁</span>소장품</button>
+        <button onclick="openPhoneApp('wallet')"><span class="app app-wallet">💳</span>내 자산</button>
+      </div></section>
+      <section id="phone-stocks" class="phone-screen phone-app hidden">
+        <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매증권</b><small>종목을 눌러 상세 확인</small></div><button onclick="refreshStocks()">↻</button></div>
+        <div id="stockListView"><div class="summary"><div><span>평가액</span><b id="stockValue">0원</b></div><div><span>평가손익</span><b id="stockProfit">0원</b></div></div><div id="stockList"></div></div>
+        <div id="stockDetailView" class="hidden"><button class="back" onclick="closeStockDetail()">← 목록</button><div id="stockDetail"></div></div>
+      </section>
+      <section id="phone-wallet" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>내 자산</b><small>계정 저장 정보</small></div><span></span></div><div id="walletView"></div></section>
+      <button class="home-dot" onclick="phoneHome()">●</button><button class="phone-close" onclick="closePhone()">휴대폰 넣기</button>
+    </div>
+  </div>
+</section>
 
-/* =========================
-   V10 PREMIUM MAIN SCREEN
-   ========================= */
-let premiumSelectedItemId = null;
-let premiumSoldCount = Number(localStorage.getItem('premium_sold_count') || 0);
-let premiumDealCount = Number(localStorage.getItem('premium_deal_count') || 0);
-
-function premiumImageForItem(item){
-  const n=String(item?.name||'');
-  if(/우산/.test(n)) return 'assets/umbrella.png';
-  if(/동전|코인|메달/.test(n)) return 'assets/coin.png';
-  if(/라디오|카세트|스피커|턴테이블/.test(n)) return 'assets/radio.png';
-  if(/도자기|항아리|화병|주전자/.test(n)) return 'assets/vase.png';
-  if(/카메라/.test(n)) return 'assets/camera.png';
-  return itemImage(item?.name||'아이템',item?.category||'수집품');
-}
-
-function renderPremiumHome(){
-  const cashEl=document.getElementById('premiumCash');
-  const creditEl=document.getElementById('premiumCredit');
-  const repEl=document.getElementById('premiumRep');
-  const netEl=document.getElementById('premiumNet');
-  if(cashEl&&profile) cashEl.textContent=money(profile.cash);
-  if(creditEl&&profile) creditEl.textContent=profile.credit_score;
-  if(repEl&&profile) repEl.textContent=profile.reputation;
-  if(netEl) netEl.textContent=document.getElementById('networth')?.textContent||money(profile?.cash||0);
-
-  const missionSell=document.getElementById('missionSell');
-  const missionDeal=document.getElementById('missionDeal');
-  if(missionSell) missionSell.textContent=`${Math.min(premiumSoldCount,2)} / 2`;
-  if(missionDeal) missionDeal.textContent=`${Math.min(premiumDealCount,3)} / 3`;
-  const bars=document.querySelectorAll('.mission-progress i');
-  if(bars[0]) bars[0].style.width=`${Math.min(100,premiumSoldCount/2*100)}%`;
-  if(bars[1]) bars[1].style.width=`${Math.min(100,premiumDealCount/3*100)}%`;
-
-  const bag=document.getElementById('premiumBag');
-  if(!bag)return;
-  if(!inventory.length){
-    bag.innerHTML='<div class="premium-bag-card"><div>🎒</div><div><h4>가방이 비어 있습니다</h4><small>경매장 또는 중고장터에서 물건을 구매하세요.</small></div></div>';
-    renderPremiumCurrent(null);
-    return;
-  }
-  if(!premiumSelectedItemId||!inventory.some(x=>x.id===premiumSelectedItemId)) premiumSelectedItemId=inventory[0].id;
-  bag.innerHTML=inventory.slice(0,8).map(row=>{
-    const item=row.items;
-    return `<button class="premium-bag-card ${row.id===premiumSelectedItemId?'active':''}" onclick="selectPremiumItem('${row.id}')">
-      <img src="${premiumImageForItem(item)}" alt="${esc(item.name)}">
-      <span><h4>${esc(item.name)}</h4><small>${esc(item.category)} · ${esc(item.rarity)}</small><small>상태 ${row.condition_score}/100</small><b>${money(itemValue(item.average_price,row.condition_score))}</b></span>
-    </button>`;
-  }).join('');
-  renderPremiumCurrent(inventory.find(x=>x.id===premiumSelectedItemId));
-}
-
-function selectPremiumItem(id){premiumSelectedItemId=id;renderPremiumHome()}
-function renderPremiumCurrent(row){
-  const card=document.getElementById('premiumCurrentItem');
-  if(!card)return;
-  if(!row){
-    card.innerHTML='<div style="grid-column:1/-1;padding:25px;text-align:center">거래할 아이템이 없습니다.</div>';
-    document.getElementById('premiumEstimate').textContent='0원';
-    document.getElementById('premiumSellPrice').textContent='0원';
-    document.getElementById('premiumCondition').textContent='-';
-    document.getElementById('premiumConditionBar').style.width='0%';
-    return;
-  }
-  const item=row.items;
-  const value=itemValue(item.average_price,row.condition_score);
-  card.innerHTML=`<img src="${premiumImageForItem(item)}" alt="${esc(item.name)}"><div><h2>${esc(item.name)}</h2><p>${esc(item.category)} · ${esc(item.rarity)}</p></div>`;
-  document.getElementById('premiumEstimate').textContent=money(value);
-  document.getElementById('premiumSellPrice').textContent=money(value);
-  document.getElementById('premiumCondition').textContent=`${row.condition_score} / 100`;
-  document.getElementById('premiumConditionBar').style.width=`${row.condition_score}%`;
-}
-
-async function premiumQuickSell(){
-  const row=inventory.find(x=>x.id===premiumSelectedItemId);
-  if(!row)return toast('판매할 아이템이 없습니다.');
-  const before=inventory.length;
-  await pawnSell(row.id,'instant',100);
-  await loadInventory();
-  if(inventory.length<before){
-    premiumSoldCount++;
-    localStorage.setItem('premium_sold_count',String(premiumSoldCount));
-  }
-  renderPremiumHome();
-}
-
-function premiumBargain(){
-  const row=inventory.find(x=>x.id===premiumSelectedItemId);
-  if(!row)return toast('흥정할 아이템이 없습니다.');
-  startPawnNegotiation(row.id);
-}
-
-function premiumReject(){toast('손님의 거래 제안을 거절했습니다.')}
-
-const _originalAcceptNegotiation=acceptNegotiation;
-acceptNegotiation=async function(){
-  const wasNegotiating=Boolean(negotiation);
-  const before=inventory.length;
-  await _originalAcceptNegotiation();
-  await loadInventory();
-  if(wasNegotiating&&inventory.length<before){
-    premiumDealCount++;
-    premiumSoldCount++;
-    localStorage.setItem('premium_deal_count',String(premiumDealCount));
-    localStorage.setItem('premium_sold_count',String(premiumSoldCount));
-  }
-  renderPremiumHome();
-};
-
-const _originalLoadInventory=loadInventory;
-loadInventory=async function(){
-  const result=await _originalLoadInventory();
-  renderPremiumHome();
-  return result;
-};
-
-const _originalUpdateProfileUI=typeof updateProfileUI==='function'?updateProfileUI:null;
-if(_originalUpdateProfileUI){
-  updateProfileUI=function(){_originalUpdateProfileUI();renderPremiumHome()};
-}
+<script src="game.js"></script>
+</body>
+</html>
