@@ -706,7 +706,49 @@ async function loadCollectibleMarket(){
     </article>`
   }).join('')||'<div class="panel" style="padding:20px">소장품 매물 없음</div>'
 }
-async function buyCollectible(id){const{data,error}=await db.rpc('buy_collectible_listing',{p_listing_id:id});if(error)return toast(error.message);toast('구매 완료 '+money(data.final_price));await Promise.all([loadProfile(),loadCollectibles(),loadCollectibleMarket()])}
+async function buyCollectible(id){
+  const button=document.querySelector(`[onclick="buyCollectible('${id}')"]`);
+  if(button){button.disabled=true;button.textContent='구매 처리 중...';}
+  try{
+    const{data,error}=await db.rpc('buy_collectible_listing',{p_listing_id:id});
+    if(error)throw error;
+
+    toast('구매 완료 '+money(data.final_price)+' · 바로 재판매할 수 있습니다.');
+    playSuccessSound();
+
+    // 서버 소유권 이전 직후 클라이언트 목록을 순서대로 다시 불러온다.
+    // Promise.all로 동시에 읽으면 캐시/복제 지연 때문에 새 소장품이 판매 선택창에 늦게 나타날 수 있다.
+    await loadProfile();
+    await refreshCollectiblesAfterPurchase(data.user_collectible_id);
+    await loadCollectibleMarket();
+
+    // 현재 소장품 거래 탭을 보고 있다면 판매 선택창을 즉시 갱신한다.
+    fillCollectibleSelect();
+    const select=document.getElementById('sellCollectible');
+    if(select&&data.user_collectible_id){
+      const exists=[...select.options].some(o=>o.value===String(data.user_collectible_id));
+      if(exists){
+        select.value=String(data.user_collectible_id);
+        renderCollectibleSellPreview();
+      }
+    }
+    updateNetworth();
+  }catch(error){
+    toast(error?.message||'소장품 구매에 실패했습니다.');
+  }finally{
+    if(button){button.disabled=false;button.textContent='구매';}
+  }
+}
+
+async function refreshCollectiblesAfterPurchase(expectedId){
+  // Supabase 트랜잭션 완료 직후 읽기 지연이 생겨도 최대 3회 재확인한다.
+  for(let attempt=0;attempt<3;attempt++){
+    await loadCollectibles();
+    if(!expectedId||collectibles.some(x=>String(x.id)===String(expectedId)))return true;
+    await wait(180*(attempt+1));
+  }
+  return false;
+}
 async function cancelCollectible(id){const{error}=await db.rpc('cancel_collectible_listing',{p_listing_id:id});if(error)return toast(error.message);await loadCollectibleMarket()}
 async function loadEffects(){const{data}=await db.rpc('get_active_effects');effects=data||{}}
 async function loadHouse(){await Promise.all([loadProfile(),loadCollectibles(),loadEffects()]);const cap=Number(profile.house_capacity||1),placed=collectibles.filter(x=>x.is_placed&&x.collectibles.type==='decoration').slice(0,cap);houseCapacityText.textContent=`${profile.property_name||'반지하'} · 장식 ${placed.length}/${cap}개 배치`;houseRoom.dataset.property=profile.property_tier||'basement';placedDecorations.innerHTML=placed.map((r,i)=>`<div class="placed slot-${i}">${r.collectibles.icon}</div>`).join('');houseEffects.innerHTML=Object.entries(effects).map(([k,v])=>`<div class="effect"><span>${effectName(k)}</span><b>+${Number(v).toFixed(1)}%</b></div>`).join('')||'<p class="muted">활성 효과 없음</p>';renderDecorationPages()}
