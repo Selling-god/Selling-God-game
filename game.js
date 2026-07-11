@@ -923,7 +923,77 @@ function playUiTone(freq=330,vol=.02){
   if(!soundEnabled)return;try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type="sine";o.frequency.value=freq;g.gain.setValueAtTime(vol,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.075);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+.08)}catch{}
 }
 
-function subscribe(){if(realtime)return;realtime=db.channel("selling-god-v21").on("postgres_changes",{event:"UPDATE",schema:"public",table:"stocks"},loadStocks).on("postgres_changes",{event:"*",schema:"public",table:"market_listings"},loadMarket).on("postgres_changes",{event:"*",schema:"public",table:"collectible_listings"},loadCollectibleMarket).on("postgres_changes",{event:"INSERT",schema:"public",table:"global_chat_messages"},()=>{if(!document.getElementById("phone-chat")?.classList.contains("hidden"))loadChatMessages()}).subscribe()}
+function subscribe(){
+  if(realtime)return;
+  realtime=db.channel("selling-god-v34")
+    .on("postgres_changes",{event:"UPDATE",schema:"public",table:"stocks"},loadStocks)
+    .on("postgres_changes",{event:"*",schema:"public",table:"market_listings"},loadMarket)
+    .on("postgres_changes",{event:"*",schema:"public",table:"collectible_listings"},loadCollectibleMarket)
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"global_chat_messages"},handleRealtimeChatInsert)
+    .subscribe();
+}
+
+let chatNoticeSequence=0;
+async function handleRealtimeChatInsert(payload){
+  const row=payload?.new||{};
+  if(!document.getElementById("phone-chat")?.classList.contains("hidden")) loadChatMessages();
+  if(!row.id || !currentUser || row.user_id===currentUser.id) return;
+
+  let sender=null;
+  try{
+    const {data,error}=await db.rpc('get_global_chat_message_v34',{p_message_id:row.id});
+    if(!error) sender=Array.isArray(data)?data[0]:data;
+  }catch(error){
+    console.warn('채팅 알림 발신자 조회 실패:',error);
+  }
+
+  showChatNotification({
+    nickname:sender?.nickname||'새 메시지',
+    active_title:sender?.active_title||'초보 장사꾼',
+    chat_text:sender?.chat_text||row.message||'',
+    created_at:sender?.created_at||row.created_at
+  });
+}
+
+function showChatNotification(message){
+  const stack=document.getElementById('chatNotificationStack');
+  if(!stack)return;
+
+  const notice=document.createElement('button');
+  const id=++chatNoticeSequence;
+  notice.type='button';
+  notice.className='chat-phone-notice';
+  notice.dataset.noticeId=String(id);
+  notice.innerHTML=`
+    <span class="chat-phone-notice-icon">💬</span>
+    <span class="chat-phone-notice-copy">
+      <span class="chat-phone-notice-head">
+        <strong>${esc(message.nickname||'새 메시지')}</strong>
+        <em class="title-badge ${titleClass(message.active_title)}">${esc(message.active_title||'초보 장사꾼')}</em>
+      </span>
+      <span class="chat-phone-notice-text">${esc(message.chat_text||'')}</span>
+    </span>
+    <span class="chat-phone-notice-time">지금</span>`;
+
+  notice.addEventListener('click',()=>{
+    notice.classList.add('leaving');
+    setTimeout(()=>notice.remove(),180);
+    openPhone();
+    openPhoneApp('chat');
+  });
+
+  stack.prepend(notice);
+  while(stack.children.length>3) stack.lastElementChild?.remove();
+  requestAnimationFrame(()=>notice.classList.add('show'));
+  playUiTone(784,.035);
+  setTimeout(()=>playUiTone(1047,.025),90);
+  setTimeout(()=>{
+    if(!notice.isConnected)return;
+    notice.classList.add('leaving');
+    setTimeout(()=>notice.remove(),260);
+  },5200);
+}
+
 
 
 const TITLE_RARITIES={
