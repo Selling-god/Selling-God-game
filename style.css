@@ -650,3 +650,366 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 }
 .auction-slot-ended h3{margin:0;color:#eee0c7}
 .auction-slot-ended p{max-width:250px;margin:0;color:#ad9d87;line-height:1.55}
+
+/* ============================================================
+   v31.4 COMPLETE LAYOUT SAFETY PATCH
+   Negotiation overlap removal + defensive responsive layout
+============================================================ */
+
+/* Modal shell: the outer modal never scrolls over its own close button. */
+#negotiationModal{
+  padding:14px!important;
+  overflow:hidden!important;
+}
+#negotiationModal .negotiation-window{
+  width:min(1220px,calc(100vw - 28px))!important;
+  height:min(820px,calc(100vh - 28px))!important;
+  max-width:1220px!important;
+  max-height:calc(100vh - 28px)!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  display:block!important;
+  border-radius:16px!important;
+}
+#negotiationModal .negotiation-window>.x{
+  position:absolute!important;
+  top:10px!important;
+  right:10px!important;
+  z-index:1000!important;
+}
+
+/* Two-column room. The left art stays fixed; only the right content scrolls. */
+#negotiationModal .negotiation-room{
+  position:relative!important;
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  padding:0!important;
+  display:grid!important;
+  grid-template-columns:300px minmax(0,1fr)!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  overflow:hidden!important;
+  background:linear-gradient(90deg,#5d402e 0 300px,#251811 300px)!important;
+}
+
+/* Left character panel is isolated from interactive content. */
+#negotiationModal .negotiation-sign,
+#negotiationModal .negotiator-character,
+#negotiationModal .negotiation-counter,
+#negotiationModal .negotiation-name{
+  pointer-events:none!important;
+}
+#negotiationModal .negotiation-sign{
+  left:24px!important;
+  right:auto!important;
+  top:22px!important;
+  width:252px!important;
+  transform:none!important;
+  text-align:center!important;
+}
+#negotiationModal .negotiator-character{
+  left:24px!important;
+  top:108px!important;
+  width:252px!important;
+  height:340px!important;
+  transform:none!important;
+}
+#negotiationModal .negotiation-counter{
+  left:0!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:0!important;
+  width:300px!important;
+  height:188px!important;
+}
+#negotiationModal .negotiation-name{
+  left:58px!important;
+  top:auto!important;
+  bottom:142px!important;
+}
+
+/* Critical fix: use ordinary document flow, not a rigid grid with too few rows. */
+#negotiationModal #negotiationContent{
+  grid-column:2!important;
+  grid-row:1!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  padding:22px 24px 28px!important;
+  display:block!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain!important;
+  scroll-behavior:smooth!important;
+  scrollbar-gutter:stable!important;
+  background:linear-gradient(125deg,#fff9e9,#e7d1ad)!important;
+  pointer-events:auto!important;
+}
+#negotiationModal #negotiationContent>*{
+  position:relative!important;
+  z-index:1!important;
+  width:100%!important;
+  max-width:100%!important;
+  margin-top:0!important;
+  margin-bottom:12px!important;
+  flex:none!important;
+}
+#negotiationModal #negotiationContent>*:last-child{
+  margin-bottom:0!important;
+}
+
+/* Header and four price cards. */
+#negotiationModal .haggle-top{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) minmax(220px,320px)!important;
+  gap:14px!important;
+  align-items:start!important;
+  padding-right:44px!important;
+}
+#negotiationModal .haggle-top h2{
+  margin:4px 0 0!important;
+  overflow-wrap:anywhere!important;
+}
+#negotiationModal .dealer-profile{
+  width:100%!important;
+  min-width:0!important;
+  overflow-wrap:anywhere!important;
+}
+#negotiationModal .deal-summary.deluxe{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:10px!important;
+}
+#negotiationModal .deal-summary.deluxe>div{
+  min-width:0!important;
+  min-height:104px!important;
+  overflow:hidden!important;
+}
+#negotiationModal .deal-summary.deluxe b,
+#negotiationModal .deal-summary.deluxe small{
+  overflow-wrap:anywhere!important;
+}
+
+/* Meters and reputation preview remain in their own rows. */
+#negotiationModal .haggle-bars{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:12px!important;
+}
+#negotiationModal .patience-trade-preview{
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr) auto!important;
+}
+
+/* Chat has a dedicated viewport and always remains clickable/scrollable. */
+#negotiationModal .neg-chat{
+  width:100%!important;
+  height:150px!important;
+  min-height:150px!important;
+  max-height:150px!important;
+  margin:0 0 12px!important;
+  padding:10px 12px!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  scroll-behavior:smooth!important;
+  scrollbar-gutter:stable!important;
+  overscroll-behavior:contain!important;
+  pointer-events:auto!important;
+}
+#negotiationModal .chat{
+  min-width:0!important;
+}
+#negotiationModal .chat span{
+  min-width:0!important;
+  overflow-wrap:anywhere!important;
+}
+
+/* Price controls never push or cover action buttons. */
+#negotiationModal .manual-offer.advanced{
+  display:grid!important;
+  grid-template-columns:minmax(180px,230px) minmax(0,1fr)!important;
+  gap:12px!important;
+  align-items:center!important;
+  padding:12px!important;
+}
+#negotiationModal .offer-copy{
+  min-width:0!important;
+}
+#negotiationModal .offer-controls{
+  display:grid!important;
+  grid-template-columns:68px 68px minmax(150px,1fr) 68px 68px 82px!important;
+  gap:7px!important;
+  min-width:0!important;
+}
+#negotiationModal .offer-controls input{
+  min-width:0!important;
+  height:48px!important;
+}
+#negotiationModal .offer-controls button{
+  min-width:0!important;
+  height:48px!important;
+  padding:7px!important;
+  white-space:nowrap!important;
+}
+
+/* Skills/tactics use normal flow; no button may overlap the confirmation bar. */
+#negotiationModal .haggle-actions.skill-grid,
+#negotiationModal .npc-tactic-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:9px!important;
+  margin:0 0 12px!important;
+  min-height:0!important;
+}
+#negotiationModal .haggle-skill-btn,
+#negotiationModal .npc-tactic{
+  width:100%!important;
+  min-width:0!important;
+  min-height:76px!important;
+  height:auto!important;
+  padding:11px 12px!important;
+  overflow:hidden!important;
+}
+#negotiationModal .haggle-skill-btn b,
+#negotiationModal .haggle-skill-btn small,
+#negotiationModal .npc-tactic b,
+#negotiationModal .npc-tactic small{
+  overflow-wrap:anywhere!important;
+}
+#negotiationModal .submit-price-offer,
+#negotiationModal .accept-now,
+#negotiationModal .final-offer{
+  position:relative!important;
+  inset:auto!important;
+  z-index:2!important;
+  width:100%!important;
+  min-height:54px!important;
+  height:auto!important;
+  margin:0 0 12px!important;
+  flex:none!important;
+  transform:none!important;
+}
+#negotiationModal .accept-now{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:13px 16px!important;
+}
+#negotiationModal button,
+#negotiationModal input{
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+}
+
+/* Defensive rule for every game page: cards and controls stay inside their parent. */
+.page,
+.page *{
+  min-width:0;
+}
+.page button,
+.page input,
+.page select{
+  max-width:100%;
+}
+.card-grid,
+.auction-choice-grid,
+.market-panel,
+.collection-tab-panel,
+.house-layout,
+.job-layout{
+  min-width:0!important;
+}
+
+@media(max-width:1050px){
+  #negotiationModal .negotiation-room{
+    grid-template-columns:240px minmax(0,1fr)!important;
+    background:linear-gradient(90deg,#5d402e 0 240px,#251811 240px)!important;
+  }
+  #negotiationModal .negotiation-sign{left:18px!important;width:204px!important}
+  #negotiationModal .negotiator-character{left:8px!important;width:224px!important}
+  #negotiationModal .negotiation-counter{width:240px!important}
+  #negotiationModal .negotiation-name{left:36px!important}
+  #negotiationModal .deal-summary.deluxe{grid-template-columns:1fr 1fr!important}
+  #negotiationModal .offer-controls{
+    grid-template-columns:60px 60px minmax(130px,1fr) 60px 60px!important;
+  }
+  #negotiationModal .offer-controls .recommend{
+    grid-column:1/-1!important;
+  }
+}
+
+@media(max-width:820px){
+  #negotiationModal{
+    padding:6px!important;
+  }
+  #negotiationModal .negotiation-window{
+    width:calc(100vw - 12px)!important;
+    height:calc(100vh - 12px)!important;
+    max-height:calc(100vh - 12px)!important;
+  }
+  #negotiationModal .negotiation-room{
+    display:block!important;
+    background:#251811!important;
+  }
+  #negotiationModal .negotiation-sign,
+  #negotiationModal .negotiator-character,
+  #negotiationModal .negotiation-counter,
+  #negotiationModal .negotiation-name{
+    display:none!important;
+  }
+  #negotiationModal #negotiationContent{
+    width:100%!important;
+    height:100%!important;
+    padding:16px 14px 22px!important;
+  }
+  #negotiationModal .haggle-top{
+    grid-template-columns:1fr!important;
+    padding-right:38px!important;
+  }
+  #negotiationModal .deal-summary.deluxe,
+  #negotiationModal .haggle-bars,
+  #negotiationModal .patience-trade-preview{
+    grid-template-columns:1fr 1fr!important;
+  }
+  #negotiationModal .manual-offer.advanced{
+    grid-template-columns:1fr!important;
+  }
+  #negotiationModal .offer-controls{
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  }
+  #negotiationModal .offer-controls input{
+    grid-column:1/-1!important;
+    grid-row:1!important;
+  }
+  #negotiationModal .offer-controls .recommend{
+    grid-column:1/-1!important;
+  }
+  #negotiationModal .haggle-actions.skill-grid,
+  #negotiationModal .npc-tactic-grid{
+    grid-template-columns:1fr 1fr!important;
+  }
+}
+
+@media(max-width:520px){
+  #negotiationModal .deal-summary.deluxe,
+  #negotiationModal .haggle-bars,
+  #negotiationModal .patience-trade-preview,
+  #negotiationModal .haggle-actions.skill-grid,
+  #negotiationModal .npc-tactic-grid{
+    grid-template-columns:1fr!important;
+  }
+  #negotiationModal .offer-controls{
+    grid-template-columns:1fr 1fr!important;
+  }
+  #negotiationModal .offer-controls input,
+  #negotiationModal .offer-controls .recommend{
+    grid-column:1/-1!important;
+  }
+  #negotiationModal .neg-chat{
+    height:130px!important;
+    min-height:130px!important;
+    max-height:130px!important;
+  }
+}
