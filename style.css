@@ -1039,3 +1039,30 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 .owned-company-list.director{display:grid;gap:12px}.director-card{border-radius:13px!important;box-shadow:0 9px 0 #4a3123,0 17px 26px #0003!important}.company-banner.premium{grid-template-columns:55px 1fr 34px;padding:13px 12px 10px}.company-rank-progress{padding:0 12px 10px}.company-rank-progress>div{display:flex;justify-content:space-between;gap:6px;margin-bottom:4px;font-size:8px}.company-rank-progress b{color:#7e5933}.company-rank-progress i{display:block;height:8px;border:1px solid #705039;border-radius:99px;background:#4c3424;overflow:hidden}.company-rank-progress em{display:block;height:100%;background:linear-gradient(90deg,#a5553f,#d5a348,#6b9b60);box-shadow:0 0 8px #f6c45c77}.company-finance.director{grid-template-columns:repeat(3,1fr)}.company-finance.director div{min-width:0;border-radius:6px}.company-finance.director b{overflow-wrap:anywhere}.company-settlement-strip{display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:7px;margin:0 12px 10px;padding:7px 9px;border:1px solid #9b7955;border-radius:7px;background:#dbc29b}.company-settlement-strip span{font-size:8px}.company-settlement-strip b{font-size:12px;color:#8c4739}.company-settlement-strip small{text-align:right;font-size:7px;color:#735b45}.company-strategy{margin:0 12px 10px;padding:9px;border:1px solid #9d7b57;border-radius:8px;background:#f6e4c3}.company-strategy>div:first-child b,.company-strategy>div:first-child small{display:block}.company-strategy>div:first-child b{font-size:10px}.company-strategy>div:first-child small{font-size:8px;color:#796048}.strategy-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:7px}.strategy-buttons button{display:grid;place-items:center;gap:2px;min-height:42px;padding:5px 2px;border:1px solid #8f6d49;border-radius:6px;background:#ead2a8;font-size:16px}.strategy-buttons button span{font-size:7px;font-weight:900}.strategy-buttons button.active{border-color:#5b3826;background:linear-gradient(#7c4d36,#523426);color:#fff3dd;box-shadow:inset 0 0 0 1px #e5bd6c}.company-event{display:grid;gap:3px}.company-event span{font-size:8px;color:#88652d}.company-event b{font-size:9px;line-height:1.4}.company-levels.director{gap:7px}.company-level.director{display:grid;grid-template-columns:1fr auto;grid-template-areas:"head button" "track button" "effect button";gap:5px 8px;padding:9px;border-radius:8px}.level-head{grid-area:head;display:grid!important;grid-template-columns:30px 1fr!important}.level-track{grid-area:track;display:grid;grid-template-columns:repeat(10,1fr);gap:2px}.level-track i{height:5px;border-radius:2px;background:#9b7c5766}.level-track i.on{background:linear-gradient(#dca849,#a86c2d);box-shadow:0 0 5px #e9b45188}.level-effect{grid-area:effect;display:flex;align-items:center;gap:5px;font-size:7px}.level-effect span{color:#7b624a}.level-effect b{color:#3d7b47}.level-effect small{color:#8b7257}.company-level.director>button{grid-area:button;align-self:stretch;min-width:80px;border-radius:7px}.collect-company{display:flex!important;justify-content:space-between;align-items:center;border-radius:8px}.collect-company span,.collect-company b{display:block}
 .business-acquisition-intro{display:grid;grid-template-columns:45px 1fr;align-items:center;gap:9px;padding:11px;border:1px solid #a17a4c;border-radius:10px;background:linear-gradient(#fff4d5,#e2c495)}.business-acquisition-intro>span{font-size:29px}.business-acquisition-intro b,.business-acquisition-intro p{display:block;margin:0}.business-acquisition-intro b{font-size:12px}.business-acquisition-intro p{margin-top:3px;color:#765d44;font-size:8px;line-height:1.45}.company-market.director{grid-template-columns:1fr}.company-buy-card.director{border-radius:11px}.company-buy-top{align-items:center}.company-buy-top>em{margin-left:auto;padding:4px 6px;border-radius:99px;background:#765039;color:#fff2d5;font-size:7px;font-style:normal;white-space:nowrap}.acquisition-finance{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:7px 0}.acquisition-finance div{padding:6px;border:1px solid #b08c63;background:#fff5df}.acquisition-finance span,.acquisition-finance b{display:block}.acquisition-finance span{font-size:7px;color:#886d51}.acquisition-finance b{font-size:9px}.business-empty{border-radius:9px}
 @media(max-width:430px){.business-command-center{grid-template-columns:1fr}.business-command-value{align-items:flex-start;text-align:left}.company-finance.director{grid-template-columns:1fr 1fr}.company-settlement-strip{grid-template-columns:auto auto}.company-settlement-strip small{grid-column:1/-1;text-align:left}.strategy-buttons{grid-template-columns:1fr 1fr}.company-level.director{grid-template-columns:1fr;grid-template-areas:"head" "track" "effect" "button"}.company-level.director>button{width:100%;min-height:37px}.business-kpi-grid{grid-template-columns:1fr 1fr}}
+
+/* v33.1 주식 그래프-변동률 동기화 */
+.stock-baseline{
+  stroke:rgba(83,64,48,.22);
+  stroke-width:1;
+  stroke-dasharray:3 3;
+  vector-effect:non-scaling-stroke;
+}
+.stock-history-line{
+  opacity:.72;
+  vector-effect:non-scaling-stroke;
+}
+.stock-last-move{
+  stroke-width:4.5!important;
+  stroke-linecap:round;
+  opacity:1!important;
+  vector-effect:non-scaling-stroke;
+}
+.stock-last-dot{
+  vector-effect:non-scaling-stroke;
+  stroke:#fff8e9;
+  stroke-width:1.5;
+}
+.dot-up{fill:#a83f39}
+.dot-down{fill:#3f6685}
+.sparkline .stock-last-move{stroke-width:3.5!important}
+.detail-chart .stock-last-move{stroke-width:5!important}
