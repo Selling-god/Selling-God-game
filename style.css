@@ -620,3 +620,33 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
     grid-column:1/-1!important;
   }
 }
+
+/* v31: 종료된 경매 슬롯은 다음 교체 전까지 비워 둠 */
+.auction-slot-ended{
+  min-height:430px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  padding:30px;
+  border:2px dashed rgba(214,184,126,.38)!important;
+  background:linear-gradient(145deg,rgba(30,20,17,.88),rgba(55,38,32,.82))!important;
+  color:#d8c7aa;
+  text-align:center;
+  filter:none!important;
+  cursor:default;
+}
+.auction-slot-ended:hover{transform:none!important;filter:none!important}
+.auction-ended-seal{
+  padding:10px 18px;
+  border:2px solid #9b5148;
+  border-radius:999px;
+  color:#ffd7d0;
+  background:#713d37;
+  font-weight:1000;
+  letter-spacing:.12em;
+  box-shadow:0 0 24px rgba(183,77,65,.25);
+}
+.auction-slot-ended h3{margin:0;color:#eee0c7}
+.auction-slot-ended p{max-width:250px;margin:0;color:#ad9d87;line-height:1.55}
