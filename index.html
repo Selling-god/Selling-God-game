@@ -136,9 +136,9 @@
             <div class="warehouse-shelf left">📦<br>🧾<br>🔦</div>
             <div class="warehouse-shelf right">🧸<br>🥤<br>🥷</div>
             <div id="jobSelect" class="job-select">
-              <button class="job-choice logistics" onclick="selectJob('logistics')"><span>📦</span><div><small>속도·판단</small><b>물류센터 분류</b><p>주문과 같은 물건을 찾아 컨베이어를 처리하세요.</p></div><em>기본급 5만원</em></button>
-              <button class="job-choice cashier" onclick="selectJob('cashier')"><span>🧾</span><div><small>계산·집중</small><b>편의점 계산</b><p>상품 3개의 가격을 더해 정확한 결제 금액을 고르세요.</p></div><em>기본급 5.5만원</em></button>
-              <button class="job-choice security" onclick="selectJob('security')"><span>🔦</span><div><small>순발력·관찰</small><b>야간 보안</b><p>일반 손님은 보내고 수상한 침입자만 검거하세요.</p></div><em>기본급 6만원</em></button>
+              <button class="job-choice logistics" onclick="selectJob('logistics')"><span>📦</span><div><small>속도·판단</small><b>물류센터 분류</b><p>주문과 같은 물건을 찾아 컨베이어를 처리하세요.</p></div><em>기본급 5.5만원</em></button>
+              <button class="job-choice cashier" onclick="selectJob('cashier')"><span>🧾</span><div><small>계산·집중</small><b>편의점 계산</b><p>상품 3개의 가격을 더해 정확한 결제 금액을 고르세요.</p></div><em>기본급 6만원</em></button>
+              <button class="job-choice security" onclick="selectJob('security')"><span>🔦</span><div><small>순발력·관찰</small><b>야간 보안</b><p>일반 손님은 보내고 수상한 침입자만 검거하세요.</p></div><em>기본급 5만원</em></button>
             </div>
             <div id="jobIntro" class="job-intro panel hidden"></div>
             <div id="jobGame" class="job-game hidden">
@@ -298,6 +298,8 @@
     </div>
   </div>
 </section>
+
+<div id="chatNotificationStack" class="chat-notification-stack" aria-live="polite" aria-atomic="false"></div>
 
 <script src="game.js"></script>
 <div id="gachaModal" class="overlay hidden"><div class="gacha-reveal"><div id="gachaRarity" class="gacha-rarity">?</div><div id="gachaResultIcon" class="gacha-result-icon">🎁</div><h2 id="gachaResultName">결과 공개</h2><p id="gachaResultEffect"></p><button class="btn primary" onclick="closeGachaReveal()">확인</button></div></div><div id="clickFxLayer" class="click-fx-layer"></div>
