@@ -59,28 +59,63 @@
 
     <main class="stage">
       <section id="page-city" class="page active">
-        <div class="title">
-          <div><p class="eyebrow">CITY MAP</p><h1><span id="nicknameHero">판매왕</span>의 상권</h1><p>미니게임을 성공해 아이템을 수집하세요.</p></div>
-          <button class="btn phone" onclick="openPhone()">📱 판매폰</button>
-        </div>
+        <div class="shop-scene">
+          <div class="shop-topbar">
+            <div>
+              <p class="eyebrow">DAY 1 · OLD TOWN PAWNSHOP</p>
+              <h1><span id="nicknameHero">판매왕</span>의 거래 상점</h1>
+            </div>
+            <div class="shop-status">
+              <span>오늘의 손님 <b>4명</b></span>
+              <span>보유 아이템 <b id="homeInventoryCount">0개</b></span>
+              <button class="btn phone" onclick="openPhone()">📱 판매폰</button>
+            </div>
+          </div>
 
-        <div class="map-grid">
-          <article class="location street">
-            <div class="scene">🏙️</div>
-            <div class="location-body"><span class="badge easy">쉬움</span><h2>길거리</h2><p>생활용품과 전자기기 중심. 상태가 좋을수록 미니게임 난도가 높아집니다.</p><button class="btn primary" onclick="prepareExplore('street')">탐색 시작</button></div>
-          </article>
-          <article class="location alley">
-            <div class="scene">🌃</div>
-            <div class="location-body"><span class="badge normal">보통</span><h2>뒷골목</h2><p>희귀품이 나올 수 있지만 대부분 상태가 좋지 않습니다.</p><button class="btn primary" onclick="prepareExplore('alley')">탐색 시작</button></div>
-          </article>
-          <article class="location mountain">
-            <div class="scene">⛰️</div>
-            <div class="location-body"><span class="badge hard">어려움</span><h2>뒷산</h2><p>광물과 골동품을 발견할 수 있지만 손상 확률이 높습니다.</p><button class="btn primary" onclick="prepareExplore('mountain')">발굴 시작</button></div>
-          </article>
-          <article class="location job">
-            <div class="scene">📦</div>
-            <div class="location-body"><span class="badge work">알바</span><h2>물류센터</h2><p>기본 지급 자금은 0원입니다. 초기 자금은 알바로 마련하세요.</p><button class="btn work" onclick="quickJob()">포장 알바 +5만원</button></div>
-          </article>
+          <div class="shop-background">
+            <div class="shelf shelf-left">
+              <span>📻</span><span>🏺</span><span>📚</span><span>🧸</span>
+            </div>
+
+            <div class="customer-stage">
+              <div class="customer-shadow"></div>
+              <div class="customer-character">🧔</div>
+              <div class="customer-nameplate">오늘의 손님</div>
+              <div class="speech-box">
+                <b>“쓸 만한 물건을 찾고 있소.”</b>
+                <p>지역을 선택하면 손님이 원하는 물건을 찾아오는 탐색 미니게임이 시작됩니다.</p>
+              </div>
+            </div>
+
+            <div class="shelf shelf-right">
+              <span>🎮</span><span>💎</span><span>🕰️</span><span>🎸</span>
+            </div>
+
+            <div class="shop-counter">
+              <div class="counter-item">📦</div>
+              <div class="counter-sign">SELLING GOD</div>
+              <div class="counter-cash">💵</div>
+            </div>
+          </div>
+
+          <div class="action-dock">
+            <button class="location-choice street-choice" onclick="prepareExplore('street')">
+              <span class="choice-icon">🏙️</span>
+              <span><b>길거리 탐색</b><small>생활용품 · 상태 20~80</small></span>
+            </button>
+            <button class="location-choice alley-choice" onclick="prepareExplore('alley')">
+              <span class="choice-icon">🌃</span>
+              <span><b>뒷골목 탐색</b><small>희귀품 가능 · 대부분 낮은 상태</small></span>
+            </button>
+            <button class="location-choice mountain-choice" onclick="prepareExplore('mountain')">
+              <span class="choice-icon">⛰️</span>
+              <span><b>뒷산 발굴</b><small>광물·골동품 · 높은 난도</small></span>
+            </button>
+            <button class="location-choice work-choice" onclick="quickJob()">
+              <span class="choice-icon">📦</span>
+              <span><b>물류센터 알바</b><small>초기 자금 +5만원</small></span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -91,8 +126,17 @@
 
       <section id="page-pawnshop" class="page">
         <div class="title"><div><p class="eyebrow">PAWNSHOP</p><h1>조 아저씨의 전당포</h1><p>원가로 즉시 팔거나 흥정하여 더 비싸게 판매하세요.</p></div><button class="btn light" onclick="loadPawnshop()">새로고침</button></div>
-        <div class="npc"><div>🧓</div><p><b>조 아저씨</b><br>“급하면 원가로, 자신 있으면 가격을 불러보게.”</p></div>
-        <div id="pawnshopList" class="card-grid"></div>
+        <div class="deal-scene">
+          <div class="deal-backdrop">
+            <div class="dealer-character">🧓</div>
+            <div class="dealer-name">조 아저씨</div>
+            <div class="dealer-dialogue">
+              <b>“물건을 올려놓게. 원가로 바로 팔 수도 있고, 배짱이 있다면 흥정해도 좋지.”</b>
+            </div>
+            <div class="deal-counter">🪵　　💰　　🪵</div>
+          </div>
+        </div>
+        <div id="pawnshopList" class="card-grid deal-inventory"></div>
       </section>
 
       <section id="page-auction" class="page">
@@ -137,7 +181,16 @@
   </div>
 
   <div id="exploreModal" class="overlay hidden" onclick="closeByBackdrop(event,'exploreModal')"><div class="modal panel"><button class="x" onclick="closeExplore()">×</button><div id="exploreContent"></div></div></div>
-  <div id="negotiationModal" class="overlay hidden" onclick="closeByBackdrop(event,'negotiationModal')"><div class="modal panel"><button class="x" onclick="closeNegotiation()">×</button><div id="negotiationContent"></div></div></div>
+  <div id="negotiationModal" class="overlay hidden" onclick="closeByBackdrop(event,'negotiationModal')">
+    <div class="modal panel negotiation-window">
+      <button class="x" onclick="closeNegotiation()">×</button>
+      <div class="negotiation-stage">
+        <div class="negotiator-avatar">🧓</div>
+        <div class="negotiator-name">조 아저씨</div>
+        <div id="negotiationContent"></div>
+      </div>
+    </div>
+  </div>
 
   <div id="phoneOverlay" class="phone-overlay hidden" onclick="phoneBackdrop(event)">
     <div class="phone-shell">
