@@ -1230,3 +1230,39 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 @media(max-width:760px){
   .chat-notification-stack{right:10px!important;bottom:84px!important;width:calc(100vw - 20px)!important}
 }
+
+/* v33.8: grouped decoration placement/unplacement controls */
+.collectible-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:7px;
+  flex-wrap:wrap;
+  min-width:max-content;
+}
+.collectible-actions .btn{
+  margin:0;
+  min-width:78px;
+  padding:9px 12px;
+  white-space:nowrap;
+}
+.collectible-actions .unplace{
+  border:2px solid #5b2f27;
+  background:linear-gradient(#a45c4f,#713b33);
+  color:#fff;
+  text-shadow:0 1px #0005;
+  box-shadow:0 4px 0 #3a241e;
+}
+.collectible-actions .unplace:hover{
+  filter:brightness(1.08);
+  transform:translateY(-1px);
+}
+@media(max-width:760px){
+  .collectible-actions{
+    width:100%;
+    justify-content:stretch;
+  }
+  .collectible-actions .btn{
+    flex:1 1 0;
+  }
+}
