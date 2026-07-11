@@ -748,9 +748,9 @@ document.addEventListener('visibilitychange',()=>{
   if(!document.hidden&&currentUser)updateStocks().then(result=>{if(result?.updated)loadStocks()});
 });
 async function refreshStocks(){await updateStocks();await loadStocks()}
-async function loadStocks(){const[{data:s},{data:h}]=await Promise.all([db.from("stocks").select("id,symbol,name,current_price,previous_price,history").eq("is_active",true).order("name"),db.from("stock_holdings").select("*").eq("user_id",currentUser.id)]);stocks=s||[];holdings=h||[];let total=0,profit=0;stockList.innerHTML=stocks.map(st=>{const hd=holdings.find(x=>x.stock_id===st.id),q=Number(hd?.quantity||0),avg=Number(hd?.average_buy_price||0),cur=Number(st.current_price),prev=Number(st.previous_price),r=prev?(cur-prev)/prev*100:0,val=q*cur,p=val-q*avg;total+=val;profit+=p;return `<button class="stock-row" onclick="openStockDetail('${st.id}')"><div class="stock-name"><b>${esc(st.name)}</b><small>${esc(st.symbol)} · ${q}주</small></div><div class="stock-price"><b>${money(cur)}</b><small>현재가</small></div>${stockSvg(history(st.history,prev,cur),95,40,true)}<b class="stock-rate ${r>=0?"up":"down"}">${r>=0?"+":""}${r.toFixed(2)}%</b></button>`}).join("");stockValue.textContent=money(total);stockProfit.textContent=(profit>=0?"+":"")+money(profit);stockProfit.className=profit>=0?"up":"down";if(selectedStock)renderStockDetail(selectedStock);renderWallet()}
+async function loadStocks(){const[{data:s},{data:h}]=await Promise.all([db.from("stocks").select("id,symbol,name,current_price,previous_price,history").eq("is_active",true).order("name"),db.from("stock_holdings").select("*").eq("user_id",currentUser.id)]);stocks=s||[];holdings=h||[];renderSpendableFundsCard('stockSpendableFunds',spendableCash(),'주식 매수에 즉시 사용할 수 있는 금액');let total=0,profit=0;stockList.innerHTML=stocks.map(st=>{const hd=holdings.find(x=>x.stock_id===st.id),q=Number(hd?.quantity||0),avg=Number(hd?.average_buy_price||0),cur=Number(st.current_price),prev=Number(st.previous_price),r=prev?(cur-prev)/prev*100:0,val=q*cur,p=val-q*avg;total+=val;profit+=p;return `<button class="stock-row" onclick="openStockDetail('${st.id}')"><div class="stock-name"><b>${esc(st.name)}</b><small>${esc(st.symbol)} · ${q}주</small></div><div class="stock-price"><b>${money(cur)}</b><small>현재가</small></div>${stockSvg(history(st.history,prev,cur),95,40,true)}<b class="stock-rate ${r>=0?"up":"down"}">${r>=0?"+":""}${r.toFixed(2)}%</b></button>`}).join("");stockValue.textContent=money(total);stockProfit.textContent=(profit>=0?"+":"")+money(profit);stockProfit.className=profit>=0?"up":"down";if(selectedStock)renderStockDetail(selectedStock);renderWallet()}
 function openStockDetail(id){selectedStock=id;stockListView.classList.add("hidden");stockDetailView.classList.remove("hidden");renderStockDetail(id)}function closeStockDetail(){selectedStock=null;stockListView?.classList.remove("hidden");stockDetailView?.classList.add("hidden")}
-function renderStockDetail(id){const st=stocks.find(x=>x.id===id),hd=holdings.find(x=>x.stock_id===id),q=Number(hd?.quantity||0),avg=Number(hd?.average_buy_price||0),cur=Number(st.current_price),hist=history(st.history,st.previous_price,cur),val=q*cur,p=val-q*avg;stockDetail.innerHTML=`<div class="stock-detail-head"><h2>${esc(st.name)}</h2><strong>${money(cur)}</strong><small>현재가</small></div>${stockSvg(hist,340,220,false)}<div class="metrics"><div>보유 <b>${q}주</b></div><div>평균 <b>${q?money(avg):"-"}</b></div><div>평가액 <b>${money(val)}</b></div><div>손익 <b class="${p>=0?"up":"down"}">${p>=0?"+":""}${money(p)}</b></div></div><div class="trade"><input id="qty-${id}" type="number" min="1" value="1"><button class="buy" onclick="tradeStock('${id}','buy')">매수</button><button class="sell" onclick="tradeStock('${id}','sell')">매도</button></div>`}
+function renderStockDetail(id){const st=stocks.find(x=>x.id===id),hd=holdings.find(x=>x.stock_id===id),q=Number(hd?.quantity||0),avg=Number(hd?.average_buy_price||0),cur=Number(st.current_price),hist=history(st.history,st.previous_price,cur),val=q*cur,p=val-q*avg,cash=spendableCash(),maxBuy=cur>0?Math.floor(cash/cur):0;stockDetail.innerHTML=`<div class="detail-spendable"><span>실제 사용 가능 현금</span><b>${money(cash)}</b><small>현재가 기준 최대 ${maxBuy.toLocaleString('ko-KR')}주 매수 가능</small></div><div class="stock-detail-head"><h2>${esc(st.name)}</h2><strong>${money(cur)}</strong><small>현재가</small></div>${stockSvg(hist,340,220,false)}<div class="metrics"><div>보유 <b>${q}주</b></div><div>평균 <b>${q?money(avg):"-"}</b></div><div>평가액 <b>${money(val)}</b></div><div>손익 <b class="${p>=0?"up":"down"}">${p>=0?"+":""}${money(p)}</b></div></div><div class="trade"><input id="qty-${id}" type="number" min="1" value="1"><button class="buy" onclick="tradeStock('${id}','buy')">매수</button><button class="sell" onclick="tradeStock('${id}','sell')">매도</button></div>`}
 async function tradeStock(id,type){const q=Number(document.getElementById("qty-"+id).value);const{error}=await db.rpc(type==="buy"?"buy_stock_v2":"sell_stock_v2",{p_stock_id:id,p_quantity:q});if(error)return toast(error.message);await Promise.all([loadProfile(),loadStocks()])}
 function history(raw,prev,cur){
   let a=[];
@@ -902,6 +902,11 @@ function getItemVisual(name,category){
 function hash(t){let h=2166136261;for(const c of t){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return Math.abs(h)}
 function escSvg(v){return String(v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[m]))}
 function money(v){const n=Number(v)||0,u=[[1e20,"해"],[1e16,"경"],[1e12,"조"],[1e8,"억"],[1e4,"만"]];for(const[x,l]of u)if(Math.abs(n)>=x){const d=n/x;return Number(d.toFixed(Math.abs(d)>=100?0:Math.abs(d)>=10?1:2)).toLocaleString()+l+" 원"}return Math.floor(n).toLocaleString()+"원"}
+function spendableCash(){return Math.max(0,Number(profile?.cash||0))}
+function renderSpendableFundsCard(id,amount,subtitle='지금 바로 사용할 수 있는 현금'){
+  const el=document.getElementById(id);if(!el)return;
+  el.innerHTML=`<span>실제 사용 가능 현금</span><b>${money(amount)}</b><small>${esc(subtitle)}</small>`;
+}
 function esc(v){const d=document.createElement("div");d.textContent=v??"";return d.innerHTML}
 function escAttr(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]||m))}
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),3400)}
@@ -1098,8 +1103,8 @@ const PROPERTY_CATALOG=[
 async function loadProperties(){
   if(!profile)await loadProfile();
   const host=document.getElementById('propertyList');if(!host)return;
-  const cap=Number(profile?.house_capacity||1),cash=Number(profile?.cash||0);
-  host.innerHTML=`<div class="property-current"><span>현재 거주지</span><b>${esc(profile?.property_name||'반지하')}</b><small>장식 슬롯 ${cap}개</small></div><div class="property-grid">${PROPERTY_CATALOG.map(x=>{const owned=cap>=x.capacity,current=cap===x.capacity,locked=cash<x.price;return `<article class="property-card ${current?'current':''}"><div class="property-art">${x.icon}</div><div><small>${x.tier.toUpperCase()}</small><h3>${x.name}</h3><p>${x.desc}</p><strong>${x.price?money(x.price):'기본 제공'}</strong></div><button ${owned||locked?'disabled':''} onclick="buyProperty('${x.tier}')">${current?'거주 중':owned?'구매 완료':locked?'자금 부족':'구매'}</button></article>`}).join('')}</div>`;
+  const cap=Number(profile?.house_capacity||1),cash=spendableCash();
+  host.innerHTML=`<div class="spendable-funds-card property-funds"><span>부동산 구매 가능 현금</span><b>${money(cash)}</b><small>구매 버튼을 누르면 이 현금에서 즉시 차감됩니다.</small></div><div class="property-current"><span>현재 거주지</span><b>${esc(profile?.property_name||'반지하')}</b><small>장식 슬롯 ${cap}개</small></div><div class="property-grid">${PROPERTY_CATALOG.map(x=>{const owned=cap>=x.capacity,current=cap===x.capacity,locked=cash<x.price,after=Math.max(0,cash-x.price),shortage=Math.max(0,x.price-cash);return `<article class="property-card ${current?'current':''}"><div class="property-art">${x.icon}</div><div><small>${x.tier.toUpperCase()}</small><h3>${x.name}</h3><p>${x.desc}</p><strong>${x.price?money(x.price):'기본 제공'}</strong>${!owned&&x.price?`<em class="property-afford ${locked?'short':''}">${locked?`부족 ${money(shortage)}`:`구매 후 ${money(after)} 남음`}</em>`:''}</div><button ${owned||locked?'disabled':''} onclick="buyProperty('${x.tier}')">${current?'거주 중':owned?'구매 완료':locked?'자금 부족':'구매'}</button></article>`}).join('')}</div>`;
 }
 async function buyProperty(tier){
   const{data,error}=await db.rpc('buy_property_v13',{p_tier:tier});
@@ -1115,7 +1120,7 @@ async function loadBank(){
   host.innerHTML='<div class="bank-loading">이자와 대출 상태를 정산하는 중...</div>';
   const{data,error}=await db.rpc('get_bank_status_v25');
   if(error){host.innerHTML=`<div class="bank-error">${esc(error.message)}</div>`;return}
-  bankState=data||{};renderBank();await loadProfile();updateNetworth();
+  bankState=data||{};await loadProfile();renderBank();updateNetworth();
 }
 function renderBank(){
   const host=document.getElementById('bankView');if(!host||!bankState)return;
@@ -1848,7 +1853,9 @@ async function finishSellerAuctionAfterCountdown(){
 function renderBank(){
   const host=document.getElementById('bankView');if(!host||!bankState)return;
   const b=bankState,loan=b.loan||null;
+  const cash=spendableCash(),deposit=Number(b.deposit_balance||0),liquid=cash+deposit,due=Number(loan?.due_amount||0),netAfterLoan=Math.max(0,liquid-due);
   host.innerHTML=`
+    <div class="bank-liquidity-grid"><div class="spendable-funds-card bank-cash"><span>지금 바로 쓸 수 있는 현금</span><b>${money(cash)}</b><small>게임 내 구매·투자에 즉시 사용 가능</small></div><div class="spendable-funds-card bank-liquid"><span>자유예금 출금 포함 가용액</span><b>${money(liquid)}</b><small>현금 ${money(cash)} + 자유예금 ${money(deposit)}</small></div>${loan?`<div class="spendable-funds-card bank-net"><span>대출 상환 후 순가용액</span><b>${money(netAfterLoan)}</b><small>가용액에서 상환액 ${money(due)} 차감 기준</small></div>`:''}</div>
     <div class="bank-hero"><div><span>판매은행 총 금융자산</span><b>${money(Number(b.deposit_balance||0)+Number(b.savings_balance||0))}</b></div><small>5분 단위 이자는 서버 시간으로 계산되며 로그아웃해도 유지됩니다.</small></div>
     <section class="bank-product deposit"><div class="bank-product-head"><span>💳</span><div><h3>자유 예금</h3><p>한도 없이 5분마다 복리 2%</p></div><b>${money(b.deposit_balance||0)}</b></div><div class="bank-actions"><input id="depositAmount" type="number" min="1" placeholder="금액"><button onclick="bankDeposit()">입금</button><button class="sub" onclick="bankWithdrawDeposit()">출금</button></div><small>다음 이자까지 약 ${formatRemaining(b.deposit_next_seconds)} 남음</small></section>
     <section class="bank-product savings"><div class="bank-product-head"><span>📈</span><div><h3>목표 적금</h3><p>5분마다 5% · 설정한 목표액에서 성장 종료</p></div><b>${money(b.savings_balance||0)}</b></div><div class="savings-progress"><i style="width:${Math.min(100,Number(b.savings_target||0)>0?Number(b.savings_balance||0)/Number(b.savings_target)*100:0)}%"></i></div><div class="bank-target">목표 ${money(b.savings_target||0)} · 다음 이자 ${formatRemaining(b.savings_next_seconds)}</div><div class="bank-actions savings-inputs"><input id="savingsAmount" type="number" min="1" placeholder="넣을 금액"><input id="savingsTarget" type="number" min="1" placeholder="목표 금액"><button onclick="bankSavingsDeposit()">적금 넣기</button><button class="sub" onclick="bankWithdrawSavings()">해지/출금</button></div></section>
@@ -1974,3 +1981,187 @@ document.addEventListener('DOMContentLoaded',()=>{
   restoreChatUnreadState();
   setTimeout(syncChatUnreadFromServer,1800);
 });
+
+/* ============================================================
+   v33.7 RELIABLE GLOBAL CHAT NOTIFICATIONS
+   - Realtime + polling fallback
+   - Correct newest-message detection (server rows are oldest -> newest)
+   - Persistent unread badge
+   - Popup deduplication
+   ============================================================ */
+let reliableChatPollTimer=null;
+let reliableChatPollBusy=false;
+let reliableChatLatestId=0;
+const reliableChatNotifiedIds=new Set();
+
+function chatLatestKnownStorageKey(){
+  return `sellingGodChatLatestKnown:${currentUser?.id||'guest'}`;
+}
+function getChatMessageId(row){
+  return Number(row?.message_id ?? row?.id ?? 0) || 0;
+}
+function newestChatRow(rows){
+  if(!Array.isArray(rows)||!rows.length)return null;
+  return rows.reduce((latest,row)=>getChatMessageId(row)>getChatMessageId(latest)?row:latest,rows[0]);
+}
+function rememberReliableChatLatest(id){
+  const n=Number(id)||0;
+  if(n<=0)return;
+  reliableChatLatestId=Math.max(reliableChatLatestId,n);
+  try{localStorage.setItem(chatLatestKnownStorageKey(),String(reliableChatLatestId))}catch{}
+}
+function stopReliableChatNotifications(){
+  if(reliableChatPollTimer){clearInterval(reliableChatPollTimer);reliableChatPollTimer=null}
+  reliableChatPollBusy=false;
+  reliableChatLatestId=0;
+  reliableChatNotifiedIds.clear();
+}
+async function fetchRecentChatRows(limit=20){
+  const{data,error}=await db.rpc('get_global_chat_v31',{p_limit:limit});
+  if(error)throw error;
+  return Array.isArray(data)?data:[];
+}
+async function initializeReliableChatNotifications(){
+  stopReliableChatNotifications();
+  if(!currentUser)return;
+  let stored=0;
+  try{stored=Number(localStorage.getItem(chatLatestKnownStorageKey())||0)||0}catch{}
+  let rows=[];
+  try{rows=await fetchRecentChatRows(20)}catch(error){console.warn('채팅 알림 초기화 실패:',error);return}
+  const newest=newestChatRow(rows);
+  const newestId=getChatMessageId(newest);
+  reliableChatLatestId=Math.max(stored,newestId);
+  rememberReliableChatLatest(reliableChatLatestId);
+
+  let lastSeen='';
+  try{lastSeen=localStorage.getItem(chatLastSeenStorageKey())||''}catch{}
+  const unseenOther=rows.some(row=>{
+    if(row.sender_user_id===currentUser.id)return false;
+    if(!lastSeen)return false;
+    return new Date(row.created_at).getTime()>new Date(lastSeen).getTime();
+  });
+  if(unseenOther&&!isChatScreenOpen())setChatUnread(true);
+
+  reliableChatPollTimer=setInterval(pollReliableChatNotifications,3000);
+}
+async function processReliableIncomingChat(row,{showPopup=true}={}){
+  if(!row||!currentUser)return;
+  const id=getChatMessageId(row);
+  if(id>0)rememberReliableChatLatest(id);
+  if(row.sender_user_id===currentUser.id)return;
+
+  if(isChatScreenOpen()){
+    await loadChatMessages();
+    markChatRead(row.created_at||new Date().toISOString());
+    return;
+  }
+
+  setChatUnread(true);
+  if(showPopup&&id>0&&!reliableChatNotifiedIds.has(id)){
+    reliableChatNotifiedIds.add(id);
+    showChatNotification({
+      nickname:row.nickname||'새 메시지',
+      active_title:row.active_title||'초보 장사꾼',
+      chat_text:row.chat_text||row.message||'',
+      created_at:row.created_at
+    });
+    if(reliableChatNotifiedIds.size>120){
+      const first=reliableChatNotifiedIds.values().next().value;
+      reliableChatNotifiedIds.delete(first);
+    }
+  }
+}
+async function pollReliableChatNotifications(){
+  if(reliableChatPollBusy||!currentUser)return;
+  reliableChatPollBusy=true;
+  try{
+    const rows=await fetchRecentChatRows(30);
+    const incoming=rows
+      .filter(row=>getChatMessageId(row)>reliableChatLatestId)
+      .sort((a,b)=>getChatMessageId(a)-getChatMessageId(b));
+    for(const row of incoming)await processReliableIncomingChat(row,{showPopup:true});
+    const newest=newestChatRow(rows);
+    if(newest)rememberReliableChatLatest(getChatMessageId(newest));
+  }catch(error){
+    console.warn('채팅 알림 확인 실패:',error);
+  }finally{
+    reliableChatPollBusy=false;
+  }
+}
+
+handleRealtimeChatInsert=async function(payload){
+  const raw=payload?.new||{};
+  if(!raw?.id||!currentUser)return;
+  const rawId=getChatMessageId(raw);
+  if(rawId>0&&rawId<=reliableChatLatestId&&reliableChatNotifiedIds.has(rawId))return;
+  let row={
+    message_id:raw.id,
+    sender_user_id:raw.user_id,
+    chat_text:raw.message,
+    created_at:raw.created_at
+  };
+  try{
+    const{data,error}=await db.rpc('get_global_chat_message_v34',{p_message_id:raw.id});
+    if(!error){const hydrated=Array.isArray(data)?data[0]:data;if(hydrated)row=hydrated}
+  }catch(error){console.warn('실시간 채팅 정보 조회 실패:',error)}
+  await processReliableIncomingChat(row,{showPopup:true});
+};
+
+loadChatMessages=async function(){
+  const host=document.getElementById('globalChatList');
+  if(!host)return;
+  const wasNearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<40;
+  const{data,error}=await db.rpc('get_global_chat_v31',{p_limit:60});
+  if(error){host.innerHTML=`<p class="muted">${esc(error.message)}</p>`;return}
+  const rows=Array.isArray(data)?data:[];
+  host.innerHTML=rows.map(r=>`<article class="global-chat-message ${r.sender_user_id===currentUser.id?'mine':''}"><div class="chat-user"><strong>${esc(r.nickname)}</strong><span class="title-badge ${titleClass(r.active_title)}">${esc(r.active_title||'초보 장사꾼')}</span><time>${chatTime(r.created_at)}</time></div><p>${esc(r.chat_text)}</p></article>`).join('')||'<p class="muted chat-empty">첫 메시지를 남겨 보세요.</p>';
+  const latest=newestChatRow(rows);
+  if(latest)rememberReliableChatLatest(getChatMessageId(latest));
+  if(isChatScreenOpen())markChatRead(latest?.created_at||new Date().toISOString());
+  requestAnimationFrame(()=>{
+    if(isChatScreenOpen()||wasNearBottom)host.scrollTop=host.scrollHeight;
+  });
+};
+
+syncChatUnreadFromServer=async function(){
+  if(!currentUser)return;
+  try{
+    const rows=await fetchRecentChatRows(20);
+    const latest=newestChatRow(rows);
+    if(!latest)return;
+    rememberReliableChatLatest(getChatMessageId(latest));
+    let lastSeen='';
+    try{lastSeen=localStorage.getItem(chatLastSeenStorageKey())||''}catch{}
+    const unseenOther=rows.some(row=>row.sender_user_id!==currentUser.id&&(!lastSeen||new Date(row.created_at).getTime()>new Date(lastSeen).getTime()));
+    if(unseenOther&&!isChatScreenOpen())setChatUnread(true);
+  }catch(error){console.warn('미확인 채팅 동기화 실패:',error)}
+};
+
+const enterGameBeforeReliableChat=enterGame;
+enterGame=async function(){
+  await enterGameBeforeReliableChat();
+  if(currentUser&&profile){
+    restoreChatUnreadState();
+    await initializeReliableChatNotifications();
+    await syncChatUnreadFromServer();
+  }
+};
+const logoutBeforeReliableChat=logout;
+logout=async function(){
+  stopReliableChatNotifications();
+  await logoutBeforeReliableChat();
+};
+
+const openPhoneAppBeforeReliableChat=openPhoneApp;
+openPhoneApp=function(name){
+  openPhoneAppBeforeReliableChat(name);
+  if(name==='chat'){
+    setChatUnread(false);
+    setTimeout(async()=>{
+      await loadChatMessages();
+      const rows=await fetchRecentChatRows(1).catch(()=>[]);
+      const latest=newestChatRow(rows);
+      markChatRead(latest?.created_at||new Date().toISOString());
+    },0);
+  }
+};
