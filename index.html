@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>판매의 신 — Definitive Edition v11</title>
+  <title>판매의 신 — GRAND MASTER v13</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -36,10 +36,7 @@
 
 <section id="game" class="screen hidden">
   <header class="hud">
-    <div class="player">
-      <div class="avatar">👑</div>
-      <div><small>전당포 초보 사장</small><b id="nicknameTop">판매왕</b></div>
-    </div>
+    <div class="player"><div class="avatar">👑</div><div><small id="titleTop">초보 장사꾼</small><b id="nicknameTop">판매왕</b></div></div>
     <div class="resources">
       <div><span>현금</span><b id="cashTop">0원</b></div>
       <div><span>신용</span><b id="credit">500</b></div>
@@ -188,8 +185,10 @@
       </section>
 
       <section id="page-auction" class="page">
-        <div class="title"><div><p class="eyebrow">RARE AUCTION</p><h1>희귀품 경매장</h1><p>NPC는 소폭 인상·대폭 인상·가격 유지를 무작위로 선택합니다. 가격 유지가 나오면 NPC 입찰은 종료됩니다.</p></div><button class="btn light" onclick="loadAuction()">새 경매</button></div>
-        <div id="auctionHall"></div>
+        <div class="title"><div><p class="eyebrow">LIVE AUCTION HOUSE</p><h1>희귀품 경매장</h1><p>세 개의 경매품 중 하나를 선택하거나 내 물건을 NPC 수집가들에게 출품하세요.</p></div></div>
+        <div class="auction-tabs"><button class="active" onclick="switchAuctionMode('buy',this)">경매 참여</button><button onclick="switchAuctionMode('sell',this)">내 물건 출품</button></div>
+        <div id="auctionBuyPanel"><div id="auctionChoices" class="auction-choice-grid"></div><div id="auctionHall"></div></div>
+        <div id="auctionSellPanel" class="hidden"><div class="panel auction-seller"><h3>NPC 경매 출품</h3><p>등급과 상태가 좋을수록 수집가들이 더 오래 경쟁합니다.</p><select id="auctionSellItem"></select><button class="btn primary" onclick="startSellerAuction()">이 물건 출품하기</button></div><div id="sellerAuctionHall"></div></div>
       </section>
 
       <section id="page-market" class="page">
@@ -211,7 +210,7 @@
       </section>
 
       <section id="page-house" class="page">
-        <div class="title"><div><p class="eyebrow">MY HOME</p><h1>내 집 꾸미기</h1><p>장식을 배치하면 표시된 특수 효과가 실제 적용됩니다.</p></div><button class="btn light" onclick="loadHouse()">새로고침</button></div>
+        <div class="title"><div><p class="eyebrow">MY HOME</p><h1>내 집 꾸미기</h1><p id="houseCapacityText">현재 집의 수용량 안에서 장식을 배치할 수 있습니다.</p></div><button class="btn light" onclick="loadHouse()">새로고침</button></div>
         <div class="house-layout">
           <div id="houseRoom" class="house-room"><div class="window">☀️</div><div id="placedDecorations"></div></div>
           <aside class="house-side panel"><h3>활성 효과</h3><div id="houseEffects"></div><h3>보유 장식</h3><div id="decorationInventory"></div></aside>
@@ -221,7 +220,7 @@
       <section id="page-collection" class="page">
         <div class="title"><div><p class="eyebrow">COLLECTION GACHA</p><h1>소장품 뽑기</h1><p>휴대폰 케이스 스킨과 집 장식을 뽑습니다.</p></div></div>
         <div class="gacha-layout">
-          <div class="machine"><div class="machine-glass">✨<br>🎁</div><button class="btn gacha-btn" onclick="drawCollectible()">1회 뽑기 · 10만원</button></div>
+          <div class="machine"><div class="machine-glass"><div class="capsule-orbit">✦</div><div class="capsule-core">🎁</div></div><button class="btn gacha-btn" onclick="drawCollectible()">1회 뽑기 · 10만원</button></div>
           <div class="panel collection-panel"><h3>장착 케이스</h3><div id="equippedCase"></div><h3>내 소장품</h3><div id="collectibleInventory"></div></div>
         </div>
       </section>
@@ -254,20 +253,20 @@
         <button onclick="openPhoneApp('stocks')"><span class="app app-stock">📈</span>판매증권</button>
         <button onclick="openPageFromPhone('market')"><span class="app app-market">🛒</span>중고장터</button>
         <button onclick="openPageFromPhone('collection')"><span class="app app-gacha">🎁</span>소장품</button>
-        <button onclick="openPhoneApp('wallet')"><span class="app app-wallet">💳</span>내 자산</button>
+        <button onclick="openPhoneApp('wallet')"><span class="app app-wallet">💳</span>내 자산</button><button onclick="openPhoneApp('ranking')"><span class="app app-ranking">🏆</span>랭킹</button><button onclick="openPhoneApp('property')"><span class="app app-property">🏢</span>부동산</button><button onclick="openPhoneApp('titles')"><span class="app app-title">🎖️</span>칭호</button>
       </div></section>
       <section id="phone-stocks" class="phone-screen phone-app hidden">
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매증권</b><small>종목을 눌러 상세 확인</small></div><button onclick="refreshStocks()">↻</button></div>
         <div id="stockListView"><div class="summary"><div><span>평가액</span><b id="stockValue">0원</b></div><div><span>평가손익</span><b id="stockProfit">0원</b></div></div><div id="stockList"></div></div>
         <div id="stockDetailView" class="hidden"><button class="back" onclick="closeStockDetail()">← 목록</button><div id="stockDetail"></div></div>
       </section>
-      <section id="phone-wallet" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>내 자산</b><small>계정 저장 정보</small></div><span></span></div><div id="walletView"></div></section>
+      <section id="phone-wallet" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>내 자산</b><small>계정 저장 정보</small></div><span></span></div><div id="walletView"></div></section><section id="phone-ranking" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매왕 랭킹</b><small>총자산 기준 TOP 20</small></div><button onclick="loadRanking()">↻</button></div><div id="rankingList"></div></section><section id="phone-property" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>부동산</b><small>더 큰 집으로 장식 슬롯 확장</small></div><span></span></div><div id="propertyList"></div></section><section id="phone-titles" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>칭호</b><small>업적을 달성해 칭호 획득</small></div><span></span></div><div id="titleList"></div></section>
       <button class="home-dot" onclick="phoneHome()">●</button><button class="phone-close" onclick="closePhone()">휴대폰 넣기</button>
     </div>
   </div>
 </section>
 
 <script src="game.js"></script>
-<div id="clickFxLayer" class="click-fx-layer"></div>
+<div id="gachaModal" class="overlay hidden"><div class="gacha-reveal"><div id="gachaRarity" class="gacha-rarity">?</div><div id="gachaResultIcon" class="gacha-result-icon">🎁</div><h2 id="gachaResultName">결과 공개</h2><p id="gachaResultEffect"></p><button class="btn primary" onclick="closeGachaReveal()">확인</button></div></div><div id="clickFxLayer" class="click-fx-layer"></div>
 </body>
 </html>
