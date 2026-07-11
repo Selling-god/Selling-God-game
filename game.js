@@ -1720,3 +1720,75 @@ async function refreshAll(){
   await Promise.all([loadInventory(),loadStocks(),loadCollectibles(),loadEffects(),syncStockClock(),loadBusinessStateSilent()]);
   await updateStocks();updateNetworth();
 }
+
+
+/* ============================================================
+   v33.2 HOTFIX: auction reputation, stable countdown, bank rules
+   ============================================================ */
+function renderSellerAuction(options={}){
+  const s=sellerAuction;
+  if(!s)return;
+  const oldLog=document.getElementById('sellerBidLog');
+  const oldTop=oldLog?oldLog.scrollTop:0;
+  const wasNearBottom=oldLog?oldLog.scrollHeight-oldLog.scrollTop-oldLog.clientHeight<28:true;
+  sellerAuctionHall.innerHTML=`<div class="seller-live"><img src="${itemImage(s.item.items.name,s.item.items.category)}"><div><p class="eyebrow">NPC COLLECTOR BATTLE</p><h2>${esc(s.item.items.name)}</h2><div class="seller-price">현재 입찰가 <b>${money(s.current)}</b><em id="sellerCountdownLabel" class="seller-countdown ${s.countdown?'':'hidden'}">${s.countdown?`판매까지 ${s.countdown}`:''}</em></div><div class="collector-row"><span>🧐 감정가</span><span>🤑 수집가</span><span>😎 리셀러</span></div><div id="sellerBidLog" class="bid-log">${s.log.map(x=>`<p>${esc(x)}</p>`).join('')}</div></div></div>`;
+  requestAnimationFrame(()=>{
+    const log=document.getElementById('sellerBidLog');
+    if(!log)return;
+    if(options.forceBottom||wasNearBottom)log.scrollTop=log.scrollHeight;
+    else log.scrollTop=oldTop;
+  });
+}
+function updateSellerAuctionCountdown(){
+  const s=sellerAuction,label=document.getElementById('sellerCountdownLabel');
+  if(!s||!label)return;
+  label.classList.toggle('hidden',!s.countdown);
+  label.textContent=s.countdown?`판매까지 ${s.countdown}`:'';
+}
+function startSellerAuctionCountdown(){
+  const s=sellerAuction;
+  if(!s||s.countdown||s.ending)return;
+  s.countdown=3;
+  s.log.push('추가 입찰이 없습니다. 3초 후 판매됩니다.');
+  renderSellerAuction({forceBottom:true});
+  const countdownTimer=setInterval(async()=>{
+    if(!sellerAuction||sellerAuction!==s){clearInterval(countdownTimer);return;}
+    s.countdown--;
+    updateSellerAuctionCountdown();
+    if(s.countdown<=0){
+      clearInterval(countdownTimer);
+      await finishSellerAuctionAfterCountdown();
+    }
+  },1000);
+}
+async function finishSellerAuctionAfterCountdown(){
+  const s=sellerAuction;
+  if(!s||s.ending)return;
+  s.ending=true;
+  const{data,error}=await db.rpc('finish_npc_seller_auction_v13',{p_session_id:s.session,p_final_price:s.current});
+  if(error){s.ending=false;return toast(error.message);}
+  reputationToast(data,'경매 판매 '+money(data.final_price));
+  playSuccessSound();
+  clearInterval(s.timer);
+  sellerAuction=null;
+  await Promise.all([loadProfile(),loadInventory()]);
+  fillAuctionSellItems();
+  sellerAuctionHall.innerHTML='<div class="auction-finished">3초 동안 추가 입찰이 없어 판매가 확정되었습니다.</div>';
+}
+function renderBank(){
+  const host=document.getElementById('bankView');if(!host||!bankState)return;
+  const b=bankState,loan=b.loan||null;
+  host.innerHTML=`
+    <div class="bank-hero"><div><span>판매은행 총 금융자산</span><b>${money(Number(b.deposit_balance||0)+Number(b.savings_balance||0))}</b></div><small>5분 단위 이자는 서버 시간으로 계산되며 로그아웃해도 유지됩니다.</small></div>
+    <section class="bank-product deposit"><div class="bank-product-head"><span>💳</span><div><h3>자유 예금</h3><p>한도 없이 5분마다 복리 2%</p></div><b>${money(b.deposit_balance||0)}</b></div><div class="bank-actions"><input id="depositAmount" type="number" min="1" placeholder="금액"><button onclick="bankDeposit()">입금</button><button class="sub" onclick="bankWithdrawDeposit()">출금</button></div><small>다음 이자까지 약 ${formatRemaining(b.deposit_next_seconds)} 남음</small></section>
+    <section class="bank-product savings"><div class="bank-product-head"><span>📈</span><div><h3>목표 적금</h3><p>5분마다 5% · 설정한 목표액에서 성장 종료</p></div><b>${money(b.savings_balance||0)}</b></div><div class="savings-progress"><i style="width:${Math.min(100,Number(b.savings_target||0)>0?Number(b.savings_balance||0)/Number(b.savings_target)*100:0)}%"></i></div><div class="bank-target">목표 ${money(b.savings_target||0)} · 다음 이자 ${formatRemaining(b.savings_next_seconds)}</div><div class="bank-actions savings-inputs"><input id="savingsAmount" type="number" min="1" placeholder="넣을 금액"><input id="savingsTarget" type="number" min="1" placeholder="목표 금액"><button onclick="bankSavingsDeposit()">적금 넣기</button><button class="sub" onclick="bankWithdrawSavings()">해지/출금</button></div></section>
+    <section class="bank-product loan"><div class="bank-product-head"><span>🏦</span><div><h3>신용 대출</h3><p>15분 만기 · 이자 10% · 최소 3분 후 상환</p></div><b>한도 ${money(b.loan_limit||0)}</b></div>${loan?`<div class="loan-active"><div><span>대출 원금</span><b>${money(loan.principal)}</b></div><div><span>상환액</span><b>${money(loan.due_amount)}</b></div><div><span>상환 가능</span><b>${loan.repay_available?'지금 가능':formatRemaining(loan.repay_available_seconds)}</b></div><div><span>만기까지</span><b class="${loan.overdue?'down':''}">${loan.overdue?'연체 '+formatRemaining(loan.overdue_seconds):formatRemaining(loan.due_seconds)}</b></div></div><button class="bank-repay" ${loan.repay_available?'':'disabled'} onclick="repayLoan()">전액 상환</button><small>${loan.overdue?'연체로 신용점수가 하락했습니다. 상환해도 연체 패널티는 복구되지 않습니다.':'3분 이후 가능한 한 빨리 상환할수록 신용 상승 폭이 커집니다.'}</small>`:`<div class="bank-actions"><input id="loanAmount" type="number" min="10000" step="10000" max="${Number(b.loan_limit||0)}" placeholder="대출 금액"><button onclick="takeLoan()">대출 실행</button></div><small>신용점수가 높을수록 한도가 크게 증가합니다. 소액 반복 대출은 신용 보상이 매우 작습니다.</small>`}</section>`;
+}
+async function repayLoan(){
+  if(!confirm('이자 10%를 포함한 대출금을 전액 상환할까요?'))return;
+  const data=await bankCall('bank_repay_loan_v25',{},'대출 상환 완료');
+  if(data&&Number.isFinite(Number(data.credit_delta))){
+    const d=Number(data.credit_delta);
+    toast(`대출 상환 완료 · 신용 ${d>=0?'+':''}${d}${Number.isFinite(Number(data.credit_before))?` (${data.credit_before} → ${data.credit_after})`:''}`);
+  }
+}
