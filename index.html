@@ -129,24 +129,25 @@
 
 
       <section id="page-jobs" class="page">
-        <div class="title"><div><p class="eyebrow">PART-TIME JOB</p><h1>물류센터 분류 알바</h1><p>주문표와 같은 물건을 빠르게 골라 목표 수량을 채우면 급여를 받습니다.</p></div><button class="btn light" onclick="resetJobPage()">초기화</button></div>
+        <div class="title"><div><p class="eyebrow">PART-TIME JOB</p><h1 id="jobPageTitle">알바 선택</h1><p id="jobPageDesc">서로 다른 방식의 알바 3개 중 하나를 선택하세요.</p></div><button class="btn light" onclick="resetJobPage()">알바 목록</button></div>
         <div class="job-layout">
           <div class="job-warehouse">
-            <div class="warehouse-sign">SELLING LOGISTICS</div>
-            <div class="warehouse-shelf left">📦<br>🧊<br>📕</div>
-            <div class="warehouse-shelf right">🧸<br>📦<br>📕</div>
-            <div id="jobIntro" class="job-intro panel">
-              <h2>클릭 보상은 없어졌습니다</h2>
-              <p>게임을 시작하면 주문표와 같은 상자를 찾아야 합니다. 오배송하면 제한시간이 2초 줄어듭니다.</p>
-              <button class="btn primary" onclick="startJobMinigame()">알바 시작</button>
+            <div class="warehouse-sign">SELLING WORK AGENCY</div>
+            <div class="warehouse-shelf left">📦<br>🧾<br>🔦</div>
+            <div class="warehouse-shelf right">🧸<br>🥤<br>🥷</div>
+            <div id="jobSelect" class="job-select">
+              <button class="job-choice logistics" onclick="selectJob('logistics')"><span>📦</span><div><small>속도·판단</small><b>물류센터 분류</b><p>주문과 같은 물건을 찾아 컨베이어를 처리하세요.</p></div><em>기본급 5만원</em></button>
+              <button class="job-choice cashier" onclick="selectJob('cashier')"><span>🧾</span><div><small>계산·집중</small><b>편의점 계산</b><p>상품 3개의 가격을 더해 정확한 결제 금액을 고르세요.</p></div><em>기본급 5.5만원</em></button>
+              <button class="job-choice security" onclick="selectJob('security')"><span>🔦</span><div><small>순발력·관찰</small><b>야간 보안</b><p>일반 손님은 보내고 수상한 침입자만 검거하세요.</p></div><em>기본급 6만원</em></button>
             </div>
+            <div id="jobIntro" class="job-intro panel hidden"></div>
             <div id="jobGame" class="job-game hidden">
-              <div class="job-hud"><span>주문 <b id="jobOrder">📦</b></span><span>처리 <b id="jobScore">0</b>/<b id="jobTarget">0</b></span><span>실수 <b id="jobMiss">0</b></span><span>남은 시간 <b id="jobTime">0</b>초</span></div>
+              <div class="job-hud"><span>업무 <b id="jobOrder">📦</b></span><span>성공 <b id="jobScore">0</b>/<b id="jobTarget">0</b></span><span>실수 <b id="jobMiss">0</b></span><span>남은 시간 <b id="jobTime">0</b>초</span></div>
               <div id="jobStage" class="job-stage"></div>
             </div>
             <div id="jobResult" class="job-result panel hidden"></div>
           </div>
-          <aside class="panel job-guide"><h3>급여 기준</h3><p>목표 달성 시 기본급과 처리량 보너스가 합산됩니다.</p><p>매번 목표 수량과 제한시간이 달라집니다.</p><p>버튼 한 번으로 돈을 받는 방식은 사용하지 않습니다.</p></aside>
+          <aside class="panel job-guide"><h3>근무 안내</h3><p><b>물류센터:</b> 요구 물건이 매 라운드 반드시 등장합니다.</p><p><b>편의점:</b> 상품 가격의 합계를 빠르게 계산합니다.</p><p><b>야간 보안:</b> 침입자와 일반 손님을 구분합니다.</p><p>목표 달성 시 기본급과 성과 보너스가 지급됩니다.</p></aside>
         </div>
       </section>
 
@@ -213,15 +214,26 @@
         <div class="title"><div><p class="eyebrow">MY HOME</p><h1>내 집 꾸미기</h1><p id="houseCapacityText">현재 집의 수용량 안에서 장식을 배치할 수 있습니다.</p></div><button class="btn light" onclick="loadHouse()">새로고침</button></div>
         <div class="house-layout">
           <div id="houseRoom" class="house-room"><div class="window">☀️</div><div id="placedDecorations"></div></div>
-          <aside class="house-side panel"><h3>활성 효과</h3><div id="houseEffects"></div><h3>보유 장식</h3><div id="decorationInventory"></div></aside>
+          <aside class="house-side panel"><h3>활성 효과</h3><div id="houseEffects"></div><div class="section-head"><h3>보유 장식</h3><span id="decorationPageInfo" class="page-info">1P / 1P</span></div><div id="decorationInventory" class="paged-list compact"></div><div class="pager"><button id="decorationPrev" class="btn light" onclick="changeDecorationPage(-1)">‹ 이전</button><button id="decorationNext" class="btn light" onclick="changeDecorationPage(1)">다음 ›</button></div></aside>
         </div>
       </section>
 
       <section id="page-collection" class="page">
         <div class="title"><div><p class="eyebrow">COLLECTION GACHA</p><h1>소장품 뽑기</h1><p>휴대폰 케이스 스킨과 집 장식을 뽑습니다.</p></div></div>
         <div class="gacha-layout">
-          <div class="machine"><div class="machine-glass"><div class="capsule-orbit">✦</div><div class="capsule-core">🎁</div></div><button class="btn gacha-btn" onclick="drawCollectible()">1회 뽑기 · 10만원</button></div>
-          <div class="panel collection-panel"><h3>장착 케이스</h3><div id="equippedCase"></div><h3>내 소장품</h3><div id="collectibleInventory"></div></div>
+          <div class="machine"><div class="machine-glass"><div class="capsule-orbit">✦</div><div class="capsule-core">🎁</div></div><button class="btn gacha-btn" onclick="drawCollectible()">1회 뽑기 · 30만원</button></div>
+          <aside class="gacha-rate-card panel">
+            <h3>등급 확률표</h3>
+            <p class="muted">높은 등급일수록 효과와 스킨 연출이 강해집니다.</p>
+            <div class="rate-row rarity-0"><span>일반</span><b>46%</b></div>
+            <div class="rate-row rarity-1"><span>희귀</span><b>25%</b></div>
+            <div class="rate-row rarity-2"><span>초희귀</span><b>14%</b></div>
+            <div class="rate-row rarity-3"><span>진귀</span><b>8%</b></div>
+            <div class="rate-row rarity-4"><span>보물</span><b>4.5%</b></div>
+            <div class="rate-row rarity-5"><span>유물</span><b>2%</b></div>
+            <div class="rate-row rarity-6"><span>고대 유물</span><b>0.5%</b></div>
+          </aside>
+          <div class="panel collection-panel"><h3>장착 케이스</h3><div id="equippedCase"></div><div class="section-head"><h3>내 소장품</h3><span id="collectiblePageInfo" class="page-info">1P / 1P</span></div><div id="collectibleInventory" class="paged-list"></div><div class="pager"><button id="collectiblePrev" class="btn light" onclick="changeCollectiblePage(-1)">‹ 이전</button><button id="collectibleNext" class="btn light" onclick="changeCollectiblePage(1)">다음 ›</button></div></div>
         </div>
       </section>
     </main>
@@ -253,7 +265,7 @@
         <button onclick="openPhoneApp('stocks')"><span class="app app-stock">📈</span>판매증권</button>
         <button onclick="openPageFromPhone('market')"><span class="app app-market">🛒</span>중고장터</button>
         <button onclick="openPageFromPhone('collection')"><span class="app app-gacha">🎁</span>소장품</button>
-        <button onclick="openPhoneApp('wallet')"><span class="app app-wallet">💳</span>내 자산</button><button onclick="openPhoneApp('ranking')"><span class="app app-ranking">🏆</span>랭킹</button><button onclick="openPhoneApp('property')"><span class="app app-property">🏢</span>부동산</button><button onclick="openPhoneApp('titles')"><span class="app app-title">🎖️</span>칭호</button>
+        <button onclick="openPhoneApp('wallet')"><span class="app app-wallet">💳</span>내 자산</button><button onclick="openPhoneApp('ranking')"><span class="app app-ranking">🏆</span>랭킹</button><button onclick="openPhoneApp('property')"><span class="app app-property">🏢</span>부동산</button><button onclick="openPhoneApp('titles')"><span class="app app-title">🎖️</span>칭호</button><button onclick="openPhoneApp('skills')"><span class="app app-skills">🧠</span>협상 스킬</button>
       </div></section>
       <section id="phone-stocks" class="phone-screen phone-app hidden">
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매증권</b><small>종목을 눌러 상세 확인</small></div><button onclick="refreshStocks()">↻</button></div>
@@ -261,7 +273,7 @@
         <div id="stockDetailView" class="hidden"><button class="back" onclick="closeStockDetail()">← 목록</button><div id="stockDetail"></div></div>
       </section>
       <section id="phone-wallet" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>내 자산</b><small>계정 저장 정보</small></div><span></span></div><div id="walletView"></div></section><section id="phone-ranking" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매왕 랭킹</b><small>총자산 기준 TOP 20</small></div><button onclick="loadRanking()">↻</button></div><div id="rankingList"></div></section><section id="phone-property" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>부동산</b><small>더 큰 집으로 장식 슬롯 확장</small></div><span></span></div><div id="propertyList"></div></section><section id="phone-titles" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>칭호</b><small>업적을 달성해 칭호 획득</small></div><span></span></div><div id="titleList"></div></section>
-      <button class="home-dot" onclick="phoneHome()">●</button><button class="phone-close" onclick="closePhone()">휴대폰 넣기</button>
+      <section id="phone-skills" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>협상 스킬 트리</b><small>포인트를 투자해 새로운 흥정 수단 해금</small></div><button onclick="loadNegotiationSkills()">↻</button></div><div id="skillTreeList"></div></section><button class="home-dot" onclick="phoneHome()">●</button><button class="phone-close" onclick="closePhone()">휴대폰 넣기</button>
     </div>
   </div>
 </section>
