@@ -46,7 +46,7 @@
     <div class="hud-buttons">
       <button id="manualSaveBtn" class="hud-save" onclick="manualSave()" title="현재 서버 저장 상태 확인"><span>💾</span><b>저장</b><small id="saveStateText">자동 저장</small></button>
       <button id="soundToggle" class="hud-icon" onclick="toggleSound()" title="효과음">🔊</button>
-      <button class="hud-icon" onclick="openPhone()" title="휴대폰">📱</button>
+      <button id="hudPhoneButton" class="hud-icon hud-phone-button" onclick="openPhone()" title="휴대폰">📱<span id="phoneChatUnreadDot" class="chat-unread-dot hidden" aria-label="읽지 않은 채팅"></span></button>
       <button class="hud-icon danger" onclick="logout()" title="로그아웃">🚪</button>
     </div>
   </header>
@@ -271,7 +271,7 @@
         <button onclick="openPhoneApp('stocks')"><span class="app app-stock">📈</span>판매증권</button>
         <button onclick="openPageFromPhone('market')"><span class="app app-market">🛒</span>중고장터</button>
         <button onclick="openPageFromPhone('collection')"><span class="app app-gacha">🎁</span>소장품</button>
-        <button onclick="openPhoneApp('wallet')"><span class="app app-wallet">💳</span>내 자산</button><button onclick="openPhoneApp('ranking')"><span class="app app-ranking">🏆</span>랭킹</button><button onclick="openPhoneApp('property')"><span class="app app-property">🏢</span>부동산</button><button onclick="openPhoneApp('bank')"><span class="app app-bank">🏦</span>은행</button><button onclick="openPhoneApp('business')"><span class="app app-business">🏭</span>사업 관리</button><button onclick="openPhoneApp('titles')"><span class="app app-title">🎖️</span>칭호</button><button onclick="openPhoneApp('chat')"><span class="app app-chat">💬</span>전체 채팅</button><button onclick="openPhoneApp('skills')"><span class="app app-skills">🧠</span>협상 스킬</button>
+        <button onclick="openPhoneApp('wallet')"><span class="app app-wallet">💳</span>내 자산</button><button onclick="openPhoneApp('ranking')"><span class="app app-ranking">🏆</span>랭킹</button><button onclick="openPhoneApp('property')"><span class="app app-property">🏢</span>부동산</button><button onclick="openPhoneApp('bank')"><span class="app app-bank">🏦</span>은행</button><button onclick="openPhoneApp('business')"><span class="app app-business">🏭</span>사업 관리</button><button onclick="openPhoneApp('titles')"><span class="app app-title">🎖️</span>칭호</button><button id="chatAppButton" class="chat-app-button" onclick="openPhoneApp('chat')"><span class="app app-chat">💬<span id="chatAppUnreadDot" class="chat-unread-dot app-dot hidden" aria-label="읽지 않은 채팅"></span></span>전체 채팅</button><button onclick="openPhoneApp('skills')"><span class="app app-skills">🧠</span>협상 스킬</button>
       </div></section>
       <section id="phone-stocks" class="phone-screen phone-app hidden">
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매증권</b><small>종목을 눌러 상세 확인</small></div><button onclick="refreshStocks()">↻</button></div>
