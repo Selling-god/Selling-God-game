@@ -245,7 +245,7 @@ function renderNegotiation(){
   const n=negotiation,profit=negotiationProfit(n),profitPct=n.base?profit/n.base*100:0;
   const ceiling=Math.max(1,n.limit-n.base),progress=Math.max(0,Math.min(100,(n.npcOffer-n.base)/ceiling*100));
   const patiencePct=Math.max(0,n.patience/n.maxPatience*100);
-  const recommended=Math.min(n.limit,Math.round(Math.max(n.npcOffer+1000,n.npcOffer*1.05,n.market*.98)));
+  const recommended=Math.round(Math.max(n.npcOffer+1000,n.npcOffer*1.05,n.market*.98));
   const history=n.history.map(x=>`<div class="chat ${x.who}"><b>${x.who==="npc"?n.persona.name:"나"}</b><span>${esc(x.text)}</span></div>`).join("");
   const actions=[
     {code:"polite",icon:"🤝",name:"정중한 재제안",desc:"기본 기술 · 안전하지만 상승폭이 작음",free:true},
@@ -262,12 +262,12 @@ function renderNegotiation(){
     <div class="haggle-bars"><label>NPC 인내심 <i><em style="width:${patiencePct}%"></em></i></label><label>흥정 성과 <i><em style="width:${progress}%"></em></i></label></div>
     <div id="negChat" class="neg-chat">${history}</div>
     ${n.ended?`<div class="final-offer"><b>최종 제안</b><strong>${money(n.npcOffer)}</strong><button onclick="acceptNpcCounter()">이 가격에 계약</button></div>`:`
-      <div class="manual-offer advanced"><div class="offer-copy"><label>내 희망 판매가</label><small>추천 ${money(recommended)} · 최대 예상 ${money(n.limit)}</small></div><div class="offer-controls"><button onclick="adjustHaggleAsk(-10000)">-1만</button><button onclick="adjustHaggleAsk(-1000)">-1천</button><input id="haggleAsk" type="number" min="${n.npcOffer+1}" max="${n.limit}" value="${recommended}"><button onclick="adjustHaggleAsk(1000)">+1천</button><button onclick="adjustHaggleAsk(10000)">+1만</button><button class="recommend" onclick="setRecommendedHaggle(${recommended})">추천가</button></div></div>
+      <div class="manual-offer advanced"><div class="offer-copy"><label>내 희망 판매가</label><small>추천 ${money(recommended)} · 희망가는 자유롭게 입력 가능</small></div><div class="offer-controls"><button onclick="adjustHaggleAsk(-10000)">-1만</button><button onclick="adjustHaggleAsk(-1000)">-1천</button><input id="haggleAsk" type="number" min="${n.npcOffer+1}" step="1000" value="${recommended}"><button onclick="adjustHaggleAsk(1000)">+1천</button><button onclick="adjustHaggleAsk(10000)">+1만</button><button class="recommend" onclick="setRecommendedHaggle(${recommended})">추천가</button></div></div>
       <div class="haggle-actions skill-grid">${actionHtml}</div>`}
     <button class="accept-now" onclick="acceptNpcCounter()">현재 제안 확정 · 순이익 ${profit>=0?'+':''}${money(profit)}</button>`;
   requestAnimationFrame(()=>{const chat=document.getElementById('negChat');if(chat)chat.scrollTop=chat.scrollHeight});
 }
-function adjustHaggleAsk(delta){const el=document.getElementById('haggleAsk'),n=negotiation;if(!el||!n)return;el.value=Math.max(n.npcOffer+1,Math.min(n.limit,Math.round(Number(el.value||n.npcOffer)+delta)))}
+function adjustHaggleAsk(delta){const el=document.getElementById('haggleAsk'),n=negotiation;if(!el||!n)return;el.value=Math.max(n.npcOffer+1,Math.round(Number(el.value||n.npcOffer)+delta))}
 function setRecommendedHaggle(value){const el=document.getElementById('haggleAsk');if(el)el.value=value}
 function openSkillTreeFromNegotiation(){toast('휴대폰의 협상 스킬 앱에서 기술을 해금하세요.');closeNegotiation();openPhone();openPhoneApp('skills')}
 function submitNegotiationOffer(style){
@@ -288,7 +288,7 @@ function submitNegotiationOffer(style){
   const fail=Math.min(.88,cfg.risk+difficulty*.62+n.persona.pressure*(style==="walkaway"?.25:.05));
   n.history.push({who:"me",text:`${cfg.label}${style==='silence'?'':` 희망 가격은 ${money(target)}.`}`});n.round++;n.patience=Math.max(0,n.patience-cfg.cost);
   if(Math.random()<fail){n.mood="bad";n.patience=Math.max(0,n.patience-1);const cut=style==="walkaway"&&Math.random()<.4?Math.round((n.npcOffer-n.base)*.22):0;n.npcOffer=Math.max(n.base,n.npcOffer-cut);n.history.push({who:"npc",text:n.patience<=0?`이제 끝내지. ${money(n.npcOffer)}이 마지막 제안이야.`:`그 방법은 통하지 않아. ${cut?'내 제안을 오히려 낮추겠네.':'좀 더 현실적인 이야기를 하게.'}`});if(n.patience<=0)n.ended=true;renderNegotiation();return}
-  const gain=Math.max(1,Math.round((target-n.npcOffer)*cfg.power*(.82+Math.random()*.28)));n.npcOffer=Math.min(n.limit,n.npcOffer+gain);n.mood="good";n.history.push({who:"npc",text:`좋아. ${money(n.npcOffer)}까지 올리지. ${n.patience<=1?'이게 거의 마지막 양보야.':'다음 제안도 들어보겠네.'}`});if(n.npcOffer>=n.limit||n.patience<=0)n.ended=true;renderNegotiation()
+  const gain=Math.max(1,Math.round((target-n.npcOffer)*cfg.power*(.82+Math.random()*.28)));n.npcOffer=Math.min(n.limit,n.npcOffer+gain);n.mood="good";n.history.push({who:"npc",text:`좋아. ${money(n.npcOffer)}까지 올리지. ${n.patience<=1?'이게 거의 마지막 양보야.':'다음 제안도 들어보겠네.'}`});if(n.patience<=0)n.ended=true;renderNegotiation()
 }
 async function acceptNpcCounter(){
   const n=negotiation;if(!n)return;const final=Math.round(n.npcOffer),profit=negotiationProfit(n,final);
@@ -1117,3 +1117,321 @@ async function acceptNpcBuyDeal(){
   await Promise.all([loadProfile(),loadInventory(),loadNpcOffers()]);
   updateNetworth();
 }
+
+
+/* ============================================================
+   v28 INITIAL PROFILE / STOCK COUNTDOWN / NETWORTH RANKING FIX
+============================================================ */
+let stockNextUpdateAt=null;
+let stockCountdownTimer=null;
+
+function setStockNextUpdate(value){
+  if(!value)return;
+  const d=new Date(value);
+  if(!Number.isNaN(d.getTime()))stockNextUpdateAt=d;
+  renderStockCountdown();
+}
+
+function renderStockCountdown(){
+  const el=document.getElementById('stockNextUpdate');
+  if(!el)return;
+  if(!stockNextUpdateAt){el.textContent='시세 확인 중';return;}
+  const seconds=Math.max(0,Math.ceil((stockNextUpdateAt.getTime()-Date.now())/1000));
+  const min=Math.floor(seconds/60);
+  const sec=seconds%60;
+  el.textContent=seconds<=0?'곧 변동':`${min}분 ${String(sec).padStart(2,'0')}초 후`;
+}
+
+function startStockCountdown(){
+  if(stockCountdownTimer)clearInterval(stockCountdownTimer);
+  renderStockCountdown();
+  stockCountdownTimer=setInterval(renderStockCountdown,1000);
+}
+
+async function updateStocks(){
+  const{data,error}=await db.rpc('update_global_stock_market_v26');
+  if(error){console.warn('주식 시세 갱신 실패',error.message);return null;}
+  if(data?.next_update)setStockNextUpdate(data.next_update);
+  return data;
+}
+
+async function syncStockClock(){
+  const{data,error}=await db.from('stock_market_state').select('last_updated').eq('id',1).maybeSingle();
+  if(error||!data?.last_updated)return;
+  setStockNextUpdate(new Date(new Date(data.last_updated).getTime()+180000).toISOString());
+}
+
+async function enterGame(){
+  const{error:saveError}=await db.rpc('ensure_player_save');
+  if(saveError){toast('저장 데이터 확인 실패: '+saveError.message);showAuth();return;}
+  await db.rpc('sync_skill_points_v15').catch(()=>{});
+  await loadProfile();
+  if(!profile){showAuth();return;}
+  showGame();
+  await Promise.all([loadInventory(),loadStocks(),loadCollectibles(),loadEffects(),syncStockClock()]);
+  await updateStocks();
+  updateNetworth();
+  subscribe();
+  startGlobalStockTicker();
+  startStockCountdown();
+  setTimeout(hideBootScreen,280);
+}
+
+async function refreshAll(){
+  await loadProfile();
+  if(!profile)return;
+  await Promise.all([loadInventory(),loadStocks(),loadCollectibles(),loadEffects(),syncStockClock()]);
+  await updateStocks();
+  updateNetworth();
+}
+
+async function loadRanking(){
+  const{data,error}=await db.rpc('get_leaderboard_v28');
+  if(error)return rankingList.innerHTML=`<p>${esc(error.message)}</p>`;
+  rankingList.innerHTML=(data||[]).map((r,i)=>`<div class="rank-row ${r.user_id===currentUser.id?'me':''}"><b>${i+1}</b><span><strong>${esc(r.nickname)}</strong><small class="title-badge ${titleClass(r.active_title)}">${esc(r.active_title||'초보 장사꾼')}</small></span><em>${money(r.networth)}</em></div>`).join('');
+}
+
+const __v28Logout=logout;
+logout=async function(){
+  if(stockCountdownTimer){clearInterval(stockCountdownTimer);stockCountdownTimer=null;}
+  stockNextUpdateAt=null;
+  return __v28Logout();
+};
+
+/* ============================================================
+   v29 NEGOTIATION CONTROL HOTFIX
+   - inline onclick 의존 제거
+   - 이벤트 위임으로 전당포/NPC 중고 흥정 버튼 안정화
+   - 클릭 즉시 화면 피드백 및 오류 표시
+============================================================ */
+let negotiationControlBound=false;
+let negotiationActionBusy=false;
+
+function installNegotiationControls(){
+  if(negotiationControlBound)return;
+  negotiationControlBound=true;
+  document.addEventListener('click',async(e)=>{
+    const btn=e.target.closest('[data-neg-action]');
+    if(!btn)return;
+    e.preventDefault();
+    e.stopPropagation();
+    if(negotiationActionBusy||btn.disabled)return;
+    const action=btn.dataset.negAction;
+    const value=btn.dataset.value;
+    try{
+      if(action==='pawn-style'){
+        submitNegotiationOfferSafe(value);
+      }else if(action==='pawn-adjust'){
+        adjustHaggleAsk(Number(value||0));
+      }else if(action==='pawn-recommend'){
+        setRecommendedHaggle(Number(value||0));
+      }else if(action==='pawn-accept'){
+        negotiationActionBusy=true;setNegotiationButtonsDisabled(true);
+        await acceptNpcCounterSafe();
+      }else if(action==='npc-style'){
+        selectNpcBuyStyle(value);renderNpcBuyNegotiationSafe();
+      }else if(action==='npc-adjust'){
+        adjustNpcBuyAsk(Number(value||0));
+      }else if(action==='npc-recommend'){
+        setNpcBuyRecommended(Number(value||0));
+      }else if(action==='npc-submit'){
+        submitNpcBuyOfferSafe();
+      }else if(action==='npc-accept'){
+        negotiationActionBusy=true;setNegotiationButtonsDisabled(true);
+        await acceptNpcBuyDeal();
+      }
+    }catch(err){
+      console.error('Negotiation action failed:',err);
+      toast(`흥정 처리 중 오류: ${err?.message||err}`);
+    }finally{
+      negotiationActionBusy=false;
+      setNegotiationButtonsDisabled(false);
+    }
+  },true);
+}
+
+function setNegotiationButtonsDisabled(disabled){
+  document.querySelectorAll('#negotiationContent [data-neg-action]').forEach(b=>b.disabled=disabled);
+}
+
+function negotiationFeedback(message,type='info'){
+  const host=document.getElementById('negotiationFeedback');
+  if(!host)return;
+  host.className=`negotiation-feedback ${type}`;
+  host.textContent=message;
+}
+
+function submitNegotiationOfferSafe(style){
+  const n=negotiation;
+  if(!n||n.type!=='pawn'||n.ended)return;
+  const el=document.getElementById('haggleAsk');
+  const raw=Number(el?.value);
+  if(!Number.isFinite(raw))return negotiationFeedback('희망 판매가를 숫자로 입력하세요.','error');
+  const ask=Math.max(n.npcOffer+1,Math.round(raw));
+  if(el)el.value=ask;
+  const configs={
+    polite:{risk:.05,power:.34,cost:0,label:'예의를 갖춰 조금 더 좋은 가격을 부탁했다.'},
+    evidence:{risk:.10,power:.58,cost:0,label:'최근 거래 시세와 상태 자료를 근거로 제시했다.'},
+    story:{risk:.20,power:.74,cost:1,label:'물건의 희소성과 사연을 설득력 있게 설명했다.'},
+    cash:{risk:.16,power:.67,cost:1,label:'지금 바로 현금으로 거래하겠다는 조건을 제시했다.'},
+    silence:{risk:.24,power:.82,cost:1,label:'대답하지 않고 조용히 상대의 다음 제안을 기다렸다.'},
+    walkaway:{risk:.48,power:1,cost:2,label:'다른 구매자에게 팔겠다며 협상 결렬을 압박했다.'}
+  };
+  const cfg=configs[style]||configs.polite;
+  if(style!=='polite'){
+    const need={evidence:'market_data',story:'storytelling',cash:'quick_deal',silence:'silence_pressure',walkaway:'walkaway'}[style];
+    if(need&&!hasHaggleSkill(need))return negotiationFeedback('해당 협상 스킬을 먼저 해금해야 합니다.','error');
+  }
+  const maxPatience=Math.max(1,Number(n.maxPatience||n.persona?.patience||1));
+  n.maxPatience=maxPatience;
+  const target=style==='silence'?Math.round(n.npcOffer+Math.max(1000,(n.limit-n.npcOffer)*(.22+Math.random()*.18))):ask;
+  const softBudget=Math.max(n.npcOffer+1,Number(n.limit||n.market||n.npcOffer));
+  const gap=(target-n.npcOffer)/Math.max(1,softBudget-n.npcOffer);
+  const overBudget=Math.max(0,target-softBudget)/Math.max(1,softBudget);
+  const difficulty=Math.max(0,gap-Number(n.persona?.openness||.5));
+  const fail=Math.min(.97,cfg.risk+difficulty*.62+overBudget*1.85+Number(n.persona?.pressure||.2)*(style==='walkaway'?.25:.05));
+  n.history.push({who:'me',text:`${cfg.label}${style==='silence'?'':` 희망 가격은 ${money(target)}.`}`});
+  n.round+=1;
+  n.patience=Math.max(0,Number(n.patience||0)-cfg.cost);
+  if(Math.random()<fail){
+    n.mood='bad';
+    n.patience=Math.max(0,n.patience-1);
+    const cut=style==='walkaway'&&Math.random()<.4?Math.round((n.npcOffer-n.base)*.22):0;
+    n.npcOffer=Math.max(n.base,n.npcOffer-cut);
+    n.history.push({who:'npc',text:n.patience<=0?`이제 끝내지. ${money(n.npcOffer)}이 마지막 제안이야.`:`그 방법은 통하지 않아. ${cut?'내 제안을 오히려 낮추겠네.':'좀 더 현실적인 이야기를 하게.'}`});
+    if(n.patience<=0)n.ended=true;
+    renderNegotiationSafe('제안이 거절되었습니다.','error');
+    return;
+  }
+  const resistance=1/(1+Math.max(0,target-n.limit)/Math.max(1,n.limit)*2.8);
+  const gain=Math.max(1,Math.round((target-n.npcOffer)*cfg.power*resistance*(.82+Math.random()*.28)));
+  n.npcOffer=n.npcOffer+gain;
+  n.mood='good';
+  n.history.push({who:'npc',text:`좋아. ${money(n.npcOffer)}까지 올리지. ${n.patience<=1?'이게 거의 마지막 양보야.':'다음 제안도 들어보겠네.'}`});
+  if(n.patience<=0)n.ended=true;
+  renderNegotiationSafe(`제안 성공! 현재 제안이 ${money(n.npcOffer)}로 올랐습니다.`,'success');
+}
+
+function submitNpcBuyOfferSafe(){
+  const n=negotiation;
+  if(!n||n.type!=='npc_buy'||n.ended)return;
+  const style=n.selectedStyle||'direct';
+  const el=document.getElementById('npcBuyAsk');
+  const raw=Number(el?.value);
+  if(!Number.isFinite(raw))return negotiationFeedback('희망 구매가를 숫자로 입력하세요.','error');
+  const ask=Math.max(n.minPrice,Math.min(n.npcOffer-1,Math.round(raw)));
+  if(el)el.value=ask;
+  const cfg={
+    direct:{risk:.16,power:.34,cost:1,label:'희망 가격을 단도직입적으로 제시했다.'},
+    polite:{risk:.08,power:.28,cost:0,label:'예의를 갖춰 가격 조정을 부탁했다.'},
+    evidence:{risk:.12,power:.52,cost:1,label:'최근 시세와 거래가를 근거로 제시했다.'},
+    defect:{risk:.15,power:.50,cost:1,label:'상태와 흠집을 근거로 감가를 요청했다.'},
+    story:{risk:.13,power:.44,cost:1,label:'물건을 아껴 쓸 구매자라는 점을 강조했다.'},
+    cash:{risk:.17,power:.58,cost:1,label:'지금 바로 결제하겠다고 약속했다.'},
+    walk:{risk:.38,power:.86,cost:2,label:'다른 매물과 비교하고 자리를 뜰 듯 행동했다.'}
+  }[style];
+  const liked=n.persona.likes.includes(style),disliked=n.persona.dislikes.includes(style);
+  const conditionBonus=style==='defect'?(100-n.condition)/150:0;
+  const matchBonus=liked?.13:disliked?-.14:0;
+  const gap=(n.npcOffer-ask)/Math.max(1,n.npcOffer-n.minPrice);
+  const fail=Math.max(.03,Math.min(.92,cfg.risk+Math.max(0,gap-(n.persona.openness+matchBonus))*.72-conditionBonus-(liked?.08:0)+(disliked?.15:0)));
+  n.history.push({who:'me',text:`${cfg.label} 내 희망가는 ${money(ask)}.`});
+  n.round+=1;
+  n.patience=Math.max(0,Number(n.patience||0)-cfg.cost);
+  if(Math.random()<fail){
+    n.patience=Math.max(0,n.patience-1);
+    const bounce=disliked&&Math.random()<.45?Math.round((n.asking-n.npcOffer)*.18):0;
+    n.npcOffer=Math.min(n.asking,n.npcOffer+bounce);
+    n.history.push({who:'npc',text:n.patience<=0?`더는 조정하지 않겠습니다. ${money(n.npcOffer)}이 최종 가격입니다.`:`${n.persona.reject}${bounce?` 오히려 가격을 ${money(n.npcOffer)}로 되돌리겠습니다.`:''}`});
+    if(n.patience<=0)n.ended=true;
+    renderNpcBuyNegotiationSafe('판매자가 제안을 거절했습니다.','error');
+    return;
+  }
+  const personalityPower=liked?1.18:disliked?.72:1;
+  const cut=Math.max(1,Math.round((n.npcOffer-ask)*cfg.power*personalityPower*(.82+Math.random()*.28)));
+  n.npcOffer=Math.max(n.minPrice,n.npcOffer-cut);
+  n.history.push({who:'npc',text:`${n.persona.success} ${money(n.npcOffer)}까지 낮추겠습니다.`});
+  if(n.npcOffer<=n.minPrice||n.patience<=0)n.ended=true;
+  renderNpcBuyNegotiationSafe(`흥정 성공! 현재 구매가가 ${money(n.npcOffer)}로 내려갔습니다.`,'success');
+}
+
+function renderNegotiationSafe(feedback='',feedbackType='info'){
+  const n=negotiation;
+  if(!n||n.type!=='pawn')return;
+  installNegotiationControls();
+  negotiationModal.classList.remove('hidden');
+  const profit=negotiationProfit(n),profitPct=n.base?profit/n.base*100:0;
+  const ceiling=Math.max(1,n.limit-n.base),progress=Math.max(0,Math.min(100,(n.npcOffer-n.base)/ceiling*100));
+  const maxPatience=Math.max(1,Number(n.maxPatience||n.persona?.patience||1));n.maxPatience=maxPatience;
+  const patiencePct=Math.max(0,Math.min(100,Number(n.patience||0)/maxPatience*100));
+  const recommended=Math.round(Math.max(n.npcOffer+1000,n.npcOffer*1.05,n.market*.98));
+  const history=n.history.map(x=>`<div class="chat ${x.who}"><b>${x.who==='npc'?esc(n.persona.name):'나'}</b><span>${esc(x.text)}</span></div>`).join('');
+  const actions=[
+    {code:'polite',icon:'🤝',name:'정중한 재제안',desc:'기본 기술 · 안전하지만 상승폭이 작음',free:true},
+    {code:'evidence',skill:'market_data',icon:'📊',name:'시세 자료 제시',desc:'안전형 · 인내심 소모가 적음'},
+    {code:'story',skill:'storytelling',icon:'✨',name:'가치와 사연 강조',desc:'균형형 · 성공 시 큰 폭 상승'},
+    {code:'cash',skill:'quick_deal',icon:'💵',name:'지금 바로 현금 거래',desc:'빠른 계약을 조건으로 가격 인상'},
+    {code:'silence',skill:'silence_pressure',icon:'🤐',name:'침묵하며 기다리기',desc:'가격을 말하지 않고 NPC 재제안 유도'},
+    {code:'walkaway',skill:'walkaway',icon:'🚪',name:'다른 곳에 팔겠다고 압박',desc:'최고위험 · 성공 시 가장 큰 인상'}
+  ];
+  const actionHtml=actions.map(a=>{const unlocked=a.free||hasHaggleSkill(a.skill);return `<button type="button" class="haggle-skill-btn ${unlocked?'':'locked'}" ${unlocked?`data-neg-action="pawn-style" data-value="${a.code}"`:`onclick="openSkillTreeFromNegotiation()"`}><b>${a.icon} ${a.name}</b><small>${unlocked?a.desc:`🔒 ${HAGGLE_SKILLS[a.skill]?.name||''} 해금 필요`}</small></button>`}).join('');
+  negotiationContent.innerHTML=`
+    <div class="haggle-top"><div><p class="eyebrow">LIVE NEGOTIATION · ROUND ${n.round}</p><h2>${esc(n.title)}</h2></div><div class="dealer-profile"><strong>${n.persona.icon} ${n.persona.name}</strong><small>${n.persona.line}</small></div></div>
+    <div class="deal-summary deluxe"><div><span>즉시 판매 기준</span><b>${money(n.base)}</b></div><div><span>참고 시세</span><b>${money(n.market)}</b></div><div class="offer-main"><span>현재 제안</span><b>${money(n.npcOffer)}</b></div><div class="profit-main"><span>확정 추가이익</span><b class="${profit>=0?'up':'down'}">${profit>=0?'+':''}${money(profit)}</b><small>${profitPct>=0?'+':''}${profitPct.toFixed(1)}%</small></div></div>
+    <div class="haggle-bars"><label>NPC 인내심 <i><em style="width:${patiencePct}%"></em></i></label><label>흥정 성과 <i><em style="width:${progress}%"></em></i></label></div>
+    <div id="negotiationFeedback" class="negotiation-feedback ${feedbackType}">${esc(feedback||'희망가를 조절한 뒤 흥정 방식을 선택하세요.')}</div>
+    <div id="negChat" class="neg-chat">${history}</div>
+    ${n.ended?`<div class="final-offer"><b>최종 제안</b><strong>${money(n.npcOffer)}</strong><button type="button" data-neg-action="pawn-accept">이 가격에 계약</button></div>`:`
+      <div class="manual-offer advanced"><div class="offer-copy"><label>내 희망 판매가</label><small>추천 ${money(recommended)} · 희망가는 자유롭게 입력 가능</small></div><div class="offer-controls"><button type="button" data-neg-action="pawn-adjust" data-value="-10000">-1만</button><button type="button" data-neg-action="pawn-adjust" data-value="-1000">-1천</button><input id="haggleAsk" type="number" min="${n.npcOffer+1}" step="1000" value="${recommended}"><button type="button" data-neg-action="pawn-adjust" data-value="1000">+1천</button><button type="button" data-neg-action="pawn-adjust" data-value="10000">+1만</button><button type="button" class="recommend" data-neg-action="pawn-recommend" data-value="${recommended}">추천가</button></div></div>
+      <div class="haggle-actions skill-grid">${actionHtml}</div>`}
+    <button type="button" class="accept-now" data-neg-action="pawn-accept">현재 제안 확정 · 순이익 ${profit>=0?'+':''}${money(profit)}</button>`;
+  injectPatienceTradePreview();
+  requestAnimationFrame(()=>{const chat=document.getElementById('negChat');if(chat)chat.scrollTop=chat.scrollHeight});
+}
+
+function renderNpcBuyNegotiationSafe(feedback='',feedbackType='info'){
+  const n=negotiation;if(!n||n.type!=='npc_buy')return;
+  installNegotiationControls();
+  negotiationModal.classList.remove('hidden');applyNpcCharacter(n.persona);
+  const discount=n.asking-n.npcOffer,discountPct=n.asking?discount/n.asking*100:0;
+  const recommended=Math.max(n.minPrice,Math.round(n.npcOffer-(n.npcOffer-n.minPrice)*.45));
+  const maxPatience=Math.max(1,Number(n.maxPatience||n.persona?.patience||1));n.maxPatience=maxPatience;
+  const patiencePct=Math.max(0,Math.min(100,Number(n.patience||0)/maxPatience*100));
+  const history=n.history.map(x=>`<div class="chat ${x.who}"><b>${x.who==='npc'?esc(n.persona.name):'나'}</b><span>${esc(x.text)}</span></div>`).join('');
+  const tactics=[['direct','💬','희망가만 제시','기본 제안'],['polite','🤝','정중하게 요청','친절한 판매자에게 효과적'],['evidence','📊','시세 근거 제시','계산적인 판매자에게 효과적'],['defect','🔎','상태 흠집 지적','상태가 낮을수록 효과적'],['story','✨','좋은 구매자 강조','감성적인 판매자에게 효과적'],['cash','💵','즉시 결제 약속','급한 판매자에게 효과적'],['walk','🚶','다른 매물 비교','고위험 전략']];
+  negotiationContent.innerHTML=`
+    <div class="haggle-top"><div><p class="eyebrow">SECONDHAND NEGOTIATION · ROUND ${n.round}</p><h2>${esc(n.title)}</h2></div><div class="dealer-profile npc-profile-${n.persona.theme}"><strong>${n.persona.face} ${esc(n.persona.name)}</strong><small>${esc(n.persona.role)} · ${esc(n.persona.temperament)}</small><em>${esc(n.persona.preview)}</em></div></div>
+    <div class="deal-summary deluxe buy-mode"><div><span>최초 판매가</span><b>${money(n.asking)}</b></div><div><span>판매자 마지노선</span><b>${money(n.minPrice)}</b></div><div class="offer-main"><span>현재 구매가</span><b>${money(n.npcOffer)}</b></div><div class="profit-main"><span>현재 절약액</span><b class="up">-${money(discount)}</b><small>${discountPct.toFixed(1)}% 할인</small></div></div>
+    <div class="haggle-bars"><label>판매자 인내심 <i><em style="width:${patiencePct}%"></em></i></label><label>할인 진행 <i><em style="width:${Math.min(100,discount/Math.max(1,n.asking-n.minPrice)*100)}%"></em></i></label></div>
+    <div id="negotiationFeedback" class="negotiation-feedback ${feedbackType}">${esc(feedback||'전략과 희망가를 선택한 뒤 제시 버튼을 누르세요.')}</div>
+    <div id="negChat" class="neg-chat">${history}</div>
+    ${n.ended?`<div class="final-offer"><b>최종 판매가</b><strong>${money(n.npcOffer)}</strong><button type="button" data-neg-action="npc-accept">이 가격에 구매</button></div>`:`
+      <div class="manual-offer advanced npc-offer-box"><div class="offer-copy"><label>내 희망 구매가</label><small>직접 입력 후 희망가 제시 · 추천 ${money(recommended)}</small></div><div class="offer-controls"><button type="button" data-neg-action="npc-adjust" data-value="-10000">-1만</button><button type="button" data-neg-action="npc-adjust" data-value="-1000">-1천</button><input id="npcBuyAsk" type="number" min="${n.minPrice}" max="${n.npcOffer-1}" value="${recommended}"><button type="button" data-neg-action="npc-adjust" data-value="1000">+1천</button><button type="button" data-neg-action="npc-adjust" data-value="10000">+1만</button><button type="button" class="recommend" data-neg-action="npc-recommend" data-value="${recommended}">추천가</button></div></div>
+      <div class="npc-tactic-grid">${tactics.map(([code,icon,title,desc])=>`<button type="button" class="npc-tactic ${n.selectedStyle===code?'selected':''}" data-neg-action="npc-style" data-value="${code}"><b>${icon} ${title}</b><small>${desc}</small></button>`).join('')}</div>
+      <button type="button" class="submit-price-offer" data-neg-action="npc-submit">💬 내 희망가 제시</button>`}
+    <button type="button" class="accept-now" data-neg-action="npc-accept">현재 가격으로 구매 · ${money(n.npcOffer)}</button>`;
+  injectPatienceTradePreview();
+  requestAnimationFrame(()=>{const chat=document.getElementById('negChat');if(chat)chat.scrollTop=chat.scrollHeight});
+}
+
+async function acceptNpcCounterSafe(){
+  const n=negotiation;if(!n)return;
+  const final=Math.round(n.npcOffer),profit=negotiationProfit(n,final);
+  if(n.type==='pawn'){
+    const {data,error}=await db.rpc('sell_item_to_pawnshop_v27',{p_user_item_id:n.id,p_mode:'negotiated',p_offer_percent:Math.round(final/n.base*100),p_patience_remaining:n.patience,p_patience_max:n.maxPatience});
+    if(error){negotiationFeedback(error.message,'error');return;}
+    reputationToast(data,'판매 '+money(data.final_price));
+    saveTradeLedger({title:n.title,base:n.base,final,profit,rounds:n.round-1,persona:n.persona?.name||'NPC'});
+    closeNegotiation();
+    await Promise.all([loadProfile(),loadPawnshop(),loadInventory()]);updateNetworth();
+  }
+}
+
+const startPawnNegotiationV28=startPawnNegotiation;
+startPawnNegotiation=function(id){startPawnNegotiationV28(id);renderNegotiationSafe();};
+const startNpcOfferV28=startNpcOffer;
+startNpcOffer=async function(id){await startNpcOfferV28(id);renderNpcBuyNegotiationSafe();};
+renderNegotiation=renderNegotiationSafe;
+renderNpcBuyNegotiation=renderNpcBuyNegotiationSafe;
+
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installNegotiationControls,{once:true});else installNegotiationControls();
