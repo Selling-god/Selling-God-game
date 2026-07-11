@@ -44,6 +44,7 @@
       <div><span>총자산</span><b id="networth">0원</b></div>
     </div>
     <div class="hud-buttons">
+      <button id="manualSaveBtn" class="hud-save" onclick="manualSave()" title="현재 서버 저장 상태 확인"><span>💾</span><b>저장</b><small id="saveStateText">자동 저장</small></button>
       <button id="soundToggle" class="hud-icon" onclick="toggleSound()" title="효과음">🔊</button>
       <button class="hud-icon" onclick="openPhone()" title="휴대폰">📱</button>
       <button class="hud-icon danger" onclick="logout()" title="로그아웃">🚪</button>
@@ -270,14 +271,18 @@
         <button onclick="openPhoneApp('stocks')"><span class="app app-stock">📈</span>판매증권</button>
         <button onclick="openPageFromPhone('market')"><span class="app app-market">🛒</span>중고장터</button>
         <button onclick="openPageFromPhone('collection')"><span class="app app-gacha">🎁</span>소장품</button>
-        <button onclick="openPhoneApp('wallet')"><span class="app app-wallet">💳</span>내 자산</button><button onclick="openPhoneApp('ranking')"><span class="app app-ranking">🏆</span>랭킹</button><button onclick="openPhoneApp('property')"><span class="app app-property">🏢</span>부동산</button><button onclick="openPhoneApp('titles')"><span class="app app-title">🎖️</span>칭호</button><button onclick="openPhoneApp('chat')"><span class="app app-chat">💬</span>전체 채팅</button><button onclick="openPhoneApp('skills')"><span class="app app-skills">🧠</span>협상 스킬</button>
+        <button onclick="openPhoneApp('wallet')"><span class="app app-wallet">💳</span>내 자산</button><button onclick="openPhoneApp('ranking')"><span class="app app-ranking">🏆</span>랭킹</button><button onclick="openPhoneApp('property')"><span class="app app-property">🏢</span>부동산</button><button onclick="openPhoneApp('bank')"><span class="app app-bank">🏦</span>은행</button><button onclick="openPhoneApp('titles')"><span class="app app-title">🎖️</span>칭호</button><button onclick="openPhoneApp('chat')"><span class="app app-chat">💬</span>전체 채팅</button><button onclick="openPhoneApp('skills')"><span class="app app-skills">🧠</span>협상 스킬</button>
       </div></section>
       <section id="phone-stocks" class="phone-screen phone-app hidden">
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매증권</b><small>종목을 눌러 상세 확인</small></div><button onclick="refreshStocks()">↻</button></div>
         <div id="stockListView"><div class="summary"><div><span>평가액</span><b id="stockValue">0원</b></div><div><span>평가손익</span><b id="stockProfit">0원</b></div></div><div id="stockList"></div></div>
         <div id="stockDetailView" class="hidden"><button class="back" onclick="closeStockDetail()">← 목록</button><div id="stockDetail"></div></div>
       </section>
-      <section id="phone-wallet" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>내 자산</b><small>계정 저장 정보</small></div><span></span></div><div id="walletView"></div></section><section id="phone-ranking" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매왕 랭킹</b><small>총자산 기준 TOP 20</small></div><button onclick="loadRanking()">↻</button></div><div id="rankingList"></div></section><section id="phone-property" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>부동산</b><small>더 큰 집으로 장식 슬롯 확장</small></div><span></span></div><div id="propertyList"></div></section><section id="phone-titles" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>칭호</b><small>업적을 달성해 칭호 획득</small></div><span></span></div><div id="titleList"></div></section>
+      <section id="phone-wallet" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>내 자산</b><small>계정 저장 정보</small></div><span></span></div><div id="walletView"></div></section><section id="phone-ranking" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매왕 랭킹</b><small>총자산 기준 TOP 20</small></div><button onclick="loadRanking()">↻</button></div><div id="rankingList"></div></section><section id="phone-property" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>부동산</b><small>더 큰 집으로 장식 슬롯 확장</small></div><button onclick="loadProperties()">↻</button></div><div id="propertyList"></div></section>
+      <section id="phone-bank" class="phone-screen phone-app hidden">
+        <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매은행</b><small>예금·적금·대출은 서버에 자동 저장</small></div><button onclick="loadBank()">↻</button></div>
+        <div id="bankView" class="bank-view"><div class="bank-loading">은행 정보를 불러오는 중...</div></div>
+      </section><section id="phone-titles" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>칭호</b><small>업적을 달성해 칭호 획득</small></div><span></span></div><div id="titleList"></div></section>
       <section id="phone-chat" class="phone-screen phone-app chat-app hidden">
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>전체 채팅</b><small>장착 칭호와 함께 대화하세요</small></div><button onclick="loadChatMessages()">↻</button></div>
         <div class="chat-notice">욕설·도배 없이 즐겁게 거래 정보를 나눠 주세요.</div>
