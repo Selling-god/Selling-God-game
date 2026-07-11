@@ -29,7 +29,8 @@ async function enterGame(){
   showGame();
   const{error:saveError}=await db.rpc("ensure_player_save");
   if(saveError){toast("저장 데이터 확인 실패: "+saveError.message);return}
-  await db.rpc("sync_skill_points_v15").catch(()=>{});
+  const { error: skillSyncError } = await db.rpc("sync_skill_points_v15");
+  if(skillSyncError) console.warn("스킬 포인트 동기화 실패:", skillSyncError.message);
   await refreshAll();
   subscribe();
   startGlobalStockTicker();
@@ -1164,7 +1165,8 @@ async function syncStockClock(){
 async function enterGame(){
   const{error:saveError}=await db.rpc('ensure_player_save');
   if(saveError){toast('저장 데이터 확인 실패: '+saveError.message);showAuth();return;}
-  await db.rpc('sync_skill_points_v15').catch(()=>{});
+  const { error: skillSyncError } = await db.rpc('sync_skill_points_v15');
+  if(skillSyncError) console.warn('스킬 포인트 동기화 실패:', skillSyncError.message);
   await loadProfile();
   if(!profile){showAuth();return;}
   showGame();
