@@ -2,7 +2,7 @@ const SUPABASE_URL="https://qazjtevdljthbzmqmgrw.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_rIARlWBpKPvFAv_TtTdgaQ_Po-hOGmX";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
-let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,auctionChoices=[],sellerAuction=null,negotiation=null,job=null,selectedStock=null,toastTimer=null,realtime=null,negotiationSkills={},collectiblePage=1,casePage=1,decorationPage=1;
+let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,auctionChoices=[],sellerAuction=null,negotiation=null,job=null,selectedStock=null,toastTimer=null,realtime=null,negotiationSkills={},collectiblePage=1,casePage=1,decorationPage=1,chatBusy=false;
 
 document.addEventListener("DOMContentLoaded",()=>{init();initPremiumUI()});
 async function init(){
@@ -32,7 +32,21 @@ async function logout(){if(realtime)await db.removeChannel(realtime);await db.au
 function openPage(name,btn){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));document.getElementById("page-"+name).classList.add("active");btn?.classList.add("active");({inventory:loadInventory,pawnshop:loadPawnshop,auction:loadAuctionLobby,market:loadMarketHub,house:loadHouse,collection:loadCollectibles,jobs:resetJobPage}[name]||(()=>{}))()}
 function openPageFromPhone(name){closePhone();openPage(name,document.querySelector(`[data-page="${name}"]`))}
 async function refreshAll(){await updateStocks();await loadProfile();await Promise.all([loadInventory(),loadStocks(),loadCollectibles(),loadEffects()]);updateNetworth()}
-async function loadProfile(){const{data,error}=await db.from("profiles").select("*").eq("id",currentUser.id).single();if(error)return toast(error.message);profile=data;renderTradeDashboard();nicknameTop.textContent=data.nickname;nicknameHero.textContent=data.nickname;phoneOwner.textContent=data.nickname;cashTop.textContent=money(data.cash);credit.textContent=data.credit_score;reputation.textContent=data.reputation;updateGachaButtons();const t=document.getElementById("titleTop");if(t)t.textContent=data.active_title||titleByProgress(data)}
+async function loadProfile(){
+  const{data,error}=await db.from("profiles").select("*").eq("id",currentUser.id).single();
+  if(error)return toast(error.message);
+  profile=data;
+  renderTradeDashboard();
+  nicknameTop.textContent=data.nickname;
+  nicknameHero.textContent=data.nickname;
+  phoneOwner.textContent=data.nickname;
+  cashTop.textContent=money(data.cash);
+  credit.textContent=data.credit_score;
+  reputation.textContent=data.reputation;
+  updateGachaButtons();
+  const t=document.getElementById("titleTop");
+  if(t)applyTitleBadge(t,data.active_title||titleByProgress(data));
+}
 async function grantStarterFundsIfNeeded(){
   const key=`starter_v8_${currentUser.id}`;
   if(localStorage.getItem(key))return;
@@ -297,12 +311,131 @@ async function createListing(){const id=sellItem.value,p=Math.floor(Number(sellP
 async function loadMarket(){const{data,error}=await db.from("market_listings").select(`id,title,asking_price,seller_user_id,user_items(condition_score,items(category)),profiles:seller_user_id(nickname)`).eq("status","active").order("created_at",{ascending:false});if(error)return toast(error.message);marketList.innerHTML=(data||[]).map(r=>{const mine=r.seller_user_id===currentUser.id;return `<article class="market-card"><div class="item-image"><img src="${itemImage(r.title,r.user_items?.items?.category)}"></div><div class="market-body"><h3>${esc(r.title)}</h3><div class="meta">${esc(r.profiles?.nickname||"유저")} · 상태 ${r.user_items?.condition_score||"-"}</div><div class="price">${money(r.asking_price)}</div><button class="btn ${mine?"light":"primary"} full" onclick="${mine?`cancelListing('${r.id}')`:`buyListing('${r.id}')`}">${mine?"판매 취소":"구매"}</button></div></article>`}).join("")||`<div class="panel" style="padding:20px">매물이 없습니다.</div>`}
 async function buyListing(id){const{data,error}=await db.rpc("buy_market_listing",{p_listing_id:id});if(error)return toast(error.message);toast("구매 완료 "+money(data.final_price));await refreshAll();loadMarket()}
 async function cancelListing(id){const{error}=await db.rpc("cancel_market_listing",{p_listing_id:id});if(error)return toast(error.message);await Promise.all([loadInventory(),loadMarket()])}
-async function loadNpcOffers(){const{error:gerr}=await db.rpc('generate_npc_purchase_offers_v18');if(gerr)return toast(gerr.message);const{data,error}=await db.from('npc_purchase_offers').select(`id,condition_score,asking_price,min_price,items(id,name,category,rarity,average_price)`).eq('user_id',currentUser.id).eq('status','active').gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false});if(error)return toast(error.message);npcOfferList.innerHTML=(data||[]).map(o=>`<article class="market-card npc-buy-card"><div class="item-image"><img src="${itemImage(o.items.name,o.items.category)}"></div><div class="market-body"><span class="badge normal">NPC 판매</span><h3>${esc(o.items.name)}</h3><div class="meta">${esc(o.items.rarity)} · 상태 ${o.condition_score}/100</div><div class="price">판매가 ${money(o.asking_price)}</div><small class="market-hint">흥정하면 더 싸게 구매할 수 있습니다.</small><button class="btn primary full" onclick="startNpcOffer('${o.id}')">가격 흥정하기</button></div></article>`).join('')||'<div class="panel" style="padding:20px">현재 NPC 판매 상품이 없습니다.</div>'}
-async function startNpcOffer(id){const{data,error}=await db.from('npc_purchase_offers').select(`id,condition_score,asking_price,min_price,items(id,name,category,rarity)`).eq('id',id).eq('status','active').single();if(error)return toast(error.message);const personalities=[{name:'완고한 골동품상',icon:'🧔',patience:4,openness:.42,line:'터무니없는 가격은 받지 않소.'},{name:'급전이 필요한 상인',icon:'😓',patience:3,openness:.72,line:'오늘 안에만 팔리면 조금 깎아줄게요.'},{name:'친절한 수집가',icon:'🙂',patience:5,openness:.58,line:'합리적인 제안이면 생각해 보죠.'}];const persona=personalities[Math.floor(Math.random()*personalities.length)];negotiation={type:'npc_buy',offerId:id,itemId:data.items.id,title:data.items.name,category:data.items.category,rarity:data.items.rarity,condition:Number(data.condition_score),asking:Number(data.asking_price),minPrice:Number(data.min_price),npcOffer:Number(data.asking_price),round:1,patience:persona.patience,maxPatience:persona.patience,persona,history:[{who:'npc',text:`${money(data.asking_price)}에 내놓았습니다. 어느 정도를 생각하시나요?`}],ended:false};renderNpcBuyNegotiation()}
-function renderNpcBuyNegotiation(){const n=negotiation;if(!n||n.type!=='npc_buy')return;negotiationModal.classList.remove('hidden');const discount=n.asking-n.npcOffer,discountPct=n.asking?discount/n.asking*100:0,recommended=Math.max(n.minPrice,Math.round(n.npcOffer-(n.npcOffer-n.minPrice)*.45));const patiencePct=Math.max(0,n.patience/n.maxPatience*100),history=n.history.map(x=>`<div class="chat ${x.who}"><b>${x.who==='npc'?n.persona.name:'나'}</b><span>${esc(x.text)}</span></div>`).join('');negotiationContent.innerHTML=`<div class="haggle-top"><div><p class="eyebrow">NPC PURCHASE NEGOTIATION · ROUND ${n.round}</p><h2>${esc(n.title)}</h2></div><div class="dealer-profile"><strong>${n.persona.icon} ${n.persona.name}</strong><small>${n.persona.line}</small></div></div><div class="deal-summary deluxe buy-mode"><div><span>최초 판매가</span><b>${money(n.asking)}</b></div><div><span>최저 가능가</span><b>${money(n.minPrice)}</b></div><div class="offer-main"><span>현재 구매가</span><b>${money(n.npcOffer)}</b></div><div class="profit-main"><span>절약 금액</span><b class="up">-${money(discount)}</b><small>${discountPct.toFixed(1)}% 할인</small></div></div><div class="haggle-bars"><label>판매자 인내심 <i><em style="width:${patiencePct}%"></em></i></label><label>가격 할인 진행 <i><em style="width:${Math.min(100,discount/Math.max(1,n.asking-n.minPrice)*100)}%"></em></i></label></div><div id="negChat" class="neg-chat">${history}</div>${n.ended?`<div class="final-offer"><b>최종 판매가</b><strong>${money(n.npcOffer)}</strong><button onclick="acceptNpcBuyDeal()">이 가격에 구매</button></div>`:`<div class="manual-offer advanced"><div class="offer-copy"><label>내 희망 구매가</label><small>추천 ${money(recommended)} · 최저 ${money(n.minPrice)}</small></div><div class="offer-controls"><button onclick="adjustNpcBuyAsk(-10000)">-1만</button><button onclick="adjustNpcBuyAsk(-1000)">-1천</button><input id="npcBuyAsk" type="number" min="${n.minPrice}" max="${n.npcOffer-1}" value="${recommended}"><button onclick="adjustNpcBuyAsk(1000)">+1천</button><button onclick="adjustNpcBuyAsk(10000)">+1만</button><button class="recommend" onclick="setNpcBuyRecommended(${recommended})">추천가</button></div></div><div class="haggle-actions skill-grid"><button class="haggle-skill-btn" onclick="submitNpcBuyOffer('polite')"><b>🤝 정중하게 할인 요청</b><small>안전형 · 할인폭이 작음</small></button><button class="haggle-skill-btn" onclick="submitNpcBuyOffer('defect')"><b>🔎 상태 흠집 지적</b><small>상태가 낮을수록 효과적</small></button><button class="haggle-skill-btn" onclick="submitNpcBuyOffer('cash')"><b>💵 즉시 결제 제안</b><small>중간 위험 · 빠른 할인</small></button><button class="haggle-skill-btn" onclick="submitNpcBuyOffer('walk')"><b>🚶 다른 매물 보러가기</b><small>고위험 · 성공 시 큰 할인</small></button></div>`}<button class="accept-now" onclick="acceptNpcBuyDeal()">현재 가격으로 구매 · ${money(n.npcOffer)}</button>`;requestAnimationFrame(()=>{const chat=document.getElementById('negChat');if(chat)chat.scrollTop=chat.scrollHeight})}
+async function loadNpcOffers(){
+  const{error:gerr}=await db.rpc('generate_npc_purchase_offers_v18');
+  if(gerr)return toast(gerr.message);
+  const{data,error}=await db.from('npc_purchase_offers')
+    .select(`id,condition_score,asking_price,min_price,items(id,name,category,rarity,average_price)`)
+    .eq('user_id',currentUser.id).eq('status','active')
+    .gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false});
+  if(error)return toast(error.message);
+  npcOfferList.innerHTML=(data||[]).map(o=>{
+    const p=getNpcMarketPersona(o.id);
+    return `<article class="market-card npc-buy-card npc-theme-${p.theme}">
+      <div class="npc-seller-strip"><span class="npc-mini-avatar">${p.face}</span><div><b>${esc(p.name)}</b><small>${esc(p.role)} · ${esc(p.temperament)}</small></div></div>
+      <div class="item-image"><img src="${itemImage(o.items.name,o.items.category)}"></div>
+      <div class="market-body"><span class="badge normal">NPC 판매</span><h3>${esc(o.items.name)}</h3><div class="meta">${esc(o.items.rarity)} · 상태 ${o.condition_score}/100</div><div class="price">판매가 ${money(o.asking_price)}</div><small class="market-hint">${esc(p.preview)}</small><button class="btn primary full" onclick="startNpcOffer('${o.id}')">${esc(p.name)}와 흥정</button></div>
+    </article>`
+  }).join('')||'<div class="panel" style="padding:20px">현재 NPC 판매 상품이 없습니다.</div>'
+}
+
+const NPC_MARKET_PERSONAS=[
+  {name:'강철수',role:'완고한 골동품상',face:'🧔🏻',body:'🧥',theme:'bronze',patience:5,openness:.34,temperament:'원칙주의',preview:'가격 근거가 없으면 쉽게 양보하지 않습니다.',likes:['evidence','polite'],dislikes:['walk'],line:'물건의 가치는 내가 제일 잘 알지. 근거를 가져오게.',success:'흠, 그 정도 근거라면 조금은 조정하지.',reject:'말만으로는 부족하네. 납득할 근거가 필요해.'},
+  {name:'윤서아',role:'급전이 필요한 셀러',face:'👩🏻',body:'🧶',theme:'rose',patience:3,openness:.76,temperament:'조급함',preview:'빠른 결제 제안에 약하지만 오래 끌면 거래를 닫습니다.',likes:['cash','direct'],dislikes:['silence'],line:'오늘 안에 정리해야 해서요. 바로 결제하면 맞춰드릴게요.',success:'좋아요. 지금 결제한다면 그 가격에 가깝게 맞출게요.',reject:'너무 낮아요. 급하다고 헐값에 넘길 생각은 없어요.'},
+  {name:'박도윤',role:'친절한 취미 수집가',face:'🙂',body:'🧢',theme:'green',patience:6,openness:.60,temperament:'대화형',preview:'예의 바른 제안과 물건의 상태 이야기를 좋아합니다.',likes:['polite','defect'],dislikes:['walk'],line:'서로 기분 좋게 거래하면 좋겠네요.',success:'말씀을 들어보니 일리가 있네요. 조금 낮춰드리죠.',reject:'그 가격은 제가 받아들이기 어렵네요. 중간을 찾아봐요.'},
+  {name:'최미래',role:'데이터형 리셀러',face:'👩🏻‍💼',body:'📊',theme:'blue',patience:4,openness:.48,temperament:'계산적',preview:'시세와 수치에 반응하며 감정적인 압박에는 냉정합니다.',likes:['evidence','defect'],dislikes:['story','walk'],line:'최근 거래가와 상태 감가를 기준으로 이야기하죠.',success:'수치가 맞네요. 계산을 다시 해보니 조정 가능합니다.',reject:'그 제안은 데이터상 설명이 되지 않아요.'},
+  {name:'한유진',role:'감성적인 빈티지 숍 사장',face:'👩🏻‍🎨',body:'🧣',theme:'violet',patience:5,openness:.57,temperament:'감성적',preview:'물건의 사연과 매력을 존중하면 호의적으로 반응합니다.',likes:['story','polite'],dislikes:['defect'],line:'이 물건에는 오래된 분위기가 있어요. 그 가치를 알아보시나요?',success:'그렇게 봐주신다면 좋은 분께 보내는 마음으로 양보할게요.',reject:'흠집만 이야기하면 이 물건의 매력을 놓치게 돼요.'},
+  {name:'오태식',role:'흥정꾼 노점상',face:'😏',body:'🦺',theme:'orange',patience:4,openness:.52,temperament:'승부욕',preview:'과감한 제안을 즐기지만 약한 태도에는 버티는 편입니다.',likes:['walk','direct'],dislikes:['polite'],line:'흥정은 기세지! 어디 한번 제대로 불러봐.',success:'하하, 배짱이 마음에 드는군. 그 정도는 맞춰주지.',reject:'그 정도 기세로는 내 가격을 못 꺾어.'},
+  {name:'이하늘',role:'첫 판매를 시작한 대학생',face:'🧑🏻',body:'🎒',theme:'sky',patience:5,openness:.68,temperament:'서툼',preview:'친절한 설명과 즉시 결제에 쉽게 마음이 움직입니다.',likes:['polite','cash'],dislikes:['walk'],line:'중고 거래가 처음이라 적당한 가격을 잘 모르겠어요.',success:'알겠습니다. 설명해 주신 가격이면 괜찮을 것 같아요.',reject:'그건 너무 낮은 것 같아요. 조금만 더 올려주세요.'},
+  {name:'문세진',role:'희귀품 전문 브로커',face:'🕴🏻',body:'💼',theme:'black',patience:3,openness:.38,temperament:'냉정함',preview:'고급 물건일수록 자신감이 강하며 전략적인 제안만 통합니다.',likes:['evidence','walk'],dislikes:['polite','story'],line:'시간 낭비는 싫습니다. 현실적인 숫자만 제시하세요.',success:'좋습니다. 계산이 빠르시군요. 그 선까지 내려가죠.',reject:'거래 감각이 부족하시군요. 그 가격은 거절입니다.'}
+];
+
+function stringHash(v){let h=2166136261;for(const ch of String(v)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return Math.abs(h)}
+function getNpcMarketPersona(seed){return NPC_MARKET_PERSONAS[stringHash(seed)%NPC_MARKET_PERSONAS.length]}
+
+async function startNpcOffer(id){
+  const{data,error}=await db.from('npc_purchase_offers')
+    .select(`id,condition_score,asking_price,min_price,items(id,name,category,rarity)`)
+    .eq('id',id).eq('status','active').single();
+  if(error)return toast(error.message);
+  const persona=getNpcMarketPersona(id);
+  negotiation={type:'npc_buy',offerId:id,itemId:data.items.id,title:data.items.name,category:data.items.category,rarity:data.items.rarity,condition:Number(data.condition_score),asking:Number(data.asking_price),minPrice:Number(data.min_price),npcOffer:Number(data.asking_price),round:1,patience:persona.patience,maxPatience:persona.patience,persona,selectedStyle:'direct',history:[{who:'npc',text:persona.line},{who:'npc',text:`판매가는 ${money(data.asking_price)}입니다. 원하는 가격을 직접 제시해 보세요.`}],ended:false};
+  renderNpcBuyNegotiation();
+}
+
+function applyNpcCharacter(persona){
+  const room=document.querySelector('#negotiationModal .negotiation-room');
+  const head=document.querySelector('#negotiationModal .negotiator-head');
+  const torso=document.querySelector('#negotiationModal .negotiator-torso');
+  const name=document.querySelector('#negotiationModal .negotiation-name');
+  const sign=document.querySelector('#negotiationModal .negotiation-sign');
+  if(room){room.className=`negotiation-room npc-market-room npc-theme-${persona.theme}`;room.dataset.persona=persona.name}
+  if(head)head.textContent=persona.face;
+  if(torso)torso.textContent=persona.body;
+  if(name)name.textContent=persona.name;
+  if(sign)sign.textContent=`${persona.name.toUpperCase()} · SECONDHAND DEAL`;
+}
+
+function renderNpcBuyNegotiation(){
+  const n=negotiation;if(!n||n.type!=='npc_buy')return;
+  negotiationModal.classList.remove('hidden');applyNpcCharacter(n.persona);
+  const discount=n.asking-n.npcOffer,discountPct=n.asking?discount/n.asking*100:0;
+  const recommended=Math.max(n.minPrice,Math.round(n.npcOffer-(n.npcOffer-n.minPrice)*.45));
+  const patiencePct=Math.max(0,n.patience/n.maxPatience*100);
+  const history=n.history.map(x=>`<div class="chat ${x.who}"><b>${x.who==='npc'?esc(n.persona.name):'나'}</b><span>${esc(x.text)}</span></div>`).join('');
+  const tactics=[
+    ['direct','💬','희망가만 제시','기본 제안 · 성격 영향이 가장 큼'],
+    ['polite','🤝','정중하게 요청','안전형 · 친절한 판매자에게 효과적'],
+    ['evidence','📊','시세 근거 제시','계산적·완고한 판매자에게 효과적'],
+    ['defect','🔎','상태 흠집 지적','상태가 낮을수록 효과 상승'],
+    ['story','✨','좋은 구매자임을 강조','감성적인 판매자에게 효과적'],
+    ['cash','💵','즉시 결제 약속','급한 판매자에게 효과적'],
+    ['walk','🚶','다른 매물과 비교','승부욕 강한 판매자에게 효과적']
+  ];
+  negotiationContent.innerHTML=`
+    <div class="haggle-top"><div><p class="eyebrow">SECONDHAND NEGOTIATION · ROUND ${n.round}</p><h2>${esc(n.title)}</h2></div><div class="dealer-profile npc-profile-${n.persona.theme}"><strong>${n.persona.face} ${esc(n.persona.name)}</strong><small>${esc(n.persona.role)} · ${esc(n.persona.temperament)}</small><em>${esc(n.persona.preview)}</em></div></div>
+    <div class="deal-summary deluxe buy-mode"><div><span>최초 판매가</span><b>${money(n.asking)}</b></div><div><span>판매자 마지노선</span><b>${money(n.minPrice)}</b></div><div class="offer-main"><span>현재 구매가</span><b>${money(n.npcOffer)}</b></div><div class="profit-main"><span>현재 절약액</span><b class="up">-${money(discount)}</b><small>${discountPct.toFixed(1)}% 할인</small></div></div>
+    <div class="haggle-bars"><label>판매자 인내심 <i><em style="width:${patiencePct}%"></em></i></label><label>할인 진행 <i><em style="width:${Math.min(100,discount/Math.max(1,n.asking-n.minPrice)*100)}%"></em></i></label></div>
+    <div id="negChat" class="neg-chat">${history}</div>
+    ${n.ended?`<div class="final-offer"><b>최종 판매가</b><strong>${money(n.npcOffer)}</strong><button onclick="acceptNpcBuyDeal()">이 가격에 구매</button></div>`:`
+      <div class="manual-offer advanced npc-offer-box"><div class="offer-copy"><label>내 희망 구매가</label><small>직접 입력 후 아래의 <b>희망가 제시</b> 버튼을 누르세요 · 추천 ${money(recommended)}</small></div><div class="offer-controls"><button onclick="adjustNpcBuyAsk(-10000)">-1만</button><button onclick="adjustNpcBuyAsk(-1000)">-1천</button><input id="npcBuyAsk" type="number" min="${n.minPrice}" max="${n.npcOffer-1}" value="${recommended}"><button onclick="adjustNpcBuyAsk(1000)">+1천</button><button onclick="adjustNpcBuyAsk(10000)">+1만</button><button class="recommend" onclick="setNpcBuyRecommended(${recommended})">추천가</button></div></div>
+      <div class="npc-tactic-grid">${tactics.map(([code,icon,title,desc])=>`<button class="npc-tactic ${n.selectedStyle===code?'selected':''}" onclick="selectNpcBuyStyle('${code}')"><b>${icon} ${title}</b><small>${desc}</small></button>`).join('')}</div>
+      <button class="submit-price-offer" onclick="submitNpcBuyOffer()">💬 내 희망가 제시</button>
+    `}
+    <button class="accept-now" onclick="acceptNpcBuyDeal()">현재 가격으로 구매 · ${money(n.npcOffer)}</button>`;
+  requestAnimationFrame(()=>{const chat=document.getElementById('negChat');if(chat)chat.scrollTop=chat.scrollHeight})
+}
+
+function selectNpcBuyStyle(style){if(!negotiation||negotiation.type!=='npc_buy')return;negotiation.selectedStyle=style;document.querySelectorAll('.npc-tactic').forEach(x=>x.classList.toggle('selected',x.getAttribute('onclick')?.includes(`'${style}'`)))}
 function adjustNpcBuyAsk(delta){const el=document.getElementById('npcBuyAsk'),n=negotiation;if(!el||!n)return;el.value=Math.max(n.minPrice,Math.min(n.npcOffer-1,Math.round(Number(el.value||n.npcOffer)+delta)))}
 function setNpcBuyRecommended(v){const el=document.getElementById('npcBuyAsk');if(el)el.value=v}
-function submitNpcBuyOffer(style){const n=negotiation;if(!n||n.type!=='npc_buy'||n.ended)return;const el=document.getElementById('npcBuyAsk'),ask=Math.max(n.minPrice,Math.min(n.npcOffer-1,Math.round(Number(el?.value)||n.npcOffer-1)));const cfg={polite:{risk:.08,power:.28,cost:0,label:'정중하게 가격 조정을 부탁했다.'},defect:{risk:.14,power:.48,cost:1,label:'물건 상태와 흠집을 근거로 가격을 낮춰 달라고 했다.'},cash:{risk:.18,power:.56,cost:1,label:'지금 바로 결제하겠다고 제안했다.'},walk:{risk:.42,power:.9,cost:2,label:'다른 매물을 보러 가겠다고 일어섰다.'}}[style];const conditionBonus=style==='defect'?(100-n.condition)/160:0;const gap=(n.npcOffer-ask)/Math.max(1,n.npcOffer-n.minPrice),fail=Math.min(.9,cfg.risk+Math.max(0,gap-n.persona.openness)*.68-conditionBonus);n.history.push({who:'me',text:`${cfg.label} 희망가는 ${money(ask)}.`});n.round++;n.patience=Math.max(0,n.patience-cfg.cost);if(Math.random()<fail){n.patience=Math.max(0,n.patience-1);n.history.push({who:'npc',text:n.patience<=0?`더는 어렵습니다. ${money(n.npcOffer)}이 최종 가격입니다.`:'그 가격은 너무 낮습니다. 조금 더 현실적으로 제안해 주세요.'});if(n.patience<=0)n.ended=true;renderNpcBuyNegotiation();return}const cut=Math.max(1,Math.round((n.npcOffer-ask)*cfg.power*(.82+Math.random()*.3)));n.npcOffer=Math.max(n.minPrice,n.npcOffer-cut);n.history.push({who:'npc',text:`좋습니다. ${money(n.npcOffer)}까지는 낮춰드리죠.`});if(n.npcOffer<=n.minPrice||n.patience<=0)n.ended=true;renderNpcBuyNegotiation()}
+
+function submitNpcBuyOffer(){
+  const n=negotiation;if(!n||n.type!=='npc_buy'||n.ended)return;
+  const style=n.selectedStyle||'direct';
+  const el=document.getElementById('npcBuyAsk');
+  const ask=Math.max(n.minPrice,Math.min(n.npcOffer-1,Math.round(Number(el?.value)||n.npcOffer-1)));
+  const cfg={
+    direct:{risk:.16,power:.34,cost:1,label:'희망 가격을 단도직입적으로 제시했다.'},
+    polite:{risk:.08,power:.28,cost:0,label:'예의를 갖춰 가격 조정을 부탁했다.'},
+    evidence:{risk:.12,power:.52,cost:1,label:'최근 시세와 거래가를 근거로 제시했다.'},
+    defect:{risk:.15,power:.50,cost:1,label:'상태와 흠집을 근거로 감가를 요청했다.'},
+    story:{risk:.13,power:.44,cost:1,label:'물건을 아껴 쓸 구매자라는 점을 강조했다.'},
+    cash:{risk:.17,power:.58,cost:1,label:'지금 바로 결제하겠다고 약속했다.'},
+    walk:{risk:.38,power:.86,cost:2,label:'다른 매물과 비교하고 자리를 뜰 듯 행동했다.'}
+  }[style];
+  const liked=n.persona.likes.includes(style),disliked=n.persona.dislikes.includes(style);
+  const conditionBonus=style==='defect'?(100-n.condition)/150:0;
+  const matchBonus=liked?.13:disliked?-.14:0;
+  const gap=(n.npcOffer-ask)/Math.max(1,n.npcOffer-n.minPrice);
+  const fail=Math.max(.03,Math.min(.92,cfg.risk+Math.max(0,gap-(n.persona.openness+matchBonus))*.72-conditionBonus-(liked?.08:0)+(disliked?.15:0)));
+  n.history.push({who:'me',text:`${cfg.label} 내 희망가는 ${money(ask)}.`});
+  n.round++;n.patience=Math.max(0,n.patience-cfg.cost);
+  if(Math.random()<fail){
+    n.patience=Math.max(0,n.patience-1);
+    const bounce=disliked&&Math.random()<.45?Math.round((n.asking-n.npcOffer)*.18):0;
+    n.npcOffer=Math.min(n.asking,n.npcOffer+bounce);
+    n.history.push({who:'npc',text:n.patience<=0?`더는 조정하지 않겠습니다. ${money(n.npcOffer)}이 최종 가격입니다.`:`${n.persona.reject}${bounce?` 오히려 가격을 ${money(n.npcOffer)}로 되돌리겠습니다.`:''}`});
+    if(n.patience<=0)n.ended=true;renderNpcBuyNegotiation();return;
+  }
+  const personalityPower=liked?1.18:disliked?.72:1;
+  const cut=Math.max(1,Math.round((n.npcOffer-ask)*cfg.power*personalityPower*(.82+Math.random()*.28)));
+  n.npcOffer=Math.max(n.minPrice,n.npcOffer-cut);
+  n.history.push({who:'npc',text:`${n.persona.success} ${money(n.npcOffer)}까지 낮추겠습니다.`});
+  if(n.npcOffer<=n.minPrice||n.patience<=0)n.ended=true;
+  renderNpcBuyNegotiation();
+}
+
 async function acceptNpcBuyDeal(){const n=negotiation;if(!n||n.type!=='npc_buy')return;const{data,error}=await db.rpc('purchase_npc_offer_v18',{p_offer_id:n.offerId,p_final_price:Math.round(n.npcOffer)});if(error)return toast(error.message);toast(`구매 완료 ${money(data.final_price)} · ${money(n.asking-data.final_price)} 절약`);playSuccessSound();closeNegotiation();await Promise.all([loadProfile(),loadInventory(),loadNpcOffers()]);updateNetworth()}
 
 /* 소장품/집 */
@@ -475,9 +608,37 @@ async function equipCollectible(id,action){
 }
 
 function applyPhoneCase(eq){const shell=document.querySelector('.phone-shell'),home=document.querySelector('.phone-home');if(!shell||!home)return;const name=eq?.collectibles?.name||'',rarity=eq?.collectibles?.rarity||'일반';shell.dataset.case=name;shell.dataset.rarity=rarityScore(rarity);home.dataset.wallpaper=name;home.dataset.rarity=rarityScore(rarity);phoneOwner.textContent=profile?.nickname||'판매왕'}
-function fillCollectibleSelect(){sellCollectible.innerHTML='<option value="">판매할 소장품</option>';collectibles.filter(x=>!x.is_equipped&&!x.is_placed&&!x.is_listed).forEach(x=>sellCollectible.add(new Option(`${x.collectibles.name} · ${x.collectibles.effect_percent}%`,x.id)))}
+function fillCollectibleSelect(){
+  sellCollectible.innerHTML='<option value="">판매할 소장품</option>';
+  collectibles.filter(x=>!x.is_equipped&&!x.is_placed&&!x.is_listed).forEach(x=>{
+    const c=x.collectibles;
+    const option=new Option(`[${c.rarity}] ${c.name} · ${c.effect_name} +${c.effect_percent}%`,x.id);
+    option.dataset.rarity=c.rarity;
+    sellCollectible.add(option);
+  });
+  renderCollectibleSellPreview();
+}
+function renderCollectibleSellPreview(){
+  const host=document.getElementById('collectibleSellPreview');if(!host)return;
+  const row=collectibles.find(x=>x.id===sellCollectible.value);
+  if(!row){host.className='collectible-sell-preview empty';host.innerHTML='<span>소장품을 선택하면 등급과 효과를 미리 볼 수 있습니다.</span>';return}
+  const c=row.collectibles,rc=rarityClass(c.rarity);
+  host.className=`collectible-sell-preview ${rc}`;
+  host.innerHTML=`<div class="sell-preview-icon">${c.icon}</div><div><b class="rarity-text ${rc}">${esc(c.name)}</b><small><span class="rarity-text ${rc}">${esc(c.rarity)}</span> · ${esc(c.effect_name)} +${c.effect_percent}%</small></div>`;
+}
 async function createCollectibleListing(){const id=sellCollectible.value,p=Math.floor(Number(collectiblePrice.value));if(!id||p<=0)return toast('소장품과 가격을 확인하세요.');const{error}=await db.rpc('create_collectible_listing',{p_user_collectible_id:id,p_price:p});if(error)return toast(error.message);collectiblePrice.value='';await loadCollectibleMarket()}
-async function loadCollectibleMarket(){const{data,error}=await db.from('collectible_listings').select(`id,asking_price,seller_user_id,user_collectibles(collectibles(name,rarity,effect_name,effect_percent,icon)),profiles:seller_user_id(nickname)`).eq('status','active').order('created_at',{ascending:false});if(error)return toast(error.message);collectibleMarketList.innerHTML=(data||[]).map(r=>{const c=r.user_collectibles.collectibles,mine=r.seller_user_id===currentUser.id;return `<article class="market-card"><div class="item-image" style="display:grid;place-items:center;font-size:68px">${c.icon}</div><div class="market-body"><h3 class="rarity-text ${rarityClass(c.rarity)}">${esc(c.name)}</h3><div class="meta"><span class="rarity-text ${rarityClass(c.rarity)}">${esc(c.rarity)}</span> · ${esc(c.effect_name)} +${c.effect_percent}%</div><div class="price">${money(r.asking_price)}</div><button class="btn ${mine?'light':'primary'} full" onclick="${mine?`cancelCollectible('${r.id}')`:`buyCollectible('${r.id}')`}">${mine?'판매 취소':'구매'}</button></div></article>`}).join('')||'<div class="panel" style="padding:20px">소장품 매물 없음</div>'}
+async function loadCollectibleMarket(){
+  const{data,error}=await db.from('collectible_listings').select(`id,asking_price,seller_user_id,user_collectibles(collectibles(name,rarity,effect_name,effect_percent,icon)),profiles:seller_user_id(nickname)`).eq('status','active').order('created_at',{ascending:false});
+  if(error)return toast(error.message);
+  collectibleMarketList.innerHTML=(data||[]).map(r=>{
+    const c=r.user_collectibles.collectibles,mine=r.seller_user_id===currentUser.id,rc=rarityClass(c.rarity);
+    return `<article class="market-card collectible-market-card ${rc}">
+      <div class="market-rarity-glow"></div>
+      <div class="item-image collectible-market-icon">${c.icon}</div>
+      <div class="market-body"><div class="collectible-market-seller">${mine?'내 매물':esc(r.profiles?.nickname||'유저의 매물')}</div><h3 class="rarity-text ${rc}">${esc(c.name)}</h3><div class="meta"><span class="rarity-chip ${rc}">${esc(c.rarity)}</span> · ${esc(c.effect_name)} +${c.effect_percent}%</div><div class="price">${money(r.asking_price)}</div><button class="btn ${mine?'light':'primary'} full" onclick="${mine?`cancelCollectible('${r.id}')`:`buyCollectible('${r.id}')`}">${mine?'판매 취소':'구매'}</button></div>
+    </article>`
+  }).join('')||'<div class="panel" style="padding:20px">소장품 매물 없음</div>'
+}
 async function buyCollectible(id){const{data,error}=await db.rpc('buy_collectible_listing',{p_listing_id:id});if(error)return toast(error.message);toast('구매 완료 '+money(data.final_price));await Promise.all([loadProfile(),loadCollectibles(),loadCollectibleMarket()])}
 async function cancelCollectible(id){const{error}=await db.rpc('cancel_collectible_listing',{p_listing_id:id});if(error)return toast(error.message);await loadCollectibleMarket()}
 async function loadEffects(){const{data}=await db.rpc('get_active_effects');effects=data||{}}
@@ -500,7 +661,7 @@ function changeDecorationPage(step){const total=Math.max(1,Math.ceil(getGroupedC
 function effectName(k){return{pawn_bonus:'전당포 판매가',market_bonus:'NPC 제안가',auction_discount:'경매 할인',stock_fee_discount:'주식 수수료',exploration_luck:'탐색 희귀도',gacha_luck:'뽑기 희귀도'}[k]||k}
 
 /* 휴대폰/주식 */
-function openPhone(){phoneOverlay.classList.remove("hidden");phoneHome();updatePhoneTime()}function closePhone(){phoneOverlay.classList.add("hidden")}function phoneBackdrop(e){if(e.target.id==="phoneOverlay")closePhone()}function phoneHome(){document.querySelectorAll(".phone-screen").forEach(x=>x.classList.add("hidden"));document.getElementById("phoneHome").classList.remove("hidden");closeStockDetail()}function openPhoneApp(name){document.querySelectorAll('.phone-screen').forEach(x=>x.classList.add('hidden'));document.getElementById('phone-'+name).classList.remove('hidden');if(name==='stocks')refreshStocks();else if(name==='wallet')renderWallet();else if(name==='ranking')loadRanking();else if(name==='property')loadProperties();else if(name==='titles')loadTitles();else if(name==='skills')loadNegotiationSkills()}
+function openPhone(){phoneOverlay.classList.remove("hidden");phoneHome();updatePhoneTime()}function closePhone(){phoneOverlay.classList.add("hidden")}function phoneBackdrop(e){if(e.target.id==="phoneOverlay")closePhone()}function phoneHome(){document.querySelectorAll(".phone-screen").forEach(x=>x.classList.add("hidden"));document.getElementById("phoneHome").classList.remove("hidden");closeStockDetail()}function openPhoneApp(name){document.querySelectorAll('.phone-screen').forEach(x=>x.classList.add('hidden'));const screen=document.getElementById('phone-'+name);if(!screen)return;screen.classList.remove('hidden');if(name==='stocks')refreshStocks();else if(name==='wallet')renderWallet();else if(name==='ranking')loadRanking();else if(name==='property')loadProperties();else if(name==='titles')loadTitles();else if(name==='chat')loadChatMessages();else if(name==='skills')loadNegotiationSkills()}
 async function loadNegotiationSkills(){
   if(!profile)await loadProfile();
   const host=document.getElementById('skillTreeList');if(!host)return;
@@ -640,16 +801,64 @@ function playUiTone(freq=330,vol=.02){
   if(!soundEnabled)return;try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type="sine";o.frequency.value=freq;g.gain.setValueAtTime(vol,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.075);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+.08)}catch{}
 }
 
-function subscribe(){if(realtime)return;realtime=db.channel("selling-god-v11").on("postgres_changes",{event:"UPDATE",schema:"public",table:"stocks"},loadStocks).on("postgres_changes",{event:"*",schema:"public",table:"market_listings"},loadMarket).on("postgres_changes",{event:"*",schema:"public",table:"collectible_listings"},loadCollectibleMarket).subscribe()}
+function subscribe(){if(realtime)return;realtime=db.channel("selling-god-v21").on("postgres_changes",{event:"UPDATE",schema:"public",table:"stocks"},loadStocks).on("postgres_changes",{event:"*",schema:"public",table:"market_listings"},loadMarket).on("postgres_changes",{event:"*",schema:"public",table:"collectible_listings"},loadCollectibleMarket).on("postgres_changes",{event:"INSERT",schema:"public",table:"global_chat_messages"},()=>{if(!document.getElementById("phone-chat")?.classList.contains("hidden"))loadChatMessages()}).subscribe()}
 
 
-function titleByProgress(p){const n=Number(p?.reputation||0),cash=Number(p?.cash||0);if(cash>=100000000)return '억만장자';if(n>=500)return '전설의 협상가';if(n>=250)return '황금손 상인';if(n>=100)return '떠오르는 판매왕';return '초보 장사꾼'}
-async function loadRanking(){const{data,error}=await db.rpc('get_leaderboard_v13');if(error)return rankingList.innerHTML=`<p>${esc(error.message)}</p>`;rankingList.innerHTML=(data||[]).map((r,i)=>`<div class="rank-row ${r.user_id===currentUser.id?'me':''}"><b>${i+1}</b><span><strong>${esc(r.nickname)}</strong><small>${esc(r.active_title||'초보 장사꾼')}</small></span><em>${money(r.networth)}</em></div>`).join('')}
-const properties=[{tier:'basement',name:'반지하',capacity:1,price:0,icon:'🪟'},{tier:'studio',name:'원룸',capacity:3,price:2000000,icon:'🏠'},{tier:'apartment',name:'아파트',capacity:6,price:12000000,icon:'🏢'},{tier:'penthouse',name:'펜트하우스',capacity:10,price:80000000,icon:'🌆'},{tier:'mansion',name:'대저택',capacity:16,price:300000000,icon:'🏰'}];
-function loadProperties(){const cur=Number(profile?.house_capacity||1);propertyList.innerHTML=properties.map(p=>`<div class="property-card ${cur>=p.capacity?'owned':''}"><span>${p.icon}</span><div><b>${p.name}</b><small>장식 슬롯 ${p.capacity}개</small><strong>${p.price?money(p.price):'기본 제공'}</strong></div><button ${cur>=p.capacity?'disabled':''} onclick="buyProperty('${p.tier}')">${cur===p.capacity?'현재 집':cur>p.capacity?'보유':'구매'}</button></div>`).join('')}
-async function buyProperty(tier){const{data,error}=await db.rpc('buy_property_v13',{p_tier:tier});if(error)return toast(error.message);toast(`${data.property_name} 구매 완료`);await loadProfile();loadProperties();loadHouse()}
-function loadTitles(){const options=[['초보 장사꾼',true,'기본 칭호'],['떠오르는 판매왕',Number(profile?.reputation)>=100,'명성 100'],['황금손 상인',Number(profile?.reputation)>=250,'명성 250'],['전설의 협상가',Number(profile?.reputation)>=500,'명성 500'],['억만장자',Number(profile?.cash)>=100000000,'현금 1억원']];titleList.innerHTML=options.map(([n,u,c])=>`<div class="title-card ${u?'unlocked':'locked'}"><span>🎖️</span><div><b>${n}</b><small>${c}</small></div><button ${u?'':'disabled'} onclick="equipTitle('${n}')">${profile?.active_title===n?'사용 중':'적용'}</button></div>`).join('')}
-async function equipTitle(n){const{error}=await db.rpc('equip_title_v13',{p_title:n});if(error)return toast(error.message);profile.active_title=n;titleTop.textContent=n;loadTitles();toast(`칭호 적용: ${n}`)}
+const TITLE_RARITIES={
+  '일반':0,'희귀':1,'초희귀':2,'진귀':3,'보물':4,'유물':5,'고대 유물':6
+};
+const TITLE_FALLBACKS={
+  '초보 장사꾼':'일반','알바 새싹':'일반','떠오르는 판매왕':'희귀','믿음직한 거래인':'희귀','성실한 일꾼':'희귀',
+  '황금손 상인':'초희귀','백만장자':'초희귀','집 꾸미기 장인':'초희귀','전설의 협상가':'진귀','경매의 지배자':'진귀','도시의 부동산왕':'진귀',
+  '억만장자':'보물','명성의 화신':'보물','신용의 상징':'보물','재계의 거물':'유물','대저택의 주인':'유물','일의 신':'유물',
+  '판매의 신':'고대 유물','무한의 상인':'고대 유물'
+};
+function titleRarity(title){return TITLE_FALLBACKS[title]||'일반'}
+function titleClass(title){return `title-rarity-${TITLE_RARITIES[titleRarity(title)]||0}`}
+function titleByProgress(p){const n=Number(p?.reputation||0),cash=Number(p?.cash||0);if(cash>=5000000000&&n>=2000)return '판매의 신';if(cash>=1000000000)return '재계의 거물';if(cash>=100000000)return '억만장자';if(n>=500)return '전설의 협상가';if(n>=250)return '황금손 상인';if(n>=100)return '떠오르는 판매왕';return '초보 장사꾼'}
+function applyTitleBadge(el,title,rarity=null){if(!el)return;el.textContent=title||'초보 장사꾼';el.classList.remove(...[0,1,2,3,4,5,6].map(i=>`title-rarity-${i}`));el.classList.add(`title-badge`,rarity?`title-rarity-${TITLE_RARITIES[rarity]||0}`:titleClass(title))}
+async function loadRanking(){
+  const{data,error}=await db.rpc('get_leaderboard_v21');
+  if(error)return rankingList.innerHTML=`<p>${esc(error.message)}</p>`;
+  rankingList.innerHTML=(data||[]).map((r,i)=>`<div class="rank-row ${r.user_id===currentUser.id?'me':''}"><b>${i+1}</b><span><strong>${esc(r.nickname)}</strong><small class="title-badge ${titleClass(r.active_title)}">${esc(r.active_title||'초보 장사꾼')}</small></span><em>${money(r.networth)}</em></div>`).join('');
+}
+async function loadTitles(){
+  const{data,error}=await db.rpc('get_title_catalog_v21');
+  if(error)return titleList.innerHTML=`<p>${esc(error.message)}</p>`;
+  titleList.innerHTML=(data||[]).map(t=>`<div class="title-card ${t.unlocked?'unlocked':'locked'} title-card-rarity-${TITLE_RARITIES[t.rarity]||0}"><span class="title-medal">${esc(t.icon||'🎖️')}</span><div><b class="title-badge title-rarity-${TITLE_RARITIES[t.rarity]||0}">${esc(t.title_name)}</b><small>${esc(t.rarity)} · ${esc(t.condition_text)}</small></div><button ${t.unlocked?'':'disabled'} onclick="equipTitle('${escAttr(t.title_name)}')">${profile?.active_title===t.title_name?'사용 중':'장착'}</button></div>`).join('');
+}
+async function equipTitle(n){
+  const{error}=await db.rpc('equip_title_v21',{p_title:n});
+  if(error)return toast(error.message);
+  profile.active_title=n;
+  applyTitleBadge(document.getElementById('titleTop'),n);
+  loadTitles();
+  toast(`칭호 장착: ${n}`);
+}
+
+function chatTime(v){const d=new Date(v);return d.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}
+async function loadChatMessages(){
+  const host=document.getElementById('globalChatList');
+  if(!host)return;
+  const{data,error}=await db.rpc('get_global_chat_v21',{p_limit:60});
+  if(error){host.innerHTML=`<p class="muted">${esc(error.message)}</p>`;return}
+  host.innerHTML=(data||[]).map(r=>`<article class="global-chat-message ${r.sender_user_id===currentUser.id?'mine':''}"><div class="chat-user"><strong>${esc(r.nickname)}</strong><span class="title-badge ${titleClass(r.active_title)}">${esc(r.active_title||'초보 장사꾼')}</span><time>${chatTime(r.created_at)}</time></div><p>${esc(r.chat_text)}</p></article>`).join('')||'<p class="muted chat-empty">첫 메시지를 남겨 보세요.</p>';
+  requestAnimationFrame(()=>{host.scrollTop=host.scrollHeight});
+}
+function handleChatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage()}}
+async function sendChatMessage(){
+  if(chatBusy)return;
+  const input=document.getElementById('globalChatInput'),btn=document.getElementById('globalChatSend');
+  const text=(input?.value||'').trim();
+  if(!text)return toast('메시지를 입력하세요.');
+  if(text.length>120)return toast('채팅은 120자까지 입력할 수 있습니다.');
+  chatBusy=true;if(btn)btn.disabled=true;
+  const{error}=await db.rpc('send_global_chat_v21',{p_message:text});
+  chatBusy=false;if(btn)btn.disabled=false;
+  if(error)return toast(error.message);
+  input.value='';
+  await loadChatMessages();
+}
 function playSuccessSound(){playUiTone(880,.08);setTimeout(()=>playUiTone(1175,.08),90);setTimeout(()=>playUiTone(1568,.09),180)}
 function playJackpotSound(){[523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>playUiTone(f,.11),i*90))}
 function playGachaBuild(){[220,277,330,392,466].forEach((f,i)=>setTimeout(()=>playUiTone(f,.04),i*260))}
