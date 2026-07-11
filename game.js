@@ -76,7 +76,7 @@ async function loadInventory(){
   const{data,error}=await db.from("user_items").select(`id,condition_score,is_listed,items(id,name,category,average_price,rarity)`).eq("user_id",currentUser.id).order("acquired_at",{ascending:false});
   if(error)return toast(error.message);inventory=data||[];fillItemSelect();
   const homeCount=document.getElementById("homeInventoryCount");
-  if(homeCount)homeCount.textContent=inventory.length+"개";
+  if(homeCount)homeCount.textContent=inventory.length;
   if(!inventory.length){inventoryEl().innerHTML=`<div class="panel" style="padding:20px">가방이 비어 있습니다.</div>`;return}
   inventoryEl().innerHTML=inventory.map(cardItem).join("")
 }
@@ -88,7 +88,7 @@ function startPawnNegotiation(id){const r=inventory.find(x=>x.id===id),base=item
 function renderNegotiation(){
   negotiationModal.classList.remove("hidden");
   const n=negotiation,p=Math.min(100,n.offer/n.limit*100);
-  const mood=p<70?"흠… 그 정도면 생각해 볼 만하군.":p<92?"욕심이 꽤 많군. 그래도 아직은 가능해.":"더 올리면 거래는 없던 일이 될 수도 있네.";
+  const mood=p<68?"흠… 시작은 나쁘지 않군.":p<86?"조금 욕심을 부리는군. 그래도 들어보지.":p<96?"이제 내 인내심이 거의 바닥이야.":"한 번만 더 무리하면 거래는 끝일세.";
   negotiationContent.innerHTML=`
     <p class="eyebrow">PRICE NEGOTIATION</p>
     <h2>${esc(n.title)}</h2>
@@ -158,7 +158,98 @@ function updateNetworth(){if(!profile)return;const sv=holdings.reduce((s,h)=>s+N
 /* 유틸 */
 function closeByBackdrop(e,id){if(e.target.id===id)document.getElementById(id).classList.add("hidden")}
 function itemValue(p,s){const m=s>=95?1.35:s>=85?1.18:s>=70?1:s>=50?.78:s>=30?.55:.3;return Math.round(Number(p||0)*m)}
-function itemImage(name,category){const seed=hash(name),h1=seed%360,h2=(h1+65)%360,symbol={"전자기기":"⚡","생활용품":"🏠","수집품":"✨","골동품":"🏺","광물":"💎","공예품":"🧵","의류":"👕","도서":"📚","완구":"🧸","주방용품":"🍳","음향기기":"🎵","스포츠":"🏅","공구":"🔧","가구":"🪑","문구":"✏️"}[category]||"📦",svg=`<svg xmlns="http://www.w3.org/2000/svg" width="520" height="320"><defs><linearGradient id="g"><stop stop-color="hsl(${h1},70%,72%)"/><stop offset="1" stop-color="hsl(${h2},65%,42%)"/></linearGradient></defs><rect width="520" height="320" rx="28" fill="url(#g)"/><text x="260" y="180" text-anchor="middle" font-size="105">${symbol}</text><rect x="50" y="240" width="420" height="48" rx="15" fill="#ffffffe0"/><text x="260" y="271" text-anchor="middle" font-family="Arial" font-size="22" font-weight="700" fill="#24344c">${escSvg(name.slice(0,9))}</text></svg>`;return"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg)}
+function itemImage(name,category){
+  const seed=hash(name);
+  const palette=[
+    ["#b77fd3","#a43d79"],["#d886a7","#b96f42"],["#80b7d8","#3e6f96"],
+    ["#d3b265","#8f6438"],["#8fbd8b","#4f7f58"],["#c79175","#82513e"]
+  ][seed%6];
+
+  const descriptor=getItemVisual(name,category);
+  const accent=palette[0],accent2=palette[1];
+
+  let objectSvg="";
+  if(descriptor.shape==="coin"){
+    objectSvg=`<circle cx="260" cy="145" r="74" fill="#d6ad45" stroke="#7b5426" stroke-width="14"/>
+      <circle cx="260" cy="145" r="51" fill="none" stroke="#f0d378" stroke-width="7"/>
+      <text x="260" y="166" text-anchor="middle" font-size="54">${descriptor.icon}</text>`;
+  }else if(descriptor.shape==="umbrella"){
+    objectSvg=`<path d="M155 138 Q260 35 365 138 Q330 126 300 145 Q260 118 220 145 Q190 126 155 138Z" fill="${accent}" stroke="#6b3d3c" stroke-width="10"/>
+      <path d="M260 135 V235 Q260 272 225 250" fill="none" stroke="#6e5238" stroke-width="15" stroke-linecap="round"/>`;
+  }else if(descriptor.shape==="vase"){
+    objectSvg=`<path d="M225 70 H295 L285 105 Q337 155 300 239 Q260 267 220 239 Q183 155 235 105Z" fill="${accent}" stroke="#704733" stroke-width="11"/>
+      <path d="M224 158 Q260 130 296 158" fill="none" stroke="#f0cc86" stroke-width="10"/>`;
+  }else if(descriptor.shape==="radio"){
+    objectSvg=`<rect x="150" y="92" width="220" height="145" rx="20" fill="${accent}" stroke="#503c31" stroke-width="11"/>
+      <circle cx="220" cy="165" r="46" fill="#3f4650"/><circle cx="320" cy="135" r="14" fill="#e1c56f"/>
+      <rect x="284" y="174" width="57" height="11" fill="#513b2e"/><path d="M180 90 L325 40" stroke="#4a3a31" stroke-width="9"/>`;
+  }else if(descriptor.shape==="book"){
+    objectSvg=`<path d="M145 82 Q205 62 255 92 V234 Q205 204 145 226Z" fill="${accent}" stroke="#5b4030" stroke-width="10"/>
+      <path d="M375 82 Q315 62 265 92 V234 Q315 204 375 226Z" fill="${accent2}" stroke="#5b4030" stroke-width="10"/>
+      <path d="M260 92 V234" stroke="#5b4030" stroke-width="8"/>`;
+  }else if(descriptor.shape==="camera"){
+    objectSvg=`<rect x="145" y="95" width="230" height="145" rx="22" fill="${accent}" stroke="#463832" stroke-width="11"/>
+      <circle cx="260" cy="168" r="55" fill="#243445" stroke="#d8c79b" stroke-width="12"/>
+      <rect x="185" y="70" width="75" height="32" rx="8" fill="${accent2}"/>`;
+  }else if(descriptor.shape==="clock"){
+    objectSvg=`<circle cx="260" cy="150" r="91" fill="#f1e4c6" stroke="#735039" stroke-width="15"/>
+      <path d="M260 150 L260 92 M260 150 L308 179" stroke="#3a2c24" stroke-width="11" stroke-linecap="round"/>
+      <circle cx="260" cy="150" r="10" fill="#9b433b"/>`;
+  }else if(descriptor.shape==="gem"){
+    objectSvg=`<path d="M180 95 L230 55 H290 L340 95 L310 210 L260 255 L210 210Z" fill="${accent}" stroke="#334a5e" stroke-width="11"/>
+      <path d="M180 95 H340 M230 55 L260 255 M290 55 L260 255" fill="none" stroke="#ffffff99" stroke-width="7"/>`;
+  }else if(descriptor.shape==="tool"){
+    objectSvg=`<path d="M175 230 L330 75" stroke="#6c4b31" stroke-width="24" stroke-linecap="round"/>
+      <path d="M290 55 Q355 80 350 125 L310 105 L275 70Z" fill="${accent}" stroke="#46342c" stroke-width="10"/>`;
+  }else{
+    objectSvg=`<circle cx="260" cy="150" r="93" fill="${accent}" stroke="#563e31" stroke-width="11"/>
+      <text x="260" y="185" text-anchor="middle" font-size="105">${descriptor.icon}</text>`;
+  }
+
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="520" height="320">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop stop-color="${accent}"/><stop offset="1" stop-color="${accent2}"/>
+      </linearGradient>
+      <filter id="shadow"><feDropShadow dx="0" dy="9" stdDeviation="5" flood-opacity=".35"/></filter>
+    </defs>
+    <rect width="520" height="320" fill="url(#bg)"/>
+    <circle cx="72" cy="63" r="41" fill="#ffffff20"/>
+    <circle cx="440" cy="238" r="60" fill="#00000012"/>
+    <g filter="url(#shadow)">${objectSvg}</g>
+    <rect x="42" y="252" width="436" height="50" rx="13" fill="#fff9ed" stroke="#5a4030" stroke-width="5"/>
+    <text x="260" y="285" text-anchor="middle" font-family="Arial" font-size="23" font-weight="700" fill="#2e261f">${escSvg(name.slice(0,15))}</text>
+  </svg>`;
+  return"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg)
+}
+
+function getItemVisual(name,category){
+  const n=String(name);
+  const tests=[
+    [["동전","코인","메달"],"🪙","coin"],
+    [["우산"],"☂️","umbrella"],
+    [["항아리","도자기","병","화병","주전자"],"🏺","vase"],
+    [["라디오","스피커","카세트","녹음기","앰프","턴테이블","CD"],"📻","radio"],
+    [["책","도감","소설","만화","앨범","일지","노트","설명서"],"📖","book"],
+    [["카메라"],"📷","camera"],
+    [["시계","워치"],"🕰️","clock"],
+    [["수정","원석","광석","보석","자수정","석영","흑요석","운석"],"💎","gem"],
+    [["망치","드릴","스패너","펜치","톱","드라이버","렌치","공구"],"🔨","tool"],
+    [["게임기"],"🎮","generic"],[["기타","악기","마이크"],"🎸","generic"],
+    [["거울"],"🪞","generic"],[["나침반"],"🧭","generic"],[["전화기"],"☎️","generic"],
+    [["의자","책상","선반","서랍","스툴","캐비닛"],"🪑","generic"],
+    [["인형","곰","로봇","장난감","피규어"],"🧸","generic"],
+    [["모자","셔츠","재킷","코트","조끼","스카프","청바지","신발"],"👕","generic"],
+    [["프라이팬","냄비","식칼","도마","토스터","도시락"],"🍳","generic"]
+  ];
+  for(const [words,icon,shape] of tests)if(words.some(w=>n.includes(w)))return{icon,shape};
+  const categoryMap={
+    "전자기기":"⚡","생활용품":"🏠","수집품":"✨","골동품":"🏺","광물":"💎","공예품":"🧵",
+    "의류":"👕","도서":"📚","완구":"🧸","주방용품":"🍳","음향기기":"🎵","스포츠":"🏅",
+    "공구":"🔧","가구":"🪑","문구":"✏️"
+  };
+  return{icon:categoryMap[category]||"📦",shape:"generic"};
+}
 function hash(t){let h=2166136261;for(const c of t){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return Math.abs(h)}
 function escSvg(v){return String(v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[m]))}
 function money(v){const n=Number(v)||0,u=[[1e20,"해"],[1e16,"경"],[1e12,"조"],[1e8,"억"],[1e4,"만"]];for(const[x,l]of u)if(Math.abs(n)>=x){const d=n/x;return Number(d.toFixed(Math.abs(d)>=100?0:Math.abs(d)>=10?1:2)).toLocaleString()+l+" 원"}return Math.floor(n).toLocaleString()+"원"}
