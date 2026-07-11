@@ -752,8 +752,55 @@ async function loadStocks(){const[{data:s},{data:h}]=await Promise.all([db.from(
 function openStockDetail(id){selectedStock=id;stockListView.classList.add("hidden");stockDetailView.classList.remove("hidden");renderStockDetail(id)}function closeStockDetail(){selectedStock=null;stockListView?.classList.remove("hidden");stockDetailView?.classList.add("hidden")}
 function renderStockDetail(id){const st=stocks.find(x=>x.id===id),hd=holdings.find(x=>x.stock_id===id),q=Number(hd?.quantity||0),avg=Number(hd?.average_buy_price||0),cur=Number(st.current_price),hist=history(st.history,st.previous_price,cur),val=q*cur,p=val-q*avg;stockDetail.innerHTML=`<div class="stock-detail-head"><h2>${esc(st.name)}</h2><strong>${money(cur)}</strong><small>현재가</small></div>${stockSvg(hist,340,220,false)}<div class="metrics"><div>보유 <b>${q}주</b></div><div>평균 <b>${q?money(avg):"-"}</b></div><div>평가액 <b>${money(val)}</b></div><div>손익 <b class="${p>=0?"up":"down"}">${p>=0?"+":""}${money(p)}</b></div></div><div class="trade"><input id="qty-${id}" type="number" min="1" value="1"><button class="buy" onclick="tradeStock('${id}','buy')">매수</button><button class="sell" onclick="tradeStock('${id}','sell')">매도</button></div>`}
 async function tradeStock(id,type){const q=Number(document.getElementById("qty-"+id).value);const{error}=await db.rpc(type==="buy"?"buy_stock_v2":"sell_stock_v2",{p_stock_id:id,p_quantity:q});if(error)return toast(error.message);await Promise.all([loadProfile(),loadStocks()])}
-function history(raw,prev,cur){let a=[];if(Array.isArray(raw))a=raw;else try{a=JSON.parse(raw||"[]")}catch{}a=a.map(Number).filter(Number.isFinite);if(a.length<2)a=[Number(prev),Number(cur)];if(a.at(-1)!==Number(cur))a.push(Number(cur));return a.slice(-32)}
-function stockSvg(a,w,h,small){const p=small?2:10,min=Math.min(...a),max=Math.max(...a),range=Math.max(max-min,1),pts=a.map((v,i)=>`${(p+i/Math.max(a.length-1,1)*(w-2*p)).toFixed(1)},${(h-p-(v-min)/range*(h-2*p)).toFixed(1)}`).join(" "),up=a.at(-1)>=a[0],c=up?"up":"down";return `<svg class="${small?"sparkline":"detail-chart"}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polygon points="${p},${h-p} ${pts} ${w-p},${h-p}" class="fill-${c}"></polygon><polyline points="${pts}" class="line-${c}"></polyline></svg>`}
+function history(raw,prev,cur){
+  let a=[];
+  if(Array.isArray(raw)) a=raw;
+  else try{a=JSON.parse(raw||"[]")}catch{}
+
+  a=a.map(Number).filter(Number.isFinite);
+  prev=Number(prev);
+  cur=Number(cur);
+
+  // 마지막 구간은 반드시 서버의 이전가 → 현재가가 되도록 고정한다.
+  // 이 값이 목록에 표시되는 변동률과 정확히 같은 기준이다.
+  while(a.length&&Math.abs(a.at(-1)-cur)<0.000001) a.pop();
+  if(!a.length||Math.abs(a.at(-1)-prev)>=0.000001) a.push(prev);
+  a.push(cur);
+
+  if(a.length<3) a.unshift(prev);
+  return a.slice(-32);
+}
+
+function stockSvg(a,w,h,small){
+  const p=small?3:12;
+  const prev=Number(a.at(-2)??a[0]??0);
+  const cur=Number(a.at(-1)??prev);
+  const up=cur>=prev;
+  const c=up?"up":"down";
+
+  // 자동 확대를 과도하게 하지 않고, ±3.5% 기준 축을 확보해
+  // 0.2%와 3%의 움직임이 실제 크기 차이대로 보이게 한다.
+  const expectedMove=Math.max(Math.abs(prev)*0.035,1);
+  const dataMin=Math.min(...a,prev-expectedMove);
+  const dataMax=Math.max(...a,prev+expectedMove);
+  const range=Math.max(dataMax-dataMin,1);
+  const x=i=>p+i/Math.max(a.length-1,1)*(w-2*p);
+  const y=v=>h-p-(v-dataMin)/range*(h-2*p);
+  const pts=a.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const baselineY=y(prev).toFixed(1);
+  const lastX1=x(Math.max(0,a.length-2)).toFixed(1);
+  const lastY1=y(prev).toFixed(1);
+  const lastX2=x(a.length-1).toFixed(1);
+  const lastY2=y(cur).toFixed(1);
+
+  return `<svg class="${small?"sparkline":"detail-chart"}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="이전가 대비 현재 변동 그래프">
+    <line x1="${p}" y1="${baselineY}" x2="${w-p}" y2="${baselineY}" class="stock-baseline"></line>
+    <polygon points="${p},${baselineY} ${pts} ${w-p},${baselineY}" class="fill-${c}"></polygon>
+    <polyline points="${pts}" class="line-${c} stock-history-line"></polyline>
+    <line x1="${lastX1}" y1="${lastY1}" x2="${lastX2}" y2="${lastY2}" class="stock-last-move line-${c}"></line>
+    <circle cx="${lastX2}" cy="${lastY2}" r="${small?2.6:4}" class="stock-last-dot dot-${c}"></circle>
+  </svg>`;
+}
 function renderWallet(){if(!profile)return;const sv=holdings.reduce((s,h)=>s+Number(h.quantity)*Number(stocks.find(x=>x.id===h.stock_id)?.current_price||0),0),iv=inventory.reduce((s,r)=>s+itemValue(r.items.average_price,r.condition_score),0),cv=collectibles.reduce((s,r)=>s+Number(r.collectibles.effect_percent)*10000,0);walletView.innerHTML=`<div class="wallet-card">현금 <b>${money(profile.cash)}</b></div><div class="wallet-card">주식 <b>${money(sv)}</b></div><div class="wallet-card">아이템 <b>${money(iv)}</b></div><div class="wallet-card">소장품 <b>${money(cv)}</b></div>`}
 function updateNetworth(){if(!profile)return;const sv=holdings.reduce((s,h)=>s+Number(h.quantity)*Number(stocks.find(x=>x.id===h.stock_id)?.current_price||0),0),iv=inventory.reduce((s,r)=>s+itemValue(r.items.average_price,r.condition_score),0),cv=collectibles.reduce((s,r)=>s+Number(r.collectibles.effect_percent)*10000,0);networth.textContent=money(Number(profile.cash)+sv+iv+cv);renderWallet()}
 
