@@ -525,3 +525,98 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 .negotiation-feedback.success{border-color:#5d9665;background:#e7f5e5;color:#2f6c3b}
 .negotiation-feedback.error{border-color:#b55a50;background:#fae5df;color:#913b34}
 #negotiationContent button:disabled{opacity:.55;cursor:wait;transform:none!important}
+
+/* ============================================================
+   v30.2 NEGOTIATION INTERACTION + SCROLL FIX
+============================================================ */
+#negotiationModal .negotiation-window{
+  overflow:hidden!important;
+}
+#negotiationModal .negotiation-room{
+  min-height:0!important;
+  overflow:hidden!important;
+}
+#negotiationModal #negotiationContent{
+  position:relative!important;
+  z-index:20!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain!important;
+  scrollbar-gutter:stable!important;
+  pointer-events:auto!important;
+  touch-action:pan-y!important;
+  padding-right:18px!important;
+}
+#negotiationModal #negotiationContent *{
+  pointer-events:auto;
+}
+#negotiationModal .neg-chat{
+  flex:0 0 150px!important;
+  min-height:120px!important;
+  max-height:190px!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain!important;
+  scrollbar-gutter:stable!important;
+  scroll-behavior:smooth!important;
+}
+#negotiationModal .manual-offer,
+#negotiationModal .npc-tactic-grid,
+#negotiationModal .submit-price-offer,
+#negotiationModal .accept-now{
+  position:relative!important;
+  z-index:30!important;
+  flex:0 0 auto!important;
+}
+#negotiationModal button,
+#negotiationModal input{
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+}
+#negotiationModal button:not(:disabled){
+  cursor:pointer!important;
+}
+#negotiationModal .offer-controls input{
+  width:100%!important;
+  min-width:150px!important;
+  font-size:18px!important;
+  line-height:1.2!important;
+  color:#21170f!important;
+  background:#fffdf7!important;
+  border:2px solid #6d4c32!important;
+}
+#negotiationModal .submit-price-offer{
+  min-height:50px!important;
+  display:block!important;
+}
+#negotiationModal .npc-tactic-grid{
+  margin-bottom:8px!important;
+}
+#negotiationModal .market-rarity-glow,
+#negotiationModal .ambient-grain,
+#negotiationModal .ambient-vignette{
+  pointer-events:none!important;
+}
+@media (min-width:901px){
+  #negotiationModal #negotiationContent{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:10px!important;
+    height:100%!important;
+  }
+}
+@media (max-width:900px){
+  #negotiationModal #negotiationContent{
+    height:100%!important;
+    max-height:100%!important;
+    overflow-y:auto!important;
+  }
+  #negotiationModal .offer-controls{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  #negotiationModal .offer-controls input{
+    grid-column:1/-1!important;
+  }
+  #negotiationModal .offer-controls .recommend{
+    grid-column:1/-1!important;
+  }
+}
