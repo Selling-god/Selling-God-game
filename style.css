@@ -369,3 +369,45 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 
 @media(max-width:1000px){.npc-tactic-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:760px){.npc-tactic-grid{grid-template-columns:1fr}.collectible-sell-form{grid-template-columns:1fr!important}.npc-market-room .negotiator-head{font-size:115px!important}.npc-market-room .negotiator-torso{font-size:145px!important}}
+
+/* =========================================================
+   v23 - 30분 고정 로테이션 / 프리미엄 경매 / 중고 매물
+========================================================= */
+.rotation-banner{
+  grid-column:1/-1;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  min-height:72px;
+  padding:14px 18px;
+  border:1px solid rgba(207,171,96,.42);
+  border-radius:14px;
+  background:linear-gradient(110deg,#2a1a12,#4a3020 55%,#2a1a12);
+  color:#f5e2bd;
+  box-shadow:0 12px 26px rgba(0,0,0,.26),inset 0 1px rgba(255,255,255,.08);
+}
+.rotation-banner div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.rotation-banner b{font-size:16px;color:#ffe0a0}
+.rotation-banner small{color:#cdb28b;line-height:1.4}
+.rotation-banner strong{
+  flex:0 0 auto;
+  padding:9px 12px;
+  border:1px solid rgba(255,220,148,.25);
+  border-radius:10px;
+  background:rgba(0,0,0,.22);
+  font-size:12px;
+  color:#e6cfaa;
+  white-space:nowrap;
+}
+.rotation-banner strong span{margin-left:6px;color:#fff0c6;font-size:17px;font-variant-numeric:tabular-nums}
+.auction-rotation{background:linear-gradient(110deg,#1f1724,#4b2f46 50%,#2b1d15)}
+.market-rotation{background:linear-gradient(110deg,#18251d,#35513a 50%,#231a14)}
+.auction-choice{position:relative;overflow:hidden}
+.auction-choice.rarity-4,.auction-choice.rarity-5,.auction-choice.rarity-6{box-shadow:0 16px 30px rgba(0,0,0,.28),inset 0 0 28px rgba(255,210,75,.12)}
+.bid-log{scroll-behavior:smooth}
+
+@media(max-width:760px){
+  .rotation-banner{align-items:flex-start;flex-direction:column;gap:10px}
+  .rotation-banner strong{width:100%;display:flex;justify-content:space-between;align-items:center}
+}
