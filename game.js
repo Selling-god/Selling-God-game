@@ -2,7 +2,7 @@ const SUPABASE_URL="https://qazjtevdljthbzmqmgrw.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_rIARlWBpKPvFAv_TtTdgaQ_Po-hOGmX";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
-let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,auctionChoices=[],sellerAuction=null,negotiation=null,job=null,selectedStock=null,toastTimer=null,realtime=null,negotiationSkills={},collectiblePage=1,casePage=1,decorationPage=1,chatBusy=false,auctionRotationTimer=null,marketRotationTimer=null;
+let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,auctionChoices=[],sellerAuction=null,negotiation=null,job=null,selectedStock=null,toastTimer=null,realtime=null,negotiationSkills={},collectiblePage=1,casePage=1,decorationPage=1,chatBusy=false,auctionRotationTimer=null,marketRotationTimer=null,stockTickerTimer=null;
 
 document.addEventListener("DOMContentLoaded",()=>{init();initPremiumUI()});
 async function init(){
@@ -25,13 +25,36 @@ async function submitAuth(){
     }
   }catch(e){authMsg.textContent=e.message}finally{authBtn.disabled=false;authBtn.textContent=authMode==="login"?"로그인":"회원가입"}
 }
-async function enterGame(){showGame();const{error:saveError}=await db.rpc("ensure_player_save");if(saveError){toast("저장 데이터 확인 실패: "+saveError.message);return}await db.rpc("sync_skill_points_v15").catch(()=>{});await refreshAll();subscribe();setTimeout(hideBootScreen,280)}
+async function enterGame(){
+  showGame();
+  const{error:saveError}=await db.rpc("ensure_player_save");
+  if(saveError){toast("저장 데이터 확인 실패: "+saveError.message);return}
+  await db.rpc("sync_skill_points_v15").catch(()=>{});
+  await refreshAll();
+  subscribe();
+  startGlobalStockTicker();
+  setTimeout(hideBootScreen,280);
+}
 function showAuth(){auth.classList.remove("hidden");game.classList.add("hidden");setTimeout(hideBootScreen,520)}
 function showGame(){auth.classList.add("hidden");game.classList.remove("hidden");setTimeout(renderTradeDashboard,0)}
-async function logout(){if(realtime)await db.removeChannel(realtime);await db.auth.signOut();showAuth()}
+async function logout(){
+  if(stockTickerTimer){clearInterval(stockTickerTimer);stockTickerTimer=null;}
+  if(realtime)await db.removeChannel(realtime);
+  realtime=null;
+  await db.auth.signOut();
+  showAuth();
+}
 function openPage(name,btn){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));document.getElementById("page-"+name).classList.add("active");btn?.classList.add("active");({inventory:loadInventory,pawnshop:loadPawnshop,auction:loadAuctionLobby,market:loadMarketHub,house:loadHouse,collection:loadCollectibles,jobs:resetJobPage}[name]||(()=>{}))()}
 function openPageFromPhone(name){closePhone();openPage(name,document.querySelector(`[data-page="${name}"]`))}
-async function refreshAll(){await updateStocks();await loadProfile();await Promise.all([loadInventory(),loadStocks(),loadCollectibles(),loadEffects()]);updateNetworth()}
+async function refreshAll(){
+  await updateStocks();
+  await loadProfile();
+  await loadInventory();
+  await loadStocks();
+  await loadCollectibles();
+  await loadEffects();
+  updateNetworth();
+}
 async function loadProfile(){
   const{data,error}=await db.rpc("get_player_profile_v24");
   if(error){toast("저장 데이터를 불러오지 못했습니다: "+error.message);return}
@@ -467,8 +490,9 @@ async function loadCollectibles(){
     return r;
   });
 
-  const equippedRow=collectibles.find(x=>x.is_equipped&&x.collectibles.type==='phone_case');
-  const equippedGroup=getGroupedCollectibles('phone_case').find(g=>g.equippedCount>0);
+  const savedCaseId=String(profile?.equipped_phone_case_id||'');
+  const equippedRow=collectibles.find(x=>String(x.id)===savedCaseId&&x.collectibles.type==='phone_case')||collectibles.find(x=>x.is_equipped&&x.collectibles.type==='phone_case');
+  const equippedGroup=equippedRow?getGroupedCollectibles('phone_case').find(g=>g.rows.some(r=>r.id===equippedRow.id)):getGroupedCollectibles('phone_case').find(g=>g.equippedCount>0);
   const eqEl=document.getElementById('equippedCase');
   if(eqEl)eqEl.innerHTML=equippedGroup?groupedCollectibleRow(equippedGroup,{mode:'equipped'}):'<p class="muted">장착 케이스 없음</p>';
 
@@ -619,10 +643,25 @@ async function equipCollectible(id,action){
   }
   const{error}=await db.rpc('equip_collectible',{p_user_collectible_id:id,p_action:action});
   if(error)return toast(error.message);
-  await Promise.all([loadCollectibles(),loadHouse(),loadEffects()]);
+  await loadProfile();
+  await loadCollectibles();
+  await loadHouse();
+  await loadEffects();
 }
 
-function applyPhoneCase(eq){const shell=document.querySelector('.phone-shell'),home=document.querySelector('.phone-home');if(!shell||!home)return;const name=eq?.collectibles?.name||'',rarity=eq?.collectibles?.rarity||'일반';shell.dataset.case=name;shell.dataset.rarity=rarityScore(rarity);home.dataset.wallpaper=name;home.dataset.rarity=rarityScore(rarity);phoneOwner.textContent=profile?.nickname||'판매왕'}
+function applyPhoneCase(eq){
+  const shell=document.querySelector('.phone-shell');
+  const home=document.querySelector('.phone-home');
+  const owner=document.getElementById('phoneOwner');
+  if(!shell||!home)return;
+  const name=eq?.collectibles?.name||'';
+  const rarity=eq?.collectibles?.rarity||'일반';
+  shell.dataset.case=name;
+  shell.dataset.rarity=String(rarityScore(rarity));
+  home.dataset.wallpaper=name;
+  home.dataset.rarity=String(rarityScore(rarity));
+  if(owner)owner.textContent=profile?.nickname||'판매왕';
+}
 function fillCollectibleSelect(){
   sellCollectible.innerHTML='<option value="">판매할 소장품</option>';
   collectibles.filter(x=>!x.is_equipped&&!x.is_placed&&!x.is_listed).forEach(x=>{
@@ -686,7 +725,22 @@ async function loadNegotiationSkills(){
 }
 async function learnNegotiationSkill(code){const{data,error}=await db.rpc('learn_negotiation_skill_v15',{p_skill:code});if(error)return toast(error.message);toast('협상 스킬을 습득했습니다.');await loadProfile();loadNegotiationSkills()}
 function updatePhoneTime(){phoneTime.textContent=new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}
-async function updateStocks(){await db.rpc("update_global_stock_market")}
+async function updateStocks(){
+  const{data,error}=await db.rpc("update_global_stock_market_v26");
+  if(error){console.warn("주식 시세 갱신 실패",error.message);return null;}
+  return data;
+}
+function startGlobalStockTicker(){
+  if(stockTickerTimer)clearInterval(stockTickerTimer);
+  stockTickerTimer=setInterval(async()=>{
+    if(document.hidden||!currentUser)return;
+    const result=await updateStocks();
+    if(result?.updated)await loadStocks();
+  },15000);
+}
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&currentUser)updateStocks().then(result=>{if(result?.updated)loadStocks()});
+});
 async function refreshStocks(){await updateStocks();await loadStocks()}
 async function loadStocks(){const[{data:s},{data:h}]=await Promise.all([db.from("stocks").select("id,symbol,name,current_price,previous_price,history").eq("is_active",true).order("name"),db.from("stock_holdings").select("*").eq("user_id",currentUser.id)]);stocks=s||[];holdings=h||[];let total=0,profit=0;stockList.innerHTML=stocks.map(st=>{const hd=holdings.find(x=>x.stock_id===st.id),q=Number(hd?.quantity||0),avg=Number(hd?.average_buy_price||0),cur=Number(st.current_price),prev=Number(st.previous_price),r=prev?(cur-prev)/prev*100:0,val=q*cur,p=val-q*avg;total+=val;profit+=p;return `<button class="stock-row" onclick="openStockDetail('${st.id}')"><div class="stock-name"><b>${esc(st.name)}</b><small>${esc(st.symbol)} · ${q}주</small></div><div class="stock-price"><b>${money(cur)}</b><small>현재가</small></div>${stockSvg(history(st.history,prev,cur),95,40,true)}<b class="stock-rate ${r>=0?"up":"down"}">${r>=0?"+":""}${r.toFixed(2)}%</b></button>`}).join("");stockValue.textContent=money(total);stockProfit.textContent=(profit>=0?"+":"")+money(profit);stockProfit.className=profit>=0?"up":"down";if(selectedStock)renderStockDetail(selectedStock);renderWallet()}
 function openStockDetail(id){selectedStock=id;stockListView.classList.add("hidden");stockDetailView.classList.remove("hidden");renderStockDetail(id)}function closeStockDetail(){selectedStock=null;stockListView?.classList.remove("hidden");stockDetailView?.classList.add("hidden")}
@@ -967,3 +1021,99 @@ function reputationToast(data,prefix='거래 완료'){
 async function pawnSell(id,mode,pct){const{data,error}=await db.rpc('sell_item_to_pawnshop',{p_user_item_id:id,p_mode:mode,p_offer_percent:pct});if(error)return toast(error.message);reputationToast(data,'판매 '+money(data.final_price));await Promise.all([loadProfile(),loadPawnshop(),loadInventory()]);updateNetworth()}
 async function finishSellerAuctionAfterCountdown(){const s=sellerAuction;if(!s||s.ending)return;s.ending=true;const{data,error}=await db.rpc('finish_npc_seller_auction_v13',{p_session_id:s.session,p_final_price:s.current});if(error){s.ending=false;return toast(error.message)}reputationToast(data,'경매 판매 '+money(data.final_price));playSuccessSound();clearInterval(s.timer);sellerAuction=null;await Promise.all([loadProfile(),loadInventory()]);fillAuctionSellItems();sellerAuctionHall.innerHTML='<div class="auction-finished">3초 동안 추가 입찰이 없어 판매가 확정되었습니다.</div>'}
 async function acceptNpcBuyDeal(){const n=negotiation;if(!n||n.type!=='npc_buy')return;const{data,error}=await db.rpc('purchase_npc_offer_v18',{p_offer_id:n.offerId,p_final_price:Math.round(n.npcOffer)});if(error)return toast(error.message);reputationToast(data,`구매 ${money(data.final_price)} · ${money(n.asking-data.final_price)} 절약`);playSuccessSound();closeNegotiation();await Promise.all([loadProfile(),loadInventory(),loadNpcOffers()]);updateNetworth()}
+
+/* =========================================================
+   v27: 인내심 기반 거래 평가 및 명성 변동 표시
+========================================================= */
+function patienceTradeGrade(remaining,max){
+  const r=Number(remaining),m=Number(max);
+  if(!Number.isFinite(r)||!Number.isFinite(m)||m<=0)return{label:'거래 완료',delta:2,ratio:.5,cls:'trade-grade-normal'};
+  const ratio=Math.max(0,Math.min(1,r/m));
+  if(ratio>=.8)return{label:'완벽한 거래',delta:12,ratio,cls:'trade-grade-perfect'};
+  if(ratio>=.55)return{label:'만족스러운 거래',delta:7,ratio,cls:'trade-grade-good'};
+  if(ratio>=.3)return{label:'거래 완료',delta:3,ratio,cls:'trade-grade-normal'};
+  if(ratio>0)return{label:'애매한 거래',delta:-2,ratio,cls:'trade-grade-awkward'};
+  return{label:'최악의 거래',delta:-12,ratio:0,cls:'trade-grade-worst'};
+}
+
+function injectPatienceTradePreview(){
+  const n=negotiation;
+  if(!n)return;
+  const host=document.querySelector('#negotiationContent .haggle-bars');
+  if(!host||host.parentElement.querySelector('.patience-trade-preview'))return;
+  const g=patienceTradeGrade(n.patience,n.maxPatience);
+  const sign=g.delta>0?'+':'';
+  const box=document.createElement('div');
+  box.className=`patience-trade-preview ${g.cls}`;
+  box.innerHTML=`<span>현재 거래 예상 평가</span><b>${g.label}</b><em>명성 ${sign}${g.delta}</em><small>남은 인내심에 따라 최종 평가가 결정됩니다.</small>`;
+  host.insertAdjacentElement('afterend',box);
+}
+
+const renderNegotiationV26=renderNegotiation;
+renderNegotiation=function(){renderNegotiationV26();injectPatienceTradePreview();};
+const renderNpcBuyNegotiationV26=renderNpcBuyNegotiation;
+renderNpcBuyNegotiation=function(){renderNpcBuyNegotiationV26();injectPatienceTradePreview();};
+
+function reputationToast(data,prefix='거래 완료'){
+  if(!data)return toast(prefix);
+  const label=data.reputation_label||'거래 완료';
+  const delta=Number(data.reputation_delta||0);
+  const before=Number(data.reputation_before);
+  const after=Number(data.reputation_after);
+  const sign=delta>0?'+':'';
+  const change=delta===0?'변동 없음':`${sign}${delta}`;
+  const range=Number.isFinite(before)&&Number.isFinite(after)?` (${before} → ${after})`:'';
+  toast(`${prefix} · ${label} · 명성 ${change}${range}`);
+}
+
+async function pawnSell(id,mode,pct,patienceRemaining=null,patienceMax=null){
+  const rpc=mode==='negotiated'?'sell_item_to_pawnshop_v27':'sell_item_to_pawnshop_v27';
+  const params={
+    p_user_item_id:id,
+    p_mode:mode,
+    p_offer_percent:pct,
+    p_patience_remaining:patienceRemaining,
+    p_patience_max:patienceMax
+  };
+  const{data,error}=await db.rpc(rpc,params);
+  if(error)return toast(error.message);
+  reputationToast(data,'판매 '+money(data.final_price));
+  await Promise.all([loadProfile(),loadPawnshop(),loadInventory()]);
+  updateNetworth();
+}
+
+async function acceptNpcCounter(){
+  const n=negotiation;if(!n)return;
+  const final=Math.round(n.npcOffer),profit=negotiationProfit(n,final);
+  if(n.type==='pawn'){
+    await pawnSell(n.id,'negotiated',Math.round(final/n.base*100),n.patience,n.maxPatience);
+  }else{
+    const{data,error}=await db.rpc('accept_npc_market_offer_v27',{
+      p_offer_id:n.offerId,
+      p_final_price:final,
+      p_patience_remaining:n.patience,
+      p_patience_max:n.maxPatience
+    });
+    if(error)return toast(error.message);
+    reputationToast(data,'판매 '+money(data.final_price));
+    await Promise.all([loadProfile(),loadNpcOffers(),loadInventory()]);
+  }
+  saveTradeLedger({title:n.title,base:n.base,final,profit,rounds:n.round-1,persona:n.persona?.name||'NPC'});
+  closeNegotiation();
+}
+
+async function acceptNpcBuyDeal(){
+  const n=negotiation;if(!n||n.type!=='npc_buy')return;
+  const{data,error}=await db.rpc('purchase_npc_offer_v27',{
+    p_offer_id:n.offerId,
+    p_final_price:Math.round(n.npcOffer),
+    p_patience_remaining:n.patience,
+    p_patience_max:n.maxPatience
+  });
+  if(error)return toast(error.message);
+  reputationToast(data,`구매 ${money(data.final_price)} · ${money(n.asking-data.final_price)} 절약`);
+  playSuccessSound();
+  closeNegotiation();
+  await Promise.all([loadProfile(),loadInventory(),loadNpcOffers()]);
+  updateNetworth();
+}
