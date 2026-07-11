@@ -311,13 +311,169 @@ function updateGachaButtons(){const poor=!profile||Number(profile.cash)<300000;[
 async function drawCollectible(type){if(!profile||Number(profile.cash)<300000){updateGachaButtons();return toast('뽑기에는 현금 30만원이 필요합니다.')}const btn=document.getElementById(type==='phone_case'?'caseGachaBtn':'decorGachaBtn');if(btn?.disabled)return;btn.disabled=true;const modal=document.getElementById('gachaModal');modal.classList.remove('hidden');modal.className='overlay gacha-spinning rarity-0';gachaRarity.textContent='두근두근...';gachaResultIcon.textContent=type==='phone_case'?'📱':'🏺';gachaResultName.textContent='캡슐 개봉 중';gachaResultName.className='';gachaResultEffect.textContent='빛이 강해집니다';playGachaBuild();await wait(1700);const{data,error}=await db.rpc('draw_collectible_v19',{p_type:type});if(error){closeGachaReveal();btn.disabled=false;updateGachaButtons();return toast(error.message)}const rank=rarityScore(data.rarity);modal.className=`overlay gacha-reveal rarity-${rank}`;gachaRarity.textContent=data.rarity;gachaResultIcon.textContent=data.icon||'✨';gachaResultName.textContent=data.name;gachaResultName.className=`rarity-text ${rarityClass(data.rarity)}`;gachaResultEffect.textContent=`${data.effect_name} +${data.effect_percent}%`;rank>=4?playJackpotSound():playSuccessSound();await Promise.all([loadProfile(),loadCollectibles()]);updateNetworth();updateGachaButtons()}
 function closeGachaReveal(){gachaModal.className='overlay hidden'}
 function wait(ms){return new Promise(r=>setTimeout(r,ms))}
-async function loadCollectibles(){const{data,error}=await db.from('user_collectibles').select(`id,is_equipped,is_placed,is_listed,collectibles(id,name,type,rarity,effect_code,effect_name,effect_percent,icon)`).eq('user_id',currentUser.id).order('acquired_at',{ascending:false});if(error)return toast(error.message);collectibles=(data||[]).map(r=>{if(r.collectibles?.rarity==='영웅')r.collectibles.rarity='진귀';return r});const eq=collectibles.find(x=>x.is_equipped&&x.collectibles.type==='phone_case');const eqEl=document.getElementById('equippedCase');if(eqEl)eqEl.innerHTML=eq?collectibleRow(eq):'<p class="muted">장착 케이스 없음</p>';renderCollectiblePages();renderCasePages();applyPhoneCase(eq);fillCollectibleSelect();updateGachaButtons()}
-function renderCollectiblePages(){const list=collectibles.filter(x=>x.collectibles.type==='decoration'),pageSize=6,total=Math.max(1,Math.ceil(list.length/pageSize));collectiblePage=Math.min(Math.max(1,collectiblePage),total);const start=(collectiblePage-1)*pageSize;const el=document.getElementById('collectibleInventory');if(el)el.innerHTML=list.slice(start,start+pageSize).map(collectibleRow).join('')||'<p class="muted">소장품 없음</p>';const info=document.getElementById('collectiblePageInfo');if(info)info.textContent=`${collectiblePage}P / ${total}P · 총 ${list.length}개`;const prev=document.getElementById('collectiblePrev'),next=document.getElementById('collectibleNext');if(prev)prev.disabled=collectiblePage<=1;if(next)next.disabled=collectiblePage>=total;}
-function changeCollectiblePage(step){const total=Math.max(1,Math.ceil(collectibles.filter(x=>x.collectibles.type==='decoration').length/6));collectiblePage=Math.min(total,Math.max(1,collectiblePage+step));renderCollectiblePages()}
-function renderCasePages(){const list=collectibles.filter(x=>x.collectibles.type==='phone_case'),pageSize=6,total=Math.max(1,Math.ceil(list.length/pageSize));casePage=Math.min(Math.max(1,casePage),total);const start=(casePage-1)*pageSize;const el=document.getElementById('caseInventory');if(el)el.innerHTML=list.slice(start,start+pageSize).map(collectibleRow).join('')||'<p class="muted">보유 케이스 없음</p>';const info=document.getElementById('casePageInfo');if(info)info.textContent=`${casePage}P / ${total}P · 총 ${list.length}개`;const prev=document.getElementById('casePrev'),next=document.getElementById('caseNext');if(prev)prev.disabled=casePage<=1;if(next)next.disabled=casePage>=total;}
-function changeCasePage(step){const total=Math.max(1,Math.ceil(collectibles.filter(x=>x.collectibles.type==='phone_case').length/6));casePage=Math.min(total,Math.max(1,casePage+step));renderCasePages()}
-function collectibleRow(r){const c=r.collectibles,rc=rarityClass(c.rarity);return `<div class="collectible ${rc}"><span>${c.icon} <b class="rarity-text ${rc}">${esc(c.name)}</b><br><small><span class="rarity-text ${rc}">${esc(c.rarity)}</span> · ${esc(c.effect_name)} +${c.effect_percent}%</small></span><button class="btn light" onclick="${c.type==='phone_case'?`equipCollectible('${r.id}','equip')`:`equipCollectible('${r.id}','place')`}">${c.type==='phone_case'?(r.is_equipped?'장착 중':'장착'):(r.is_placed?'배치됨':'배치')}</button></div>`}
-async function equipCollectible(id,action){const r=collectibles.find(x=>x.id===id);if(action==='place'){const placed=collectibles.filter(x=>x.is_placed&&x.collectibles.type==='decoration').length,cap=Number(profile?.house_capacity||1);if(!r.is_placed&&placed>=cap)return toast(`현재 집에는 장식 ${cap}개까지만 배치할 수 있습니다.`)}const{error}=await db.rpc('equip_collectible',{p_user_collectible_id:id,p_action:action});if(error)return toast(error.message);await Promise.all([loadCollectibles(),loadHouse(),loadEffects()])}
+async function loadCollectibles(){
+  const{data,error}=await db.from('user_collectibles').select(`id,is_equipped,is_placed,is_listed,collectibles(id,name,type,rarity,effect_code,effect_name,effect_percent,icon)`).eq('user_id',currentUser.id).order('acquired_at',{ascending:false});
+  if(error)return toast(error.message);
+  collectibles=(data||[]).map(r=>{
+    if(r.collectibles?.rarity==='영웅')r.collectibles.rarity='진귀';
+    return r;
+  });
+
+  const equippedRow=collectibles.find(x=>x.is_equipped&&x.collectibles.type==='phone_case');
+  const equippedGroup=getGroupedCollectibles('phone_case').find(g=>g.equippedCount>0);
+  const eqEl=document.getElementById('equippedCase');
+  if(eqEl)eqEl.innerHTML=equippedGroup?groupedCollectibleRow(equippedGroup,{mode:'equipped'}):'<p class="muted">장착 케이스 없음</p>';
+
+  renderCollectiblePages();
+  renderCasePages();
+  applyPhoneCase(equippedRow);
+  fillCollectibleSelect();
+  updateGachaButtons();
+}
+
+function getGroupedCollectibles(type=null){
+  const source=collectibles.filter(r=>!type||r.collectibles?.type===type);
+  const groups=new Map();
+
+  source.forEach(r=>{
+    const c=r.collectibles;
+    if(!c)return;
+    const key=String(c.id||`${c.type}:${c.name}:${c.rarity}:${c.effect_code}:${c.effect_percent}`);
+    if(!groups.has(key)){
+      groups.set(key,{
+        key,
+        collectible:c,
+        rows:[],
+        count:0,
+        equippedCount:0,
+        placedCount:0,
+        listedCount:0
+      });
+    }
+    const group=groups.get(key);
+    group.rows.push(r);
+    group.count++;
+    if(r.is_equipped)group.equippedCount++;
+    if(r.is_placed)group.placedCount++;
+    if(r.is_listed)group.listedCount++;
+  });
+
+  return [...groups.values()];
+}
+
+function groupedCollectibleRow(group,options={}){
+  const c=group.collectible;
+  const rc=rarityClass(c.rarity);
+  const isCase=c.type==='phone_case';
+  const mode=options.mode||'normal';
+  const countBadge=group.count>1?`<span class="collectible-stack" aria-label="${group.count}개 보유">x${group.count}</span>`:'';
+
+  let state='';
+  let button='';
+
+  if(isCase){
+    if(group.equippedCount>0)state='<em class="collectible-state">장착됨</em>';
+    if(mode==='equipped'||group.equippedCount>0){
+      button='<button class="btn light" disabled>장착 중</button>';
+    }else{
+      button=`<button class="btn light" onclick="equipGroupedCollectible('${escAttr(String(c.id))}','equip')">장착</button>`;
+    }
+  }else{
+    if(group.placedCount>0)state=`<em class="collectible-state">배치 ${group.placedCount}/${group.count}</em>`;
+    const fullyPlaced=group.placedCount>=group.count;
+    const label=fullyPlaced?'모두 배치됨':group.placedCount>0?'추가 배치':'배치';
+    button=`<button class="btn light" ${fullyPlaced?'disabled':''} onclick="equipGroupedCollectible('${escAttr(String(c.id))}','place')">${label}</button>`;
+  }
+
+  return `<div class="collectible ${rc}">
+    <div class="collectible-main">
+      <div class="collectible-title-row">
+        <span class="collectible-icon">${c.icon}</span>
+        <b class="rarity-text ${rc}">${esc(c.name)}</b>
+        ${countBadge}
+      </div>
+      <small><span class="rarity-text ${rc}">${esc(c.rarity)}</span> · ${esc(c.effect_name)} +${c.effect_percent}% ${state}</small>
+    </div>
+    ${button}
+  </div>`;
+}
+
+async function equipGroupedCollectible(collectibleId,action){
+  const pool=collectibles.filter(r=>String(r.collectibles?.id)===String(collectibleId));
+  if(!pool.length)return toast('해당 소장품을 찾을 수 없습니다.');
+
+  let target=null;
+  if(action==='equip')target=pool.find(r=>!r.is_equipped&&!r.is_listed)||pool.find(r=>!r.is_equipped)||pool[0];
+  else if(action==='place')target=pool.find(r=>!r.is_placed&&!r.is_listed)||pool.find(r=>!r.is_placed)||pool[0];
+
+  if(!target)return toast('사용 가능한 소장품이 없습니다.');
+  await equipCollectible(target.id,action);
+}
+
+function renderCollectiblePages(){
+  const list=getGroupedCollectibles('decoration');
+  const totalOwned=collectibles.filter(x=>x.collectibles?.type==='decoration').length;
+  const pageSize=6;
+  const total=Math.max(1,Math.ceil(list.length/pageSize));
+  collectiblePage=Math.min(Math.max(1,collectiblePage),total);
+  const start=(collectiblePage-1)*pageSize;
+  const el=document.getElementById('collectibleInventory');
+  if(el)el.innerHTML=list.slice(start,start+pageSize).map(group=>groupedCollectibleRow(group)).join('')||'<p class="muted">소장품 없음</p>';
+  const info=document.getElementById('collectiblePageInfo');
+  if(info)info.textContent=`${collectiblePage}P / ${total}P · 종류 ${list.length} · 총 ${totalOwned}개`;
+  const prev=document.getElementById('collectiblePrev'),next=document.getElementById('collectibleNext');
+  if(prev)prev.disabled=collectiblePage<=1;
+  if(next)next.disabled=collectiblePage>=total;
+}
+
+function changeCollectiblePage(step){
+  const total=Math.max(1,Math.ceil(getGroupedCollectibles('decoration').length/6));
+  collectiblePage=Math.min(total,Math.max(1,collectiblePage+step));
+  renderCollectiblePages();
+}
+
+function renderCasePages(){
+  const list=getGroupedCollectibles('phone_case');
+  const totalOwned=collectibles.filter(x=>x.collectibles?.type==='phone_case').length;
+  const pageSize=6;
+  const total=Math.max(1,Math.ceil(list.length/pageSize));
+  casePage=Math.min(Math.max(1,casePage),total);
+  const start=(casePage-1)*pageSize;
+  const el=document.getElementById('caseInventory');
+  if(el)el.innerHTML=list.slice(start,start+pageSize).map(group=>groupedCollectibleRow(group)).join('')||'<p class="muted">보유 케이스 없음</p>';
+  const info=document.getElementById('casePageInfo');
+  if(info)info.textContent=`${casePage}P / ${total}P · 종류 ${list.length} · 총 ${totalOwned}개`;
+  const prev=document.getElementById('casePrev'),next=document.getElementById('caseNext');
+  if(prev)prev.disabled=casePage<=1;
+  if(next)next.disabled=casePage>=total;
+}
+
+function changeCasePage(step){
+  const total=Math.max(1,Math.ceil(getGroupedCollectibles('phone_case').length/6));
+  casePage=Math.min(total,Math.max(1,casePage+step));
+  renderCasePages();
+}
+
+function collectibleRow(r){
+  if(!r?.collectibles)return'';
+  const c=r.collectibles;
+  const group={collectible:c,rows:[r],count:1,equippedCount:r.is_equipped?1:0,placedCount:r.is_placed?1:0,listedCount:r.is_listed?1:0};
+  return groupedCollectibleRow(group,{mode:r.is_equipped?'equipped':'normal'});
+}
+
+async function equipCollectible(id,action){
+  const r=collectibles.find(x=>x.id===id);
+  if(!r)return toast('소장품 정보를 찾지 못했습니다.');
+  if(action==='place'){
+    const placed=collectibles.filter(x=>x.is_placed&&x.collectibles.type==='decoration').length;
+    const cap=Number(profile?.house_capacity||1);
+    if(!r.is_placed&&placed>=cap)return toast(`현재 집에는 장식 ${cap}개까지만 배치할 수 있습니다.`);
+  }
+  const{error}=await db.rpc('equip_collectible',{p_user_collectible_id:id,p_action:action});
+  if(error)return toast(error.message);
+  await Promise.all([loadCollectibles(),loadHouse(),loadEffects()]);
+}
+
 function applyPhoneCase(eq){const shell=document.querySelector('.phone-shell'),home=document.querySelector('.phone-home');if(!shell||!home)return;const name=eq?.collectibles?.name||'',rarity=eq?.collectibles?.rarity||'일반';shell.dataset.case=name;shell.dataset.rarity=rarityScore(rarity);home.dataset.wallpaper=name;home.dataset.rarity=rarityScore(rarity);phoneOwner.textContent=profile?.nickname||'판매왕'}
 function fillCollectibleSelect(){sellCollectible.innerHTML='<option value="">판매할 소장품</option>';collectibles.filter(x=>!x.is_equipped&&!x.is_placed&&!x.is_listed).forEach(x=>sellCollectible.add(new Option(`${x.collectibles.name} · ${x.collectibles.effect_percent}%`,x.id)))}
 async function createCollectibleListing(){const id=sellCollectible.value,p=Math.floor(Number(collectiblePrice.value));if(!id||p<=0)return toast('소장품과 가격을 확인하세요.');const{error}=await db.rpc('create_collectible_listing',{p_user_collectible_id:id,p_price:p});if(error)return toast(error.message);collectiblePrice.value='';await loadCollectibleMarket()}
@@ -326,8 +482,21 @@ async function buyCollectible(id){const{data,error}=await db.rpc('buy_collectibl
 async function cancelCollectible(id){const{error}=await db.rpc('cancel_collectible_listing',{p_listing_id:id});if(error)return toast(error.message);await loadCollectibleMarket()}
 async function loadEffects(){const{data}=await db.rpc('get_active_effects');effects=data||{}}
 async function loadHouse(){await Promise.all([loadProfile(),loadCollectibles(),loadEffects()]);const cap=Number(profile.house_capacity||1),placed=collectibles.filter(x=>x.is_placed&&x.collectibles.type==='decoration').slice(0,cap);houseCapacityText.textContent=`${profile.property_name||'반지하'} · 장식 ${placed.length}/${cap}개 배치`;houseRoom.dataset.property=profile.property_tier||'basement';placedDecorations.innerHTML=placed.map((r,i)=>`<div class="placed slot-${i}">${r.collectibles.icon}</div>`).join('');houseEffects.innerHTML=Object.entries(effects).map(([k,v])=>`<div class="effect"><span>${effectName(k)}</span><b>+${Number(v).toFixed(1)}%</b></div>`).join('')||'<p class="muted">활성 효과 없음</p>';renderDecorationPages()}
-function renderDecorationPages(){const list=collectibles.filter(x=>x.collectibles.type==='decoration'),pageSize=4,total=Math.max(1,Math.ceil(list.length/pageSize));decorationPage=Math.min(Math.max(1,decorationPage),total);const start=(decorationPage-1)*pageSize;decorationInventory.innerHTML=list.slice(start,start+pageSize).map(collectibleRow).join('')||'<p class="muted">장식 없음</p>';const info=document.getElementById('decorationPageInfo');if(info)info.textContent=`${decorationPage}P / ${total}P · 총 ${list.length}개`;const prev=document.getElementById('decorationPrev'),next=document.getElementById('decorationNext');if(prev)prev.disabled=decorationPage<=1;if(next)next.disabled=decorationPage>=total;}
-function changeDecorationPage(step){const total=Math.max(1,Math.ceil(collectibles.filter(x=>x.collectibles.type==='decoration').length/4));decorationPage=Math.min(total,Math.max(1,decorationPage+step));renderDecorationPages()}
+function renderDecorationPages(){
+  const list=getGroupedCollectibles('decoration');
+  const totalOwned=collectibles.filter(x=>x.collectibles?.type==='decoration').length;
+  const pageSize=4;
+  const total=Math.max(1,Math.ceil(list.length/pageSize));
+  decorationPage=Math.min(Math.max(1,decorationPage),total);
+  const start=(decorationPage-1)*pageSize;
+  decorationInventory.innerHTML=list.slice(start,start+pageSize).map(group=>groupedCollectibleRow(group)).join('')||'<p class="muted">장식 없음</p>';
+  const info=document.getElementById('decorationPageInfo');
+  if(info)info.textContent=`${decorationPage}P / ${total}P · 종류 ${list.length} · 총 ${totalOwned}개`;
+  const prev=document.getElementById('decorationPrev'),next=document.getElementById('decorationNext');
+  if(prev)prev.disabled=decorationPage<=1;
+  if(next)next.disabled=decorationPage>=total;
+}
+function changeDecorationPage(step){const total=Math.max(1,Math.ceil(getGroupedCollectibles('decoration').length/4));decorationPage=Math.min(total,Math.max(1,decorationPage+step));renderDecorationPages()}
 function effectName(k){return{pawn_bonus:'전당포 판매가',market_bonus:'NPC 제안가',auction_discount:'경매 할인',stock_fee_discount:'주식 수수료',exploration_luck:'탐색 희귀도',gacha_luck:'뽑기 희귀도'}[k]||k}
 
 /* 휴대폰/주식 */
@@ -451,6 +620,7 @@ function hash(t){let h=2166136261;for(const c of t){h^=c.charCodeAt(0);h=Math.im
 function escSvg(v){return String(v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[m]))}
 function money(v){const n=Number(v)||0,u=[[1e20,"해"],[1e16,"경"],[1e12,"조"],[1e8,"억"],[1e4,"만"]];for(const[x,l]of u)if(Math.abs(n)>=x){const d=n/x;return Number(d.toFixed(Math.abs(d)>=100?0:Math.abs(d)>=10?1:2)).toLocaleString()+l+" 원"}return Math.floor(n).toLocaleString()+"원"}
 function esc(v){const d=document.createElement("div");d.textContent=v??"";return d.innerHTML}
+function escAttr(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]||m))}
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),3400)}
 
 
