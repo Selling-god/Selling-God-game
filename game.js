@@ -4,7 +4,7 @@ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
 let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,negotiation=null,job=null,selectedStock=null,toastTimer=null,realtime=null;
 
-document.addEventListener("DOMContentLoaded",init);
+document.addEventListener("DOMContentLoaded",()=>{init();initPremiumUI()});
 async function init(){
   updatePhoneTime();setInterval(updatePhoneTime,30000);
   const{data:{session}}=await db.auth.getSession();
@@ -25,14 +25,14 @@ async function submitAuth(){
     }
   }catch(e){authMsg.textContent=e.message}finally{authBtn.disabled=false;authBtn.textContent=authMode==="login"?"로그인":"회원가입"}
 }
-async function enterGame(){showGame();await db.rpc("ensure_player_save");await refreshAll();await grantStarterFundsIfNeeded();subscribe()}
-function showAuth(){auth.classList.remove("hidden");game.classList.add("hidden")}
-function showGame(){auth.classList.add("hidden");game.classList.remove("hidden")}
+async function enterGame(){showGame();await db.rpc("ensure_player_save");await refreshAll();await grantStarterFundsIfNeeded();subscribe();setTimeout(hideBootScreen,280)}
+function showAuth(){auth.classList.remove("hidden");game.classList.add("hidden");setTimeout(hideBootScreen,520)}
+function showGame(){auth.classList.add("hidden");game.classList.remove("hidden");setTimeout(renderTradeDashboard,0)}
 async function logout(){if(realtime)await db.removeChannel(realtime);await db.auth.signOut();showAuth()}
 function openPage(name,btn){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));document.getElementById("page-"+name).classList.add("active");btn?.classList.add("active");({inventory:loadInventory,pawnshop:loadPawnshop,auction:loadAuction,market:loadMarketHub,house:loadHouse,collection:loadCollectibles,jobs:resetJobPage}[name]||(()=>{}))()}
 function openPageFromPhone(name){closePhone();openPage(name,document.querySelector(`[data-page="${name}"]`))}
 async function refreshAll(){await updateStocks();await loadProfile();await Promise.all([loadInventory(),loadStocks(),loadCollectibles(),loadEffects()]);updateNetworth()}
-async function loadProfile(){const{data,error}=await db.from("profiles").select("*").eq("id",currentUser.id).single();if(error)return toast(error.message);profile=data;nicknameTop.textContent=data.nickname;nicknameHero.textContent=data.nickname;phoneOwner.textContent=data.nickname;cashTop.textContent=money(data.cash);credit.textContent=data.credit_score;reputation.textContent=data.reputation}
+async function loadProfile(){const{data,error}=await db.from("profiles").select("*").eq("id",currentUser.id).single();if(error)return toast(error.message);profile=data;renderTradeDashboard();nicknameTop.textContent=data.nickname;nicknameHero.textContent=data.nickname;phoneOwner.textContent=data.nickname;cashTop.textContent=money(data.cash);credit.textContent=data.credit_score;reputation.textContent=data.reputation}
 async function grantStarterFundsIfNeeded(){
   const key=`starter_v8_${currentUser.id}`;
   if(localStorage.getItem(key))return;
@@ -147,52 +147,61 @@ function inventoryEl(){return document.getElementById("inventory")}
 function cardItem(r){const i=r.items,v=itemValue(i.average_price,r.condition_score);return `<article class="item-card"><div class="item-image"><img src="${itemImage(i.name,i.category)}"></div><div class="item-body"><h3>${esc(i.name)}</h3><div class="meta">${esc(i.category)} · ${esc(i.rarity)}</div><div class="condition"><i style="width:${r.condition_score}%"></i></div><div class="meta">상태 ${r.condition_score}/100</div><div class="price">${money(v)}</div><div class="item-actions"><button class="btn light" onclick="openPage('pawnshop',document.querySelector('[data-page=pawnshop]'))">전당포</button><button class="btn primary" onclick="openPage('market',document.querySelector('[data-page=market]'))">장터</button></div></div></article>`}
 async function loadPawnshop(){await loadInventory();pawnshopList.innerHTML=inventory.filter(x=>!x.is_listed).map(r=>{const v=itemValue(r.items.average_price,r.condition_score);return `<article class="item-card"><div class="item-image"><img src="${itemImage(r.items.name,r.items.category)}"></div><div class="item-body"><h3>${esc(r.items.name)}</h3><div class="meta">상태 ${r.condition_score}/100</div><div class="price">원가 ${money(v)}</div><div class="item-actions"><button class="btn light" onclick="pawnSell('${r.id}','instant',100)">원가 판매</button><button class="btn primary" onclick="startPawnNegotiation('${r.id}')">흥정 판매</button></div></div></article>`}).join("")||`<div class="panel" style="padding:20px">판매할 아이템이 없습니다.</div>`}
 async function pawnSell(id,mode,pct){const{data,error}=await db.rpc("sell_item_to_pawnshop",{p_user_item_id:id,p_mode:mode,p_offer_percent:pct});if(error)return toast(error.message);toast("판매 완료 "+money(data.final_price));await Promise.all([loadProfile(),loadPawnshop(),loadInventory()]);updateNetworth()}
+function getTradeLedger(){try{return JSON.parse(localStorage.getItem(`trade_ledger_${currentUser?.id}`)||"[]")}catch{return[]}}
+function saveTradeLedger(entry){if(!currentUser)return;const rows=getTradeLedger();rows.unshift({...entry,at:new Date().toISOString()});localStorage.setItem(`trade_ledger_${currentUser.id}`,JSON.stringify(rows.slice(0,30)));renderTradeDashboard()}
+function renderTradeDashboard(){const host=document.getElementById("tradeDashboard");if(!host)return;const rows=getTradeLedger(),profit=rows.reduce((s,r)=>s+Number(r.profit||0),0),wins=rows.filter(r=>Number(r.profit)>0).length;host.innerHTML=`<div><span>누적 거래</span><b>${rows.length}건</b></div><div><span>누적 추가이익</span><b class="up">+${money(profit)}</b></div><div><span>성공 거래</span><b>${wins}건</b></div><div><span>평균 추가이익</span><b>${money(rows.length?profit/rows.length:0)}</b></div>`}
 function startPawnNegotiation(id){
   const r=inventory.find(x=>x.id===id),base=itemValue(r.items.average_price,r.condition_score);
+  const personalities=[
+    {name:"신중한 감정가",icon:"🧐",patience:5,openness:.58,pressure:.22,line:"근거가 분명해야 돈을 더 쓰지."},
+    {name:"성격 급한 수집가",icon:"😤",patience:3,openness:.76,pressure:.42,line:"시간 끌지 말고 핵심만 말해."},
+    {name:"노련한 장사꾼",icon:"🦊",patience:4,openness:.66,pressure:.33,line:"나도 장사꾼이야. 허풍은 금방 알아보지."}
+  ];
+  const persona=personalities[Math.floor(Math.random()*personalities.length)];
   const maxPct=128+Math.min(20,Number(effects.pawn_bonus||0));
-  negotiation={type:"pawn",id,title:r.items.name,base,min:base,npcOffer:Math.round(base*1.03),limit:Math.round(base*maxPct/100),ask:Math.round(base*1.18),round:1,patience:4,mood:"neutral",history:[`조 아저씨: ${money(Math.round(base*1.03))}이면 어떻겠나?`]};
+  const market=Math.round(base*(1.15+Math.random()*.12));
+  const opening=Math.round(base*(1.01+Math.random()*.035));
+  negotiation={type:"pawn",id,title:r.items.name,base,market,npcOffer:opening,limit:Math.min(Math.round(base*maxPct/100),Math.round(market*1.08)),round:1,patience:persona.patience,maxPatience:persona.patience,mood:"neutral",ended:false,persona,confidence:50,history:[{who:"npc",text:`${money(opening)}. 첫 제안은 이 정도일세.`}]};
   renderNegotiation()
 }
+function negotiationProfit(n,price=n.npcOffer){return Math.round(price-n.base)}
 function renderNegotiation(){
   negotiationModal.classList.remove("hidden");
-  const n=negotiation;
-  const patience=Math.max(0,n.patience),mood=n.mood==="good"?"🙂":n.mood==="bad"?"😠":"🤨";
-  const line=n.mood==="good"?"좋아, 이제 말이 좀 통하는군.":n.mood==="bad"?"그 가격은 너무 심하군. 마지막 기회일세.":"물건은 괜찮지만 가격은 더 봐야겠어.";
+  const n=negotiation,profit=negotiationProfit(n),profitPct=n.base?profit/n.base*100:0;
+  const ceiling=Math.max(1,n.limit-n.base),progress=Math.max(0,Math.min(100,(n.npcOffer-n.base)/ceiling*100));
+  const patiencePct=Math.max(0,n.patience/n.maxPatience*100),mood=n.mood==="good"?"🙂":n.mood==="bad"?"😠":"🤨";
+  const recommended=Math.min(n.limit,Math.round(Math.max(n.npcOffer*1.05,n.market*.98)));
+  const history=n.history.slice(-5).map(x=>`<div class="chat ${x.who}"><b>${x.who==="npc"?n.persona.name:"나"}</b><span>${esc(x.text)}</span></div>`).join("");
   negotiationContent.innerHTML=`
-    <p class="eyebrow">REAL NEGOTIATION · ROUND ${n.round}</p>
-    <h2>${esc(n.title)}</h2>
-    <div class="deal-status"><div><span>NPC 제안</span><b>${money(n.npcOffer)}</b></div><div><span>내 요구가</span><b>${money(n.ask)}</b></div><div><span>인내심</span><b>${"●".repeat(patience)}${"○".repeat(4-patience)}</b></div></div>
-    <p class="dealer-line">${mood} “${line}”</p>
-    <div class="neg-history">${n.history.slice(-4).map(x=>`<p>${esc(x)}</p>`).join("")}</div>
-    <label class="neg-input-label">내가 원하는 판매가<input id="negAskInput" type="number" min="${Math.ceil(n.npcOffer)}" max="${Math.floor(n.limit*1.15)}" value="${Math.round(n.ask)}"></label>
-    <div class="neg-quick"><button onclick="setNegotiationAsk(3)">현재 제안 +3%</button><button onclick="setNegotiationAsk(7)">현재 제안 +7%</button><button onclick="setNegotiationAsk(12)">강하게 +12%</button></div>
-    <div class="item-actions">
-      <button class="btn light" onclick="acceptNpcCounter()">NPC 제안 수락</button>
-      <button class="btn primary" onclick="submitNegotiationAsk()">이 가격으로 흥정</button>
-    </div>`;
+    <div class="haggle-top"><div><p class="eyebrow">LIVE NEGOTIATION · ROUND ${n.round}</p><h2>${esc(n.title)}</h2></div><div class="dealer-profile"><strong>${n.persona.icon} ${n.persona.name}</strong><small>${n.persona.line}</small></div></div>
+    <div class="deal-summary deluxe">
+      <div><span>즉시 판매 기준</span><b>${money(n.base)}</b></div><div><span>참고 시세</span><b>${money(n.market)}</b></div><div class="offer-main"><span>현재 제안</span><b>${money(n.npcOffer)}</b></div><div class="profit-main"><span>확정 추가이익</span><b class="${profit>=0?'up':'down'}">${profit>=0?'+':''}${money(profit)}</b><small>${profitPct>=0?'+':''}${profitPct.toFixed(1)}%</small></div>
+    </div>
+    <div class="haggle-bars"><label>NPC 인내심 <i><em style="width:${patiencePct}%"></em></i></label><label>흥정 성과 <i><em style="width:${progress}%"></em></i></label></div>
+    <div class="neg-chat">${history}</div>
+    ${n.ended?`<div class="final-offer"><b>최종 제안</b><strong>${money(n.npcOffer)}</strong><button onclick="acceptNpcCounter()">이 가격에 계약</button></div>`:`
+      <div class="manual-offer"><div><label>내 희망 판매가</label><small>추천 ${money(recommended)} · 최대 예상 ${money(n.limit)}</small></div><input id="haggleAsk" type="number" min="${n.npcOffer+1}" max="${n.limit}" value="${recommended}"></div>
+      <div class="haggle-actions pro">
+        <button onclick="submitNegotiationOffer('evidence')"><b>📊 시세 자료 제시</b><small>안전함 · 인내심 소모 적음</small></button>
+        <button onclick="submitNegotiationOffer('story')"><b>✨ 가치와 사연 강조</b><small>균형형 · 성공 시 호감 상승</small></button>
+        <button onclick="submitNegotiationOffer('walkaway')"><b>🚪 다른 곳에 팔겠다고 압박</b><small>고위험 · 큰 인상 가능</small></button>
+      </div>`}
+    <button class="accept-now" onclick="acceptNpcCounter()">현재 제안 확정 · 순이익 ${profit>=0?'+':''}${money(profit)}</button>`;
 }
-function setNegotiationAsk(pct){const n=negotiation;n.ask=Math.round(n.npcOffer*(1+pct/100));renderNegotiation()}
-function submitNegotiationAsk(){
-  const n=negotiation,input=Number(document.getElementById("negAskInput").value);
-  if(!Number.isFinite(input)||input<n.npcOffer)return toast("NPC 제안보다 높은 금액을 입력하세요.");
-  n.ask=Math.round(input);n.round++;n.patience--;
-  const gap=(n.ask-n.npcOffer)/Math.max(1,n.limit-n.min);
-  const acceptChance=Math.max(.06,Math.min(.88,1-gap*.95+(n.patience*.04)));
-  if(n.ask<=n.limit&&Math.random()<acceptChance){
-    n.npcOffer=n.ask;n.mood="good";n.history.push(`나: ${money(n.ask)} / 조 아저씨: 좋아, 그 가격에 하지.`);renderNegotiation();setTimeout(acceptNpcCounter,450);return;
-  }
-  if(n.patience<=0){n.mood="bad";n.history.push(`조 아저씨: 더는 못 듣겠군. 거래는 끝이야.`);renderNegotiation();setTimeout(()=>{toast("흥정이 결렬되었습니다.");closeNegotiation()},850);return}
-  const room=Math.max(0,n.limit-n.npcOffer),step=Math.max(1,Math.round(room*(.22+Math.random()*.25)));
-  n.npcOffer=Math.min(n.limit,n.npcOffer+step);
-  n.mood=gap>.72?"bad":gap<.35?"good":"neutral";
-  n.history.push(`나: ${money(n.ask)} / 조 아저씨: ${money(n.npcOffer)}까지는 주지.`);
-  renderNegotiation();
+function submitNegotiationOffer(style){
+  const n=negotiation;if(!n||n.ended)return;
+  const el=document.getElementById("haggleAsk"),ask=Math.max(n.npcOffer+1,Math.min(n.limit,Math.round(Number(el?.value)||n.npcOffer)));
+  const cfg={evidence:{risk:.10,power:.58,cost:0,label:"최근 거래 시세와 상태를 근거로 제시했다."},story:{risk:.22,power:.72,cost:1,label:"희소성과 물건의 가치를 설득력 있게 설명했다."},walkaway:{risk:.48,power:1.0,cost:2,label:"다른 구매자에게 팔겠다며 자리에서 일어날 듯 압박했다."}}[style];
+  const gap=(ask-n.npcOffer)/Math.max(1,n.limit-n.npcOffer),difficulty=Math.max(0,gap-n.persona.openness);
+  const fail=Math.min(.88,cfg.risk+difficulty*.65+n.persona.pressure*(style==="walkaway"?.25:.05));
+  n.history.push({who:"me",text:`${cfg.label} 원하는 가격은 ${money(ask)}.`});n.round++;n.patience=Math.max(0,n.patience-cfg.cost);
+  if(Math.random()<fail){n.mood="bad";n.patience=Math.max(0,n.patience-1);const cut=style==="walkaway"&&Math.random()<.35?Math.round((n.npcOffer-n.base)*.2):0;n.npcOffer=Math.max(n.base,n.npcOffer-cut);n.history.push({who:"npc",text:n.patience<=0?`더는 못 듣겠군. ${money(n.npcOffer)}이 마지막이야.`:`그 가격은 받아들일 수 없어. ${cut?"오히려 제안을 낮추겠네.":"근거를 더 가져오게."}`});if(n.patience<=0)n.ended=true;renderNegotiation();return}
+  const gain=Math.max(1,Math.round((ask-n.npcOffer)*cfg.power*(.85+Math.random()*.25)));n.npcOffer=Math.min(n.limit,n.npcOffer+gain);n.mood="good";n.history.push({who:"npc",text:`좋아, ${money(n.npcOffer)}까지 올리지. 하지만 다음 제안은 신중하게 하게.`});if(n.npcOffer>=n.limit||n.patience<=0)n.ended=true;renderNegotiation()
 }
 async function acceptNpcCounter(){
-  const n=negotiation,final=Math.round(n.npcOffer);
-  if(n.type==="pawn")await pawnSell(n.id,"negotiated",Math.round(final/n.base*100));
-  else{const{data,error}=await db.rpc("accept_npc_market_offer",{p_offer_id:n.offerId,p_final_price:final});if(error)return toast(error.message);toast("NPC 거래 완료 "+money(data.final_price));await Promise.all([loadProfile(),loadNpcOffers(),loadInventory()])}
-  closeNegotiation()
+  const n=negotiation;if(!n)return;const final=Math.round(n.npcOffer),profit=negotiationProfit(n,final);
+  if(n.type==="pawn")await pawnSell(n.id,"negotiated",Math.round(final/n.base*100));else{const{data,error}=await db.rpc("accept_npc_market_offer",{p_offer_id:n.offerId,p_final_price:final});if(error)return toast(error.message);await Promise.all([loadProfile(),loadNpcOffers(),loadInventory()])}
+  saveTradeLedger({title:n.title,base:n.base,final,profit,rounds:n.round-1,persona:n.persona?.name||"NPC"});toast(`거래 성사 · 판매 ${money(final)} · 추가이익 ${profit>=0?'+':''}${money(profit)}`);closeNegotiation()
 }
 function closeNegotiation(){negotiation=null;negotiationModal.classList.add("hidden")}
 
@@ -216,7 +225,7 @@ async function loadMarket(){const{data,error}=await db.from("market_listings").s
 async function buyListing(id){const{data,error}=await db.rpc("buy_market_listing",{p_listing_id:id});if(error)return toast(error.message);toast("구매 완료 "+money(data.final_price));await refreshAll();loadMarket()}
 async function cancelListing(id){const{error}=await db.rpc("cancel_market_listing",{p_listing_id:id});if(error)return toast(error.message);await Promise.all([loadInventory(),loadMarket()])}
 async function loadNpcOffers(){await db.rpc("generate_npc_market_offers");const{data,error}=await db.from("npc_market_offers").select(`id,offer_price,max_price,user_items(id,condition_score,items(name,category))`).eq("user_id",currentUser.id).eq("status","active").order("created_at",{ascending:false});if(error)return toast(error.message);npcOfferList.innerHTML=(data||[]).map(o=>`<article class="market-card"><div class="item-image"><img src="${itemImage(o.user_items.items.name,o.user_items.items.category)}"></div><div class="market-body"><span class="badge normal">NPC 제안</span><h3>${esc(o.user_items.items.name)}</h3><div class="price">${money(o.offer_price)}</div><button class="btn primary full" onclick="startNpcOffer('${o.id}')">거래하기</button></div></article>`).join("")||`<div class="panel" style="padding:20px">NPC 제안이 없습니다.</div>`}
-async function startNpcOffer(id){const{data,error}=await db.from("npc_market_offers").select(`id,offer_price,max_price,user_items(items(name))`).eq("id",id).single();if(error)return toast(error.message);negotiation={type:"npc",offerId:id,title:data.user_items.items.name,base:Number(data.offer_price),min:Number(data.offer_price),npcOffer:Number(data.offer_price),limit:Number(data.max_price),ask:Math.round(Number(data.offer_price)*1.12),round:1,patience:4,mood:"neutral",history:[`구매자: ${money(data.offer_price)}에 사고 싶습니다.`]};renderNegotiation()}
+async function startNpcOffer(id){const{data,error}=await db.from("npc_market_offers").select(`id,offer_price,max_price,user_items(items(name))`).eq("id",id).single();if(error)return toast(error.message);const opening=Number(data.offer_price);negotiation={type:"npc",offerId:id,title:data.user_items.items.name,base:opening,min:opening,npcOffer:opening,limit:Number(data.max_price),round:1,patience:4,mood:"neutral",ended:false,history:[{who:"npc",text:`${money(opening)}에 사고 싶습니다.`}]};renderNegotiation()}
 
 /* 소장품/집 */
 async function drawCollectible(){const{data,error}=await db.rpc("draw_collectible");if(error)return toast(error.message);toast(`${data.rarity} ${data.name} · ${data.effect_name} +${data.effect_percent}%`);await Promise.all([loadProfile(),loadCollectibles()]);updateNetworth()}
@@ -345,4 +354,22 @@ function escSvg(v){return String(v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt
 function money(v){const n=Number(v)||0,u=[[1e20,"해"],[1e16,"경"],[1e12,"조"],[1e8,"억"],[1e4,"만"]];for(const[x,l]of u)if(Math.abs(n)>=x){const d=n/x;return Number(d.toFixed(Math.abs(d)>=100?0:Math.abs(d)>=10?1:2)).toLocaleString()+l+" 원"}return Math.floor(n).toLocaleString()+"원"}
 function esc(v){const d=document.createElement("div");d.textContent=v??"";return d.innerHTML}
 function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),3400)}
-function subscribe(){if(realtime)return;realtime=db.channel("selling-god-v5").on("postgres_changes",{event:"UPDATE",schema:"public",table:"stocks"},loadStocks).on("postgres_changes",{event:"*",schema:"public",table:"market_listings"},loadMarket).on("postgres_changes",{event:"*",schema:"public",table:"collectible_listings"},loadCollectibleMarket).subscribe()}
+
+
+/* v11 premium presentation */
+let soundEnabled=localStorage.getItem("sellingGodSound")!=="off",audioCtx=null;
+function hideBootScreen(){document.getElementById("bootScreen")?.classList.add("hide")}
+function initPremiumUI(){
+  setTimeout(hideBootScreen,1800);
+  const s=document.getElementById("soundToggle");if(s)s.textContent=soundEnabled?"🔊":"🔇";
+  document.addEventListener("pointerdown",e=>{
+    if(e.target.closest("button")){playUiTone(250,.025);const r=document.createElement("i");r.className="click-ring";r.style.left=e.clientX+"px";r.style.top=e.clientY+"px";document.getElementById("clickFxLayer")?.appendChild(r);setTimeout(()=>r.remove(),520)}
+  });
+  document.addEventListener("mouseover",e=>{if(e.target.closest("button"))playUiTone(520,.008)},true);
+}
+function toggleSound(){soundEnabled=!soundEnabled;localStorage.setItem("sellingGodSound",soundEnabled?"on":"off");const b=document.getElementById("soundToggle");if(b)b.textContent=soundEnabled?"🔊":"🔇";if(soundEnabled)playUiTone(660,.05);toast(soundEnabled?"효과음이 켜졌습니다.":"효과음이 꺼졌습니다.")}
+function playUiTone(freq=330,vol=.02){
+  if(!soundEnabled)return;try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type="sine";o.frequency.value=freq;g.gain.setValueAtTime(vol,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.075);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+.08)}catch{}
+}
+
+function subscribe(){if(realtime)return;realtime=db.channel("selling-god-v11").on("postgres_changes",{event:"UPDATE",schema:"public",table:"stocks"},loadStocks).on("postgres_changes",{event:"*",schema:"public",table:"market_listings"},loadMarket).on("postgres_changes",{event:"*",schema:"public",table:"collectible_listings"},loadCollectibleMarket).subscribe()}
