@@ -231,3 +231,39 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 @keyframes rainbowShift{to{background-position:240% 0}}@keyframes relicGlow{to{transform:rotate(360deg)}}@keyframes ancientReveal{0%,100%{background-position:0 50%}50%{background-position:100% 50%}}@keyframes relicPhone{50%{filter:brightness(1.18)}}
 @media(max-width:1000px){.gacha-layout{grid-template-columns:300px 1fr}.collection-panel{grid-column:1/-1}}
 @media(max-width:760px){.gacha-layout{grid-template-columns:1fr}.gacha-rate-card{max-height:none}}
+
+/* v18 auction, pawnshop, NPC purchase market fixes */
+.seller-price{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.seller-countdown{display:inline-flex;align-items:center;justify-content:center;min-width:118px;padding:8px 12px;border:2px solid #8f493f;border-radius:8px;background:#fff1d8;color:#9f3f35;font-style:normal;font-weight:1000;animation:countPulse .7s infinite alternate}
+@keyframes countPulse{from{transform:scale(1);box-shadow:0 0 0 #a94b4300}to{transform:scale(1.04);box-shadow:0 0 18px #a94b4366}}
+
+#page-pawnshop.active{display:grid!important;grid-template-rows:auto minmax(245px,30vh) minmax(0,1fr)!important;gap:10px!important;height:100%!important;overflow:hidden!important}
+#page-pawnshop .title{margin:0!important;min-height:0!important}
+#page-pawnshop .pawn-scene{height:auto!important;min-height:245px!important;max-height:310px!important;flex:none!important;margin:0!important;overflow:hidden!important}
+#page-pawnshop .pawn-room{position:relative!important;height:100%!important;min-height:245px!important;overflow:hidden!important}
+#page-pawnshop .pawn-back-sign{top:14px!important;padding:7px 25px!important;font-size:15px!important}
+#page-pawnshop .pawn-shelf{top:82px!important;width:135px!important;opacity:.72!important}
+#page-pawnshop .pawn-shelf span{height:48px!important;font-size:23px!important}
+#page-pawnshop .pawn-dealer{height:120px!important;bottom:104px!important;z-index:2!important}
+#page-pawnshop .pawn-face{font-size:72px!important;top:0!important}
+#page-pawnshop .pawn-body{font-size:88px!important;bottom:0!important}
+#page-pawnshop .pawn-counter{left:0!important;right:0!important;bottom:64px!important;height:50px!important;border-top-width:4px!important;z-index:3!important;font-size:20px!important}
+#page-pawnshop .pawn-item-slot{padding:7px!important;font-size:12px!important}
+#page-pawnshop .pawn-dialogue{left:46px!important;right:46px!important;bottom:8px!important;height:50px!important;min-height:50px!important;padding:15px 18px 8px!important;overflow:hidden!important;z-index:5!important;display:flex!important;align-items:center!important}
+#page-pawnshop .pawn-dialogue span{top:-18px!important;padding:4px 13px!important;font-size:12px!important}
+#page-pawnshop .pawn-dialogue b{display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;font-size:13px!important;line-height:1.3!important}
+#page-pawnshop .deal-inventory{min-height:0!important;max-height:none!important;height:100%!important;overflow:auto!important;align-content:start!important;padding:4px!important}
+
+.npc-buy-card .market-hint{display:block;margin-top:5px;color:#7d654f;line-height:1.35}
+.buy-mode .profit-main{background:linear-gradient(135deg,#edf6e4,#d6e9c4)!important}
+.buy-mode .profit-main b{color:#36754b!important}
+
+@media(max-width:900px){
+  #page-pawnshop.active{grid-template-rows:auto 250px minmax(0,1fr)!important}
+  #page-pawnshop .pawn-shelf{display:none!important}
+  #page-pawnshop .pawn-dialogue{left:12px!important;right:12px!important}
+}
+
+
+/* v19 main pawnshop and split luxury gacha */
+.game-day-bar>div:first-child{display:flex;align-items:center}.main-shop-title{font-size:18px;letter-spacing:.04em;color:#38261a}.owner-scene .customer-head{font-size:150px}.owner-scene .customer-body{font-size:205px}.collection-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.collection-tabs button{padding:12px;border:2px solid #6e5135;background:#cdb58d;color:#3a2a20;font-weight:1000}.collection-tabs button.active{background:#7b4a35;color:#fff;box-shadow:inset 0 0 0 2px #e2c481}.collection-tab-panel{min-height:0;overflow:hidden}.machine .gacha-funds{display:block;margin-top:10px;color:#ead7bb;line-height:1.4}.gacha-btn:disabled{opacity:.42;filter:grayscale(1);cursor:not-allowed;box-shadow:none}.rate-row.rarity-6{border:2px solid transparent!important;border-radius:4px;background:linear-gradient(#fff8e8,#fff8e8) padding-box,linear-gradient(90deg,#ff5f57,#ffbd2e,#28c840,#35a7ff,#7b61ff,#e14cff) border-box!important}.rate-row.rarity-6 span,.rate-row.rarity-6 b{background:linear-gradient(90deg,#ff5f57,#ffbd2e,#28c840,#35a7ff,#7b61ff,#e14cff);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:1000}.collectible.rarity-6{border:2px solid transparent!important;background:linear-gradient(#fff7e5,#fff7e5) padding-box,linear-gradient(90deg,#ff5f57,#ffbd2e,#28c840,#35a7ff,#7b61ff,#e14cff) border-box!important}.collection-panel{min-height:0}.collection-panel .paged-list{max-height:330px;overflow:hidden}@media(max-width:760px){.collection-tabs{grid-template-columns:1fr}.main-shop-title{font-size:15px}}
