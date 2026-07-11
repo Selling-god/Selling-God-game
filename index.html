@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <!-- v33.7 reliable chat notifications -->
   <title>판매의 신 — STACKED COLLECTION v20</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -275,7 +276,7 @@
       </div></section>
       <section id="phone-stocks" class="phone-screen phone-app hidden">
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매증권</b><small>종목을 눌러 상세 확인</small></div><button onclick="refreshStocks()">↻</button></div>
-        <div id="stockListView"><div class="stock-next-update"><span>다음 시세 변동</span><b id="stockNextUpdate">계산 중...</b></div><div class="summary"><div><span>평가액</span><b id="stockValue">0원</b></div><div><span>평가손익</span><b id="stockProfit">0원</b></div></div><div id="stockList"></div></div>
+        <div id="stockListView"><div id="stockSpendableFunds" class="spendable-funds-card stock-funds"><span>실제 사용 가능 현금</span><b>0원</b><small>주식 매수에 즉시 사용할 수 있는 금액</small></div><div class="stock-next-update"><span>다음 시세 변동</span><b id="stockNextUpdate">계산 중...</b></div><div class="summary"><div><span>평가액</span><b id="stockValue">0원</b></div><div><span>평가손익</span><b id="stockProfit">0원</b></div></div><div id="stockList"></div></div>
         <div id="stockDetailView" class="hidden"><button class="back" onclick="closeStockDetail()">← 목록</button><div id="stockDetail"></div></div>
       </section>
       <section id="phone-wallet" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>내 자산</b><small>계정 저장 정보</small></div><span></span></div><div id="walletView"></div></section><section id="phone-ranking" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매왕 랭킹</b><small>총자산 기준 TOP 20</small></div><button onclick="loadRanking()">↻</button></div><div id="rankingList"></div></section><section id="phone-property" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>부동산</b><small>더 큰 집으로 장식 슬롯 확장</small></div><button onclick="loadProperties()">↻</button></div><div id="propertyList"></div></section>
