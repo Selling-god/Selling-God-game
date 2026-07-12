@@ -1313,3 +1313,47 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 /* v38.3 condition secrecy and pricing */
 .hidden-condition-v383{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px dashed rgba(83,57,38,.45);border-radius:8px;background:rgba(45,31,22,.08);font-weight:800;color:#5d4637!important}
 .condition-price-note{display:block;margin:5px 0 9px;font-size:.82rem;font-weight:800}.condition-price-note.up{color:#a33f37}.condition-price-note.down{color:#37638a}
+
+
+/* v38.7 pawnshop viewport and appraisal secrecy */
+#page-pawnshop.active{
+  grid-template-rows:auto clamp(220px,27vh,285px) minmax(0,1fr)!important;
+  min-height:0!important;
+}
+#page-pawnshop .pawn-scene,
+#page-pawnshop .pawn-room{
+  height:auto!important;
+  min-height:220px!important;
+  max-height:285px!important;
+}
+#page-pawnshop .deal-inventory{
+  min-height:0!important;
+  height:100%!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  align-content:start!important;
+  padding:6px 6px max(72px,env(safe-area-inset-bottom))!important;
+  scroll-padding-bottom:90px!important;
+  scrollbar-gutter:stable!important;
+}
+#page-pawnshop .deal-inventory .item-card{
+  min-height:0!important;
+  height:auto!important;
+  align-self:start!important;
+}
+#page-pawnshop .deal-inventory .item-body{
+  display:flex!important;
+  flex-direction:column!important;
+  min-height:0!important;
+}
+#page-pawnshop .deal-inventory .item-actions{
+  position:static!important;
+  margin-top:auto!important;
+  padding-top:8px!important;
+}
+.muted-price{opacity:.65;font-size:.9rem!important}
+@media(max-height:820px){
+  #page-pawnshop.active{grid-template-rows:auto 215px minmax(0,1fr)!important}
+  #page-pawnshop .pawn-scene,#page-pawnshop .pawn-room{min-height:215px!important;max-height:215px!important}
+  #page-pawnshop .pawn-dealer{transform:translateX(-50%) scale(.78)!important;transform-origin:center bottom!important}
+}
