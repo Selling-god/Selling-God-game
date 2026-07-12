@@ -1357,3 +1357,16 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
   #page-pawnshop .pawn-scene,#page-pawnshop .pawn-room{min-height:215px!important;max-height:215px!important}
   #page-pawnshop .pawn-dealer{transform:translateX(-50%) scale(.78)!important;transform-origin:center bottom!important}
 }
+
+/* v38.8 phone restoration display fix */
+#phone-restoration{overflow-y:auto;overscroll-behavior:contain}
+#phone-restoration .app-head{position:sticky;top:0;z-index:5;background:#f4ead6}
+#phone-restoration .restoration-guide{margin:8px 8px 0}
+#phone-restoration #restorationJobs,#phone-restoration #restorationInventory{padding:8px}
+#phone-restoration #restorationInventory{padding-bottom:78px}
+#phone-restoration .restoration-grid{grid-template-columns:1fr}
+#phone-restoration .restoration-card{grid-template-columns:70px 1fr}
+#phone-restoration .restoration-card img{width:70px;height:70px}
+#phone-restoration .restoration-empty{display:flex;flex-direction:column;gap:8px;border-radius:12px}
+#phone-restoration .restoration-empty span{font-size:12px;line-height:1.5}
+#phone-restoration .restoration-empty button{align-self:center;padding:9px 14px;border:1px solid #5f4028;background:#855944;color:#fff;border-radius:9px;font-weight:900}
