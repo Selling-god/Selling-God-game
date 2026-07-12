@@ -2528,27 +2528,50 @@ async function appraiseCatalogItemV37(tier,cycleKey,slotNo,itemName,cost){
 }
 
 async function loadRestorationCenter(){
-  const jobsHost=document.getElementById('restorationJobs'),invHost=document.getElementById('restorationInventory');
+  const screen=document.getElementById('phone-restoration');
+  const jobsHost=screen?.querySelector('#restorationJobs');
+  const invHost=screen?.querySelector('#restorationInventory');
   if(!jobsHost||!invHost)return;
+  jobsHost.innerHTML='<div class="bank-loading">복원 작업을 확인하는 중...</div>';
+  invHost.innerHTML='';
   await loadInventory();
-  const{data,error}=await db.rpc('get_restoration_jobs_v35');
-  if(error){jobsHost.innerHTML=`<div class="panel error-panel">${esc(error.message)}</div>`;return;}
-  const jobs=Array.isArray(data)?data:[];
+  const [{data:jobsData,error:jobsError},{data:known,error:knownError}]=await Promise.all([
+    db.rpc('get_restoration_jobs_v35'),
+    db.from('user_item_appraisals_v38').select('user_item_id').eq('user_id',currentUser.id)
+  ]);
+  if(jobsError){jobsHost.innerHTML=`<div class="panel error-panel">${esc(jobsError.message)}</div>`;return;}
+  if(knownError){jobsHost.innerHTML=`<div class="panel error-panel">${esc(knownError.message)}</div>`;return;}
+  const jobs=Array.isArray(jobsData)?jobsData:[];
+  const appraisedIds=new Set((known||[]).map(x=>String(x.user_item_id)));
   jobsHost.innerHTML=`<div class="restoration-capacity"><b>복원 작업 슬롯</b><span>${jobs.filter(x=>x.status==='active').length}/3 사용 중</span></div>`+(jobs.map(j=>{
     const ready=Number(j.remaining_seconds)<=0;
     return `<article class="restoration-job ${ready?'ready':''}"><span>${ready?'✨':'🛠️'}</span><div><b>${esc(j.item_name)}</b><small>${esc(j.rarity)} · 복원 전 ${j.old_condition}/100 · 예상 +${j.improve_amount}</small></div><em>${ready?'완료':`${j.remaining_seconds}초`}</em><button ${ready?'':'disabled'} onclick="claimRestorationV35('${j.job_id}')">${ready?'수령':'작업 중'}</button></article>`;
   }).join('')||'<div class="restoration-empty">현재 진행 중인 복원이 없습니다.</div>');
   const activeIds=new Set(jobs.filter(x=>x.status==='active').map(x=>String(x.user_item_id)));
-  const available=inventory.filter(x=>!x.is_listed&&!x.restoration_locked&&!activeIds.has(String(x.id))&&Number(x.condition_score)<100);
-  invHost.innerHTML=`<h3>복원 가능한 보유품</h3><div class="restoration-grid">${available.map(r=>{
-    const cost=restorationCostV35(r),rank=rarityClass(normalizeRarityV35(r.items.rarity));
-    return `<article class="restoration-card ${rank}"><img src="${itemImage(r.items.name,r.items.category)}"><div><span class="badge ${rank}">${esc(normalizeRarityV35(r.items.rarity))}</span><b>${esc(r.items.name)}</b><small>현재 상태 ${r.condition_score}/100</small><em>복원비 ${money(cost)}</em></div><button onclick="startRestorationV35('${r.id}')">30초 복원</button></article>`;
-  }).join('')||'<div class="restoration-empty">복원할 수 있는 아이템이 없습니다.</div>'}</div>`;
+  const appraisedOwned=inventory.filter(x=>!x.is_listed&&!x.restoration_locked&&!activeIds.has(String(x.id))&&appraisedIds.has(String(x.id)));
+  const available=appraisedOwned.filter(x=>Number(x.condition_score)<100);
+  const unappraisedCount=inventory.filter(x=>!x.is_listed&&!x.restoration_locked&&!activeIds.has(String(x.id))&&!appraisedIds.has(String(x.id))).length;
+  let body='';
+  if(available.length){
+    body=`<div class="restoration-grid">${available.map(r=>{
+      const cost=restorationCostV35(r),rank=rarityClass(normalizeRarityV35(r.items.rarity));
+      return `<article class="restoration-card ${rank}"><img src="${itemImage(r.items.name,r.items.category)}"><div><span class="badge ${rank}">${esc(normalizeRarityV35(r.items.rarity))}</span><b class="rarity-text ${rank}">${esc(r.items.name)}</b><small>현재 상태 ${r.condition_score}/100</small><em>복원비 ${money(cost)}</em></div><button onclick="startRestorationV35('${r.id}')">30초 복원</button></article>`;
+    }).join('')}</div>`;
+  }else if(unappraisedCount>0){
+    body='<div class="restoration-empty restoration-need-appraisal"><b>복원 가능한 감정 완료 아이템이 없습니다.</b><span>먼저 휴대폰의 감정소에서 아이템 상태를 확인해 주세요.</span><button onclick="openPhoneApp(\'appraisal\')">감정소로 이동</button></div>';
+  }else{
+    body='<div class="restoration-empty"><b>현재 복원할 아이템이 없습니다.</b><span>감정 완료 후 상태가 100 미만인 보유품만 복원할 수 있습니다.</span></div>';
+  }
+  invHost.innerHTML=`<h3>복원 가능한 보유품</h3>${body}`;
   if(restorationTimerV35)clearTimeout(restorationTimerV35);
   if(jobs.some(x=>x.status==='active'&&Number(x.remaining_seconds)>0))restorationTimerV35=setTimeout(loadRestorationCenter,1000);
 }
+
 async function startRestorationV35(id){
   const row=inventory.find(x=>String(x.id)===String(id));if(!row)return;
+  const{data:known,error:knownError}=await db.from('user_item_appraisals_v38').select('user_item_id').eq('user_id',currentUser.id).eq('user_item_id',id).maybeSingle();
+  if(knownError)return toast(knownError.message);
+  if(!known)return toast('먼저 감정소에서 이 아이템의 상태를 확인해 주세요.');
   const cost=restorationCostV35(row);
   if(!confirm(`${row.items.name}을 ${money(cost)}에 복원할까요? 작업 시간은 30초입니다.`))return;
   const{data,error}=await db.rpc('start_restoration_v35',{p_user_item_id:id});if(error)return toast(error.message);
