@@ -2999,3 +2999,100 @@ async function startBrandCampaignV391(code){if(!confirm('브랜드 캠페인을 
 async function claimBrandCampaignV391(){const{data,error}=await db.rpc('claim_brand_campaign_v391');if(error)return toast(error.message);toast(`${data.result_label} · 매출 ${money(data.payout)}`);playSuccessSound();await Promise.all([loadProfile(),loadBrandHouseV391()]);updateNetworth()}
 
 const openPhoneAppV391=openPhoneApp;openPhoneApp=function(name){openPhoneAppV391(name);if(name==='trade')loadTradeNetworkV391();else if(name==='brand')loadBrandHouseV391()};
+
+
+// ============================================================
+// v40: 판매왕 종합 경영 본부 - 10대 경영 시스템
+// ============================================================
+let managementStateV40=null;
+const MGMT_SYSTEMS_V40=[
+  ['franchise','🏪','체인점·프랜차이즈','상권별 매장을 확장하고 5분 단위 영업 수익을 정산합니다.'],
+  ['staff','👥','직원 채용·인재 육성','직원 수준이 높을수록 제조·주문·전시 결과가 안정됩니다.'],
+  ['manufacturing','🏭','자체 상품 제작','원가와 위험도가 다른 자체 상품을 생산하고 완성품을 정산합니다.'],
+  ['orders','📦','고객 주문·의뢰','수집가·기업·왕실 고객의 제한 시간 납품 의뢰를 수행합니다.'],
+  ['insurance','🛡️','보험 관리','사고와 사업 손실 일부를 보상받아 대규모 손실을 줄입니다.'],
+  ['accounting','🧾','세금·회계 관리','발생 세금을 납부하고 회계사를 고용해 세율과 조사 위험을 낮춥니다.'],
+  ['logistics','🚚','물류·배송 관리','배송 시설을 확장하고 일반·특급·보안 운송을 운영합니다.'],
+  ['museum','🏛️','전시관·박물관','보유 소장품을 활용한 전시회를 열고 관람 수익을 얻습니다.'],
+  ['loan','🏦','담보 대출·압류','집·회사·소장품을 담보로 큰 자금을 조달하고 만기 전에 상환합니다.'],
+  ['family','👑','상속·가문','가문을 창설하고 명성과 신탁 자산을 쌓아 영구적인 유산을 만듭니다.']
+];
+function mgmtMoneyV40(v){return money(Number(v||0))}
+function mgmtLevelV40(key){return Number(managementStateV40?.state?.[key+'_level']||0)}
+function mgmtOperationV40(kind){return (managementStateV40?.operations||[]).find(x=>x.kind===kind&&x.status==='active')}
+function mgmtRemainingV40(op){return Math.max(0,Math.ceil((new Date(op.resolves_at).getTime()-Date.now())/1000))}
+function mgmtTabsV40(active='franchise'){
+  return `<div class="mgmt-tabs-v40">${MGMT_SYSTEMS_V40.map(([k,i,n])=>`<button class="${k===active?'active':''}" onclick="renderManagementTabV40('${k}')"><span>${i}</span>${n}</button>`).join('')}</div>`;
+}
+async function loadManagementV40(){
+  const host=document.getElementById('managementViewV40');if(!host)return;
+  host.innerHTML='<div class="bank-loading">종합 경영 정보를 불러오는 중...</div>';
+  const {data,error}=await db.rpc('get_management_status_v40');
+  if(error){host.innerHTML=`<div class="mgmt-error-v40">${esc(error.message)}</div>`;return}
+  managementStateV40=data;
+  renderManagementTabV40(managementStateV40?.active_tab||'franchise');
+}
+function renderManagementTabV40(tab){
+  if(!managementStateV40)return loadManagementV40();
+  managementStateV40.active_tab=tab;
+  const host=document.getElementById('managementViewV40');
+  const head=`<div class="mgmt-summary-v40"><div><span>사용 가능 현금</span><b>${mgmtMoneyV40(managementStateV40.cash)}</b></div><div><span>미납 세금</span><b>${mgmtMoneyV40(managementStateV40.state.tax_due)}</b></div><div><span>가문 명성</span><b>${Number(managementStateV40.state.family_fame||0).toLocaleString()}</b></div></div>`;
+  const [_,icon,name,desc]=MGMT_SYSTEMS_V40.find(x=>x[0]===tab)||MGMT_SYSTEMS_V40[0];
+  host.innerHTML=head+mgmtTabsV40(tab)+`<div class="mgmt-section-head-v40"><span>${icon}</span><div><h3>${name}</h3><p>${desc}</p></div></div>`+renderManagementBodyV40(tab);
+  if(['manufacturing','orders','logistics','museum'].includes(tab))setTimeout(()=>tickManagementV40(tab),1000);
+}
+function renderManagementBodyV40(tab){
+  const s=managementStateV40.state;
+  if(tab==='franchise'){
+    const lv=mgmtLevelV40('franchise'), names=['미운영','동네 상점','대학가 지점','관광지 매장','도심 플래그십','전국 프랜차이즈'];
+    const cost=[0,50000000,200000000,800000000,3000000000,10000000000][Math.min(lv+1,5)]||0;
+    return `<div class="mgmt-tier-v40"><b>현재 단계 ${lv} · ${names[lv]||names[5]}</b><span>다음 확장비 ${cost?mgmtMoneyV40(cost):'최고 단계'}</span></div><div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('franchise')" ${lv>=5?'disabled':''}>${lv>=5?'전국망 완성':'다음 상권 확장'}</button><button onclick="claimManagementPassiveV40('franchise')">영업 수익 정산</button></div><div class="mgmt-info-v40">직원·물류 수준이 높을수록 지점 매출이 증가하며, 최대 12시간까지 오프라인 수익이 누적됩니다.</div>`;
+  }
+  if(tab==='staff'){
+    const lv=mgmtLevelV40('staff'), titles=['직원 없음','신입 판매원 팀','숙련 영업팀','전문 경영진','글로벌 임원진','최정예 인재 그룹'];
+    return `<div class="mgmt-tier-v40"><b>인재 수준 ${lv} · ${titles[lv]||titles[5]}</b><span>운영 안정성 +${lv*6}%</span></div><div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('staff')" ${lv>=5?'disabled':''}>교육·채용 투자</button></div><div class="mgmt-personnel-v40">${['영업','감정','협상','재고 관리','신뢰도'].map((x,i)=>`<div><span>${x}</span><b>${Math.min(100,20+lv*14+i*2)}</b></div>`).join('')}</div>`;
+  }
+  if(tab==='manufacturing')return renderOperationSystemV40('manufacturing',[['basic','생활형 자체 상품','2,000만 원','30초'],['luxury','프리미엄 한정판','1억 원','60초'],['signature','시그니처 컬렉션','5억 원','90초']]);
+  if(tab==='orders')return renderOperationSystemV40('orders',[['collector','개인 수집가 의뢰','1,000만 원','30초'],['corporate','기업 대량 납품','8,000만 원','60초'],['royal','왕실·박물관 특별 의뢰','5억 원','90초']]);
+  if(tab==='insurance'){
+    const plan=s.insurance_plan||'none';
+    return `<div class="mgmt-plan-grid-v40">${[['none','무보험','0원','손실 보상 없음'],['basic','기본 사업보험','1,000만 원','손실의 20% 보상'],['premium','종합 자산보험','5,000만 원','손실의 40% 보상'],['elite','VIP 전면보험','2억 원','손실의 65% 보상']].map(x=>`<button class="${plan===x[0]?'selected':''}" onclick="buyManagementInsuranceV40('${x[0]}')"><b>${x[1]}</b><span>${x[2]}</span><small>${x[3]}</small></button>`).join('')}</div><div class="mgmt-info-v40">보험료는 가입 시 1회 결제되며 다음 상품으로 변경할 때 새 보험료가 청구됩니다.</div>`;
+  }
+  if(tab==='accounting'){
+    const lv=mgmtLevelV40('accountant');
+    return `<div class="mgmt-tier-v40"><b>회계사 등급 ${lv}/5</b><span>예상 사업세율 ${Math.max(3,10-lv*1.4).toFixed(1)}%</span></div><div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('accountant')" ${lv>=5?'disabled':''}>회계팀 강화</button><button onclick="payManagementTaxV40()">미납 세금 납부</button></div><div class="mgmt-info-v40">미납 세금이 장기간 누적되면 정산 수익에 가산금이 붙습니다. 전문 회계사는 세율과 가산금을 낮춥니다.</div>`;
+  }
+  if(tab==='logistics')return `<div class="mgmt-tier-v40"><b>물류 시설 ${mgmtLevelV40('logistics')}/5</b><span>배송 사고 위험 -${mgmtLevelV40('logistics')*8}%</span></div><div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('logistics')" ${mgmtLevelV40('logistics')>=5?'disabled':''}>물류 시설 확장</button></div>`+renderOperationSystemV40('logistics',[['standard','일반 배송 계약','2,000만 원','30초'],['express','특급 배송망','1억 원','45초'],['secure','고가품 보안 운송','5억 원','60초']],true);
+  if(tab==='museum')return `<div class="mgmt-tier-v40"><b>전시관 등급 ${mgmtLevelV40('museum')}/5</b><span>보유 소장품 ${managementStateV40.collectible_count||0}개</span></div><div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('museum')" ${mgmtLevelV40('museum')>=5?'disabled':''}>전시관 확장</button><button onclick="claimManagementPassiveV40('museum')">상시 관람료 정산</button></div>`+renderOperationSystemV40('museum',[['vintage','빈티지 특별전','5,000만 원','45초'],['royal','왕실 보물전','3억 원','75초'],['ancient','고대 유물 대전','20억 원','120초']],true);
+  if(tab==='loan'){
+    const loans=managementStateV40.loans||[];
+    return `<div class="mgmt-loan-create-v40"><select id="mgmtCollateralV40"><option value="house">보유 주택 담보</option><option value="business">회사 지분 담보</option><option value="collectible">소장품 담보</option><option value="stock">주식 담보</option></select><input id="mgmtLoanAmountV40" type="number" min="10000000" placeholder="대출 금액"><button onclick="takeManagementLoanV40()">담보 대출 실행</button></div><div class="mgmt-loans-v40">${loans.map(l=>`<div><b>${esc(l.collateral_type)} 담보 · ${mgmtMoneyV40(l.outstanding)}</b><span>만기 ${new Date(l.due_at).toLocaleString()}</span><button onclick="repayManagementLoanV40('${l.id}')">전액 상환</button></div>`).join('')||'<p>진행 중인 담보 대출이 없습니다.</p>'}</div><div class="mgmt-warning-v40">만기 이후에는 연체 이자가 붙고 담보 가치가 감소할 수 있습니다.</div>`;
+  }
+  if(tab==='family'){
+    const lv=mgmtLevelV40('family'), fname=s.family_name||'';
+    return `<div class="mgmt-family-v40"><div class="family-emblem-v40">${lv?'♛':'◇'}</div><div><b>${fname?esc(fname):'아직 가문이 없습니다'}</b><span>가문 단계 ${lv}/5 · 명성 ${Number(s.family_fame||0).toLocaleString()}</span></div></div>${lv===0?`<div class="mgmt-name-v40"><input id="mgmtFamilyNameV40" maxlength="16" placeholder="가문 이름"><button onclick="createManagementFamilyV40()">가문 창설 · 10억 원</button></div>`:`<div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('family')" ${lv>=5?'disabled':''}>가문 유산 확장</button><button onclick="donateManagementFamilyV40()">가문 신탁에 1억 기부</button></div>`}<div class="mgmt-info-v40">가문 명성은 박물관 전시, 세금 성실 납부, 사업 성공으로 올라가며 후반 칭호와 보너스의 기반이 됩니다.</div>`;
+  }
+  return '';
+}
+function renderOperationSystemV40(kind,opts,compact=false){
+  const op=mgmtOperationV40(kind);
+  if(op){const remain=mgmtRemainingV40(op);return `<div class="mgmt-operation-v40"><b>${esc(op.option_name||op.option_code)} 진행 중</b><span id="mgmtTimerV40">${remain>0?remain+'초 남음':'완료됨'}</span><button onclick="collectManagementOperationV40('${op.id}')" ${remain>0?'disabled':''}>${remain>0?'진행 중':'결과 정산'}</button></div>`}
+  return `<div class="mgmt-option-grid-v40 ${compact?'compact':''}">${opts.map(o=>`<button onclick="startManagementOperationV40('${kind}','${o[0]}')"><b>${o[1]}</b><span>${o[2]}</span><small>${o[3]}</small></button>`).join('')}</div>`;
+}
+function tickManagementV40(tab){
+  const screen=document.getElementById('phone-management');if(!screen||screen.classList.contains('hidden')||managementStateV40?.active_tab!==tab)return;
+  const op=mgmtOperationV40(tab), el=document.getElementById('mgmtTimerV40');if(op&&el){const r=mgmtRemainingV40(op);el.textContent=r>0?r+'초 남음':'완료됨';if(r<=0){const b=el.parentElement?.querySelector('button');if(b){b.disabled=false;b.textContent='결과 정산'}}}
+  setTimeout(()=>tickManagementV40(tab),1000);
+}
+async function managementRpcV40(name,args={}){const {data,error}=await db.rpc(name,args);if(error){toast(error.message);return null}toast(data?.message||'처리되었습니다.');await loadProfile();await loadManagementV40();return data}
+async function upgradeManagementV40(system){await managementRpcV40('upgrade_management_system_v40',{p_system:system})}
+async function claimManagementPassiveV40(system){await managementRpcV40('claim_management_passive_v40',{p_system:system})}
+async function startManagementOperationV40(kind,option){await managementRpcV40('start_management_operation_v40',{p_kind:kind,p_option:option})}
+async function collectManagementOperationV40(id){await managementRpcV40('collect_management_operation_v40',{p_operation_id:id})}
+async function buyManagementInsuranceV40(plan){await managementRpcV40('buy_management_insurance_v40',{p_plan:plan})}
+async function payManagementTaxV40(){await managementRpcV40('pay_management_tax_v40')}
+async function takeManagementLoanV40(){const t=document.getElementById('mgmtCollateralV40')?.value,a=Math.floor(Number(document.getElementById('mgmtLoanAmountV40')?.value));if(!a)return toast('대출 금액을 입력하세요.');await managementRpcV40('take_collateral_loan_v40',{p_collateral_type:t,p_amount:a})}
+async function repayManagementLoanV40(id){await managementRpcV40('repay_collateral_loan_v40',{p_loan_id:id})}
+async function createManagementFamilyV40(){const n=document.getElementById('mgmtFamilyNameV40')?.value.trim();if(!n)return toast('가문 이름을 입력하세요.');await managementRpcV40('create_family_v40',{p_name:n})}
+async function donateManagementFamilyV40(){await managementRpcV40('donate_family_v40',{p_amount:100000000})}
+const openPhoneAppV40=openPhoneApp;openPhoneApp=function(name){openPhoneAppV40(name);if(name==='management')loadManagementV40()};
