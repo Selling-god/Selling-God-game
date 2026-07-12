@@ -242,7 +242,10 @@ const HAGGLE_SKILLS={
   price_anchor:{name:"가격 앵커링",icon:"🧲",cost:7,desc:"높은 기준 가격을 먼저 제시해 협상 범위를 끌어올림",requires:"walkaway",minReputation:500},
   master_close:{name:"최종 합의 설계",icon:"🏁",cost:12,desc:"상대의 마지막 양보를 끌어내는 고급 마무리 협상",requires:"price_anchor",minReputation:1000}
 };
-function hasHaggleSkill(code){return !!negotiationSkills?.[code]}
+function hasHaggleSkill(code){
+  const value=negotiationSkills?.[code];
+  return value===true||value==='true'||value===1||value==='1';
+}
 function renderNegotiation(){
   negotiationModal.classList.remove("hidden");
   const n=negotiation,profit=negotiationProfit(n),profitPct=n.base?profit/n.base*100:0;
@@ -779,21 +782,69 @@ function effectName(k){return{pawn_bonus:'전당포 판매가',market_bonus:'NPC
 /* 휴대폰/주식 */
 function openPhone(){phoneOverlay.classList.remove("hidden");phoneHome();updatePhoneTime()}function closePhone(){phoneOverlay.classList.add("hidden");if(chatRefreshTimer){clearInterval(chatRefreshTimer);chatRefreshTimer=null}}function phoneBackdrop(e){if(e.target.id==="phoneOverlay")closePhone()}function phoneHome(){document.querySelectorAll(".phone-screen").forEach(x=>x.classList.add("hidden"));document.getElementById("phoneHome").classList.remove("hidden");closeStockDetail()}function openPhoneApp(name){document.querySelectorAll('.phone-screen').forEach(x=>x.classList.add('hidden'));const screen=document.getElementById('phone-'+name);if(!screen)return;screen.classList.remove('hidden');if(name==='stocks')refreshStocks();else if(name==='wallet')renderWallet();else if(name==='ranking')loadRanking();else if(name==='property')loadProperties();else if(name==='titles')loadTitles();else if(name==='chat')loadChatMessages();else if(name==='skills')loadNegotiationSkills()}
 async function loadNegotiationSkills(){
-  if(!profile)await loadProfile();
   const host=document.getElementById('skillTreeList');if(!host)return;
-  const points=Number(profile.skill_points||0),reputation=Number(profile.reputation||0);
+
+  // get_player_profile_v24 응답에 negotiation_skills가 포함되지 않는 구버전 DB도 있으므로
+  // 스킬 화면을 열 때 profiles에서 실제 습득 상태를 직접 다시 읽는다.
+  const {data:skillProfile,error:skillProfileError}=await db
+    .from('profiles')
+    .select('skill_points,reputation,negotiation_skills')
+    .eq('id',currentUser.id)
+    .maybeSingle();
+
+  if(skillProfileError){
+    console.warn('협상 스킬 상태 조회 실패:',skillProfileError.message);
+    if(!profile)await loadProfile();
+  }else if(skillProfile){
+    negotiationSkills=skillProfile.negotiation_skills||{};
+    profile={...(profile||{}),...skillProfile};
+  }
+
+  const points=Number(profile?.skill_points||0),reputation=Number(profile?.reputation||0);
   const rows=Object.entries(HAGGLE_SKILLS).map(([code,s])=>{
-    const owned=hasHaggleSkill(code),reqOk=!s.requires||hasHaggleSkill(s.requires),repOk=reputation>=Number(s.minReputation||0),unlocked=reqOk&&repOk;
-    const requirements=[];
-    if(s.requires)requirements.push(`선행 스킬: ${HAGGLE_SKILLS[s.requires].name}`);
-    if(s.minReputation)requirements.push(`필요 명성: ${s.minReputation}`);
-    const lockReason=!reqOk?`${HAGGLE_SKILLS[s.requires].name} 습득 시 해금`:!repOk?`명성 ${s.minReputation} 달성 시 해금`:'';
+    const owned=hasHaggleSkill(code);
+    const reqOk=!s.requires||hasHaggleSkill(s.requires);
+    const repOk=reputation>=Number(s.minReputation||0);
+    const unlocked=reqOk&&repOk;
+
+    const allRequirements=[];
+    if(s.requires)allRequirements.push(`선행 스킬: ${HAGGLE_SKILLS[s.requires].name}`);
+    if(s.minReputation)allRequirements.push(`명성 ${Number(s.minReputation).toLocaleString('ko-KR')} 이상`);
+
+    const missing=[];
+    if(!reqOk)missing.push(`${HAGGLE_SKILLS[s.requires].name} 습득`);
+    if(!repOk)missing.push(`명성 ${Number(s.minReputation).toLocaleString('ko-KR')} 달성 (현재 ${reputation.toLocaleString('ko-KR')})`);
+
     const buttonText=owned?'습득 완료':!unlocked?'잠김':points<s.cost?'포인트 부족':'습득';
-    return `<article class="skill-node ${owned?'owned':''} ${unlocked?'':'blocked'}"><div class="skill-icon">${s.icon}</div><div><h3>${s.name}</h3><p>${s.desc}</p><small>${requirements.length?requirements.join(' · '):'처음부터 해금'} · 비용 ${s.cost}P</small>${!owned&&!unlocked?`<em class="skill-unlock-guide">🔒 ${lockReason}</em>`:''}</div><button ${owned||!unlocked||points<s.cost?'disabled':''} onclick="learnNegotiationSkill('${code}')">${buttonText}</button></article>`;
+    const guide=owned
+      ? '<em class="skill-owned-guide">✓ 이미 습득한 스킬입니다.</em>'
+      : !unlocked
+        ? `<em class="skill-unlock-guide">🔒 해금 조건: ${missing.join(' + ')}</em>`
+        : `<em class="skill-ready-guide">✓ 해금 완료 · ${s.cost}P를 사용해 습득 가능</em>`;
+
+    return `<article class="skill-node ${owned?'owned':''} ${unlocked?'':'blocked'}">
+      <div class="skill-icon">${s.icon}</div>
+      <div class="skill-copy">
+        <h3>${s.name}</h3>
+        <p>${s.desc}</p>
+        <small>${allRequirements.length?`전체 조건: ${allRequirements.join(' · ')}`:'전체 조건: 처음부터 해금'} · 비용 ${s.cost}P</small>
+        ${guide}
+      </div>
+      <button ${owned||!unlocked||points<s.cost?'disabled':''} onclick="learnNegotiationSkill('${code}')">${buttonText}</button>
+    </article>`;
   }).join('');
+
   host.innerHTML=`<div class="skill-point-card"><span>보유 스킬 포인트</span><b>${points}P</b><small>명성 50을 얻을 때마다 1포인트가 지급됩니다. 후반 스킬일수록 더 많은 포인트가 필요합니다.</small></div><div class="skill-tree">${rows}</div>`;
 }
-async function learnNegotiationSkill(code){const{data,error}=await db.rpc('learn_negotiation_skill_v15',{p_skill:code});if(error)return toast(error.message);toast('협상 스킬을 습득했습니다.');await loadProfile();loadNegotiationSkills()}
+async function learnNegotiationSkill(code){
+  const{error}=await db.rpc('learn_negotiation_skill_v15',{p_skill:code});
+  if(error){
+    await loadNegotiationSkills();
+    return toast(error.message);
+  }
+  toast('협상 스킬을 습득했습니다.');
+  await Promise.all([loadProfile(),loadNegotiationSkills()]);
+}
 function updatePhoneTime(){phoneTime.textContent=new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}
 async function updateStocks(){
   const{data,error}=await db.rpc("update_global_stock_market_v26");
