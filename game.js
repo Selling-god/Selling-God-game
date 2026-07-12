@@ -591,17 +591,7 @@ function groupedCollectibleRow(group,options={}){
     </div>`;
   }
 
-  const preview=isCase?`<div class="case-preview-wrap">
-      <div class="case-preview rarity-${rarityScore(c.rarity)}" data-case-theme="${theme}" data-rarity="${rarityScore(c.rarity)}" aria-hidden="true">
-        <div class="case-preview-wall"></div>
-        <div class="case-preview-shell-frame"></div>
-        <div class="case-preview-camera"></div>
-        <div class="case-preview-label">${esc(c.name)}</div>
-      </div>
-    </div>`:'';
-
   return `<div class="collectible ${rc} ${isCase?'case-collectible':'decoration-collectible'}" ${isCase?`data-case-theme="${theme}" data-rarity="${rarityScore(c.rarity)}"`:''}>
-    ${preview}
     <div class="collectible-main">
       <div class="collectible-title-row">
         <span class="collectible-icon">${c.icon}</span>
