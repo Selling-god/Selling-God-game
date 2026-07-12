@@ -45,7 +45,7 @@ async function logout(){
   await db.auth.signOut();
   showAuth();
 }
-function openPage(name,btn){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));document.getElementById("page-"+name).classList.add("active");btn?.classList.add("active");({inventory:loadInventory,pawnshop:loadPawnshop,auction:loadAuctionLobby,market:loadMarketHub,house:loadHouse,collection:loadCollectibles,jobs:resetJobPage}[name]||(()=>{}))()}
+function openPage(name,btn){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));document.getElementById("page-"+name).classList.add("active");btn?.classList.add("active");({inventory:loadInventory,pawnshop:loadPawnshop,auction:loadAuctionLobby,appraisal:loadAppraisalCenterV37,restoration:loadRestorationCenter,market:loadMarketHub,house:loadHouse,collection:loadCollectibles,jobs:resetJobPage}[name]||(()=>{}))()}
 function openPageFromPhone(name){closePhone();openPage(name,document.querySelector(`[data-page="${name}"]`))}
 async function refreshAll(){
   await updateStocks();
@@ -367,7 +367,7 @@ async function loadNpcOffers(){
       return `<article class="market-card npc-buy-card npc-theme-${p.theme}">
         <div class="npc-seller-strip"><span class="npc-mini-avatar">${p.face}</span><div><b>${esc(p.name)}</b><small>${esc(p.role)} · ${esc(p.temperament)}</small></div></div>
         <div class="item-image"><img src="${itemImage(o.items.name,o.items.category)}"></div>
-        <div class="market-body"><span class="badge ${rarityClass(o.items.rarity)}">중고 NPC 판매</span><h3>${esc(o.items.name)}</h3><div class="meta">${esc(o.items.rarity)} · 상태 ${o.condition_score}/100</div><div class="price">판매가 ${money(o.asking_price)}</div><small class="market-hint">${esc(p.preview)}</small><button class="btn primary full" onclick="startNpcOffer('${o.id}')">${esc(p.name)}와 흥정</button></div>
+        <div class="market-body"><h3 class="rarity-text ${rarityClass(o.items.rarity)}">${esc(o.items.name)}</h3><div class="meta rarity-text ${rarityClass(o.items.rarity)}">${esc(normalizeRarityV35(o.items.rarity))}</div><div class="meta">상태 ${o.condition_score}/100</div><div class="price">판매가 ${money(o.asking_price)}</div><small class="market-hint">${esc(p.preview)}</small><button class="btn primary full" onclick="startNpcOffer('${o.id}')">${esc(p.name)}와 흥정</button></div>
       </article>`
     }).join('')||'<div class="panel" style="padding:20px">현재 NPC 판매 상품이 없습니다.</div>');
   if(cycle?.refresh_at)startRotationCountdown('market',cycle.refresh_at,'marketRotationBanner',loadNpcOffers);
@@ -2371,9 +2371,7 @@ switchAuctionMode=function(mode,btn){
   document.querySelectorAll('.auction-tabs button').forEach(x=>x.classList.remove('active'));btn?.classList.add('active');
   document.getElementById('auctionBuyPanel')?.classList.toggle('hidden',mode!=='buy');
   document.getElementById('auctionSellPanel')?.classList.toggle('hidden',mode!=='sell');
-  document.getElementById('auctionRestorePanel')?.classList.toggle('hidden',mode!=='restore');
   if(mode==='sell')fillAuctionSellItems();
-  else if(mode==='restore')loadRestorationCenter();
   else loadAuctionLobby();
 };
 
@@ -2397,8 +2395,7 @@ renderAuctionChoices=function(refreshAt){
     const known=!!a.condition_known;
     const appraisal=Number(a.appraisal_cost||appraisalCostV35(a.rarity));
     return `<article class="auction-choice auction-premium-card ${rarityClass(a.rarity)} tier-${auctionTierV35}">
-      <button class="auction-enter-zone" onclick="enterAuctionChoice(${i})"><img src="${itemImage(a.item_name,a.category)}"><span class="badge ${rarityClass(a.rarity)}">${esc(a.rarity)}</span><h3>${esc(a.item_name)}</h3><div class="auction-secret-condition ${known?'known':''}">${known?`상태 ${a.condition_score}/100`:'상태 미감정 · ???'}</div><b>시작가 ${money(a.start_price)}</b><small>경매장 입장 →</small></button>
-      <button class="appraise-btn ${known?'done':''}" ${known?'disabled':''} onclick="appraiseAuctionItemV35(event,${i})">${known?'✓ 감정 완료':`🔍 전문가 감정 ${money(appraisal)}`}</button>
+      <button class="auction-enter-zone" onclick="enterAuctionChoice(${i})"><img src="${itemImage(a.item_name,a.category)}"><h3 class="rarity-text ${rarityClass(a.rarity)}">${esc(a.item_name)}</h3><div class="auction-rarity-caption rarity-text ${rarityClass(a.rarity)}">${esc(a.rarity)}</div><div class="auction-secret-condition ${known?'known':''}">${known?`상태 ${a.condition_score}/100`:'상태 미감정 · 감정소에서 확인'}</div><b>시작가 ${money(a.start_price)}</b><small>경매장 입장 →</small></button>
     </article>`;
   }).join('');
   el.innerHTML=`<div id="auctionRotationBanner" class="rotation-banner auction-rotation tier-${auctionTierV35}"><div><b>${meta.icon} ${meta.name} 라인업</b><small>${auctionTierV35==='normal'?'진귀가 대부분이며 가끔 보물이 등장합니다.':auctionTierV35==='vip'?'진귀부터 유물까지 등장하며 NPC 자금력이 높습니다.':'보물이 기본이며 고대 유물까지 등장하는 초고액 시장입니다.'}</small></div><strong>다음 교체 <span>--:--</span></strong></div>`+(cards||'<div class="panel empty-state">현재 경매품이 없습니다.</div>');
@@ -2478,6 +2475,42 @@ runSellerAuction=function(){
   },s.tier==='vvip'?1050:s.tier==='vip'?1250:1550);
 };
 
+async function loadAppraisalCenterV37(){
+  const host=document.getElementById('appraisalCenterList');
+  if(!host)return;
+  host.innerHTML='<div class="panel expert-loading">현재 경매품을 불러오는 중...</div>';
+  await loadAuctionAccessV35();
+  const tiers=['normal'];
+  if(auctionAccessV35.vip)tiers.push('vip');
+  if(auctionAccessV35.vvip)tiers.push('vvip');
+  const groups=[];
+  for(const tier of tiers){
+    const{data,error}=await db.rpc('get_auction_choices_v35',{p_tier:tier});
+    if(error){groups.push({tier,error:error.message,choices:[]});continue;}
+    groups.push({tier,choices:Array.isArray(data?.choices)?data.choices:[],refreshAt:data?.refresh_at});
+  }
+  host.innerHTML=groups.map(group=>{
+    const meta=AUCTION_TIER_META_V35[group.tier];
+    const cards=group.choices.map(a=>{
+      if(a.ended)return `<article class="appraisal-card ended"><div class="appraisal-image">⌛</div><div><b>종료된 경매품</b><small>다음 교체를 기다려 주세요.</small></div></article>`;
+      const known=!!a.condition_known;
+      const cost=Number(a.appraisal_cost||appraisalCostV35(a.rarity));
+      return `<article class="appraisal-card ${rarityClass(a.rarity)}">
+        <img src="${itemImage(a.item_name,a.category)}" alt="">
+        <div class="appraisal-card-body"><small>${meta.icon} ${meta.name}</small><h3 class="rarity-text ${rarityClass(a.rarity)}">${esc(a.item_name)}</h3><p class="rarity-text ${rarityClass(a.rarity)}">${esc(a.rarity)}</p><strong>${known?`상태 ${a.condition_score}/100`:'상태 미확인'}</strong><button ${known?'disabled':''} onclick="appraiseCatalogItemV37('${group.tier}',${a.cycle_key},${a.slot_no},'${String(a.item_name).replace(/'/g,"\\'")}',${cost})">${known?'✓ 감정 완료':`감정 의뢰 · ${money(cost)}`}</button></div>
+      </article>`;
+    }).join('');
+    return `<section class="appraisal-tier-section"><div class="appraisal-tier-head"><div><b>${meta.icon} ${meta.name}</b><small>가장 높은 등급 출현 확률 10%</small></div></div><div class="appraisal-tier-grid">${cards||'<div class="panel empty-state">감정 가능한 경매품이 없습니다.</div>'}</div></section>`;
+  }).join('');
+}
+async function appraiseCatalogItemV37(tier,cycleKey,slotNo,itemName,cost){
+  if(!confirm(`${itemName}의 상태를 ${money(cost)}에 감정할까요?`))return;
+  const{data,error}=await db.rpc('appraise_auction_item_v35',{p_cycle_key:cycleKey,p_slot_no:slotNo,p_tier:tier});
+  if(error)return toast(error.message);
+  toast(`감정 완료 · ${itemName} 상태 ${data.condition_score}/100`);playSuccessSound();
+  await Promise.all([loadProfile(),loadAppraisalCenterV37()]);
+}
+
 async function loadRestorationCenter(){
   const jobsHost=document.getElementById('restorationJobs'),invHost=document.getElementById('restorationInventory');
   if(!jobsHost||!invHost)return;
@@ -2513,9 +2546,7 @@ async function claimRestorationV35(jobId){
 const loadNpcOffersV34=loadNpcOffers;
 loadNpcOffers=async function(){
   await loadNpcOffersV34();
-  document.querySelectorAll('#npcOfferList .market-card').forEach(card=>{
-    const badge=card.querySelector('.badge');if(badge)badge.textContent='일반~초희귀 중고 매물';
-  });
+  document.querySelectorAll('#npcOfferList .market-card').forEach(card=>card.classList.add('rarity-priced-market'));
 };
 
 function riskProductCardV35(code,icon,name,min,duration,desc,odds){
@@ -2526,9 +2557,9 @@ async function loadRiskDesk(){
   const{data,error}=await db.rpc('get_risk_investment_v35');
   if(error){host.innerHTML=`<div class="error-panel">${esc(error.message)}</div>`;return;}
   const active=data?.active;
-  host.innerHTML=`<div class="risk-warning"><b>⚠️ 초고위험 투자</b><p>원금 전액을 잃을 수 있습니다. 결과는 서버에서 투자 순간 확정되며 새로고침해도 바뀌지 않습니다.</p><strong>사용 가능 현금 ${money(profile?.cash||0)}</strong></div>`+
-  (active?`<article class="risk-active"><div><span>${active.product_icon}</span><b>${esc(active.product_name)}</b><small>투자금 ${money(active.invested_amount)}</small></div><div><em>${active.ready?'결과 확정 가능':`${active.remaining_seconds}초 남음`}</em><button ${active.ready?'':'disabled'} onclick="claimRiskV35()">${active.ready?'결과 확인':'시장 변동 중'}</button></div></article>`:
-  `<div class="risk-products">${riskProductCardV35('venture','🚀','초기 벤처 라운드',10000000,60,'성공하면 대박, 실패하면 원금 전액 손실','최대 6배 · 전액 손실 확률 높음')}${riskProductCardV35('futures','📉','레버리지 원자재 선물',50000000,45,'짧은 시간에 가격이 폭등하거나 붕괴합니다.','최대 8배 · 극심한 변동')}${riskProductCardV35('takeover','🏙️','적대적 기업 인수전',200000000,90,'대규모 자본이 필요하지만 성공 보상이 가장 큽니다.','최대 12배 · 전액 손실 가능')}</div>`);
+  host.innerHTML=`<div class="risk-warning project-warning"><b>📑 프로젝트 투자</b><p>상가 개발, 대량 재고 매입, 해외 유통 계약처럼 현실에서 가능한 고액 사업에 자금을 투입합니다. 공실·재고 실패·계약 파기 등으로 큰 손실이 날 수 있으며, 결과는 서버에서 시작 순간 확정됩니다.</p><strong>사용 가능 현금 ${money(profile?.cash||0)}</strong></div>`+
+  (active?`<article class="risk-active"><div><span>${active.product_icon}</span><b>${esc(active.product_name)}</b><small>투자금 ${money(active.invested_amount)}</small></div><div><em>${active.ready?'정산 가능':`${active.remaining_seconds}초 남음`}</em><button ${active.ready?'':'disabled'} onclick="claimRiskV35()">${active.ready?'정산 결과 확인':'프로젝트 진행 중'}</button></div></article>`:
+  `<div class="risk-products">${riskProductCardV35('venture','🏢','상가 리모델링 공동투자',10000000,60,'노후 상가를 매입·리모델링한 뒤 임대 또는 매각합니다.','공실·공사비 초과 위험 · 최대 4.5배')}${riskProductCardV35('futures','📦','대량 재고 선매입 계약',50000000,45,'유행 상품을 도매가로 대량 매입해 유통 마진을 노립니다.','재고 폭락 위험 · 최대 6배')}${riskProductCardV35('takeover','🚢','해외 독점 유통권 계약',200000000,90,'해외 브랜드의 국내 독점 유통권을 확보해 대형 계약을 추진합니다.','계약 파기·환율 위험 · 최대 8배')}</div>`);
   if(riskTimerV35)clearTimeout(riskTimerV35);
   if(active&&!active.ready)riskTimerV35=setTimeout(loadRiskDesk,1000);
 }
@@ -2537,7 +2568,7 @@ async function startRiskV35(code){
   if(amount<=0)return toast('투자 금액을 입력하세요.');
   if(!confirm(`${money(amount)}을 투자할까요? 원금 전액 손실 가능성이 있습니다.`))return;
   const{data,error}=await db.rpc('start_risk_investment_v35',{p_product:code,p_amount:amount});if(error)return toast(error.message);
-  toast('고위험 투자가 시작되었습니다. 결과는 이미 서버에 확정되었습니다.');await Promise.all([loadProfile(),loadRiskDesk()]);
+  toast('프로젝트 투자가 시작되었습니다. 결과는 서버에 안전하게 저장되었습니다.');await Promise.all([loadProfile(),loadRiskDesk()]);
 }
 async function claimRiskV35(){
   const{data,error}=await db.rpc('claim_risk_investment_v35');if(error)return toast(error.message);
