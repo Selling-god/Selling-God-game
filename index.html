@@ -233,7 +233,7 @@
       <section id="page-house" class="page">
         <div class="title"><div><p class="eyebrow">MY HOME</p><h1>내 집 꾸미기</h1><p id="houseCapacityText">현재 집의 수용량 안에서 장식을 배치할 수 있습니다.</p></div><button class="btn light" onclick="loadHouse()">새로고침</button></div>
         <div class="house-layout">
-          <div id="houseRoom" class="house-room"><div class="window">☀️</div><div id="placedDecorations"></div></div>
+          <div id="houseRoom" class="house-room" data-property="basement"><div class="house-loading">집을 꾸미는 중...</div></div>
           <aside class="house-side panel"><h3>활성 효과</h3><div id="houseEffects"></div><div class="section-head"><h3>보유 장식</h3><span id="decorationPageInfo" class="page-info">1P / 1P</span></div><div id="decorationInventory" class="paged-list compact"></div><div class="pager"><button id="decorationPrev" class="btn light" onclick="changeDecorationPage(-1)">‹ 이전</button><button id="decorationNext" class="btn light" onclick="changeDecorationPage(1)">다음 ›</button></div></aside>
         </div>
       </section>
@@ -327,7 +327,7 @@
 
 <div id="chatNotificationStack" class="chat-notification-stack" aria-live="polite" aria-atomic="false"></div>
 
-<script src="game.js?v=38.12"></script>
+<script src="game.js?v=38.13"></script>
 <div id="gachaModal" class="overlay hidden"><div class="gacha-reveal"><div id="gachaRarity" class="gacha-rarity">?</div><div id="gachaResultIcon" class="gacha-result-icon">🎁</div><h2 id="gachaResultName">결과 공개</h2><p id="gachaResultEffect"></p><button class="btn primary" onclick="closeGachaReveal()">확인</button></div></div><div id="clickFxLayer" class="click-fx-layer"></div>
 </body>
 </html>
