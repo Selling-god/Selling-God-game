@@ -234,11 +234,13 @@ function startPawnNegotiation(id){
 }
 function negotiationProfit(n,price=n.npcOffer){return Math.round(price-n.base)}
 const HAGGLE_SKILLS={
-  market_data:{name:"시세 분석",icon:"📊",cost:1,desc:"시세 자료 제시 사용 가능",requires:null},
-  storytelling:{name:"가치 스토리텔링",icon:"✨",cost:1,desc:"가치와 사연 강조 사용 가능",requires:null},
-  quick_deal:{name:"즉시 거래 유도",icon:"💵",cost:2,desc:"현금 즉시 거래 전략 사용 가능",requires:"market_data"},
-  silence_pressure:{name:"침묵의 압박",icon:"🤐",cost:2,desc:"말없이 기다려 NPC의 재제안을 유도",requires:"storytelling"},
-  walkaway:{name:"협상 결렬 압박",icon:"🚪",cost:3,desc:"다른 곳에 팔겠다는 최후통첩",requires:"silence_pressure"}
+  market_data:{name:"시세 분석",icon:"📊",cost:1,desc:"시세 자료 제시 사용 가능",requires:null,minReputation:0},
+  storytelling:{name:"가치 스토리텔링",icon:"✨",cost:1,desc:"가치와 사연 강조 사용 가능",requires:null,minReputation:0},
+  quick_deal:{name:"즉시 거래 유도",icon:"💵",cost:2,desc:"현금 즉시 거래 전략 사용 가능",requires:"market_data",minReputation:50},
+  silence_pressure:{name:"침묵의 압박",icon:"🤐",cost:3,desc:"말없이 기다려 NPC의 재제안을 유도",requires:"storytelling",minReputation:100},
+  walkaway:{name:"협상 결렬 압박",icon:"🚪",cost:4,desc:"다른 곳에 팔겠다는 최후통첩",requires:"silence_pressure",minReputation:250},
+  price_anchor:{name:"가격 앵커링",icon:"🧲",cost:7,desc:"높은 기준 가격을 먼저 제시해 협상 범위를 끌어올림",requires:"walkaway",minReputation:500},
+  master_close:{name:"최종 합의 설계",icon:"🏁",cost:12,desc:"상대의 마지막 양보를 끌어내는 고급 마무리 협상",requires:"price_anchor",minReputation:1000}
 };
 function hasHaggleSkill(code){return !!negotiationSkills?.[code]}
 function renderNegotiation(){
@@ -254,7 +256,9 @@ function renderNegotiation(){
     {code:"story",skill:"storytelling",icon:"✨",name:"가치와 사연 강조",desc:"균형형 · 성공 시 큰 폭 상승"},
     {code:"cash",skill:"quick_deal",icon:"💵",name:"지금 바로 현금 거래",desc:"빠른 계약을 조건으로 가격 인상"},
     {code:"silence",skill:"silence_pressure",icon:"🤐",name:"침묵하며 기다리기",desc:"가격을 말하지 않고 NPC 재제안 유도"},
-    {code:"walkaway",skill:"walkaway",icon:"🚪",name:"다른 곳에 팔겠다고 압박",desc:"최고위험 · 성공 시 가장 큰 인상"}
+    {code:"walkaway",skill:"walkaway",icon:"🚪",name:"다른 곳에 팔겠다고 압박",desc:"고위험 · 성공 시 큰 폭 인상"},
+    {code:"anchor",skill:"price_anchor",icon:"🧲",name:"높은 기준가로 앵커링",desc:"고급 기술 · 협상 상한선을 강하게 압박"},
+    {code:"master_close",skill:"master_close",icon:"🏁",name:"최종 합의 설계",desc:"최종 기술 · 성공 시 가장 큰 양보를 유도"}
   ];
   const actionHtml=actions.map(a=>{const unlocked=a.free||hasHaggleSkill(a.skill);return `<button class="haggle-skill-btn ${unlocked?'':'locked'}" ${unlocked?`onclick="submitNegotiationOffer('${a.code}')"`:`onclick="openSkillTreeFromNegotiation()"`}><b>${a.icon} ${a.name}</b><small>${unlocked?a.desc:`🔒 스킬 트리에서 ${HAGGLE_SKILLS[a.skill]?.name||''} 해금 필요`}</small></button>`}).join('');
   negotiationContent.innerHTML=`
@@ -280,10 +284,12 @@ function submitNegotiationOffer(style){
     story:{risk:.20,power:.74,cost:1,label:"물건의 희소성과 사연을 설득력 있게 설명했다."},
     cash:{risk:.16,power:.67,cost:1,label:"지금 바로 현금으로 거래하겠다는 조건을 제시했다."},
     silence:{risk:.24,power:.82,cost:1,label:"대답하지 않고 조용히 상대의 다음 제안을 기다렸다."},
-    walkaway:{risk:.48,power:1.0,cost:2,label:"다른 구매자에게 팔겠다며 협상 결렬을 압박했다."}
+    walkaway:{risk:.48,power:1.0,cost:2,label:"다른 구매자에게 팔겠다며 협상 결렬을 압박했다."},
+    anchor:{risk:.36,power:1.16,cost:2,label:"높은 시장 기준가를 먼저 제시해 협상 범위를 끌어올렸다."},
+    master_close:{risk:.30,power:1.34,cost:2,label:"지금 합의할 수 있는 최종 조건을 정교하게 제시했다."}
   };
   const cfg=configs[style]||configs.polite;
-  if(style!=='polite'){const need={evidence:'market_data',story:'storytelling',cash:'quick_deal',silence:'silence_pressure',walkaway:'walkaway'}[style];if(need&&!hasHaggleSkill(need))return toast('해당 협상 스킬을 먼저 해금하세요.')}
+  if(style!=='polite'){const need={evidence:'market_data',story:'storytelling',cash:'quick_deal',silence:'silence_pressure',walkaway:'walkaway',anchor:'price_anchor',master_close:'master_close'}[style];if(need&&!hasHaggleSkill(need))return toast('해당 협상 스킬을 먼저 해금하세요.')}
   const target=style==='silence'?Math.min(n.limit,Math.round(n.npcOffer+(n.limit-n.npcOffer)*(.22+Math.random()*.18))):ask;
   const gap=(target-n.npcOffer)/Math.max(1,n.limit-n.npcOffer),difficulty=Math.max(0,gap-n.persona.openness);
   const fail=Math.min(.88,cfg.risk+difficulty*.62+n.persona.pressure*(style==="walkaway"?.25:.05));
@@ -775,9 +781,17 @@ function openPhone(){phoneOverlay.classList.remove("hidden");phoneHome();updateP
 async function loadNegotiationSkills(){
   if(!profile)await loadProfile();
   const host=document.getElementById('skillTreeList');if(!host)return;
-  const points=Number(profile.skill_points||0);
-  const rows=Object.entries(HAGGLE_SKILLS).map(([code,s])=>{const owned=hasHaggleSkill(code),reqOk=!s.requires||hasHaggleSkill(s.requires);return `<article class="skill-node ${owned?'owned':''} ${reqOk?'':'blocked'}"><div class="skill-icon">${s.icon}</div><div><h3>${s.name}</h3><p>${s.desc}</p><small>${s.requires?`선행: ${HAGGLE_SKILLS[s.requires].name}`:'기본 단계'} · 비용 ${s.cost}P</small></div><button ${owned||!reqOk||points<s.cost?'disabled':''} onclick="learnNegotiationSkill('${code}')">${owned?'습득 완료':!reqOk?'선행 필요':points<s.cost?'포인트 부족':'습득'}</button></article>`}).join('');
-  host.innerHTML=`<div class="skill-point-card"><span>보유 스킬 포인트</span><b>${points}P</b><small>명성 50을 얻을 때마다 1포인트가 지급됩니다.</small></div><div class="skill-tree">${rows}</div>`;
+  const points=Number(profile.skill_points||0),reputation=Number(profile.reputation||0);
+  const rows=Object.entries(HAGGLE_SKILLS).map(([code,s])=>{
+    const owned=hasHaggleSkill(code),reqOk=!s.requires||hasHaggleSkill(s.requires),repOk=reputation>=Number(s.minReputation||0),unlocked=reqOk&&repOk;
+    const requirements=[];
+    if(s.requires)requirements.push(`선행 스킬: ${HAGGLE_SKILLS[s.requires].name}`);
+    if(s.minReputation)requirements.push(`필요 명성: ${s.minReputation}`);
+    const lockReason=!reqOk?`${HAGGLE_SKILLS[s.requires].name} 습득 시 해금`:!repOk?`명성 ${s.minReputation} 달성 시 해금`:'';
+    const buttonText=owned?'습득 완료':!unlocked?'잠김':points<s.cost?'포인트 부족':'습득';
+    return `<article class="skill-node ${owned?'owned':''} ${unlocked?'':'blocked'}"><div class="skill-icon">${s.icon}</div><div><h3>${s.name}</h3><p>${s.desc}</p><small>${requirements.length?requirements.join(' · '):'처음부터 해금'} · 비용 ${s.cost}P</small>${!owned&&!unlocked?`<em class="skill-unlock-guide">🔒 ${lockReason}</em>`:''}</div><button ${owned||!unlocked||points<s.cost?'disabled':''} onclick="learnNegotiationSkill('${code}')">${buttonText}</button></article>`;
+  }).join('');
+  host.innerHTML=`<div class="skill-point-card"><span>보유 스킬 포인트</span><b>${points}P</b><small>명성 50을 얻을 때마다 1포인트가 지급됩니다. 후반 스킬일수록 더 많은 포인트가 필요합니다.</small></div><div class="skill-tree">${rows}</div>`;
 }
 async function learnNegotiationSkill(code){const{data,error}=await db.rpc('learn_negotiation_skill_v15',{p_skill:code});if(error)return toast(error.message);toast('협상 스킬을 습득했습니다.');await loadProfile();loadNegotiationSkills()}
 function updatePhoneTime(){phoneTime.textContent=new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}
@@ -1467,11 +1481,13 @@ function submitNegotiationOfferSafe(style){
     story:{risk:.20,power:.74,cost:1,label:'물건의 희소성과 사연을 설득력 있게 설명했다.'},
     cash:{risk:.16,power:.67,cost:1,label:'지금 바로 현금으로 거래하겠다는 조건을 제시했다.'},
     silence:{risk:.24,power:.82,cost:1,label:'대답하지 않고 조용히 상대의 다음 제안을 기다렸다.'},
-    walkaway:{risk:.48,power:1,cost:2,label:'다른 구매자에게 팔겠다며 협상 결렬을 압박했다.'}
+    walkaway:{risk:.48,power:1,cost:2,label:'다른 구매자에게 팔겠다며 협상 결렬을 압박했다.'},
+    anchor:{risk:.36,power:1.16,cost:2,label:'높은 시장 기준가를 먼저 제시해 협상 범위를 끌어올렸다.'},
+    master_close:{risk:.30,power:1.34,cost:2,label:'지금 합의할 수 있는 최종 조건을 정교하게 제시했다.'}
   };
   const cfg=configs[style]||configs.polite;
   if(style!=='polite'){
-    const need={evidence:'market_data',story:'storytelling',cash:'quick_deal',silence:'silence_pressure',walkaway:'walkaway'}[style];
+    const need={evidence:'market_data',story:'storytelling',cash:'quick_deal',silence:'silence_pressure',walkaway:'walkaway',anchor:'price_anchor',master_close:'master_close'}[style];
     if(need&&!hasHaggleSkill(need))return negotiationFeedback('해당 협상 스킬을 먼저 해금해야 합니다.','error');
   }
   const maxPatience=Math.max(1,Number(n.maxPatience||n.persona?.patience||1));
@@ -1574,7 +1590,9 @@ function renderNegotiationSafe(feedback='',feedbackType='info'){
     {code:'story',skill:'storytelling',icon:'✨',name:'가치와 사연 강조',desc:'균형형 · 성공 시 큰 폭 상승'},
     {code:'cash',skill:'quick_deal',icon:'💵',name:'지금 바로 현금 거래',desc:'빠른 계약을 조건으로 가격 인상'},
     {code:'silence',skill:'silence_pressure',icon:'🤐',name:'침묵하며 기다리기',desc:'가격을 말하지 않고 NPC 재제안 유도'},
-    {code:'walkaway',skill:'walkaway',icon:'🚪',name:'다른 곳에 팔겠다고 압박',desc:'최고위험 · 성공 시 가장 큰 인상'}
+    {code:'walkaway',skill:'walkaway',icon:'🚪',name:'다른 곳에 팔겠다고 압박',desc:'고위험 · 성공 시 큰 폭 인상'},
+    {code:'anchor',skill:'price_anchor',icon:'🧲',name:'높은 기준가로 앵커링',desc:'고급 기술 · 협상 상한선을 강하게 압박'},
+    {code:'master_close',skill:'master_close',icon:'🏁',name:'최종 합의 설계',desc:'최종 기술 · 성공 시 가장 큰 양보를 유도'}
   ];
   const actionHtml=actions.map(a=>{const unlocked=a.free||hasHaggleSkill(a.skill);return `<button type="button" class="haggle-skill-btn ${unlocked?'':'locked'}" ${unlocked?`data-neg-action="pawn-style" data-value="${a.code}"`:`onclick="openSkillTreeFromNegotiation()"`}><b>${a.icon} ${a.name}</b><small>${unlocked?a.desc:`🔒 ${HAGGLE_SKILLS[a.skill]?.name||''} 해금 필요`}</small></button>`}).join('');
   negotiationContent.innerHTML=`
