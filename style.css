@@ -1613,3 +1613,53 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 .phone-screen,.phone-app{overflow-y:auto!important;overscroll-behavior:contain!important;min-height:0!important}
 .phone-screen{padding-bottom:92px!important}
 @media (max-width:720px){#caseInventory{grid-template-columns:1fr!important}.case-collectible{min-height:82px!important}}
+
+
+/* v38.17 케이스 목록 스크롤 복구 */
+#page-collection.page.active{
+  height:calc(100vh - 92px)!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain!important;
+  scrollbar-gutter:stable;
+  padding-bottom:120px!important;
+}
+#page-collection .collection-tab-panel{
+  overflow:visible!important;
+  min-height:0!important;
+}
+#page-collection .gacha-layout{
+  overflow:visible!important;
+  min-height:0!important;
+  padding-bottom:40px!important;
+}
+#page-collection .collection-panel{
+  max-height:calc(100vh - 170px)!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain!important;
+  scrollbar-width:thin;
+  scrollbar-gutter:stable;
+  padding-bottom:28px!important;
+}
+#page-collection .collection-panel .paged-list,
+#page-collection #caseInventory,
+#page-collection #collectibleInventory{
+  max-height:none!important;
+  overflow:visible!important;
+  min-height:0!important;
+}
+#page-collection .collection-panel .pager{
+  position:sticky;
+  bottom:0;
+  z-index:5;
+  padding:10px 0 2px;
+  background:linear-gradient(180deg,transparent,#fff5df 22%,#fff5df);
+}
+#page-collection .collection-panel::-webkit-scrollbar{width:10px}
+#page-collection .collection-panel::-webkit-scrollbar-thumb{background:#8d6848;border:2px solid #ead8b8;border-radius:10px}
+#page-collection .collection-panel::-webkit-scrollbar-track{background:#ead8b8}
+@media(max-width:1000px){
+  #page-collection.page.active{height:calc(100vh - 82px)!important}
+  #page-collection .collection-panel{max-height:none!important;overflow:visible!important}
+}
