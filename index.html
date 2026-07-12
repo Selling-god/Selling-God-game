@@ -208,8 +208,8 @@
       <section id="page-restoration" class="page">
         <div class="title"><div><p class="eyebrow">MASTER RESTORER</p><h1>전문 복원소</h1><p>손상된 보유품의 상태를 높입니다. 동시에 최대 3개, 작업 시간은 30초입니다.</p></div><button class="btn light" onclick="loadRestorationCenter()">새로고침</button></div>
         <div class="expert-service-banner restoration"><span>🛠️</span><div><b>복원 중인 아이템은 거래하거나 출품할 수 없습니다.</b><small>등급과 손상 정도가 높을수록 복원 비용이 천차만별로 증가합니다.</small></div></div>
-        <div id="restorationJobs" class="restoration-jobs"></div>
-        <div id="restorationInventory" class="restoration-inventory"></div>
+        <div id="legacyRestorationJobs" class="restoration-jobs"></div>
+        <div id="legacyRestorationInventory" class="restoration-inventory"></div>
       </section>
 
       <section id="page-market" class="page">
@@ -312,7 +312,7 @@
         <div id="riskView" class="risk-view"><div class="bank-loading">투자 정보를 불러오는 중...</div></div>
       </section>
       <section id="phone-appraisal" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>전문 감정소</b><small>내가 보유한 아이템의 실제 상태를 확인</small></div><button onclick="loadOwnedAppraisalV38()">↻</button></div><div id="ownedAppraisalList" class="expert-phone-list"></div></section>
-      <section id="phone-restoration" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>전문 복원소</b><small>보유품을 최대 3개까지 30초 복원</small></div><button onclick="loadRestorationCenter()">↻</button></div><div id="restorationJobs"></div><div id="restorationInventory"></div></section>
+      <section id="phone-restoration" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>전문 복원소</b><small>감정 완료 보유품을 최대 3개까지 30초 복원</small></div><button onclick="loadRestorationCenter()">↻</button></div><div class="expert-phone-notice restoration-guide">① 먼저 감정소에서 상태 확인 → ② 복원할 아이템 선택 → ③ 30초 후 수령</div><div id="restorationJobs"></div><div id="restorationInventory"></div></section>
       <section id="phone-titles" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>칭호</b><small>업적을 달성해 칭호 획득</small></div><span></span></div><div id="titleList"></div></section>
       <section id="phone-chat" class="phone-screen phone-app chat-app hidden">
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>전체 채팅</b><small>장착 칭호와 함께 대화하세요</small></div><button onclick="loadChatMessages()">↻</button></div>
