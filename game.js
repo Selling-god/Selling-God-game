@@ -353,6 +353,18 @@ function startSellerAuctionCountdown(){const s=sellerAuction;if(!s||s.countdown|
 function runSellerAuction(){const s=sellerAuction;if(!s)return;clearInterval(s.timer);s.timer=setInterval(()=>{if(!sellerAuction||sellerAuction!==s||s.ending){clearInterval(s.timer);return}if(s.countdown)return;const rarityWeight=rarityScore(s.item.items.rarity),cond=s.item.condition_score;const quality=Math.min(.96,.34+rarityWeight*.085+cond/220);const canBid=s.step<s.maxSteps&&Math.random()<quality;if(canBid){s.step++;const jump=.018+Math.random()*(.018+rarityWeight*.012+cond/3000);const before=s.current;s.current=Math.round(s.current*(1+jump));s.lastBidAt=Date.now();s.log.push(`${['감정가','수집가','리셀러'][s.step%3]} +${money(s.current-before)}`);renderSellerAuction();return}if(Date.now()-s.lastBidAt>=1800||s.step>=s.maxSteps)startSellerAuctionCountdown()},700)}
 function rarityScore(r){return {'일반':0,'희귀':1,'초희귀':2,'진귀':3,'보물':4,'유물':5,'고대 유물':6}[r]??0}
 function rarityClass(r){return 'rarity-'+rarityScore(r)}
+function caseThemeKey(name=''){
+  const n=String(name||'');
+  if(/프리즘|오리진|레인보우|무지개/i.test(n))return 'prism';
+  if(/크림슨|렐릭|홍염|불꽃|레드/i.test(n))return 'crimson';
+  if(/골드|골든|크라운|황금/i.test(n))return 'gold';
+  if(/아메시스트|오로라|퍼플|보라/i.test(n))return 'aurora';
+  if(/라임|펄스|그린|초록/i.test(n))return 'lime';
+  if(/오션|블루|바다|파도/i.test(n))return 'ocean';
+  if(/네온|시티|도시|사이버/i.test(n))return 'neon';
+  if(/스톤|그레이|그래파이트|회색/i.test(n))return 'stone';
+  return 'default';
+}
 
 /* 시장 */
 function switchMarketTab(name,btn){document.querySelectorAll(".market-tabs button").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".market-panel").forEach(x=>x.classList.add("hidden"));btn.classList.add("active");document.getElementById("market-"+name).classList.remove("hidden");if(name==="offers")loadNpcOffers();if(name==="collectibles")loadCollectibleMarket()}
@@ -512,9 +524,9 @@ async function loadCollectibles(){
   const eqEl=document.getElementById('equippedCase');
   if(eqEl)eqEl.innerHTML=equippedGroup?groupedCollectibleRow(equippedGroup,{mode:'equipped'}):'<p class="muted">장착 케이스 없음</p>';
 
-  renderCollectiblePages();
-  renderCasePages();
-  applyPhoneCase(equippedRow);
+  try{ renderCollectiblePages(); }catch(error){ console.error('소장품 목록 렌더링 실패:',error); }
+  try{ renderCasePages(); }catch(error){ console.error('케이스 목록 렌더링 실패:',error); }
+  try{ applyPhoneCase(equippedRow); }catch(error){ console.error('케이스 테마 적용 실패:',error); }
   fillCollectibleSelect();
   updateGachaButtons();
 }
@@ -784,14 +796,15 @@ function houseSceneMarkup(tier){
   };
   return scenes[tier]||scenes.basement;
 }
-async function loadHouse(){await Promise.all([loadProfile(),loadCollectibles(),loadEffects()]);const cap=Number(profile.house_capacity||1),placed=collectibles.filter(x=>x.is_placed&&x.collectibles.type==='decoration').slice(0,cap),tier=profile.property_tier||'basement';houseCapacityText.textContent=`${profile.property_name||'반지하'} · 장식 ${placed.length}/${cap}개 배치`;houseRoom.dataset.property=tier;houseRoom.innerHTML=`<div class="house-scene">${houseSceneMarkup(tier)}<div id="placedDecorations" class="placed-decorations">${placed.map((r,i)=>`<div class="placed slot-${i}"><span>${r.collectibles.icon}</span></div>`).join('')}</div><div class="room-vignette"></div></div>`;houseEffects.innerHTML=Object.entries(effects).map(([k,v])=>`<div class="effect"><span>${effectName(k)}</span><b>+${Number(v).toFixed(1)}%</b></div>`).join('')||'<p class="muted">활성 효과 없음</p>';renderDecorationPages()}
+async function loadHouse(){decorationPage=1;await Promise.all([loadProfile(),loadCollectibles(),loadEffects()]);const cap=Number(profile.house_capacity||1),placed=collectibles.filter(x=>x.is_placed&&x.collectibles.type==='decoration').slice(0,cap),tier=profile.property_tier||'basement';houseCapacityText.textContent=`${profile.property_name||'반지하'} · 장식 ${placed.length}/${cap}개 배치`;houseRoom.dataset.property=tier;houseRoom.innerHTML=`<div class="house-scene">${houseSceneMarkup(tier)}<div id="placedDecorations" class="placed-decorations">${placed.map((r,i)=>`<div class="placed slot-${i}"><span>${r.collectibles.icon}</span></div>`).join('')}</div><div class="room-vignette"></div></div>`;houseEffects.innerHTML=Object.entries(effects).map(([k,v])=>`<div class="effect"><span>${effectName(k)}</span><b>+${Number(v).toFixed(1)}%</b></div>`).join('')||'<p class="muted">활성 효과 없음</p>';renderDecorationPages()}
 function renderDecorationPages(){
   const list=getGroupedCollectibles('decoration');
   const totalOwned=collectibles.filter(x=>x.collectibles?.type==='decoration').length;
   const pageSize=4;
   const total=Math.max(1,Math.ceil(list.length/pageSize));
   decorationPage=Math.min(Math.max(1,decorationPage),total);
-  const start=(decorationPage-1)*pageSize;
+  let start=(decorationPage-1)*pageSize;
+  if(list.length&&start>=list.length){decorationPage=1;start=0;}
   decorationInventory.innerHTML=list.slice(start,start+pageSize).map(group=>groupedCollectibleRow(group)).join('')||'<p class="muted">장식 없음</p>';
   const info=document.getElementById('decorationPageInfo');
   if(info)info.textContent=`${decorationPage}P / ${total}P · 종류 ${list.length} · 총 ${totalOwned}개`;
