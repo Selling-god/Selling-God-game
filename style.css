@@ -1370,3 +1370,10 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 #phone-restoration .restoration-empty{display:flex;flex-direction:column;gap:8px;border-radius:12px}
 #phone-restoration .restoration-empty span{font-size:12px;line-height:1.5}
 #phone-restoration .restoration-empty button{align-self:center;padding:9px 14px;border:1px solid #5f4028;background:#855944;color:#fff;border-radius:9px;font-weight:900}
+
+
+/* v38.9 negotiation skill tree clarity */
+.skill-unlock-guide{display:block;margin-top:6px;padding:5px 7px;border:1px dashed #a77a49;background:#fff7df;color:#8b4e27;font-size:10px;font-style:normal;font-weight:800;line-height:1.35}
+.skill-node.owned button:disabled{background:#527a4f;color:#fff;opacity:1}
+.skill-node.owned{box-shadow:inset 4px 0 #6e9d60}
+.skill-node.blocked:not(.owned){filter:saturate(.7)}
