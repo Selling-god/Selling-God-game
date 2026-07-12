@@ -782,7 +782,13 @@ function houseSceneMarkup(tier){
     studio:`<div class="room-ambience"></div><div class="wide-window"><span class="city-silhouette"></span><i>☀️</i></div><div class="studio-bed"><span>🛏️</span></div><div class="studio-desk"><span>💻</span><i>🪴</i></div><div class="floor-rug"></div><div class="ceiling-light"></div>`,
     apartment:`<div class="room-ambience"></div><div class="panorama-window"><span class="city-silhouette"></span><i>🌤️</i></div><div class="sofa-set"><span>🛋️</span><i>☕</i></div><div class="media-wall">📺</div><div class="display-console"></div><div class="floor-rug luxury"></div><div class="ceiling-light modern"></div>`,
     penthouse:`<div class="room-ambience"></div><div class="skyline-window"><span class="night-city"></span><i>🌙</i></div><div class="penthouse-sofa">🛋️</div><div class="marble-table"><span>🥂</span></div><div class="art-wall">🖼️</div><div class="designer-lamp">💡</div><div class="floor-rug luxury"></div><div class="ceiling-light chandelier">✦</div>`,
-    mansion:`<div class="room-ambience"></div><div class="mansion-window left"><i>🌳</i></div><div class="mansion-window right"><i>🌳</i></div><div class="grand-fireplace"><span>🔥</span></div><div class="grand-sofa">🛋️</div><div class="pedestal left"></div><div class="pedestal right"></div><div class="floor-rug royal"></div><div class="ceiling-light chandelier grand">✦</div><div class="wall-column col-a"></div><div class="wall-column col-b"></div>`
+    mansion:`<div class="room-ambience"></div><div class="mansion-window left"><i>🌳</i></div><div class="mansion-window right"><i>🌳</i></div><div class="grand-fireplace"><span>🔥</span></div><div class="grand-sofa">🛋️</div><div class="pedestal left"></div><div class="pedestal right"></div><div class="floor-rug royal"></div><div class="ceiling-light chandelier grand">✦</div><div class="wall-column col-a"></div><div class="wall-column col-b"></div>`,
+    country_villa:`<div class="room-ambience"></div><div class="villa-glass lake"><span>🌊</span><i>🌲</i></div><div class="villa-sofa">🛋️</div><div class="stone-fireplace">🔥</div><div class="indoor-tree">🌿</div><div class="floor-rug luxury"></div>`,
+    sky_residence:`<div class="room-ambience"></div><div class="sky-residence-window"><span class="night-city"></span><i>✈️</i></div><div class="floating-sofa">🛋️</div><div class="glass-table">🥂</div><div class="digital-art">◈</div><div class="ceiling-light chandelier">✦</div>`,
+    hanok_estate:`<div class="room-ambience"></div><div class="hanok-window"><span>🎋</span><i>🌸</i></div><div class="hanok-table">🍵</div><div class="folding-screen">🏞️</div><div class="paper-lamp">🏮</div><div class="floor-rug hanji"></div>`,
+    island_villa:`<div class="room-ambience"></div><div class="island-window"><span>🌊</span><i>🌴</i></div><div class="island-lounge">🛋️</div><div class="pool-edge">💧</div><div class="sunset-art">🌅</div><div class="floor-rug sand"></div>`,
+    art_palace:`<div class="room-ambience"></div><div class="palace-arch left"></div><div class="palace-arch right"></div><div class="gallery-wall">🖼️</div><div class="museum-bench">🪑</div><div class="marble-statue">🏺</div><div class="ceiling-light chandelier grand">✦</div>`,
+    legacy_castle:`<div class="room-ambience"></div><div class="castle-window"><span>🌌</span></div><div class="throne">👑</div><div class="legacy-vault">🔐</div><div class="grand-fireplace"><span>🔥</span></div><div class="royal-banner left">⚜</div><div class="royal-banner right">⚜</div><div class="floor-rug royal"></div>`
   };
   return scenes[tier]||scenes.basement;
 }
@@ -1241,7 +1247,13 @@ const PROPERTY_CATALOG=[
   {tier:'studio',name:'원룸',icon:'🛏️',price:2000000,capacity:3,desc:'작지만 아늑한 첫 집'},
   {tier:'apartment',name:'아파트',icon:'🏢',price:12000000,capacity:6,desc:'본격적인 수집가의 공간'},
   {tier:'penthouse',name:'펜트하우스',icon:'🌆',price:80000000,capacity:10,desc:'도시 전망과 넉넉한 전시 공간'},
-  {tier:'mansion',name:'대저택',icon:'🏰',price:300000000,capacity:16,desc:'최고급 장식 전시를 위한 대형 저택'}
+  {tier:'mansion',name:'대저택',icon:'🏰',price:300000000,capacity:16,desc:'최고급 장식 전시를 위한 대형 저택'},
+  {tier:'country_villa',name:'호숫가 별장',icon:'🏡',price:700000000,capacity:22,desc:'호수와 정원이 보이는 고급 휴양 별장'},
+  {tier:'sky_residence',name:'스카이 레지던스',icon:'🌃',price:1500000000,capacity:28,desc:'초고층 전용 엘리베이터와 파노라마 전시관'},
+  {tier:'hanok_estate',name:'한옥 대저택',icon:'🏯',price:3000000000,capacity:34,desc:'전통 정원과 고미술 전시실을 갖춘 대저택'},
+  {tier:'island_villa',name:'프라이빗 아일랜드',icon:'🏝️',price:8000000000,capacity:42,desc:'섬 전체가 개인 전시장과 휴양 공간'},
+  {tier:'art_palace',name:'아트 팰리스',icon:'🏛️',price:30000000000,capacity:54,desc:'국제급 갤러리와 수장고를 갖춘 예술 궁전'},
+  {tier:'legacy_castle',name:'레거시 캐슬',icon:'🏰',price:100000000000,capacity:70,desc:'100억 자산가를 위한 성채형 컬렉션 박물관'}
 ];
 async function loadProperties(){
   if(!profile)await loadProfile();
@@ -2870,3 +2882,120 @@ appraiseOwnedItemV38=async function(id,cost){
   toast(`감정 완료 · 상태 ${data.condition_score}/100`);
   await Promise.all([loadProfile(),loadInventory(),loadOwnedAppraisalV38()]);
 };
+
+
+/* ============================================================
+   v39: 10/100 gacha + six luxury homes + high-net-worth foundation
+   ============================================================ */
+function gachaCostV39(count){return count===100?27000000:count===10?2850000:300000}
+function gachaSkipEnabledV39(type){return !!document.getElementById(type==='phone_case'?'gachaSkipCase':'gachaSkipDecor')?.checked}
+async function drawCollectible(type,count=1){
+  count=[1,10,100].includes(Number(count))?Number(count):1;
+  const cost=gachaCostV39(count);
+  if(!profile||Number(profile.cash)<cost)return toast(`${count}회 뽑기에는 ${money(cost)}이 필요합니다.`);
+  const modal=document.getElementById('gachaModal'),summary=document.getElementById('gachaBulkSummary');
+  modal.classList.remove('hidden');modal.className='overlay gacha-spinning rarity-0';
+  gachaRarity.textContent=count===1?'두근두근...':`${count}개 캡슐 개봉 중`;
+  gachaResultIcon.textContent=type==='phone_case'?'📱':'🏺';gachaResultName.textContent='캡슐 개봉 중';gachaResultName.className='';gachaResultEffect.textContent='';
+  if(summary){summary.classList.add('hidden');summary.innerHTML=''}
+  const skip=gachaSkipEnabledV39(type);if(!skip){playGachaBuild();await wait(count===1?1500:1900)}
+  const{data,error}=await db.rpc('draw_collectibles_bulk_v39',{p_type:type,p_count:count});
+  if(error){closeGachaReveal();return toast(error.message)}
+  const rows=Array.isArray(data?.results)?data.results:(Array.isArray(data)?data:[]);
+  const highest=rows.reduce((a,b)=>rarityScore(b.rarity)>rarityScore(a?.rarity)?b:a,rows[0]);
+  const rank=rarityScore(highest?.rarity||'일반');modal.className=`overlay gacha-reveal rarity-${rank}`;
+  gachaRarity.textContent=count===1?(highest?.rarity||'결과'):`${count}연속 결과 · 최고 ${highest?.rarity||'일반'}`;
+  gachaResultIcon.textContent=highest?.icon||'✨';gachaResultName.textContent=count===1?(highest?.name||'결과 공개'):`${count}개 획득 완료`;
+  gachaResultName.className=`rarity-text ${rarityClass(highest?.rarity||'일반')}`;
+  gachaResultEffect.textContent=count===1?`${highest?.effect_name||''} +${highest?.effect_percent||0}%`:`총 비용 ${money(data?.cost||cost)}`;
+  if(count>1&&summary){
+    const counts={};rows.forEach(r=>counts[r.rarity]=(counts[r.rarity]||0)+1);
+    summary.innerHTML=`<div class="bulk-rarity-counts">${Object.entries(counts).sort((a,b)=>rarityScore(b[0])-rarityScore(a[0])).map(([r,n])=>`<span class="rarity-text ${rarityClass(r)}">${r} ${n}개</span>`).join('')}</div><div class="bulk-top-results">${rows.slice().sort((a,b)=>rarityScore(b.rarity)-rarityScore(a.rarity)).slice(0,12).map(r=>`<em class="${rarityClass(r.rarity)}">${r.icon||'✨'} ${esc(r.name)}</em>`).join('')}</div>`;
+    summary.classList.remove('hidden');
+  }
+  rank>=4?playJackpotSound():playSuccessSound();await Promise.all([loadProfile(),loadCollectibles()]);updateNetworth();updateGachaButtons();
+}
+
+let foundationTimerV39=null;
+const FOUNDATION_TIERS_V39=[
+ {tier:1,name:'프라이빗 쇼룸',price:1000000000,icon:'🖼️',desc:'예약제 컬렉션 쇼룸과 VIP 응접실'},
+ {tier:2,name:'국제 갤러리',price:10000000000,icon:'🏛️',desc:'해외 컬렉터와 브랜드가 참여하는 전시관'},
+ {tier:3,name:'경매 컨벤션 센터',price:30000000000,icon:'🔨',desc:'대형 경매·박람회를 직접 유치하는 복합시설'},
+ {tier:4,name:'세계 판매왕 재단',price:100000000000,icon:'🌐',desc:'100억 규모의 글로벌 문화·거래 재단'}
+];
+async function loadFoundationV39(){
+ const host=document.getElementById('foundationView');if(!host)return;host.innerHTML='<div class="bank-loading">재단 현황을 불러오는 중...</div>';
+ const{data,error}=await db.rpc('get_foundation_status_v39');if(error){host.innerHTML=`<div class="error-panel">${esc(error.message)}</div>`;return}
+ const f=data?.foundation||{},active=data?.active_exhibition,current=Number(f.tier||0),cash=Number(profile?.cash||0);if(profile)profile.foundation_tier=current;
+ const tierCards=FOUNDATION_TIERS_V39.map(t=>{const built=current>=t.tier,next=current+1===t.tier,afford=cash>=t.price;return `<article class="foundation-tier ${built?'built':''}"><span>${t.icon}</span><div><small>STAGE ${t.tier}</small><b>${t.name}</b><p>${t.desc}</p><strong>${money(t.price)}</strong></div><button ${built||!next||!afford?'disabled':''} onclick="buildFoundationV39(${t.tier})">${built?'완공':!next?'이전 단계 필요':!afford?'자금 부족':'건설'}</button></article>`}).join('');
+ let content='';
+ if(active){
+   content=`<article class="foundation-active"><div><span>${active.icon}</span><b>${esc(active.name)}</b><small>운영비 ${money(active.budget)}</small></div><div><em>${active.ready?'정산 가능':String(active.remaining_seconds)+'초 남음'}</em><button ${active.ready?'':'disabled'} onclick="claimFoundationExhibitionV39()">${active.ready?'성과 정산':'행사 진행 중'}</button></div></article>`;
+ }else{
+   content=`<section class="foundation-projects"><h3>프라이빗 전시 프로젝트</h3>${foundationProjectCardV39('private_show',1,'🎟️','VIP 컬렉터 프리뷰',50000000,60,'초청 고객에게 희귀품을 선공개합니다.')}${foundationProjectCardV39('global_fair',2,'🌍','국제 아트페어',500000000,90,'해외 딜러와 브랜드를 유치합니다.')}${foundationProjectCardV39('auction_week',3,'🔨','판매왕 경매 주간',3000000000,120,'대형 경매와 특별전을 일주일간 운영합니다.')}${foundationProjectCardV39('world_expo',4,'👑','세계 컬렉터 엑스포',20000000000,180,'100억 재단만 열 수 있는 최고급 국제 행사입니다.')}</section>`;
+ }
+ host.innerHTML=`<section class="foundation-hero"><div><span>재단 가치</span><b>${money(f.total_invested||0)}</b><small>명성 점수 ${Number(f.prestige||0).toLocaleString('ko-KR')}P</small></div><em>${current?FOUNDATION_TIERS_V39[current-1].name:'설립 전'}</em></section><div class="foundation-tier-grid">${tierCards}</div>${content}`;
+ if(foundationTimerV39)clearTimeout(foundationTimerV39);if(active&&!active.ready)foundationTimerV39=setTimeout(loadFoundationV39,1000);
+}
+function foundationProjectCardV39(code,req,icon,name,budget,sec,desc){const locked=Number(profile?.foundation_tier||0)<req;return `<article class="foundation-project ${locked?'locked':''}"><span>${icon}</span><div><b>${name}</b><small>${desc}</small><em>운영비 ${money(budget)} · ${sec}초</em></div><button ${locked?'disabled':''} onclick="startFoundationExhibitionV39('${code}')">${locked?`STAGE ${req} 필요`:'개최'}</button></article>`}
+async function buildFoundationV39(tier){if(!confirm(`${FOUNDATION_TIERS_V39[tier-1].name}을 건설할까요?`))return;const{data,error}=await db.rpc('build_foundation_v39',{p_tier:tier});if(error)return toast(error.message);toast(`${data.name} 완공`);playSuccessSound();await Promise.all([loadProfile(),loadFoundationV39()]);updateNetworth()}
+async function startFoundationExhibitionV39(code){if(!confirm('행사를 시작할까요? 운영비는 즉시 차감되며 결과는 서버에 저장됩니다.'))return;const{data,error}=await db.rpc('start_foundation_exhibition_v39',{p_code:code});if(error)return toast(error.message);toast(`${data.name} 시작`);await Promise.all([loadProfile(),loadFoundationV39()])}
+async function claimFoundationExhibitionV39(){const{data,error}=await db.rpc('claim_foundation_exhibition_v39');if(error)return toast(error.message);toast(`${data.result_label} · 수익 ${money(data.payout)}`);playSuccessSound();await Promise.all([loadProfile(),loadFoundationV39()]);updateNetworth()}
+
+const openPhoneAppV39=openPhoneApp;openPhoneApp=function(name){openPhoneAppV39(name);if(name==='foundation')loadFoundationV39()};
+
+
+/* v39.1: 글로벌 무역 네트워크 + 럭셔리 브랜드 하우스 */
+let tradeTimerV391=null,brandTimerV391=null;
+const TRADE_TIERS_V391=[
+ {tier:1,name:'수도권 물류 사무소',price:500000000,icon:'🏢',desc:'국내 도매 계약과 소형 수출을 관리합니다.'},
+ {tier:2,name:'아시아 수출 허브',price:2000000000,icon:'🚢',desc:'항만 창고와 통관 인력을 확보합니다.'},
+ {tier:3,name:'유럽 럭셔리 지사',price:10000000000,icon:'🌍',desc:'고가 상품의 해외 유통권을 직접 운영합니다.'},
+ {tier:4,name:'글로벌 무역 본부',price:50000000000,icon:'🛰️',desc:'100억대 국제 공급 계약을 총괄합니다.'}
+];
+const BRAND_TIERS_V391=[
+ {tier:1,name:'디자이너 스튜디오',price:1000000000,icon:'✏️',desc:'소규모 한정판 상품을 제작합니다.'},
+ {tier:2,name:'플래그십 브랜드',price:5000000000,icon:'🏬',desc:'백화점과 주요 상권에 브랜드를 입점시킵니다.'},
+ {tier:3,name:'글로벌 럭셔리 하우스',price:20000000000,icon:'💎',desc:'해외 홍보와 명품 라인을 운영합니다.'},
+ {tier:4,name:'헤리티지 메종',price:100000000000,icon:'👑',desc:'100억 자산가만 도전할 수 있는 최고급 브랜드입니다.'}
+];
+function capitalTierCardsV391(items,current,cash,handler){return items.map(t=>{const built=current>=t.tier,next=current+1===t.tier,afford=cash>=t.price;return `<article class="capital-tier ${built?'built':''}"><span>${t.icon}</span><div><small>STAGE ${t.tier}</small><b>${t.name}</b><p>${t.desc}</p><strong>${money(t.price)}</strong></div><button ${built||!next||!afford?'disabled':''} onclick="${handler}(${t.tier})">${built?'운영 중':!next?'이전 단계 필요':!afford?'자금 부족':'확장'}</button></article>`}).join('')}
+function capitalActiveCardV391(active,claimFn){if(!active)return '';return `<article class="capital-active"><div><span>${active.icon||'📦'}</span><div><b>${esc(active.name)}</b><small>투입 자금 ${money(active.capital||active.budget||0)}</small></div></div><div><em>${active.ready?'정산 가능':`${active.remaining_seconds}초 남음`}</em><button ${active.ready?'':'disabled'} onclick="${claimFn}()">${active.ready?'성과 정산':'진행 중'}</button></div></article>`}
+async function loadTradeNetworkV391(){
+ const host=document.getElementById('tradeNetworkView');if(!host)return;host.innerHTML='<div class="bank-loading">무역 현황을 불러오는 중...</div>';
+ const{data,error}=await db.rpc('get_trade_network_status_v391');if(error){host.innerHTML=`<div class="error-panel">${esc(error.message)}</div>`;return}
+ const n=data?.network||{},active=data?.active_shipment,current=Number(n.tier||0),cash=Number(profile?.cash||0);
+ const routes=[
+  ['domestic',1,'🚚','국내 프리미엄 도매 계약',100000000,60,'소매점 체인에 한정 상품을 공급합니다.'],
+  ['asia',2,'🚢','아시아 수출 선적',500000000,90,'환율과 통관 변수를 감수하고 수출합니다.'],
+  ['europe',3,'✈️','유럽 럭셔리 유통 계약',2000000000,120,'고급 유통사와 대형 공급 계약을 체결합니다.'],
+  ['global',4,'🛰️','글로벌 독점 공급 계약',10000000000,180,'100억대 자산가를 위한 초대형 국제 계약입니다.']
+ ];
+ const projects=active?capitalActiveCardV391(active,'claimTradeShipmentV391'):`<section class="capital-projects"><h3>진행할 무역 계약</h3>${routes.map(r=>capitalProjectCardV391(...r,current,'startTradeShipmentV391')).join('')}</section>`;
+ host.innerHTML=`<section class="capital-hero trade"><div><span>누적 무역 이익</span><b>${money(n.total_profit||0)}</b><small>신뢰도 ${Number(n.reputation||0).toLocaleString('ko-KR')}P</small></div><em>${current?TRADE_TIERS_V391[current-1].name:'네트워크 설립 전'}</em></section><div class="capital-tier-grid">${capitalTierCardsV391(TRADE_TIERS_V391,current,cash,'upgradeTradeNetworkV391')}</div>${projects}`;
+ if(tradeTimerV391)clearTimeout(tradeTimerV391);if(active&&!active.ready)tradeTimerV391=setTimeout(loadTradeNetworkV391,1000);
+}
+function capitalProjectCardV391(code,req,icon,name,capital,sec,desc,current,fn){const locked=current<req;return `<article class="capital-project ${locked?'locked':''}"><span>${icon}</span><div><b>${name}</b><small>${desc}</small><em>투입 ${money(capital)} · ${sec}초</em></div><button ${locked?'disabled':''} onclick="${fn}('${code}')">${locked?`STAGE ${req} 필요`:'계약 시작'}</button></article>`}
+async function upgradeTradeNetworkV391(tier){if(!confirm(`${TRADE_TIERS_V391[tier-1].name}을 확장할까요?`))return;const{data,error}=await db.rpc('upgrade_trade_network_v391',{p_tier:tier});if(error)return toast(error.message);toast(`${data.name} 확장 완료`);playSuccessSound();await Promise.all([loadProfile(),loadTradeNetworkV391()]);updateNetworth()}
+async function startTradeShipmentV391(code){if(!confirm('무역 계약을 시작할까요? 투입 자금은 즉시 차감되며 손실 가능성이 있습니다.'))return;const{data,error}=await db.rpc('start_trade_shipment_v391',{p_code:code});if(error)return toast(error.message);toast(`${data.name} 시작`);await Promise.all([loadProfile(),loadTradeNetworkV391()])}
+async function claimTradeShipmentV391(){const{data,error}=await db.rpc('claim_trade_shipment_v391');if(error)return toast(error.message);toast(`${data.result_label} · 정산 ${money(data.payout)}`);playSuccessSound();await Promise.all([loadProfile(),loadTradeNetworkV391()]);updateNetworth()}
+
+async function loadBrandHouseV391(){
+ const host=document.getElementById('brandHouseView');if(!host)return;host.innerHTML='<div class="bank-loading">브랜드 현황을 불러오는 중...</div>';
+ const{data,error}=await db.rpc('get_brand_house_status_v391');if(error){host.innerHTML=`<div class="error-panel">${esc(error.message)}</div>`;return}
+ const b=data?.brand||{},active=data?.active_campaign,current=Number(b.tier||0),cash=Number(profile?.cash||0);
+ const campaigns=[
+  ['limited',1,'👜','시즌 한정 컬렉션',200000000,60,'한정 수량으로 희소성과 마진을 높입니다.'],
+  ['popup',2,'🏬','백화점 팝업 스토어',1000000000,90,'핵심 상권에서 브랜드 인지도를 끌어올립니다.'],
+  ['ambassador',3,'🎬','글로벌 앰배서더 캠페인',5000000000,120,'세계적인 모델과 대규모 광고를 진행합니다.'],
+  ['world_launch',4,'👑','월드 플래그십 런칭',20000000000,180,'100억 브랜드의 전 세계 동시 출시 행사입니다.']
+ ];
+ const projects=active?capitalActiveCardV391(active,'claimBrandCampaignV391'):`<section class="capital-projects"><h3>브랜드 캠페인</h3>${campaigns.map(r=>capitalProjectCardV391(...r,current,'startBrandCampaignV391')).join('')}</section>`;
+ host.innerHTML=`<section class="capital-hero brand"><div><span>브랜드 누적 매출</span><b>${money(b.total_sales||0)}</b><small>브랜드 가치 ${money(b.brand_value||0)} · 명성 ${Number(b.prestige||0).toLocaleString('ko-KR')}P</small></div><em>${current?BRAND_TIERS_V391[current-1].name:'브랜드 설립 전'}</em></section><div class="capital-tier-grid">${capitalTierCardsV391(BRAND_TIERS_V391,current,cash,'buildBrandHouseV391')}</div>${projects}`;
+ if(brandTimerV391)clearTimeout(brandTimerV391);if(active&&!active.ready)brandTimerV391=setTimeout(loadBrandHouseV391,1000);
+}
+async function buildBrandHouseV391(tier){if(!confirm(`${BRAND_TIERS_V391[tier-1].name}을 설립할까요?`))return;const{data,error}=await db.rpc('build_brand_house_v391',{p_tier:tier});if(error)return toast(error.message);toast(`${data.name} 설립 완료`);playSuccessSound();await Promise.all([loadProfile(),loadBrandHouseV391()]);updateNetworth()}
+async function startBrandCampaignV391(code){if(!confirm('브랜드 캠페인을 시작할까요? 제작비는 즉시 차감되며 흥행 실패 가능성이 있습니다.'))return;const{data,error}=await db.rpc('start_brand_campaign_v391',{p_code:code});if(error)return toast(error.message);toast(`${data.name} 시작`);await Promise.all([loadProfile(),loadBrandHouseV391()])}
+async function claimBrandCampaignV391(){const{data,error}=await db.rpc('claim_brand_campaign_v391');if(error)return toast(error.message);toast(`${data.result_label} · 매출 ${money(data.payout)}`);playSuccessSound();await Promise.all([loadProfile(),loadBrandHouseV391()]);updateNetworth()}
+
+const openPhoneAppV391=openPhoneApp;openPhoneApp=function(name){openPhoneAppV391(name);if(name==='trade')loadTradeNetworkV391();else if(name==='brand')loadBrandHouseV391()};
