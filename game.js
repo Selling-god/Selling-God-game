@@ -204,7 +204,7 @@ function closeExplore(){clearExplore();exploreModal.classList.add("hidden")}
 
 /* 아이템/전당포 */
 async function loadInventory(){
-  const{data,error}=await db.from("user_items").select(`id,condition_score,is_listed,items(id,name,category,average_price,rarity)`).eq("user_id",currentUser.id).order("acquired_at",{ascending:false});
+  const{data,error}=await db.from("user_items").select(`id,condition_score,is_listed,restoration_locked,items(id,name,category,average_price,rarity)`).eq("user_id",currentUser.id).order("acquired_at",{ascending:false});
   if(error)return toast(error.message);inventory=data||[];fillItemSelect();
   const homeCount=document.getElementById("homeInventoryCount");
   if(homeCount)homeCount.textContent=inventory.length;
@@ -1055,9 +1055,11 @@ const TITLE_RARITIES={
 };
 const TITLE_FALLBACKS={
   '초보 장사꾼':'일반','알바 새싹':'일반','떠오르는 판매왕':'희귀','믿음직한 거래인':'희귀','성실한 일꾼':'희귀',
-  '황금손 상인':'초희귀','백만장자':'초희귀','집 꾸미기 장인':'초희귀','전설의 협상가':'진귀','경매의 지배자':'진귀','도시의 부동산왕':'진귀',
-  '억만장자':'보물','명성의 화신':'보물','신용의 상징':'보물','재계의 거물':'유물','대저택의 주인':'유물','일의 신':'유물',
-  '판매의 신':'고대 유물','무한의 상인':'고대 유물'
+  '첫 사장님':'일반','초보 경영자':'희귀','황금손 상인':'초희귀','백만장자':'초희귀','집 꾸미기 장인':'초희귀','연쇄 창업가':'초희귀','다점포 사장':'초희귀',
+  '전설의 협상가':'진귀','경매의 지배자':'진귀','도시의 부동산왕':'진귀','지역 기업가':'진귀','브랜드 메이커':'진귀',
+  '억만장자':'보물','명성의 화신':'보물','신용의 상징':'보물','중견기업 회장':'보물','산업 다각화의 귀재':'보물','고수익 경영자':'보물',
+  '재계의 거물':'유물','대저택의 주인':'유물','일의 신':'유물','글로벌 CEO':'유물','재벌 총수':'유물','혁신의 아이콘':'유물',
+  '기업 제국':'고대 유물','산업의 지배자':'고대 유물','세계 경제의 설계자':'고대 유물','판매의 신':'고대 유물','무한의 상인':'고대 유물'
 };
 function titleRarity(title){return TITLE_FALLBACKS[title]||'일반'}
 function titleClass(title){return `title-rarity-${TITLE_RARITIES[titleRarity(title)]||0}`}
@@ -2300,3 +2302,257 @@ function fillAuctionSellItems(){
   const button=select.closest('.auction-seller')?.querySelector('button');
   if(button)button.disabled=!available.length;
 }
+
+/* ============================================================
+   v35 HIGH RISK + TIERED AUCTION + APPRAISAL/RESTORATION
+   ============================================================ */
+let auctionTierV35='normal';
+let auctionAccessV35={normal:true,vip:false,vvip:false};
+let restorationTimerV35=null;
+let riskTimerV35=null;
+
+const AUCTION_TIER_META_V35={
+  normal:{name:'일반 경매장',icon:'🔨',pass:0,listingFee:0,minRarity:0,npcPower:1},
+  vip:{name:'VIP 경매장',icon:'👑',pass:10000000,listingFee:2000000,minRarity:3,npcPower:1.8},
+  vvip:{name:'VVIP 경매장',icon:'💎',pass:100000000,listingFee:20000000,minRarity:4,npcPower:3.5}
+};
+
+function normalizeRarityV35(r){
+  if(r==='영웅')return '진귀';
+  if(r==='전설'||r==='레전드')return '유물';
+  return r||'일반';
+}
+function appraisalCostV35(r){
+  return {'일반':5000,'희귀':12000,'초희귀':30000,'진귀':100000,'보물':500000,'유물':2000000,'고대 유물':10000000}[normalizeRarityV35(r)]||5000;
+}
+function restorationCostV35(row){
+  const rank=rarityScore(normalizeRarityV35(row.items?.rarity));
+  const damage=Math.max(1,100-Number(row.condition_score||0));
+  return Math.max(10000,Math.round((rank+1)*(rank+1)*25000*(.45+damage/65)));
+}
+
+async function loadAuctionAccessV35(){
+  const host=document.getElementById('auctionAccessPanel');
+  const{data,error}=await db.rpc('get_auction_access_v35');
+  if(error){if(host)host.innerHTML=`<div class="panel error-panel">${esc(error.message)}</div>`;return false;}
+  auctionAccessV35={normal:true,vip:!!data?.vip_access,vvip:!!data?.vvip_access,vip_until:data?.vip_until,vvip_until:data?.vvip_until};
+  if(host){
+    const vipLeft=data?.vip_seconds>0?formatRotationTime(data.vip_seconds*1000):'미보유';
+    const vvipLeft=data?.vvip_seconds>0?formatRotationTime(data.vvip_seconds*1000):'미보유';
+    host.innerHTML=`<div class="auction-access-card normal"><span>🔨</span><div><b>일반 경매장</b><small>항상 입장 가능</small></div><em>OPEN</em></div>
+      <div class="auction-access-card vip ${auctionAccessV35.vip?'owned':'locked'}"><span>👑</span><div><b>VIP 24시간권</b><small>${auctionAccessV35.vip?`남은 시간 ${vipLeft}`:'명성 300 · 신용 600 · 1,000만원'}</small></div><button ${auctionAccessV35.vip?'disabled':''} onclick="buyAuctionPassV35('vip')">${auctionAccessV35.vip?'입장 가능':'구매'}</button></div>
+      <div class="auction-access-card vvip ${auctionAccessV35.vvip?'owned':'locked'}"><span>💎</span><div><b>VVIP 24시간권</b><small>${auctionAccessV35.vvip?`남은 시간 ${vvipLeft}`:'명성 1,000 · 신용 800 · 1억원'}</small></div><button ${auctionAccessV35.vvip?'disabled':''} onclick="buyAuctionPassV35('vvip')">${auctionAccessV35.vvip?'입장 가능':'구매'}</button></div>`;
+  }
+  return true;
+}
+async function buyAuctionPassV35(tier){
+  const meta=AUCTION_TIER_META_V35[tier];
+  if(!meta||tier==='normal')return;
+  if(!confirm(`${meta.name} 24시간 입장권을 ${money(meta.pass)}에 구매할까요?`))return;
+  const{data,error}=await db.rpc('buy_auction_pass_v35',{p_tier:tier});
+  if(error)return toast(error.message);
+  toast(`${meta.name} 입장권 구매 완료 · 24시간 이용 가능`);playSuccessSound();
+  await Promise.all([loadProfile(),loadAuctionAccessV35()]);
+  selectAuctionTier(tier,document.querySelector(`#auctionTierTabs [data-tier="${tier}"]`));
+}
+async function selectAuctionTier(tier,btn){
+  if(tier!=='normal'&&!auctionAccessV35[tier]){
+    toast(`${AUCTION_TIER_META_V35[tier].name} 입장권을 먼저 구매하세요.`);
+    return;
+  }
+  auctionTierV35=tier;
+  document.querySelectorAll('#auctionTierTabs button').forEach(x=>x.classList.toggle('active',x===btn));
+  await loadAuctionLobby();
+  fillAuctionSellItems();
+}
+
+const switchAuctionModeV34=switchAuctionMode;
+switchAuctionMode=function(mode,btn){
+  document.querySelectorAll('.auction-tabs button').forEach(x=>x.classList.remove('active'));btn?.classList.add('active');
+  document.getElementById('auctionBuyPanel')?.classList.toggle('hidden',mode!=='buy');
+  document.getElementById('auctionSellPanel')?.classList.toggle('hidden',mode!=='sell');
+  document.getElementById('auctionRestorePanel')?.classList.toggle('hidden',mode!=='restore');
+  if(mode==='sell')fillAuctionSellItems();
+  else if(mode==='restore')loadRestorationCenter();
+  else loadAuctionLobby();
+};
+
+loadAuctionLobby=async function(){
+  clearInterval(auction?.interval);auction=null;
+  const hall=document.getElementById('auctionHall');if(hall)hall.innerHTML='';
+  await loadAuctionAccessV35();
+  if(auctionTierV35!=='normal'&&!auctionAccessV35[auctionTierV35])auctionTierV35='normal';
+  document.querySelectorAll('#auctionTierTabs button').forEach(x=>x.classList.toggle('active',x.dataset.tier===auctionTierV35));
+  const{data,error}=await db.rpc('get_auction_choices_v35',{p_tier:auctionTierV35});
+  if(error){toast('경매 목록을 불러오지 못했습니다: '+error.message);return;}
+  auctionChoices=Array.isArray(data?.choices)?data.choices:[];
+  renderAuctionChoices(data?.refresh_at);
+};
+
+renderAuctionChoices=function(refreshAt){
+  const el=document.getElementById('auctionChoices');if(!el)return;
+  const meta=AUCTION_TIER_META_V35[auctionTierV35];
+  const cards=(auctionChoices||[]).map((a,i)=>{
+    if(a.ended)return `<div class="auction-choice auction-slot-ended"><div class="auction-ended-seal">경매 종료</div><h3>${esc(a.item_name||'종료된 경매품')}</h3><p>다음 교체 전까지 빈 자리로 유지됩니다.</p><small>새 상품 준비 중</small></div>`;
+    const known=!!a.condition_known;
+    const appraisal=Number(a.appraisal_cost||appraisalCostV35(a.rarity));
+    return `<article class="auction-choice auction-premium-card ${rarityClass(a.rarity)} tier-${auctionTierV35}">
+      <button class="auction-enter-zone" onclick="enterAuctionChoice(${i})"><img src="${itemImage(a.item_name,a.category)}"><span class="badge ${rarityClass(a.rarity)}">${esc(a.rarity)}</span><h3>${esc(a.item_name)}</h3><div class="auction-secret-condition ${known?'known':''}">${known?`상태 ${a.condition_score}/100`:'상태 미감정 · ???'}</div><b>시작가 ${money(a.start_price)}</b><small>경매장 입장 →</small></button>
+      <button class="appraise-btn ${known?'done':''}" ${known?'disabled':''} onclick="appraiseAuctionItemV35(event,${i})">${known?'✓ 감정 완료':`🔍 전문가 감정 ${money(appraisal)}`}</button>
+    </article>`;
+  }).join('');
+  el.innerHTML=`<div id="auctionRotationBanner" class="rotation-banner auction-rotation tier-${auctionTierV35}"><div><b>${meta.icon} ${meta.name} 라인업</b><small>${auctionTierV35==='normal'?'진귀가 대부분이며 가끔 보물이 등장합니다.':auctionTierV35==='vip'?'진귀부터 유물까지 등장하며 NPC 자금력이 높습니다.':'보물이 기본이며 고대 유물까지 등장하는 초고액 시장입니다.'}</small></div><strong>다음 교체 <span>--:--</span></strong></div>`+(cards||'<div class="panel empty-state">현재 경매품이 없습니다.</div>');
+  if(refreshAt)startRotationCountdown('auction',refreshAt,'auctionRotationBanner',()=>{if(!auction)loadAuctionLobby()});
+};
+async function appraiseAuctionItemV35(ev,i){
+  ev?.stopPropagation();
+  const a=auctionChoices[i];if(!a||a.ended||a.condition_known)return;
+  const cost=Number(a.appraisal_cost||appraisalCostV35(a.rarity));
+  if(!confirm(`${a.item_name}의 상태를 ${money(cost)}에 감정할까요?`))return;
+  const{data,error}=await db.rpc('appraise_auction_item_v35',{p_cycle_key:a.cycle_key,p_slot_no:a.slot_no,p_tier:auctionTierV35});
+  if(error)return toast(error.message);
+  auctionChoices[i]={...a,condition_known:true,condition_score:Number(data.condition_score),appraisal_cost:Number(data.cost)};
+  toast(`감정 완료 · 상태 ${data.condition_score}/100`);renderAuctionChoices();await loadProfile();
+}
+enterAuctionChoice=async function(i){
+  const c=auctionChoices[i];if(!c||c.ended)return toast('이미 종료된 경매입니다.');
+  const{data,error}=await db.rpc('create_auction_choice_v35',{p_cycle_key:c.cycle_key,p_slot_no:c.slot_no,p_tier:auctionTierV35});
+  if(error)return toast(error.message);
+  auction={id:data.auction_id,cycleKey:c.cycle_key,slotNo:c.slot_no,tier:auctionTierV35,name:c.item_name,category:c.category,rarity:c.rarity,price:Number(data.current_price),highest:false,stopped:false,bids:0,countdown:0,log:[`${AUCTION_TIER_META_V35[auctionTierV35].name} 시작 ${money(data.current_price)}`]};
+  document.getElementById('auctionChoices')?.classList.add('hidden');renderAuction({forceBottom:true});startAuctionLoop();
+};
+startAuctionLoop=function(){
+  clearInterval(auction.interval);
+  auction.interval=setInterval(async()=>{
+    if(!auction)return;
+    const{data,error}=await db.rpc('npc_auction_step_v35',{p_auction_id:auction.id});
+    if(error){clearInterval(auction.interval);return toast(error.message);}
+    auction.price=Number(data.current_price);
+    if(data.action==='hold'){
+      auction.stopped=true;clearInterval(auction.interval);startAuctionCountdown();
+    }else{
+      auction.bids++;const bidder=data.bidder_name||'NPC 수집가';
+      auction.log.push(`${bidder} ${data.action==='jump'?'강한 ':''}입찰 +${money(data.increment)}`);renderAuction({forceBottom:true});
+    }
+  },auctionTierV35==='vvip'?1350:auctionTierV35==='vip'?1550:1800);
+};
+
+fillAuctionSellItems=function(){
+  const select=document.getElementById('auctionSellItem');if(!select)return;
+  const tier=document.getElementById('auctionSellTier')?.value||auctionTierV35||'normal';
+  const meta=AUCTION_TIER_META_V35[tier];
+  const previous=select.value;
+  const available=inventory.filter(x=>!x.is_listed&&!x.restoration_locked&&rarityScore(normalizeRarityV35(x.items.rarity))>=meta.minRarity);
+  select.innerHTML='<option value="">출품할 아이템 선택</option>';
+  available.forEach(x=>select.add(new Option(`${x.items.name} · ${normalizeRarityV35(x.items.rarity)} · 상태 ${x.condition_score}`,x.id)));
+  if(available.some(x=>String(x.id)===String(previous)))select.value=previous;
+  const button=select.closest('.auction-seller')?.querySelector('button');if(button)button.disabled=!available.length;
+};
+startSellerAuction=async function(){
+  const id=document.getElementById('auctionSellItem')?.value;
+  const tier=document.getElementById('auctionSellTier')?.value||'normal';
+  const r=inventory.find(x=>String(x.id)===String(id));if(!r)return toast('출품할 아이템을 선택하세요.');
+  const meta=AUCTION_TIER_META_V35[tier];
+  if(meta.listingFee&&!confirm(`${meta.name} 출품 수수료 ${money(meta.listingFee)}를 지불하고 등록할까요?`))return;
+  const{data,error}=await db.rpc('start_npc_seller_auction_v35',{p_user_item_id:id,p_tier:tier});
+  if(error)return toast(error.message);
+  sellerAuction={session:data.session_id,item:r,tier,current:Number(data.start_price),step:0,maxSteps:Number(data.max_steps),log:[`${meta.name} 시작가 ${money(data.start_price)}${data.listing_fee?` · 수수료 ${money(data.listing_fee)}`:''}`],countdown:0,lastBidAt:Date.now(),timer:null,ending:false};
+  await loadProfile();renderSellerAuction();runSellerAuction();
+};
+runSellerAuction=function(){
+  const s=sellerAuction;if(!s)return;clearInterval(s.timer);
+  const power=AUCTION_TIER_META_V35[s.tier||'normal'].npcPower;
+  s.timer=setInterval(()=>{
+    if(!sellerAuction||sellerAuction!==s||s.ending){clearInterval(s.timer);return;}
+    if(s.countdown)return;
+    const rarityWeight=rarityScore(normalizeRarityV35(s.item.items.rarity)),cond=s.item.condition_score;
+    const quality=Math.min(.985,.38+rarityWeight*.075+cond/250+(power-1)*.09);
+    const canBid=s.step<s.maxSteps&&Math.random()<quality;
+    if(canBid){
+      s.step++;
+      const jump=(.018+Math.random()*(.024+rarityWeight*.012+cond/3200))*power;
+      s.current=Math.round(s.current*(1+jump));
+      const names=s.tier==='vvip'?['아스트라 회장','크라운 재단','해외 왕실 대리인','익명 슈퍼 컬렉터']:s.tier==='vip'?['프리미엄 수집가','갤러리 대표','해외 딜러','재벌 2세']:['감정가','취미 수집가','리셀러'];
+      s.log.push(`${names[Math.floor(Math.random()*names.length)]} +${money(Math.round(s.current/(1+jump)*jump))}`);renderSellerAuction();
+    }else startSellerAuctionCountdown();
+  },s.tier==='vvip'?1050:s.tier==='vip'?1250:1550);
+};
+
+async function loadRestorationCenter(){
+  const jobsHost=document.getElementById('restorationJobs'),invHost=document.getElementById('restorationInventory');
+  if(!jobsHost||!invHost)return;
+  await loadInventory();
+  const{data,error}=await db.rpc('get_restoration_jobs_v35');
+  if(error){jobsHost.innerHTML=`<div class="panel error-panel">${esc(error.message)}</div>`;return;}
+  const jobs=Array.isArray(data)?data:[];
+  jobsHost.innerHTML=`<div class="restoration-capacity"><b>복원 작업 슬롯</b><span>${jobs.filter(x=>x.status==='active').length}/3 사용 중</span></div>`+(jobs.map(j=>{
+    const ready=Number(j.remaining_seconds)<=0;
+    return `<article class="restoration-job ${ready?'ready':''}"><span>${ready?'✨':'🛠️'}</span><div><b>${esc(j.item_name)}</b><small>${esc(j.rarity)} · 복원 전 ${j.old_condition}/100 · 예상 +${j.improve_amount}</small></div><em>${ready?'완료':`${j.remaining_seconds}초`}</em><button ${ready?'':'disabled'} onclick="claimRestorationV35('${j.job_id}')">${ready?'수령':'작업 중'}</button></article>`;
+  }).join('')||'<div class="restoration-empty">현재 진행 중인 복원이 없습니다.</div>');
+  const activeIds=new Set(jobs.filter(x=>x.status==='active').map(x=>String(x.user_item_id)));
+  const available=inventory.filter(x=>!x.is_listed&&!x.restoration_locked&&!activeIds.has(String(x.id))&&Number(x.condition_score)<100);
+  invHost.innerHTML=`<h3>복원 가능한 보유품</h3><div class="restoration-grid">${available.map(r=>{
+    const cost=restorationCostV35(r),rank=rarityClass(normalizeRarityV35(r.items.rarity));
+    return `<article class="restoration-card ${rank}"><img src="${itemImage(r.items.name,r.items.category)}"><div><span class="badge ${rank}">${esc(normalizeRarityV35(r.items.rarity))}</span><b>${esc(r.items.name)}</b><small>현재 상태 ${r.condition_score}/100</small><em>복원비 ${money(cost)}</em></div><button onclick="startRestorationV35('${r.id}')">30초 복원</button></article>`;
+  }).join('')||'<div class="restoration-empty">복원할 수 있는 아이템이 없습니다.</div>'}</div>`;
+  if(restorationTimerV35)clearTimeout(restorationTimerV35);
+  if(jobs.some(x=>x.status==='active'&&Number(x.remaining_seconds)>0))restorationTimerV35=setTimeout(loadRestorationCenter,1000);
+}
+async function startRestorationV35(id){
+  const row=inventory.find(x=>String(x.id)===String(id));if(!row)return;
+  const cost=restorationCostV35(row);
+  if(!confirm(`${row.items.name}을 ${money(cost)}에 복원할까요? 작업 시간은 30초입니다.`))return;
+  const{data,error}=await db.rpc('start_restoration_v35',{p_user_item_id:id});if(error)return toast(error.message);
+  toast(`복원 시작 · ${data.improve_amount}점 상승 예정`);await Promise.all([loadProfile(),loadRestorationCenter()]);
+}
+async function claimRestorationV35(jobId){
+  const{data,error}=await db.rpc('claim_restoration_v35',{p_job_id:jobId});if(error)return toast(error.message);
+  toast(`복원 완료 · 상태 ${data.old_condition} → ${data.new_condition}`);playSuccessSound();await Promise.all([loadInventory(),loadRestorationCenter()]);
+}
+
+const loadNpcOffersV34=loadNpcOffers;
+loadNpcOffers=async function(){
+  await loadNpcOffersV34();
+  document.querySelectorAll('#npcOfferList .market-card').forEach(card=>{
+    const badge=card.querySelector('.badge');if(badge)badge.textContent='일반~초희귀 중고 매물';
+  });
+};
+
+function riskProductCardV35(code,icon,name,min,duration,desc,odds){
+  return `<article class="risk-product ${code}"><span>${icon}</span><div><b>${name}</b><small>${desc}</small><em>최소 ${money(min)} · ${duration}초 후 결과</em><p>${odds}</p></div><div class="risk-input"><input id="riskAmount-${code}" type="number" min="${min}" step="1000000" placeholder="투자 금액"><button onclick="startRiskV35('${code}')">투자 실행</button></div></article>`;
+}
+async function loadRiskDesk(){
+  const host=document.getElementById('riskView');if(!host)return;
+  const{data,error}=await db.rpc('get_risk_investment_v35');
+  if(error){host.innerHTML=`<div class="error-panel">${esc(error.message)}</div>`;return;}
+  const active=data?.active;
+  host.innerHTML=`<div class="risk-warning"><b>⚠️ 초고위험 투자</b><p>원금 전액을 잃을 수 있습니다. 결과는 서버에서 투자 순간 확정되며 새로고침해도 바뀌지 않습니다.</p><strong>사용 가능 현금 ${money(profile?.cash||0)}</strong></div>`+
+  (active?`<article class="risk-active"><div><span>${active.product_icon}</span><b>${esc(active.product_name)}</b><small>투자금 ${money(active.invested_amount)}</small></div><div><em>${active.ready?'결과 확정 가능':`${active.remaining_seconds}초 남음`}</em><button ${active.ready?'':'disabled'} onclick="claimRiskV35()">${active.ready?'결과 확인':'시장 변동 중'}</button></div></article>`:
+  `<div class="risk-products">${riskProductCardV35('venture','🚀','초기 벤처 라운드',10000000,60,'성공하면 대박, 실패하면 원금 전액 손실','최대 6배 · 전액 손실 확률 높음')}${riskProductCardV35('futures','📉','레버리지 원자재 선물',50000000,45,'짧은 시간에 가격이 폭등하거나 붕괴합니다.','최대 8배 · 극심한 변동')}${riskProductCardV35('takeover','🏙️','적대적 기업 인수전',200000000,90,'대규모 자본이 필요하지만 성공 보상이 가장 큽니다.','최대 12배 · 전액 손실 가능')}</div>`);
+  if(riskTimerV35)clearTimeout(riskTimerV35);
+  if(active&&!active.ready)riskTimerV35=setTimeout(loadRiskDesk,1000);
+}
+async function startRiskV35(code){
+  const amount=Math.floor(Number(document.getElementById(`riskAmount-${code}`)?.value||0));
+  if(amount<=0)return toast('투자 금액을 입력하세요.');
+  if(!confirm(`${money(amount)}을 투자할까요? 원금 전액 손실 가능성이 있습니다.`))return;
+  const{data,error}=await db.rpc('start_risk_investment_v35',{p_product:code,p_amount:amount});if(error)return toast(error.message);
+  toast('고위험 투자가 시작되었습니다. 결과는 이미 서버에 확정되었습니다.');await Promise.all([loadProfile(),loadRiskDesk()]);
+}
+async function claimRiskV35(){
+  const{data,error}=await db.rpc('claim_risk_investment_v35');if(error)return toast(error.message);
+  const profit=Number(data.payout)-Number(data.invested_amount);
+  toast(`${data.result_label} · ${profit>=0?'+':''}${money(profit)}`);profit>=0?playSuccessSound():playClickSound();await Promise.all([loadProfile(),loadRiskDesk()]);updateNetworth();
+}
+
+const openPhoneAppV34Risk=openPhoneApp;
+openPhoneApp=function(name){
+  openPhoneAppV34Risk(name);
+  if(name==='risk')loadRiskDesk();
+};
+
+const loadInventoryV34Restoration=loadInventory;
+loadInventory=async function(){
+  const result=await loadInventoryV34Restoration();
+  return result;
+};
