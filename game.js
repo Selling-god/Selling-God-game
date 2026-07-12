@@ -356,18 +356,19 @@ async function cancelListing(id){const{error}=await db.rpc("cancel_market_listin
 async function loadNpcOffers(){
   const{data:cycle,error:gerr}=await db.rpc('generate_npc_purchase_offers_v23');
   if(gerr)return toast(gerr.message);
+  // 구매 전에는 condition_score 자체를 내려받지 않아 화면이나 개발자 도구에서 상태가 노출되지 않게 한다.
   const{data,error}=await db.from('npc_purchase_offers')
-    .select(`id,condition_score,asking_price,min_price,expires_at,items(id,name,category,rarity,average_price)`)
+    .select(`id,asking_price,min_price,expires_at,items(id,name,category,rarity,average_price)`)
     .eq('user_id',currentUser.id).eq('status','active')
     .gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false});
   if(error)return toast(error.message);
-  npcOfferList.innerHTML=`<div id="marketRotationBanner" class="rotation-banner market-rotation"><div><b>중고 매물 라인업</b><small>낮은 등급·저렴한 가격·사용감 있는 상품이 중심입니다.</small></div><strong>다음 교체 <span>--:--</span></strong></div>`+
+  npcOfferList.innerHTML=`<div id="marketRotationBanner" class="rotation-banner market-rotation"><div><b>중고 매물 라인업</b><small>실제 상태는 구매 후 전문 감정소에서만 확인할 수 있습니다.</small></div><strong>다음 교체 <span>--:--</span></strong></div>`+
     ((data||[]).map(o=>{
-      const p=getNpcMarketPersona(o.id);
+      const p=getNpcMarketPersona(o.id),rc=rarityClass(normalizeRarityV35(o.items.rarity));
       return `<article class="market-card npc-buy-card npc-theme-${p.theme}">
         <div class="npc-seller-strip"><span class="npc-mini-avatar">${p.face}</span><div><b>${esc(p.name)}</b><small>${esc(p.role)} · ${esc(p.temperament)}</small></div></div>
         <div class="item-image"><img src="${itemImage(o.items.name,o.items.category)}"></div>
-        <div class="market-body"><h3 class="rarity-text ${rarityClass(o.items.rarity)}">${esc(o.items.name)}</h3><div class="meta rarity-text ${rarityClass(o.items.rarity)}">${esc(normalizeRarityV35(o.items.rarity))}</div><div class="meta">상태 ${o.condition_score}/100</div><div class="price">판매가 ${money(o.asking_price)}</div><small class="market-hint">${esc(p.preview)}</small><button class="btn primary full" onclick="startNpcOffer('${o.id}')">${esc(p.name)}와 흥정</button></div>
+        <div class="market-body"><h3 class="rarity-text ${rc}">${esc(o.items.name)}</h3><div class="meta rarity-text ${rc}">${esc(normalizeRarityV35(o.items.rarity))}</div><div class="meta hidden-condition-v383">🔒 상태 미감정 · 구매 후 감정소에서 확인</div><div class="price">판매가 ${money(o.asking_price)}</div><small class="market-hint">${esc(p.preview)}</small><button class="btn primary full" onclick="startNpcOffer('${o.id}')">${esc(p.name)}와 흥정</button></div>
       </article>`
     }).join('')||'<div class="panel" style="padding:20px">현재 NPC 판매 상품이 없습니다.</div>');
   if(cycle?.refresh_at)startRotationCountdown('market',cycle.refresh_at,'marketRotationBanner',loadNpcOffers);
@@ -389,11 +390,11 @@ function getNpcMarketPersona(seed){return NPC_MARKET_PERSONAS[stringHash(seed)%N
 
 async function startNpcOffer(id){
   const{data,error}=await db.from('npc_purchase_offers')
-    .select(`id,condition_score,asking_price,min_price,items(id,name,category,rarity)`)
+    .select(`id,asking_price,min_price,items(id,name,category,rarity)`)
     .eq('id',id).eq('status','active').single();
   if(error)return toast(error.message);
   const persona=getNpcMarketPersona(id);
-  negotiation={type:'npc_buy',offerId:id,itemId:data.items.id,title:data.items.name,category:data.items.category,rarity:data.items.rarity,condition:Number(data.condition_score),asking:Number(data.asking_price),minPrice:Number(data.min_price),npcOffer:Number(data.asking_price),round:1,patience:persona.patience,maxPatience:persona.patience,persona,selectedStyle:'direct',history:[{who:'npc',text:persona.line},{who:'npc',text:`판매가는 ${money(data.asking_price)}입니다. 원하는 가격을 직접 제시해 보세요.`}],ended:false};
+  negotiation={type:'npc_buy',offerId:id,itemId:data.items.id,title:data.items.name,category:data.items.category,rarity:data.items.rarity,condition:null,asking:Number(data.asking_price),minPrice:Number(data.min_price),npcOffer:Number(data.asking_price),round:1,patience:persona.patience,maxPatience:persona.patience,persona,selectedStyle:'direct',history:[{who:'npc',text:persona.line},{who:'npc',text:`판매가는 ${money(data.asking_price)}입니다. 원하는 가격을 직접 제시해 보세요.`}],ended:false};
   renderNpcBuyNegotiation();
 }
 
@@ -1178,7 +1179,7 @@ function renderBank(){
   const b=bankState,loan=b.loan||null;
   host.innerHTML=`
     <div class="bank-hero"><div><span>판매은행 총 금융자산</span><b>${money(Number(b.deposit_balance||0)+Number(b.savings_balance||0))}</b></div><small>30분 단위 이자는 서버 시간으로 계산되며 로그아웃해도 유지됩니다.</small></div>
-    <section class="bank-product deposit"><div class="bank-product-head"><span>💳</span><div><h3>자유 예금</h3><p>한도 없이 30분마다 복리 2%</p></div><b>${money(b.deposit_balance||0)}</b></div><div class="bank-actions"><input id="depositAmount" type="number" min="1" placeholder="금액"><button onclick="bankDeposit()">입금</button><button class="sub" onclick="bankWithdrawDeposit()">출금</button></div><small>다음 이자까지 약 ${formatRemaining(b.deposit_next_seconds)} 남음</small></section>
+    <section class="bank-product deposit"><div class="bank-product-head"><span>💳</span><div><h3>자유 예금</h3><p>한도 없이 30분마다 복리 0.2%</p></div><b>${money(b.deposit_balance||0)}</b></div><div class="bank-actions"><input id="depositAmount" type="number" min="1" placeholder="금액"><button onclick="bankDeposit()">입금</button><button class="sub" onclick="bankWithdrawDeposit()">출금</button></div><small>다음 이자까지 약 ${formatRemaining(b.deposit_next_seconds)} 남음</small></section>
     <section class="bank-product savings"><div class="bank-product-head"><span>📈</span><div><h3>목표 적금</h3><p>30분마다 5% · 설정한 목표액에서 성장 종료</p></div><b>${money(b.savings_balance||0)}</b></div><div class="savings-progress"><i style="width:${Math.min(100,Number(b.savings_target||0)>0?Number(b.savings_balance||0)/Number(b.savings_target)*100:0)}%"></i></div><div class="bank-target">목표 ${money(b.savings_target||0)} · 다음 이자 ${formatRemaining(b.savings_next_seconds)}</div><div class="bank-actions savings-inputs"><input id="savingsAmount" type="number" min="1" placeholder="넣을 금액"><input id="savingsTarget" type="number" min="1" placeholder="목표 금액"><button onclick="bankSavingsDeposit()">적금 넣기</button><button class="sub" onclick="bankWithdrawSavings()">해지/출금</button></div></section>
     <section class="bank-product loan"><div class="bank-product-head"><span>🏦</span><div><h3>신용 대출</h3><p>15분 만기 · 이자 1% · 최소 5분 후 상환</p></div><b>한도 ${money(b.loan_limit||0)}</b></div>${loan?`<div class="loan-active"><div><span>상환액</span><b>${money(loan.due_amount)}</b></div><div><span>상환 가능</span><b>${loan.repay_available? '지금 가능':formatRemaining(loan.repay_available_seconds)}</b></div><div><span>만기까지</span><b class="${loan.overdue?'down':''}">${loan.overdue?'연체 '+formatRemaining(loan.overdue_seconds):formatRemaining(loan.due_seconds)}</b></div></div><button class="bank-repay" ${loan.repay_available?'':'disabled'} onclick="repayLoan()">전액 상환</button><small>${loan.overdue?'연체 신용 패널티가 적용됩니다.':'빠르게 상환할수록 신용 상승 폭이 커집니다.'}</small>`:`<div class="bank-actions"><input id="loanAmount" type="number" min="10000" step="10000" placeholder="대출 금액"><button onclick="takeLoan()">대출 실행</button></div><small>대출 직후 상환으로 신용을 복사하지 못하도록 5분간 상환이 잠깁니다.</small>`}</section>`;
 }
@@ -1908,7 +1909,7 @@ function renderBank(){
   host.innerHTML=`
     <div class="bank-liquidity-grid"><div class="spendable-funds-card bank-cash"><span>지금 바로 쓸 수 있는 현금</span><b>${money(cash)}</b><small>게임 내 구매·투자에 즉시 사용 가능</small></div><div class="spendable-funds-card bank-liquid"><span>자유예금 출금 포함 가용액</span><b>${money(liquid)}</b><small>현금 ${money(cash)} + 자유예금 ${money(deposit)}</small></div>${loan?`<div class="spendable-funds-card bank-net"><span>대출 상환 후 순가용액</span><b>${money(netAfterLoan)}</b><small>가용액에서 상환액 ${money(due)} 차감 기준</small></div>`:''}</div>
     <div class="bank-hero"><div><span>판매은행 총 금융자산</span><b>${money(Number(b.deposit_balance||0)+Number(b.savings_balance||0))}</b></div><small>30분 단위 이자는 서버 시간으로 계산되며 로그아웃해도 유지됩니다.</small></div>
-    <section class="bank-product deposit"><div class="bank-product-head"><span>💳</span><div><h3>자유 예금</h3><p>한도 없이 30분마다 복리 2%</p></div><b>${money(b.deposit_balance||0)}</b></div><div class="bank-actions"><input id="depositAmount" type="number" min="1" placeholder="금액"><button onclick="bankDeposit()">입금</button><button class="sub" onclick="bankWithdrawDeposit()">출금</button></div><small>다음 이자까지 약 ${formatRemaining(b.deposit_next_seconds)} 남음</small></section>
+    <section class="bank-product deposit"><div class="bank-product-head"><span>💳</span><div><h3>자유 예금</h3><p>한도 없이 30분마다 복리 0.2%</p></div><b>${money(b.deposit_balance||0)}</b></div><div class="bank-actions"><input id="depositAmount" type="number" min="1" placeholder="금액"><button onclick="bankDeposit()">입금</button><button class="sub" onclick="bankWithdrawDeposit()">출금</button></div><small>다음 이자까지 약 ${formatRemaining(b.deposit_next_seconds)} 남음</small></section>
     <section class="bank-product savings"><div class="bank-product-head"><span>📈</span><div><h3>목표 적금</h3><p>30분마다 5% · 설정한 목표액에서 성장 종료</p></div><b>${money(b.savings_balance||0)}</b></div><div class="savings-progress"><i style="width:${Math.min(100,Number(b.savings_target||0)>0?Number(b.savings_balance||0)/Number(b.savings_target)*100:0)}%"></i></div><div class="bank-target">목표 ${money(b.savings_target||0)} · 다음 이자 ${formatRemaining(b.savings_next_seconds)}</div><div class="bank-actions savings-inputs"><input id="savingsAmount" type="number" min="1" placeholder="넣을 금액"><input id="savingsTarget" type="number" min="1" placeholder="목표 금액"><button onclick="bankSavingsDeposit()">적금 넣기</button><button class="sub" onclick="bankWithdrawSavings()">해지/출금</button></div></section>
     <section class="bank-product loan"><div class="bank-product-head"><span>🏦</span><div><h3>신용 대출</h3><p>15분 만기 · 이자 10% · 최소 3분 후 상환</p></div><b>한도 ${money(b.loan_limit||0)}</b></div>${loan?`<div class="loan-active"><div><span>대출 원금</span><b>${money(loan.principal)}</b></div><div><span>상환액</span><b>${money(loan.due_amount)}</b></div><div><span>상환 가능</span><b>${loan.repay_available?'지금 가능':formatRemaining(loan.repay_available_seconds)}</b></div><div><span>만기까지</span><b class="${loan.overdue?'down':''}">${loan.overdue?'연체 '+formatRemaining(loan.overdue_seconds):formatRemaining(loan.due_seconds)}</b></div></div><button class="bank-repay" ${loan.repay_available?'':'disabled'} onclick="repayLoan()">전액 상환</button><small>${loan.overdue?'연체로 신용점수가 하락했습니다. 상환해도 연체 패널티는 복구되지 않습니다.':'3분 이후 가능한 한 빨리 상환할수록 신용 상승 폭이 커집니다.'}</small>`:`<div class="bank-actions"><input id="loanAmount" type="number" min="10000" step="10000" max="${Number(b.loan_limit||0)}" placeholder="대출 금액"><button onclick="takeLoan()">대출 실행</button></div><small>신용점수가 높을수록 한도가 크게 증가합니다. 소액 반복 대출은 신용 보상이 매우 작습니다.</small>`}</section>`;
 }
@@ -2418,6 +2419,17 @@ enterAuctionChoice=async function(i){
   auction={id:data.auction_id,cycleKey:c.cycle_key,slotNo:c.slot_no,tier:auctionTierV35,name:c.item_name,category:c.category,rarity:c.rarity,price:Number(data.current_price),highest:false,stopped:false,bids:0,countdown:0,log:[`${AUCTION_TIER_META_V35[auctionTierV35].name} 시작 ${money(data.current_price)}`]};
   document.getElementById('auctionChoices')?.classList.add('hidden');renderAuction({forceBottom:true});startAuctionLoop();
 };
+const AUCTION_BIDDER_POOLS_V386={
+  normal:['한도윤 수집가','윤서진 감정가','장미라 대표','박준혁 딜러','서하린 컬렉터','최민재 리셀러'],
+  vip:['프리미엄 수집가','갤러리 대표','해외 딜러','재벌 2세','호텔 아트디렉터','사모펀드 매니저'],
+  vvip:['아스트라 회장','크라운 재단','해외 왕실 대리인','익명 슈퍼 컬렉터','국제 경매 대리인','박물관 재단 이사']
+};
+function chooseAuctionBidderV386(tier,serverName,lastName){
+  const pool=[...(AUCTION_BIDDER_POOLS_V386[tier]||AUCTION_BIDDER_POOLS_V386.normal)];
+  if(serverName&&!pool.includes(serverName))pool.push(serverName);
+  const candidates=pool.filter(name=>name!==lastName);
+  return candidates[Math.floor(Math.random()*candidates.length)]||pool[0]||'NPC 수집가';
+}
 startAuctionLoop=function(){
   clearInterval(auction.interval);
   auction.interval=setInterval(async()=>{
@@ -2428,8 +2440,11 @@ startAuctionLoop=function(){
     if(data.action==='hold'){
       auction.stopped=true;clearInterval(auction.interval);startAuctionCountdown();
     }else{
-      auction.bids++;const bidder=data.bidder_name||'NPC 수집가';
-      auction.log.push(`${bidder} ${data.action==='jump'?'강한 ':''}입찰 +${money(data.increment)}`);renderAuction({forceBottom:true});
+      auction.bids++;
+      const bidder=chooseAuctionBidderV386(auction.tier||auctionTierV35,data.bidder_name,auction.lastNpcBidder);
+      auction.lastNpcBidder=bidder;
+      auction.log.push(`${bidder} ${data.action==='jump'?'강한 ':''}입찰 +${money(data.increment)}`);
+      renderAuction({forceBottom:true});
     }
   },auctionTierV35==='vvip'?1350:auctionTierV35==='vip'?1550:1800);
 };
@@ -2469,8 +2484,9 @@ runSellerAuction=function(){
       s.step++;
       const jump=(.018+Math.random()*(.024+rarityWeight*.012+cond/3200))*power;
       s.current=Math.round(s.current*(1+jump));
-      const names=s.tier==='vvip'?['아스트라 회장','크라운 재단','해외 왕실 대리인','익명 슈퍼 컬렉터']:s.tier==='vip'?['프리미엄 수집가','갤러리 대표','해외 딜러','재벌 2세']:['감정가','취미 수집가','리셀러'];
-      s.log.push(`${names[Math.floor(Math.random()*names.length)]} +${money(Math.round(s.current/(1+jump)*jump))}`);renderSellerAuction();
+      const bidder=chooseAuctionBidderV386(s.tier||'normal',null,s.lastNpcBidder);
+      s.lastNpcBidder=bidder;
+      s.log.push(`${bidder} +${money(Math.round(s.current/(1+jump)*jump))}`);renderSellerAuction();
     }else startSellerAuctionCountdown();
   },s.tier==='vvip'?1050:s.tier==='vip'?1250:1550);
 };
@@ -2622,3 +2638,59 @@ loadRiskDesk=async function(){const host=document.getElementById('riskView');if(
 
 // 출품 탭에서도 입장권이 없는 경매장은 선택/출품 불가
 fillAuctionSellItems=function(){const select=document.getElementById('auctionSellItem');if(!select)return;const tier=document.getElementById('auctionSellTier')?.value||auctionTierV35||'normal',meta=AUCTION_TIER_META_V35[tier],unlocked=tier==='normal'||!!auctionAccessV35[tier],previous=select.value;select.innerHTML='<option value="">'+(unlocked?'출품할 아이템 선택':`${meta.name} 입장권을 먼저 구매하세요`)+'</option>';const available=unlocked?inventory.filter(x=>!x.is_listed&&!x.restoration_locked&&rarityScore(normalizeRarityV35(x.items.rarity))>=meta.minRarity):[];available.forEach(x=>select.add(new Option(`${x.items.name} · ${normalizeRarityV35(x.items.rarity)} · 상태 ${x.condition_score}`,x.id)));if(available.some(x=>String(x.id)===String(previous)))select.value=previous;select.disabled=!unlocked;const button=select.closest('.auction-seller')?.querySelector('button');if(button)button.disabled=!unlocked||!available.length};
+
+/* ============================================================
+   v38.3 HIDDEN CONDITION + CONDITION-BASED ECONOMY
+   ============================================================ */
+function conditionMultiplierV383(score){
+  const s=Math.max(1,Math.min(100,Number(score||1)));
+  if(s>=95)return 1.45;
+  if(s>=85)return 1.25;
+  if(s>=70)return 1.00;
+  if(s>=55)return .78;
+  if(s>=40)return .58;
+  if(s>=25)return .40;
+  return .22;
+}
+function conditionLabelV383(score){const s=Number(score||0);return s>=95?'최상':s>=85?'매우 좋음':s>=70?'좋음':s>=55?'보통':s>=40?'사용감 있음':s>=25?'손상 있음':'심각한 손상'}
+
+// NPC 중고장터: 구매 전 상태 완전 비공개
+loadNpcOffers=async function(){
+  const{data:cycle,error:gerr}=await db.rpc('generate_npc_purchase_offers_v23');
+  if(gerr)return toast(gerr.message);
+  const{data,error}=await db.from('npc_purchase_offers')
+    .select(`id,asking_price,min_price,expires_at,items(id,name,category,rarity,average_price)`)
+    .eq('user_id',currentUser.id).eq('status','active')
+    .gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false});
+  if(error)return toast(error.message);
+  npcOfferList.innerHTML=`<div id="marketRotationBanner" class="rotation-banner market-rotation"><div><b>중고 매물 라인업</b><small>실제 상태는 구매 후 전문 감정소에서만 확인할 수 있습니다.</small></div><strong>다음 교체 <span>--:--</span></strong></div>`+
+    ((data||[]).map(o=>{const p=getNpcMarketPersona(o.id),rc=rarityClass(normalizeRarityV35(o.items.rarity));return `<article class="market-card npc-buy-card npc-theme-${p.theme}">
+      <div class="npc-seller-strip"><span class="npc-mini-avatar">${p.face}</span><div><b>${esc(p.name)}</b><small>${esc(p.role)} · ${esc(p.temperament)}</small></div></div>
+      <div class="item-image"><img src="${itemImage(o.items.name,o.items.category)}"></div>
+      <div class="market-body"><h3 class="rarity-text ${rc}">${esc(o.items.name)}</h3><div class="meta rarity-text ${rc}">${esc(normalizeRarityV35(o.items.rarity))}</div><div class="meta hidden-condition-v383">🔒 상태 미감정 · 구매 후 감정소에서 확인</div><div class="price">판매가 ${money(o.asking_price)}</div><small class="market-hint">${esc(p.preview)}</small><button class="btn primary full" onclick="startNpcOffer('${o.id}')">${esc(p.name)}와 흥정</button></div>
+    </article>`}).join('')||'<div class="panel" style="padding:20px">현재 NPC 판매 상품이 없습니다.</div>');
+  if(cycle?.refresh_at)startRotationCountdown('market',cycle.refresh_at,'marketRotationBanner',loadNpcOffers);
+};
+
+// 유저 중고나라: 구매자에게 상태를 숨기고, 판매자 본인에게만 상태와 기준가 표시
+loadMarket=async function(){
+  const{data,error}=await db.from('market_listings').select(`id,title,asking_price,seller_user_id,user_items(condition_score,items(category,average_price,rarity)),profiles:seller_user_id(nickname)`).eq('status','active').order('created_at',{ascending:false});
+  if(error)return toast(error.message);
+  marketList.innerHTML=(data||[]).map(r=>{const mine=r.seller_user_id===currentUser.id,ui=r.user_items,avg=Number(ui?.items?.average_price||0),fair=Math.round(avg*conditionMultiplierV383(ui?.condition_score));const rc=rarityClass(normalizeRarityV35(ui?.items?.rarity));return `<article class="market-card"><div class="item-image"><img src="${itemImage(r.title,ui?.items?.category)}"></div><div class="market-body"><h3 class="rarity-text ${rc}">${esc(r.title)}</h3><div class="meta">${esc(r.profiles?.nickname||'유저')}</div><div class="meta ${mine?'':'hidden-condition-v383'}">${mine?`상태 ${ui?.condition_score||'-'}/100 · 적정가 ${money(fair)}`:'🔒 상태 비공개 · 구매 후 감정 가능'}</div><div class="price">${money(r.asking_price)}</div><button class="btn ${mine?'light':'primary'} full" onclick="${mine?`cancelListing('${r.id}')`:`buyListing('${r.id}')`}">${mine?'판매 취소':'구매'}</button></div></article>`}).join('')||'<div class="panel" style="padding:20px">매물이 없습니다.</div>';
+};
+
+// 판매 아이템 선택 시 상태를 반영한 권장가 자동 표시
+fillItemSelect=function(){
+  sellItem.innerHTML='<option value="">판매할 아이템</option>';
+  inventory.filter(x=>!x.is_listed&&!x.restoration_locked).forEach(x=>{const fair=Math.round(Number(x.items.average_price||0)*conditionMultiplierV383(x.condition_score));sellItem.add(new Option(`${x.items.name} · 상태 ${x.condition_score} · 권장 ${money(fair)}`,x.id))});
+  sellItem.onchange=()=>{const r=inventory.find(x=>String(x.id)===String(sellItem.value));if(r&&sellPrice){sellPrice.value=Math.max(1,Math.round(Number(r.items.average_price||0)*conditionMultiplierV383(r.condition_score)));sellPrice.placeholder=`상태 반영 권장가 ${money(Number(sellPrice.value))}`}};
+};
+
+// 전당포: 상태에 따른 실질 감가/프리미엄을 명확히 표시
+loadPawnshop=async function(){
+  await loadInventory();
+  pawnshopList.innerHTML=inventory.filter(x=>!x.is_listed&&!x.restoration_locked).map(r=>{const avg=Number(r.items.average_price||0),v=Math.round(avg*conditionMultiplierV383(r.condition_score)),diff=v-avg;return `<article class="item-card"><div class="item-image"><img src="${itemImage(r.items.name,r.items.category)}"></div><div class="item-body"><h3 class="rarity-text ${rarityClass(normalizeRarityV35(r.items.rarity))}">${esc(r.items.name)}</h3><div class="meta">상태 ${r.condition_score}/100 · ${conditionLabelV383(r.condition_score)}</div><div class="price">즉시 매입가 ${money(v)}</div><small class="condition-price-note ${diff>=0?'up':'down'}">평균 원가 대비 ${diff>=0?'+':''}${money(diff)}</small><div class="item-actions"><button class="btn light" onclick="pawnSell('${r.id}','instant',100)">즉시 판매</button><button class="btn primary" onclick="startPawnNegotiation('${r.id}')">흥정 판매</button></div></div></article>`}).join('')||'<div class="panel" style="padding:20px">판매할 아이템이 없습니다.</div>';
+};
+
+// 보유 자산 평가도 같은 상태 가격 공식을 사용
+itemValue=function(price,score){return Math.round(Number(price||0)*conditionMultiplierV383(score))};
