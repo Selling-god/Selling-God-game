@@ -59,6 +59,8 @@
       <button data-page="inventory" onclick="openPage('inventory',this)">🎒<span>가방</span></button>
       <button data-page="pawnshop" onclick="openPage('pawnshop',this)">🏚️<span>전당포</span></button>
       <button data-page="auction" onclick="openPage('auction',this)">🔨<span>경매장</span></button>
+      <button data-page="appraisal" onclick="openPage('appraisal',this)">🔍<span>감정소</span></button>
+      <button data-page="restoration" onclick="openPage('restoration',this)">🛠️<span>복원소</span></button>
       <button data-page="market" onclick="openPage('market',this)">🛒<span>중고장터</span></button>
       <button data-page="house" onclick="openPage('house',this)">🏠<span>내 집</span></button>
       <button data-page="collection" onclick="openPage('collection',this)">✨<span>소장품</span></button>
@@ -194,10 +196,22 @@
           <button data-tier="vip" onclick="selectAuctionTier('vip',this)"><span>👑</span><b>VIP 경매장</b><small>진귀~유물 · 24시간 입장권</small></button>
           <button data-tier="vvip" onclick="selectAuctionTier('vvip',this)"><span>💎</span><b>VVIP 경매장</b><small>보물~고대 유물 · 초고액 경쟁</small></button>
         </div>
-        <div class="auction-tabs"><button class="active" onclick="switchAuctionMode('buy',this)">경매 참여</button><button onclick="switchAuctionMode('sell',this)">내 물건 출품</button><button onclick="switchAuctionMode('restore',this)">감정·복원소</button></div>
+        <div class="auction-tabs"><button class="active" onclick="switchAuctionMode('buy',this)">경매 참여</button><button onclick="switchAuctionMode('sell',this)">내 물건 출품</button></div>
         <div id="auctionBuyPanel"><div id="auctionChoices" class="auction-choice-grid"></div><div id="auctionHall"></div></div>
         <div id="auctionSellPanel" class="hidden"><div class="panel auction-seller premium-seller"><div><h3>NPC 경매 출품</h3><p>VIP·VVIP는 출품 수수료가 있지만 더 큰 자금을 가진 수집가들이 경쟁합니다.</p></div><select id="auctionSellTier" onchange="fillAuctionSellItems()"><option value="normal">일반 경매장 · 무료</option><option value="vip">VIP 경매장 · 수수료 200만원</option><option value="vvip">VVIP 경매장 · 수수료 2,000만원</option></select><select id="auctionSellItem"></select><button class="btn primary" onclick="startSellerAuction()">이 물건 출품하기</button></div><div id="sellerAuctionHall"></div></div>
-        <div id="auctionRestorePanel" class="hidden"><div class="restoration-head panel"><div><p class="eyebrow">EXPERT SERVICE</p><h2>전문 감정·복원소</h2><p>복원가는 동시에 3개까지 작업하며, 한 건당 30초가 걸립니다. 등급이 높을수록 비용이 급격히 상승합니다.</p></div><button class="btn light" onclick="loadRestorationCenter()">새로고침</button></div><div id="restorationJobs" class="restoration-jobs"></div><div id="restorationInventory" class="restoration-inventory"></div></div>
+      </section>
+
+      <section id="page-appraisal" class="page">
+        <div class="title"><div><p class="eyebrow">EXPERT APPRAISAL</p><h1>전문 감정소</h1><p>현재 경매 라인업의 숨겨진 상태를 확인합니다. 등급이 높을수록 감정료가 크게 증가합니다.</p></div><button class="btn light" onclick="loadAppraisalCenterV37()">새로고침</button></div>
+        <div class="expert-service-banner appraisal"><span>🔍</span><div><b>감정은 현재 30분 경매 회차 동안 유지됩니다.</b><small>일반 경매장은 항상 확인할 수 있으며 VIP·VVIP는 유효한 입장권이 있어야 합니다.</small></div></div>
+        <div id="appraisalCenterList" class="appraisal-center-grid"></div>
+      </section>
+
+      <section id="page-restoration" class="page">
+        <div class="title"><div><p class="eyebrow">MASTER RESTORER</p><h1>전문 복원소</h1><p>손상된 보유품의 상태를 높입니다. 동시에 최대 3개, 작업 시간은 30초입니다.</p></div><button class="btn light" onclick="loadRestorationCenter()">새로고침</button></div>
+        <div class="expert-service-banner restoration"><span>🛠️</span><div><b>복원 중인 아이템은 거래하거나 출품할 수 없습니다.</b><small>등급과 손상 정도가 높을수록 복원 비용이 천차만별로 증가합니다.</small></div></div>
+        <div id="restorationJobs" class="restoration-jobs"></div>
+        <div id="restorationInventory" class="restoration-inventory"></div>
       </section>
 
       <section id="page-market" class="page">
@@ -279,7 +293,7 @@
         <button onclick="openPhoneApp('stocks')"><span class="app app-stock">📈</span>판매증권</button>
         <button onclick="openPageFromPhone('market')"><span class="app app-market">🛒</span>중고장터</button>
         <button onclick="openPageFromPhone('collection')"><span class="app app-gacha">🎁</span>소장품</button>
-        <button onclick="openPhoneApp('wallet')"><span class="app app-wallet">💳</span>내 자산</button><button onclick="openPhoneApp('ranking')"><span class="app app-ranking">🏆</span>랭킹</button><button onclick="openPhoneApp('property')"><span class="app app-property">🏢</span>부동산</button><button onclick="openPhoneApp('bank')"><span class="app app-bank">🏦</span>은행</button><button onclick="openPhoneApp('business')"><span class="app app-business">🏭</span>사업 관리</button><button onclick="openPhoneApp('risk')"><span class="app app-risk">⚠️</span>고위험 투자</button><button onclick="openPhoneApp('titles')"><span class="app app-title">🎖️</span>칭호</button><button id="chatAppButton" class="chat-app-button" onclick="openPhoneApp('chat')"><span class="app app-chat">💬<span id="chatAppUnreadDot" class="chat-unread-dot app-dot hidden" aria-label="읽지 않은 채팅"></span></span>전체 채팅</button><button onclick="openPhoneApp('skills')"><span class="app app-skills">🧠</span>협상 스킬</button>
+        <button onclick="openPhoneApp('wallet')"><span class="app app-wallet">💳</span>내 자산</button><button onclick="openPhoneApp('ranking')"><span class="app app-ranking">🏆</span>랭킹</button><button onclick="openPhoneApp('property')"><span class="app app-property">🏢</span>부동산</button><button onclick="openPhoneApp('bank')"><span class="app app-bank">🏦</span>은행</button><button onclick="openPhoneApp('business')"><span class="app app-business">🏭</span>사업 관리</button><button onclick="openPhoneApp('risk')"><span class="app app-risk">📑</span>프로젝트 투자</button><button onclick="openPhoneApp('titles')"><span class="app app-title">🎖️</span>칭호</button><button id="chatAppButton" class="chat-app-button" onclick="openPhoneApp('chat')"><span class="app app-chat">💬<span id="chatAppUnreadDot" class="chat-unread-dot app-dot hidden" aria-label="읽지 않은 채팅"></span></span>전체 채팅</button><button onclick="openPhoneApp('skills')"><span class="app app-skills">🧠</span>협상 스킬</button>
       </div></section>
       <section id="phone-stocks" class="phone-screen phone-app hidden">
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매증권</b><small>종목을 눌러 상세 확인</small></div><button onclick="refreshStocks()">↻</button></div>
@@ -296,7 +310,7 @@
         <div id="businessView"></div>
       </section>
       <section id="phone-risk" class="phone-screen phone-app hidden">
-        <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>고위험 투자실</b><small>큰 수익 또는 원금 전액 손실</small></div><button onclick="loadRiskDesk()">↻</button></div>
+        <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>프로젝트 투자</b><small>현실적인 사업 프로젝트에 참여하고 위험을 관리하세요</small></div><button onclick="loadRiskDesk()">↻</button></div>
         <div id="riskView" class="risk-view"><div class="bank-loading">투자 정보를 불러오는 중...</div></div>
       </section>
       <section id="phone-titles" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>칭호</b><small>업적을 달성해 칭호 획득</small></div><span></span></div><div id="titleList"></div></section>
