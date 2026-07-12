@@ -2,7 +2,7 @@ const SUPABASE_URL="https://qazjtevdljthbzmqmgrw.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_rIARlWBpKPvFAv_TtTdgaQ_Po-hOGmX";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
-let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,auctionChoices=[],sellerAuction=null,negotiation=null,job=null,selectedStock=null,toastTimer=null,realtime=null,negotiationSkills={},collectiblePage=1,casePage=1,decorationPage=1,chatBusy=false,auctionRotationTimer=null,marketRotationTimer=null,stockTickerTimer=null,chatRefreshTimer=null;
+let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,auctionChoices=[],sellerAuction=null,negotiation=null,job=null,selectedStock=null,toastTimer=null,realtime=null,negotiationSkills={},collectiblePage=1,casePage=1,decorationPage=1,chatBusy=false,auctionRotationTimer=null,marketRotationTimer=null,stockTickerTimer=null,chatRefreshTimer=null,appraisedItemIds=new Set();
 
 document.addEventListener("DOMContentLoaded",()=>{init();initPremiumUI()});
 async function init(){
@@ -2694,3 +2694,61 @@ loadPawnshop=async function(){
 
 // 보유 자산 평가도 같은 상태 가격 공식을 사용
 itemValue=function(price,score){return Math.round(Number(price||0)*conditionMultiplierV383(score))};
+
+
+/* =========================================================
+   v38.7: purchased-item appraisal secrecy + pawnshop viewport fix
+   ========================================================= */
+function isItemAppraisedV387(id){return appraisedItemIds.has(String(id))}
+function hiddenConditionTextV387(){return '🔒 상태 미감정 · 감정소에서 확인'}
+
+loadInventory=async function(){
+  const [itemsRes, appraisalRes]=await Promise.all([
+    db.from('user_items').select(`id,condition_score,is_listed,restoration_locked,items(id,name,category,average_price,rarity)`).eq('user_id',currentUser.id).order('acquired_at',{ascending:false}),
+    db.from('user_item_appraisals_v38').select('user_item_id').eq('user_id',currentUser.id)
+  ]);
+  if(itemsRes.error)return toast(itemsRes.error.message);
+  inventory=itemsRes.data||[];
+  appraisedItemIds=new Set((appraisalRes.data||[]).map(x=>String(x.user_item_id)));
+  if(appraisalRes.error)console.warn('감정 기록 조회 실패:',appraisalRes.error.message);
+  fillItemSelect();
+  const homeCount=document.getElementById('homeInventoryCount');if(homeCount)homeCount.textContent=inventory.length;
+  if(!inventory.length){inventoryEl().innerHTML='<div class="panel" style="padding:20px">가방이 비어 있습니다.</div>';return}
+  inventoryEl().innerHTML=inventory.map(cardItem).join('');
+};
+
+cardItem=function(r){
+  const i=r.items,known=isItemAppraisedV387(r.id),v=itemValue(i.average_price,r.condition_score),rc=rarityClass(normalizeRarityV35(i.rarity));
+  return `<article class="item-card"><div class="item-image"><img src="${itemImage(i.name,i.category)}"></div><div class="item-body"><h3 class="rarity-text ${rc}">${esc(i.name)}</h3><div class="meta rarity-text ${rc}">${esc(i.category)} · ${esc(normalizeRarityV35(i.rarity))}</div>${known?`<div class="condition"><i style="width:${r.condition_score}%"></i></div><div class="meta">상태 ${r.condition_score}/100 · ${conditionLabelV383(r.condition_score)}</div><div class="price">평가액 ${money(v)}</div>`:`<div class="hidden-condition-v383">${hiddenConditionTextV387()}</div><div class="price muted-price">감정 후 가치 확인</div>`}<div class="item-actions"><button class="btn light" onclick="openPage('pawnshop',document.querySelector('[data-page=pawnshop]'))">전당포</button><button class="btn primary" onclick="openPage('market',document.querySelector('[data-page=market]'))">장터</button></div></div></article>`;
+};
+
+fillItemSelect=function(){
+  sellItem.innerHTML='<option value="">판매할 아이템</option>';
+  inventory.filter(x=>!x.is_listed&&!x.restoration_locked).forEach(x=>{
+    const known=isItemAppraisedV387(x.id),fair=Math.round(Number(x.items.average_price||0)*conditionMultiplierV383(x.condition_score));
+    sellItem.add(new Option(known?`${x.items.name} · 상태 ${x.condition_score} · 권장 ${money(fair)}`:`${x.items.name} · 상태 미감정`,x.id));
+  });
+  sellItem.onchange=()=>{
+    const r=inventory.find(x=>String(x.id)===String(sellItem.value));if(!r||!sellPrice)return;
+    const known=isItemAppraisedV387(r.id),fair=Math.max(1,Math.round(Number(r.items.average_price||0)*conditionMultiplierV383(r.condition_score)));
+    if(known){sellPrice.value=fair;sellPrice.placeholder=`상태 반영 권장가 ${money(fair)}`}
+    else{sellPrice.value='';sellPrice.placeholder='미감정 아이템 · 직접 판매가 입력'}
+  };
+};
+
+loadPawnshop=async function(){
+  await loadInventory();
+  pawnshopList.innerHTML=inventory.filter(x=>!x.is_listed&&!x.restoration_locked).map(r=>{
+    const known=isItemAppraisedV387(r.id),avg=Number(r.items.average_price||0),v=Math.round(avg*conditionMultiplierV383(r.condition_score)),diff=v-avg,rc=rarityClass(normalizeRarityV35(r.items.rarity));
+    return `<article class="item-card pawn-v387-card"><div class="item-image"><img src="${itemImage(r.items.name,r.items.category)}"></div><div class="item-body"><h3 class="rarity-text ${rc}">${esc(r.items.name)}</h3>${known?`<div class="meta">상태 ${r.condition_score}/100 · ${conditionLabelV383(r.condition_score)}</div>`:`<div class="hidden-condition-v383">${hiddenConditionTextV387()}</div>`}<div class="price">즉시 매입가 ${money(v)}</div>${known?`<small class="condition-price-note ${diff>=0?'up':'down'}">평균 원가 대비 ${diff>=0?'+':''}${money(diff)}</small>`:`<small class="condition-price-note">전당포가 자체 평가한 매입가입니다.</small>`}<div class="item-actions"><button class="btn light" onclick="pawnSell('${r.id}','instant',100)">즉시 판매</button><button class="btn primary" onclick="startPawnNegotiation('${r.id}')">흥정 판매</button></div></div></article>`;
+  }).join('')||'<div class="panel" style="padding:20px">판매할 아이템이 없습니다.</div>';
+};
+
+const appraiseOwnedItemV38_v387=appraiseOwnedItemV38;
+appraiseOwnedItemV38=async function(id,cost){
+  if(!confirm(`이 아이템을 ${money(cost)}에 감정할까요?`))return;
+  const{data,error}=await db.rpc('appraise_owned_item_v38',{p_user_item_id:id});if(error)return toast(error.message);
+  appraisedItemIds.add(String(id));
+  toast(`감정 완료 · 상태 ${data.condition_score}/100`);
+  await Promise.all([loadProfile(),loadInventory(),loadOwnedAppraisalV38()]);
+};
