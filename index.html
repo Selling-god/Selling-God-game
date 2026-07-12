@@ -59,8 +59,6 @@
       <button data-page="inventory" onclick="openPage('inventory',this)">🎒<span>가방</span></button>
       <button data-page="pawnshop" onclick="openPage('pawnshop',this)">🏚️<span>전당포</span></button>
       <button data-page="auction" onclick="openPage('auction',this)">🔨<span>경매장</span></button>
-      <button data-page="appraisal" onclick="openPage('appraisal',this)">🔍<span>감정소</span></button>
-      <button data-page="restoration" onclick="openPage('restoration',this)">🛠️<span>복원소</span></button>
       <button data-page="market" onclick="openPage('market',this)">🛒<span>중고장터</span></button>
       <button data-page="house" onclick="openPage('house',this)">🏠<span>내 집</span></button>
       <button data-page="collection" onclick="openPage('collection',this)">✨<span>소장품</span></button>
@@ -293,7 +291,7 @@
         <button onclick="openPhoneApp('stocks')"><span class="app app-stock">📈</span>판매증권</button>
         <button onclick="openPageFromPhone('market')"><span class="app app-market">🛒</span>중고장터</button>
         <button onclick="openPageFromPhone('collection')"><span class="app app-gacha">🎁</span>소장품</button>
-        <button onclick="openPhoneApp('wallet')"><span class="app app-wallet">💳</span>내 자산</button><button onclick="openPhoneApp('ranking')"><span class="app app-ranking">🏆</span>랭킹</button><button onclick="openPhoneApp('property')"><span class="app app-property">🏢</span>부동산</button><button onclick="openPhoneApp('bank')"><span class="app app-bank">🏦</span>은행</button><button onclick="openPhoneApp('business')"><span class="app app-business">🏭</span>사업 관리</button><button onclick="openPhoneApp('risk')"><span class="app app-risk">📑</span>프로젝트 투자</button><button onclick="openPhoneApp('titles')"><span class="app app-title">🎖️</span>칭호</button><button id="chatAppButton" class="chat-app-button" onclick="openPhoneApp('chat')"><span class="app app-chat">💬<span id="chatAppUnreadDot" class="chat-unread-dot app-dot hidden" aria-label="읽지 않은 채팅"></span></span>전체 채팅</button><button onclick="openPhoneApp('skills')"><span class="app app-skills">🧠</span>협상 스킬</button>
+        <button onclick="openPhoneApp('wallet')"><span class="app app-wallet">💳</span>내 자산</button><button onclick="openPhoneApp('ranking')"><span class="app app-ranking">🏆</span>랭킹</button><button onclick="openPhoneApp('property')"><span class="app app-property">🏢</span>부동산</button><button onclick="openPhoneApp('bank')"><span class="app app-bank">🏦</span>은행</button><button onclick="openPhoneApp('business')"><span class="app app-business">🏭</span>사업 관리</button><button onclick="openPhoneApp('risk')"><span class="app app-risk">📑</span>프로젝트 투자</button><button onclick="openPhoneApp('appraisal')"><span class="app app-appraisal">🔍</span>감정소</button><button onclick="openPhoneApp('restoration')"><span class="app app-restoration">🛠️</span>복원소</button><button onclick="openPhoneApp('titles')"><span class="app app-title">🎖️</span>칭호</button><button id="chatAppButton" class="chat-app-button" onclick="openPhoneApp('chat')"><span class="app app-chat">💬<span id="chatAppUnreadDot" class="chat-unread-dot app-dot hidden" aria-label="읽지 않은 채팅"></span></span>전체 채팅</button><button onclick="openPhoneApp('skills')"><span class="app app-skills">🧠</span>협상 스킬</button>
       </div></section>
       <section id="phone-stocks" class="phone-screen phone-app hidden">
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매증권</b><small>종목을 눌러 상세 확인</small></div><button onclick="refreshStocks()">↻</button></div>
@@ -313,6 +311,8 @@
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>프로젝트 투자</b><small>현실적인 사업 프로젝트에 참여하고 위험을 관리하세요</small></div><button onclick="loadRiskDesk()">↻</button></div>
         <div id="riskView" class="risk-view"><div class="bank-loading">투자 정보를 불러오는 중...</div></div>
       </section>
+      <section id="phone-appraisal" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>전문 감정소</b><small>내가 보유한 아이템의 실제 상태를 확인</small></div><button onclick="loadOwnedAppraisalV38()">↻</button></div><div id="ownedAppraisalList" class="expert-phone-list"></div></section>
+      <section id="phone-restoration" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>전문 복원소</b><small>보유품을 최대 3개까지 30초 복원</small></div><button onclick="loadRestorationCenter()">↻</button></div><div id="restorationJobs"></div><div id="restorationInventory"></div></section>
       <section id="phone-titles" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>칭호</b><small>업적을 달성해 칭호 획득</small></div><span></span></div><div id="titleList"></div></section>
       <section id="phone-chat" class="phone-screen phone-app chat-app hidden">
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>전체 채팅</b><small>장착 칭호와 함께 대화하세요</small></div><button onclick="loadChatMessages()">↻</button></div>
