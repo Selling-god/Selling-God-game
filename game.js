@@ -579,7 +579,7 @@ function groupedCollectibleRow(group,options={}){
     </div>`;
   }
 
-  return `<div class="collectible ${rc}">
+  return `<div class="collectible ${rc} ${isCase?'case-collectible':'decoration-collectible'}">
     <div class="collectible-main">
       <div class="collectible-title-row">
         <span class="collectible-icon">${c.icon}</span>
