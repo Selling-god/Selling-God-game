@@ -2928,33 +2928,98 @@ appraiseOwnedItemV38=async function(id,cost){
    v39: 10/100 gacha + six luxury homes + high-net-worth foundation
    ============================================================ */
 function gachaCostV39(count){return count===100?27000000:count===10?2850000:300000}
-function gachaSkipEnabledV39(type){return !!document.getElementById(type==='phone_case'?'gachaSkipCase':'gachaSkipDecor')?.checked}
+let gachaDrawingV407=false;
+function gachaSkipEnabledV39(type){
+  const id=type==='phone_case'?'gachaSkipCase':'gachaSkipDecor';
+  return document.getElementById(id)?.checked===true;
+}
+function setGachaButtonsBusyV407(busy){
+  document.querySelectorAll('.bulk-gacha-buttons button').forEach(btn=>{
+    btn.disabled=!!busy;
+    btn.classList.toggle('gacha-busy-v407',!!busy);
+  });
+}
+function saveGachaSkipPreferenceV407(type,checked){
+  try{localStorage.setItem(`sellingGod:gachaSkip:${type}`,checked?'1':'0')}catch(_e){}
+}
+function restoreGachaSkipPreferencesV407(){
+  [['decoration','gachaSkipDecor'],['phone_case','gachaSkipCase']].forEach(([type,id])=>{
+    const input=document.getElementById(id);if(!input)return;
+    try{input.checked=localStorage.getItem(`sellingGod:gachaSkip:${type}`)==='1'}catch(_e){}
+    if(input.dataset.boundV407)return;
+    input.dataset.boundV407='1';
+    input.addEventListener('change',()=>saveGachaSkipPreferenceV407(type,input.checked));
+  });
+}
 async function drawCollectible(type,count=1){
   count=[1,10,100].includes(Number(count))?Number(count):1;
+  if(gachaDrawingV407)return toast('현재 뽑기를 처리하고 있습니다.');
   const cost=gachaCostV39(count);
   if(!profile||Number(profile.cash)<cost)return toast(`${count}회 뽑기에는 ${money(cost)}이 필요합니다.`);
-  const modal=document.getElementById('gachaModal'),summary=document.getElementById('gachaBulkSummary');
-  modal.classList.remove('hidden');modal.className='overlay gacha-spinning rarity-0';
-  gachaRarity.textContent=count===1?'두근두근...':`${count}개 캡슐 개봉 중`;
-  gachaResultIcon.textContent=type==='phone_case'?'📱':'🏺';gachaResultName.textContent='캡슐 개봉 중';gachaResultName.className='';gachaResultEffect.textContent='';
-  if(summary){summary.classList.add('hidden');summary.innerHTML=''}
-  const skip=gachaSkipEnabledV39(type);if(!skip){playGachaBuild();await wait(count===1?1500:1900)}
-  const{data,error}=await db.rpc('draw_collectibles_bulk_v39',{p_type:type,p_count:count});
-  if(error){closeGachaReveal();return toast(error.message)}
-  const rows=Array.isArray(data?.results)?data.results:(Array.isArray(data)?data:[]);
-  const highest=rows.reduce((a,b)=>rarityScore(b.rarity)>rarityScore(a?.rarity)?b:a,rows[0]);
-  const rank=rarityScore(highest?.rarity||'일반');modal.className=`overlay gacha-reveal rarity-${rank}`;
-  gachaRarity.textContent=count===1?(highest?.rarity||'결과'):`${count}연속 결과 · 최고 ${highest?.rarity||'일반'}`;
-  gachaResultIcon.textContent=highest?.icon||'✨';gachaResultName.textContent=count===1?(highest?.name||'결과 공개'):`${count}개 획득 완료`;
-  gachaResultName.className=`rarity-text ${rarityClass(highest?.rarity||'일반')}`;
-  gachaResultEffect.textContent=count===1?`${collectibleEffectLabel(highest?.effect_code,highest?.effect_name)} +${Number(highest?.effect_percent||0)}%`:`총 비용 ${money(data?.cost||cost)}`;
-  if(count>1&&summary){
-    const counts={};rows.forEach(r=>counts[r.rarity]=(counts[r.rarity]||0)+1);
-    summary.innerHTML=`<div class="bulk-rarity-counts">${Object.entries(counts).sort((a,b)=>rarityScore(b[0])-rarityScore(a[0])).map(([r,n])=>`<span class="rarity-text ${rarityClass(r)}">${r} ${n}개</span>`).join('')}</div><div class="bulk-top-results">${rows.slice().sort((a,b)=>rarityScore(b.rarity)-rarityScore(a.rarity)).slice(0,12).map(r=>`<em class="${rarityClass(r.rarity)}">${r.icon||'✨'} ${esc(r.name)}</em>`).join('')}</div>`;
-    summary.classList.remove('hidden');
+
+  restoreGachaSkipPreferencesV407();
+  const skip=gachaSkipEnabledV39(type);
+  const modal=document.getElementById('gachaModal');
+  const summary=document.getElementById('gachaBulkSummary');
+  gachaDrawingV407=true;
+  setGachaButtonsBusyV407(true);
+
+  try{
+    if(summary){summary.classList.add('hidden');summary.innerHTML=''}
+
+    if(skip){
+      // 스킵 시에는 회전/흔들림 모달 자체를 띄우지 않는다.
+      modal.className='overlay hidden';
+      toast(`${count}회 뽑기 처리 중 · 연출 스킵`);
+    }else{
+      modal.classList.remove('hidden');
+      modal.className='overlay gacha-spinning rarity-0';
+      gachaRarity.textContent=count===1?'두근두근...':`${count}개 캡슐 개봉 중`;
+      gachaResultIcon.textContent=type==='phone_case'?'📱':'🏺';
+      gachaResultName.textContent='캡슐 개봉 중';
+      gachaResultName.className='';
+      gachaResultEffect.textContent='';
+      playGachaBuild();
+      await wait(count===1?1500:1900);
+    }
+
+    const{data,error}=await db.rpc('draw_collectibles_bulk_v39',{p_type:type,p_count:count});
+    if(error)throw error;
+
+    const rows=Array.isArray(data?.results)?data.results:(Array.isArray(data)?data:[]);
+    if(!rows.length)throw new Error('뽑기 결과를 불러오지 못했습니다.');
+    const highest=rows.reduce((a,b)=>rarityScore(b.rarity)>rarityScore(a?.rarity)?b:a,rows[0]);
+    const rank=rarityScore(highest?.rarity||'일반');
+
+    // 스킵 여부와 관계없이 결과는 즉시 한 번만 표시한다.
+    modal.classList.remove('hidden');
+    modal.className=`overlay gacha-reveal rarity-${rank} ${skip?'gacha-skipped-v407':''}`;
+    gachaRarity.textContent=count===1?(highest?.rarity||'결과'):`${count}연속 결과 · 최고 ${highest?.rarity||'일반'}`;
+    gachaResultIcon.textContent=highest?.icon||'✨';
+    gachaResultName.textContent=count===1?(highest?.name||'결과 공개'):`${count}개 획득 완료`;
+    gachaResultName.className=`rarity-text ${rarityClass(highest?.rarity||'일반')}`;
+    gachaResultEffect.textContent=count===1?`${collectibleEffectLabel(highest?.effect_code,highest?.effect_name)} +${Number(highest?.effect_percent||0)}%`:`총 비용 ${money(data?.cost||cost)}${skip?' · 연출 스킵':''}`;
+
+    if(count>1&&summary){
+      const counts={};rows.forEach(r=>counts[r.rarity]=(counts[r.rarity]||0)+1);
+      summary.innerHTML=`<div class="bulk-rarity-counts">${Object.entries(counts).sort((a,b)=>rarityScore(b[0])-rarityScore(a[0])).map(([r,n])=>`<span class="rarity-text ${rarityClass(r)}">${r} ${n}개</span>`).join('')}</div><div class="bulk-top-results">${rows.slice().sort((a,b)=>rarityScore(b.rarity)-rarityScore(a.rarity)).slice(0,12).map(r=>`<em class="${rarityClass(r.rarity)}">${r.icon||'✨'} ${esc(r.name)}</em>`).join('')}</div>`;
+      summary.classList.remove('hidden');
+    }
+
+    rank>=4?playJackpotSound():playSuccessSound();
+    await Promise.all([loadProfile(),loadCollectibles()]);
+    updateNetworth();
+  }catch(error){
+    closeGachaReveal();
+    toast(error?.message||'뽑기에 실패했습니다.');
+  }finally{
+    gachaDrawingV407=false;
+    setGachaButtonsBusyV407(false);
+    updateGachaButtons();
   }
-  rank>=4?playJackpotSound():playSuccessSound();await Promise.all([loadProfile(),loadCollectibles()]);updateNetworth();updateGachaButtons();
 }
+
+setTimeout(restoreGachaSkipPreferencesV407,0);
 
 let foundationTimerV39=null;
 const FOUNDATION_TIERS_V39=[
@@ -3548,4 +3613,112 @@ startAuctionCountdown=function(){
     auctionChoices=auctionChoices.map(x=>x.cycle_key===finished.cycleKey&&x.slot_no===finished.slotNo?{...x,ended:true}:x);
     leaveAuction();renderAuctionChoices();
   },1000);
+};
+
+
+/* ============================================================
+   v40.8 ONLINE 30-MIN TAX BILL / 5-MIN PRE-NOTICE / OFFLINE ACCRUAL
+============================================================ */
+let periodicTaxTimerV408=null;
+let periodicTaxWarningKeyV408='';
+let periodicTaxBillKeyV408='';
+let periodicTaxBusyV408=false;
+
+function taxCycleKeyV408(data){
+  return String(data?.next_tax_at||'');
+}
+
+async function getPeriodicTaxStatusV408(){
+  const {data,error}=await db.rpc('get_periodic_tax_status_v408');
+  if(error){console.warn('30분 세금 주기 조회 실패:',error.message);return null}
+  return data||null;
+}
+
+function updateTaxNoticeModalV408(data){
+  if(!data)return;
+  taxNoticeStateV402={
+    ...(taxNoticeStateV402||{}),
+    ...data,
+    total_due:Number(data.total_due||0),
+    wealth_tax_added:Number(data.accrued_amount||data.wealth_tax_added||0),
+    offline_hours:Number(data.offline_hours||0),
+    deferred:!!data.deferred,
+    due_at:data.due_at||null,
+    remaining_seconds:Number(data.grace_remaining_seconds||data.remaining_seconds||0)
+  };
+  const due=Number(data.total_due||0);
+  const added=Number(data.accrued_amount||0);
+  const modal=document.getElementById('loginTaxModalV401');
+  if(!modal||due<=0)return;
+  const hours=document.getElementById('loginTaxHoursV401');
+  const wealth=document.getElementById('loginWealthTaxV401');
+  const income=document.getElementById('loginIncomeTaxV401');
+  const total=document.getElementById('loginTotalTaxV401');
+  if(hours)hours.textContent=`${Number(data.offline_hours||0).toFixed(1)}시간`;
+  if(wealth)wealth.textContent=money(added);
+  if(income)income.textContent=money(Math.max(0,due-added));
+  if(total)total.textContent=money(due);
+  modal.classList.remove('hidden');
+  updateTaxDeadlineUIV402();
+}
+
+async function runPeriodicTaxCheckV408({initial=false}={}){
+  if(periodicTaxBusyV408||!profile||!currentUser)return;
+  periodicTaxBusyV408=true;
+  try{
+    const data=await getPeriodicTaxStatusV408();
+    if(!data)return;
+
+    const nextSeconds=Math.max(0,Number(data.next_tax_seconds||0));
+    const nextKey=taxCycleKeyV408(data);
+    const periods=Math.max(0,Number(data.periods_accrued||0));
+    const added=Math.max(0,Number(data.accrued_amount||0));
+    const due=Math.max(0,Number(data.total_due||0));
+
+    if(data.auto_collected){
+      await loadProfile();
+      updateNetworth();
+      showTaxPhoneNoticeV402('세금 자동 징수',`납부 유예가 만료되어 ${money(data.auto_collected_amount||0)}이 자동 징수되었습니다.`,true);
+    }
+
+    // 접속 중 다음 30분 고지서가 오기 5분 전에 한 번만 알린다.
+    if(nextSeconds>0&&nextSeconds<=300&&nextKey&&periodicTaxWarningKeyV408!==nextKey){
+      periodicTaxWarningKeyV408=nextKey;
+      showTaxPhoneNoticeV402('세금 고지서 5분 전',`다음 세금 고지서가 ${formatTaxRemainV402(nextSeconds)} 뒤 도착합니다.`,false);
+    }
+
+    // 30분 경계가 지나 새 세금이 실제로 누적된 경우 고지서를 띄운다.
+    if(periods>0&&due>0){
+      const billKey=`${nextKey}:${due}`;
+      if(periodicTaxBillKeyV408!==billKey){
+        periodicTaxBillKeyV408=billKey;
+        periodicTaxWarningKeyV408='';
+        if(!initial){
+          showTaxPhoneNoticeV402('30분 세금 고지서',`${periods}회분 세금 ${money(added)}이 추가되어 총 미납액은 ${money(due)}입니다.`,true);
+        }
+        updateTaxNoticeModalV408(data);
+        startTaxReminderTimerV402();
+      }
+    }
+
+    // 이미 미납 세금이 있고 로그인 직후라면 기존 고지서를 보여준다.
+    if(initial&&due>0){
+      updateTaxNoticeModalV408(data);
+      startTaxReminderTimerV402();
+    }
+  }finally{
+    periodicTaxBusyV408=false;
+  }
+}
+
+function startPeriodicTaxTimerV408(){
+  clearInterval(periodicTaxTimerV408);
+  runPeriodicTaxCheckV408({initial:true});
+  periodicTaxTimerV408=setInterval(()=>runPeriodicTaxCheckV408(),30000);
+}
+
+const enterGameV408Base=enterGame;
+enterGame=async function(){
+  await enterGameV408Base();
+  if(profile)setTimeout(startPeriodicTaxTimerV408,700);
 };
