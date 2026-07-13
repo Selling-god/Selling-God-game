@@ -804,16 +804,21 @@ function renderCollectibleSellPreview(){
 }
 async function createCollectibleListing(){const id=sellCollectible.value,p=Math.floor(Number(collectiblePrice.value));if(!id||p<=0)return toast('소장품과 가격을 확인하세요.');const{error}=await db.rpc('create_collectible_listing',{p_user_collectible_id:id,p_price:p});if(error)return toast(error.message);collectiblePrice.value='';await loadCollectibleMarket()}
 async function loadCollectibleMarket(){
+  const host=document.getElementById('collectibleMarketList')||globalThis.collectibleMarketList;
+  if(!host)return;
   const{data,error}=await db.from('collectible_listings').select(`id,asking_price,seller_user_id,user_collectibles(collectibles(name,rarity,effect_code,effect_name,effect_percent,icon)),profiles:seller_user_id(nickname)`).eq('status','active').order('created_at',{ascending:false});
-  if(error)return toast(error.message);
-  collectibleMarketList.innerHTML=(data||[]).map(r=>{
-    const c=r.user_collectibles.collectibles,mine=r.seller_user_id===currentUser.id,rc=rarityClass(c.rarity);
+  if(error){host.innerHTML=`<div class="panel" style="padding:20px">소장품 거래 목록을 불러오지 못했습니다.<br><small>${esc(error.message)}</small></div>`;return}
+  const valid=(data||[]).filter(r=>r&&r.user_collectibles&&r.user_collectibles.collectibles);
+  host.innerHTML=valid.map(r=>{
+    const c=r.user_collectibles.collectibles;
+    const mine=r.seller_user_id===currentUser?.id;
+    const rc=rarityClass(c.rarity||'일반');
     return `<article class="market-card collectible-market-card ${rc}">
       <div class="market-rarity-glow"></div>
-      <div class="item-image collectible-market-icon">${c.icon}</div>
-      <div class="market-body"><div class="collectible-market-seller">${mine?'내 매물':esc(r.profiles?.nickname||'유저의 매물')}</div><h3 class="rarity-text ${rc}">${esc(c.name)}</h3><div class="meta"><span class="rarity-chip ${rc}">${esc(c.rarity)}</span> · ${esc(collectibleEffectText(c))}</div><div class="price">${money(r.asking_price)}</div><button class="btn ${mine?'light':'primary'} full" onclick="${mine?`cancelCollectible('${r.id}')`:`buyCollectible('${r.id}')`}">${mine?'판매 취소':'구매'}</button></div>
+      <div class="item-image collectible-market-icon">${c.icon||'✨'}</div>
+      <div class="market-body"><div class="collectible-market-seller">${mine?'내 매물':esc(r.profiles?.nickname||'유저의 매물')}</div><h3 class="rarity-text ${rc}">${esc(c.name||'이름 없는 소장품')}</h3><div class="meta"><span class="rarity-chip ${rc}">${esc(c.rarity||'일반')}</span> · ${esc(collectibleEffectText(c))}</div><div class="price">${money(r.asking_price)}</div><button class="btn ${mine?'light':'primary'} full" onclick="${mine?`cancelCollectible('${r.id}')`:`buyCollectible('${r.id}')`}">${mine?'판매 취소':'구매'}</button></div>
     </article>`
-  }).join('')||'<div class="panel" style="padding:20px">소장품 매물 없음</div>'
+  }).join('')||'<div class="panel" style="padding:20px">소장품 매물 없음</div>';
 }
 async function buyCollectible(id){
   const button=document.querySelector(`[onclick="buyCollectible('${id}')"]`);
@@ -1372,7 +1377,29 @@ function renderBank(){
 }
 async function bankCall(fn,args={},success='처리 완료'){const{data,error}=await db.rpc(fn,args);if(error)return toast(error.message);toast(success);playSuccessSound();await loadBank();return data}
 async function bankDeposit(){const n=bankInput('depositAmount');if(n<=0)return toast('입금 금액을 입력하세요.');await bankCall('bank_deposit_v25',{p_amount:n},'예금 입금 완료')}
-async function bankWithdrawDeposit(){const n=bankInput('depositAmount');if(n<=0)return toast('출금 금액을 입력하세요.');await bankCall('bank_withdraw_deposit_v25',{p_amount:n},'예금 출금 완료')}
+async function bankWithdrawDeposit(){
+  const input=document.getElementById('depositAmount');
+  const n=bankInput('depositAmount');
+  if(n<=0)return toast('출금 금액을 입력하세요.');
+  const button=input?.parentElement?.querySelector('button.sub');
+  if(button?.disabled)return;
+  if(button){button.disabled=true;button.textContent='출금 중...';}
+  try{
+    const{data,error}=await db.rpc('bank_withdraw_deposit_v4019',{p_amount:n});
+    if(error)throw error;
+    if(input)input.value='';
+    toast(`예금 ${money(data?.withdrawn||n)} 출금 완료`);
+    playSuccessSound();
+    await loadBank();
+    await loadProfile();
+    await updateNetworth();
+  }catch(error){
+    console.error('예금 출금 실패',error);
+    toast(error?.message||'예금 출금에 실패했습니다.');
+  }finally{
+    if(button){button.disabled=false;button.textContent='출금';}
+  }
+}
 async function bankSavingsDeposit(){const amount=bankInput('savingsAmount'),target=bankInput('savingsTarget');if(amount<=0||target<=0)return toast('넣을 금액과 목표 금액을 입력하세요.');await bankCall('bank_savings_deposit_v25',{p_amount:amount,p_target:target},'적금 입금 완료')}
 async function bankWithdrawSavings(){if(!confirm('적금을 해지하고 현재 적립액 전부를 현금으로 받을까요?'))return;await bankCall('bank_withdraw_savings_v25',{},'적금 출금 완료')}
 async function takeLoan(){const n=bankInput('loanAmount');if(n<=0)return toast('대출 금액을 입력하세요.');await bankCall('bank_take_loan_v25',{p_amount:n},'대출금이 지급되었습니다.')}
@@ -4708,3 +4735,8 @@ enterGame=async function(){
   clearDuplicateBackgroundLoopsV4017();
 };
 setTimeout(startPerformanceGovernorV4017,0);
+
+
+/* v40.19 은행 출금 안정화 및 소장품 거래 null 방어 */
+globalThis.bankWithdrawDeposit=bankWithdrawDeposit;
+globalThis.loadCollectibleMarket=loadCollectibleMarket;
