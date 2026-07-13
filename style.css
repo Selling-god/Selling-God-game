@@ -1785,3 +1785,11 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 #globalChatList .global-chat-message{content-visibility:auto;contain-intrinsic-size:72px}
 /* 보이지 않는 고광량 효과는 GPU 레이어를 계속 점유하지 않도록 제한 */
 .phone-overlay.hidden .phone-shell,.phone-overlay.hidden .phone-shell::before,.phone-overlay.hidden .phone-shell::after{animation:none!important;filter:none!important}
+
+
+/* v40.18 소장품·케이스 효과 표시 보강 */
+.collectible-effect-line{display:block;color:#493725!important;line-height:1.5;opacity:1!important}
+.collectible-effect-line strong{color:#2e241d;font-weight:900}
+.case-collectible .collectible-effect-line strong,.decoration-collectible .collectible-effect-line strong{white-space:normal}
+.collectible-market-card .meta{color:#493725;font-weight:700;opacity:1}
+.collectible-auction-effect{color:#38291f!important;font-weight:900!important;opacity:1!important}
