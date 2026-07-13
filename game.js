@@ -4,6 +4,22 @@ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
 let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,auctionChoices=[],sellerAuction=null,negotiation=null,job=null,selectedStock=null,toastTimer=null,realtime=null,negotiationSkills={},collectiblePage=1,casePage=1,decorationPage=1,chatBusy=false,auctionRotationTimer=null,marketRotationTimer=null,stockTickerTimer=null,chatRefreshTimer=null,appraisedItemIds=new Set();
 
+
+/* v40.12: 소장품 효과명 안전 보정 */
+function collectibleEffectLabel(code,name){
+  const clean=String(name||'').trim();
+  if(clean)return clean;
+  const labels={
+    market_bonus:'NPC 제안가',
+    pawn_bonus:'전당포 판매가',
+    stock_fee_discount:'주식 수수료 할인',
+    gacha_luck:'뽑기 희귀도',
+    exploration_luck:'탐색 희귀도',
+    auction_discount:'경매 낙찰 할인'
+  };
+  return labels[String(code||'')]||'특수 효과';
+}
+
 document.addEventListener("DOMContentLoaded",()=>{init();initPremiumUI()});
 document.addEventListener("input",e=>{
   if(e.target?.matches?.("#nickname,#email,#password")){
@@ -4065,4 +4081,140 @@ enterGame=async function(){
     await Promise.allSettled([loadCollectibles(),loadInventory(),loadStocks(),loadBusinessStateSilent(),typeof loadBank==='function'?loadBank():Promise.resolve()]);
     updateNetworth();
   }catch(error){console.warn('로그인 후 자산 복구 갱신 실패:',error)}
+};
+
+
+/* =========================================================
+   v40.12 긴급 복구: 소장품/케이스 전체 조회 + 프로젝트 투자
+   ========================================================= */
+async function loadCollectiblesV4012(){
+  if(!currentUser)return [];
+  const owned=[];
+  const pageSize=1000;
+  for(let from=0;;from+=pageSize){
+    const {data,error}=await db.from('user_collectibles')
+      .select('id,collectible_id,is_equipped,is_placed,is_listed,acquired_at')
+      .eq('user_id',currentUser.id)
+      .order('acquired_at',{ascending:false})
+      .range(from,from+pageSize-1);
+    if(error){
+      console.error('보유 소장품 조회 실패',error);
+      toast('보유 소장품을 불러오지 못했습니다: '+error.message);
+      return collectibles;
+    }
+    owned.push(...(data||[]));
+    if(!data||data.length<pageSize)break;
+  }
+
+  const ids=[...new Set(owned.map(r=>r.collectible_id).filter(Boolean).map(String))];
+  const catalog=new Map();
+  for(let i=0;i<ids.length;i+=200){
+    const chunk=ids.slice(i,i+200);
+    const {data,error}=await db.from('collectibles')
+      .select('id,name,type,rarity,effect_code,effect_name,effect_percent,icon')
+      .in('id',chunk);
+    if(error){
+      console.error('소장품 원본 조회 실패',error);
+      toast('소장품 정보를 불러오지 못했습니다: '+error.message);
+      return collectibles;
+    }
+    for(const row of data||[])catalog.set(String(row.id),row);
+  }
+
+  collectibles=owned.map(row=>{
+    const source=catalog.get(String(row.collectible_id));
+    if(!source)return null;
+    const c={...source};
+    if(c.rarity==='영웅')c.rarity='진귀';
+    c.effect_name=collectibleEffectLabel(c.effect_code,c.effect_name);
+    c.effect_percent=Number(c.effect_percent||0);
+    return {...row,collectibles:c};
+  }).filter(Boolean);
+
+  collectiblePage=1;
+  casePage=1;
+  decorationPage=1;
+
+  const savedCaseId=String(profile?.equipped_phone_case_id||'');
+  const equippedRow=collectibles.find(x=>String(x.id)===savedCaseId&&x.collectibles?.type==='phone_case')
+    ||collectibles.find(x=>x.is_equipped&&x.collectibles?.type==='phone_case');
+  const caseGroups=getGroupedCollectibles('phone_case');
+  const equippedGroup=equippedRow
+    ?caseGroups.find(g=>g.rows.some(r=>String(r.id)===String(equippedRow.id)))
+    :caseGroups.find(g=>g.equippedCount>0);
+  const eqEl=document.getElementById('equippedCase');
+  if(eqEl)eqEl.innerHTML=equippedGroup?groupedCollectibleRow(equippedGroup,{mode:'equipped'}):'<p class="muted">장착 케이스 없음</p>';
+
+  try{renderCollectiblePages()}catch(error){console.error('소장품 렌더링 실패',error)}
+  try{renderCasePages()}catch(error){console.error('케이스 렌더링 실패',error)}
+  try{applyPhoneCase(equippedRow)}catch(error){console.error('케이스 적용 실패',error)}
+  try{fillCollectibleSelect()}catch(error){console.error('소장품 판매 목록 실패',error)}
+  try{updateGachaButtons()}catch{}
+  updateNetworth();
+  return collectibles;
+}
+loadCollectibles=loadCollectiblesV4012;
+
+const PROJECTS_V4012=[
+ ['venture','🏢','상가 리모델링 공동투자',10000000,60,'노후 상가를 개선해 임대하거나 매각합니다.','공실·공사비 위험 · 최대 4.5배'],
+ ['futures','📦','대량 재고 선매입 계약',50000000,45,'유행 상품을 도매가로 선매입합니다.','재고 폭락 위험 · 최대 6배'],
+ ['takeover','🚢','해외 독점 유통권 계약',200000000,90,'해외 브랜드의 국내 독점권을 확보합니다.','계약 파기 위험 · 최대 8배'],
+ ['redevelop','🏗️','도심 재개발 지분 투자',300000000,120,'정비사업 지분을 선매입합니다.','사업 지연 위험 · 최대 7배'],
+ ['hotel','🏨','관광호텔 리뉴얼 펀드',500000000,100,'노후 호텔을 리브랜딩합니다.','가동률 위험 · 최대 6.5배'],
+ ['logistics','🚚','물류센터 개발 프로젝트',800000000,110,'대형 임차인을 유치하는 물류센터를 개발합니다.','공실·금리 위험 · 최대 7.5배'],
+ ['film','🎬','대형 콘텐츠 제작 투자',1000000000,75,'영화·드라마 제작비를 공동 투자합니다.','흥행 실패 위험 · 최대 10배'],
+ ['datacenter','🖥️','데이터센터 건설 컨소시엄',2000000000,150,'장기 임차 기반 데이터센터를 개발합니다.','인허가·전력비 위험 · 최대 9배']
+];
+
+function projectCardV4012(p){
+  const [code,icon,name,min,duration,desc,odds]=p;
+  const afford=Number(profile?.cash||0)>=min;
+  return `<article class="risk-product ${code}"><span>${icon}</span><div><b>${name}</b><small>${desc}</small><em>최소 ${money(min)} · ${duration}초 후 결과</em><p>${odds}</p></div><div class="risk-input"><input id="riskAmount-${code}" type="number" min="${min}" step="1000000" value="${min}"><button ${afford?'':'disabled'} onclick="startRiskV35('${code}')">${afford?'투자 실행':'현금 부족'}</button></div></article>`;
+}
+
+loadRiskDesk=async function(){
+  const host=document.getElementById('riskView');
+  if(!host)return;
+  host.innerHTML='<div class="bank-loading">프로젝트 투자 현황을 불러오는 중...</div>';
+  const {data,error}=await db.rpc('get_risk_investment_v35');
+  if(error){
+    console.error('프로젝트 투자 조회 실패',error);
+    host.innerHTML=`<div class="error-panel"><b>프로젝트 투자를 불러오지 못했습니다.</b><p>${esc(error.message)}</p><button onclick="loadRiskDesk()">다시 불러오기</button></div>`;
+    return;
+  }
+  const active=data?.active||null;
+  host.innerHTML=`<div class="risk-warning project-warning"><b>📑 프로젝트 투자</b><p>실제 사업형 프로젝트에 투자합니다. 결과는 시작 순간 서버에 확정되며 큰 손실이 발생할 수 있습니다.</p><strong>사용 가능 현금 ${money(profile?.cash||0)}</strong></div>`+(active
+    ?`<article class="risk-active"><div><span>${active.product_icon||'📑'}</span><b>${esc(active.product_name||'프로젝트 투자')}</b><small>투자금 ${money(active.invested_amount||0)}</small></div><div><em>${active.ready?'정산 가능':`${Number(active.remaining_seconds||0)}초 남음`}</em><button ${active.ready?'':'disabled'} onclick="claimRiskV35()">${active.ready?'정산 결과 확인':'프로젝트 진행 중'}</button></div></article>`
+    :`<div class="risk-products">${PROJECTS_V4012.map(projectCardV4012).join('')}</div>`);
+  if(riskTimerV35)clearTimeout(riskTimerV35);
+  if(active&&!active.ready)riskTimerV35=setTimeout(loadRiskDesk,1000);
+};
+
+startRiskV35=async function(code){
+  const product=PROJECTS_V4012.find(x=>x[0]===code);
+  if(!product)return toast('존재하지 않는 프로젝트입니다.');
+  const input=document.getElementById(`riskAmount-${code}`);
+  const amount=Math.floor(Number(input?.value||0));
+  if(amount<product[3])return toast(`최소 투자금은 ${money(product[3])}입니다.`);
+  if(amount>Number(profile?.cash||0))return toast('투자할 현금이 부족합니다.');
+  if(!confirm(`${product[2]}에 ${money(amount)}을 투자할까요? 원금 손실 가능성이 있습니다.`))return;
+  const buttons=document.querySelectorAll('#riskView button');
+  buttons.forEach(b=>b.disabled=true);
+  const {data,error}=await db.rpc('start_risk_investment_v35',{p_product:code,p_amount:amount});
+  if(error){buttons.forEach(b=>b.disabled=false);return toast(error.message)}
+  toast(`프로젝트 투자 시작 · ${Number(data?.resolves_in||product[4])}초 후 정산`);
+  await loadProfile();
+  updateNetworth();
+  await loadRiskDesk();
+};
+
+claimRiskV35=async function(){
+  const {data,error}=await db.rpc('claim_risk_investment_v35');
+  if(error)return toast(error.message);
+  const invested=Number(data?.invested_amount||0),payout=Number(data?.payout||0),profit=payout-invested;
+  toast(`${data?.result_label||'프로젝트 정산'} · ${profit>=0?'+':''}${money(profit)}`);
+  profit>=0?playSuccessSound():playClickSound();
+  await loadProfile();
+  updateNetworth();
+  await loadRiskDesk();
 };
