@@ -1709,3 +1709,12 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 .bank-tax-actions-v403{display:grid;grid-template-columns:1fr 1fr;gap:8px}.bank-tax-actions-v403 button{min-height:42px;border:2px solid #5b3b26;border-radius:8px;font-weight:900}.bank-tax-actions-v403 .primary{background:#9b463c;color:#fff}.bank-tax-actions-v403 .sub{background:#356f91;color:#fff}.bank-tax-actions-v403 button:disabled{opacity:.45;cursor:not-allowed}
 .bank-tax-warning-v403{display:block;margin-top:9px;color:#b3261e;font-weight:800}
 @media(max-width:700px){.bank-tax-status-v403{grid-template-columns:1fr 1fr}.bank-tax-actions-v403{grid-template-columns:1fr}}
+
+
+/* v40.4 회원가입 입력 조건 안내 */
+.field-label-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px}
+.field-label-row>small{font-size:11px;font-weight:800;color:#8a5f42;background:#fff7e7;border:1px solid #c9a77c;border-radius:999px;padding:2px 8px}
+.field-help{display:block;margin-top:5px;color:#8a715d;font-size:11px;line-height:1.45;font-weight:600}
+.auth-card .field input::placeholder{color:#9b8b7b;opacity:.85}
+.auth-card .field input.input-error{border-color:#c4473c!important;box-shadow:0 0 0 2px #c4473c28;background:#fff2ef}
+.auth-card .error{min-height:20px;line-height:1.45}
