@@ -1796,3 +1796,10 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 
 /* v40.20 유저간 소장품 장터 */
 .collectible-market-card{min-height:220px}.collectible-market-seller{font-weight:900;color:#6b4a2e;margin-bottom:4px}.market-load-error{border:2px solid #a56d4d;background:#fff4df;color:#4b3022}
+
+
+/* v40.21 경매 낙찰품 전당포 가치 안내 */
+.auction-pawn-value{display:flex;flex-direction:column;gap:4px;margin:8px 0;padding:9px 10px;border:1px solid #b78a4d;border-radius:8px;background:linear-gradient(135deg,#fff3ce,#ead4a1);color:#4c321d}
+.auction-pawn-value b{font-size:13px}.auction-pawn-value span{font-size:12px;color:#765333}
+.auction-value-protected{display:block;margin-top:4px;color:#2f7654;font-weight:900}
+.deal-summary.deluxe>div small{display:block;margin-top:3px;font-size:11px;opacity:.82}
