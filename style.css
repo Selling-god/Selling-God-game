@@ -1750,3 +1750,17 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 .house-loading,.house-load-error{min-height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#6d513a;font-weight:800;text-align:center;background:linear-gradient(180deg,#d8e2e8 0 31%,#dfcda8 31% 68%,#79523e 68%)}
 .house-load-error span{font-weight:500;max-width:560px}
 #networth.negative-cash{color:#e3483d!important;text-shadow:0 0 8px #ff3c302c}
+
+
+/* v40.15 세금 알림 가독성 강화 */
+.chat-phone-notice.tax-phone-notice-v402{
+  border:2px solid #8f3b16!important;
+  background:linear-gradient(135deg,#fff7e8 0%,#ffdca8 100%)!important;
+  box-shadow:0 14px 34px #5c230c55,0 0 0 1px #fff8 inset!important;
+}
+.chat-phone-notice.tax-phone-notice-v402 .chat-phone-notice-head strong{color:#4b1e0e!important;font-weight:1000!important}
+.chat-phone-notice.tax-phone-notice-v402 .chat-phone-notice-head .title-badge{color:#fff!important;background:#a34820!important;border-color:#6e260d!important}
+.chat-phone-notice.tax-phone-notice-v402 .chat-phone-notice-text{color:#542310!important;font-weight:900!important;text-shadow:none!important}
+.chat-phone-notice.tax-phone-notice-v402 .chat-phone-notice-time{color:#743715!important;font-weight:900!important}
+.chat-phone-notice.tax-phone-notice-v402.urgent{border-color:#a71919!important;background:linear-gradient(135deg,#fff4ef,#ffc2b7)!important;box-shadow:0 14px 36px #8c11115e,0 0 0 1px #fff inset!important}
+.chat-phone-notice.tax-phone-notice-v402.urgent .chat-phone-notice-head strong,.chat-phone-notice.tax-phone-notice-v402.urgent .chat-phone-notice-text{color:#651313!important}
