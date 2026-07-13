@@ -533,14 +533,28 @@ async function acceptNpcBuyDeal(){const n=negotiation;if(!n||n.type!=='npc_buy')
 /* 소장품/집 */
 function switchCollectionTab(name,btn){document.querySelectorAll('.collection-tabs button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.collection-tab-panel').forEach(x=>x.classList.add('hidden'));btn?.classList.add('active');document.getElementById('collection-'+name)?.classList.remove('hidden');}
 function updateGachaButtons(){const poor=!profile||Number(profile.cash)<300000;['decorGachaBtn','caseGachaBtn'].forEach(id=>{const b=document.getElementById(id);if(!b)return;b.disabled=poor;b.title=poor?'현금 30만원이 필요합니다.':'';});}
-async function drawCollectible(type){if(!profile||Number(profile.cash)<300000){updateGachaButtons();return toast('뽑기에는 현금 30만원이 필요합니다.')}const btn=document.getElementById(type==='phone_case'?'caseGachaBtn':'decorGachaBtn');if(btn?.disabled)return;btn.disabled=true;const modal=document.getElementById('gachaModal');modal.classList.remove('hidden');modal.className='overlay gacha-spinning rarity-0';gachaRarity.textContent='두근두근...';gachaResultIcon.textContent=type==='phone_case'?'📱':'🏺';gachaResultName.textContent='캡슐 개봉 중';gachaResultName.className='';gachaResultEffect.textContent='빛이 강해집니다';playGachaBuild();await wait(1700);const{data,error}=await db.rpc('draw_collectible_v19',{p_type:type});if(error){closeGachaReveal();btn.disabled=false;updateGachaButtons();return toast(error.message)}const rank=rarityScore(data.rarity);modal.className=`overlay gacha-reveal rarity-${rank}`;gachaRarity.textContent=data.rarity;gachaResultIcon.textContent=data.icon||'✨';gachaResultName.textContent=data.name;gachaResultName.className=`rarity-text ${rarityClass(data.rarity)}`;gachaResultEffect.textContent=`${data.effect_name} +${data.effect_percent}%`;rank>=4?playJackpotSound():playSuccessSound();await Promise.all([loadProfile(),loadCollectibles()]);updateNetworth();updateGachaButtons()}
+async function drawCollectible(type){if(!profile||Number(profile.cash)<300000){updateGachaButtons();return toast('뽑기에는 현금 30만원이 필요합니다.')}const btn=document.getElementById(type==='phone_case'?'caseGachaBtn':'decorGachaBtn');if(btn?.disabled)return;btn.disabled=true;const modal=document.getElementById('gachaModal');modal.classList.remove('hidden');modal.className='overlay gacha-spinning rarity-0';gachaRarity.textContent='두근두근...';gachaResultIcon.textContent=type==='phone_case'?'📱':'🏺';gachaResultName.textContent='캡슐 개봉 중';gachaResultName.className='';gachaResultEffect.textContent='빛이 강해집니다';playGachaBuild();await wait(1700);const{data,error}=await db.rpc('draw_collectible_v19',{p_type:type});if(error){closeGachaReveal();btn.disabled=false;updateGachaButtons();return toast(error.message)}const rank=rarityScore(data.rarity);modal.className=`overlay gacha-reveal rarity-${rank}`;gachaRarity.textContent=data.rarity;gachaResultIcon.textContent=data.icon||'✨';gachaResultName.textContent=data.name;gachaResultName.className=`rarity-text ${rarityClass(data.rarity)}`;gachaResultEffect.textContent=`${collectibleEffectLabel(data.effect_code,data.effect_name)} +${Number(data.effect_percent||0)}%`;rank>=4?playJackpotSound():playSuccessSound();await Promise.all([loadProfile(),loadCollectibles()]);updateNetworth();updateGachaButtons()}
 function closeGachaReveal(){gachaModal.className='overlay hidden'}
 function wait(ms){return new Promise(r=>setTimeout(r,ms))}
 async function loadCollectibles(){
-  const{data,error}=await db.from('user_collectibles').select(`id,is_equipped,is_placed,is_listed,collectibles(id,name,type,rarity,effect_code,effect_name,effect_percent,icon)`).eq('user_id',currentUser.id).order('acquired_at',{ascending:false});
-  if(error)return toast(error.message);
-  collectibles=(data||[]).map(r=>{
+  const rows=[];
+  const pageSize=1000;
+  for(let from=0;;from+=pageSize){
+    const{data,error}=await db.from('user_collectibles')
+      .select(`id,is_equipped,is_placed,is_listed,acquired_at,collectibles(id,name,type,rarity,effect_code,effect_name,effect_percent,icon)`)
+      .eq('user_id',currentUser.id)
+      .order('acquired_at',{ascending:false})
+      .range(from,from+pageSize-1);
+    if(error)return toast(error.message);
+    rows.push(...(data||[]));
+    if(!data||data.length<pageSize)break;
+  }
+  collectibles=rows.map(r=>{
     if(r.collectibles?.rarity==='영웅')r.collectibles.rarity='진귀';
+    if(r.collectibles){
+      r.collectibles.effect_name=collectibleEffectLabel(r.collectibles.effect_code,r.collectibles.effect_name);
+      r.collectibles.effect_percent=Number(r.collectibles.effect_percent||0);
+    }
     return r;
   });
 
@@ -624,7 +638,7 @@ function groupedCollectibleRow(group,options={}){
         <b class="rarity-text ${rc}">${esc(c.name)}</b>
         ${countBadge}
       </div>
-      <small><span class="rarity-text ${rc}">${esc(c.rarity)}</span> · ${esc(c.effect_name)} +${c.effect_percent}% ${state}</small>
+      <small><span class="rarity-text ${rc}">${esc(c.rarity)}</span> · ${esc(collectibleEffectText(c))} ${state}</small>
     </div>
     ${button}
   </div>`;
@@ -730,7 +744,7 @@ function fillCollectibleSelect(){
   sellCollectible.innerHTML='<option value="">판매할 소장품</option>';
   collectibles.filter(x=>!x.is_equipped&&!x.is_placed&&!x.is_listed).forEach(x=>{
     const c=x.collectibles;
-    const option=new Option(`[${c.rarity}] ${c.name} · ${c.effect_name} +${c.effect_percent}%`,x.id);
+    const option=new Option(`[${c.rarity}] ${c.name} · ${collectibleEffectText(c)}`,x.id);
     option.dataset.rarity=c.rarity;
     sellCollectible.add(option);
   });
@@ -742,7 +756,7 @@ function renderCollectibleSellPreview(){
   if(!row){host.className='collectible-sell-preview empty';host.innerHTML='<span>소장품을 선택하면 등급과 효과를 미리 볼 수 있습니다.</span>';return}
   const c=row.collectibles,rc=rarityClass(c.rarity);
   host.className=`collectible-sell-preview ${rc}`;
-  host.innerHTML=`<div class="sell-preview-icon">${c.icon}</div><div><b class="rarity-text ${rc}">${esc(c.name)}</b><small><span class="rarity-text ${rc}">${esc(c.rarity)}</span> · ${esc(c.effect_name)} +${c.effect_percent}%</small></div>`;
+  host.innerHTML=`<div class="sell-preview-icon">${c.icon}</div><div><b class="rarity-text ${rc}">${esc(c.name)}</b><small><span class="rarity-text ${rc}">${esc(c.rarity)}</span> · ${esc(collectibleEffectText(c))}</small></div>`;
 }
 async function createCollectibleListing(){const id=sellCollectible.value,p=Math.floor(Number(collectiblePrice.value));if(!id||p<=0)return toast('소장품과 가격을 확인하세요.');const{error}=await db.rpc('create_collectible_listing',{p_user_collectible_id:id,p_price:p});if(error)return toast(error.message);collectiblePrice.value='';await loadCollectibleMarket()}
 async function loadCollectibleMarket(){
@@ -753,7 +767,7 @@ async function loadCollectibleMarket(){
     return `<article class="market-card collectible-market-card ${rc}">
       <div class="market-rarity-glow"></div>
       <div class="item-image collectible-market-icon">${c.icon}</div>
-      <div class="market-body"><div class="collectible-market-seller">${mine?'내 매물':esc(r.profiles?.nickname||'유저의 매물')}</div><h3 class="rarity-text ${rc}">${esc(c.name)}</h3><div class="meta"><span class="rarity-chip ${rc}">${esc(c.rarity)}</span> · ${esc(c.effect_name)} +${c.effect_percent}%</div><div class="price">${money(r.asking_price)}</div><button class="btn ${mine?'light':'primary'} full" onclick="${mine?`cancelCollectible('${r.id}')`:`buyCollectible('${r.id}')`}">${mine?'판매 취소':'구매'}</button></div>
+      <div class="market-body"><div class="collectible-market-seller">${mine?'내 매물':esc(r.profiles?.nickname||'유저의 매물')}</div><h3 class="rarity-text ${rc}">${esc(c.name)}</h3><div class="meta"><span class="rarity-chip ${rc}">${esc(c.rarity)}</span> · ${esc(collectibleEffectText(c))}</div><div class="price">${money(r.asking_price)}</div><button class="btn ${mine?'light':'primary'} full" onclick="${mine?`cancelCollectible('${r.id}')`:`buyCollectible('${r.id}')`}">${mine?'판매 취소':'구매'}</button></div>
     </article>`
   }).join('')||'<div class="panel" style="padding:20px">소장품 매물 없음</div>'
 }
@@ -2933,7 +2947,7 @@ async function drawCollectible(type,count=1){
   gachaRarity.textContent=count===1?(highest?.rarity||'결과'):`${count}연속 결과 · 최고 ${highest?.rarity||'일반'}`;
   gachaResultIcon.textContent=highest?.icon||'✨';gachaResultName.textContent=count===1?(highest?.name||'결과 공개'):`${count}개 획득 완료`;
   gachaResultName.className=`rarity-text ${rarityClass(highest?.rarity||'일반')}`;
-  gachaResultEffect.textContent=count===1?`${highest?.effect_name||''} +${highest?.effect_percent||0}%`:`총 비용 ${money(data?.cost||cost)}`;
+  gachaResultEffect.textContent=count===1?`${collectibleEffectLabel(highest?.effect_code,highest?.effect_name)} +${Number(highest?.effect_percent||0)}%`:`총 비용 ${money(data?.cost||cost)}`;
   if(count>1&&summary){
     const counts={};rows.forEach(r=>counts[r.rarity]=(counts[r.rarity]||0)+1);
     summary.innerHTML=`<div class="bulk-rarity-counts">${Object.entries(counts).sort((a,b)=>rarityScore(b[0])-rarityScore(a[0])).map(([r,n])=>`<span class="rarity-text ${rarityClass(r)}">${r} ${n}개</span>`).join('')}</div><div class="bulk-top-results">${rows.slice().sort((a,b)=>rarityScore(b.rarity)-rarityScore(a.rarity)).slice(0,12).map(r=>`<em class="${rarityClass(r.rarity)}">${r.icon||'✨'} ${esc(r.name)}</em>`).join('')}</div>`;
@@ -3181,7 +3195,7 @@ loadCollectibles=async function(){
     if(error){toast(error.message);return}
     rows.push(...(data||[]));if(!data||data.length<pageSize)break;from+=pageSize;
   }
-  collectibles=rows.map(r=>{if(r.collectibles?.rarity==='영웅')r.collectibles.rarity='진귀';return r});
+  collectibles=rows.map(r=>{if(r.collectibles?.rarity==='영웅')r.collectibles.rarity='진귀';if(r.collectibles){r.collectibles.effect_name=collectibleEffectLabel(r.collectibles.effect_code,r.collectibles.effect_name);r.collectibles.effect_percent=Number(r.collectibles.effect_percent||0)}return r});
   const savedCaseId=String(profile?.equipped_phone_case_id||'');
   const equippedRow=collectibles.find(x=>String(x.id)===savedCaseId&&x.collectibles?.type==='phone_case')||collectibles.find(x=>x.is_equipped&&x.collectibles?.type==='phone_case');
   const equippedGroup=equippedRow?getGroupedCollectibles('phone_case').find(g=>g.rows.some(r=>r.id===equippedRow.id)):getGroupedCollectibles('phone_case').find(g=>g.equippedCount>0);
@@ -3399,3 +3413,139 @@ const renderBankV403Base=renderBank;
 renderBank=function(){renderBankV403Base();renderBankTaxPanelV403()};
 const loadBankV403Base=loadBank;
 loadBank=async function(){await refreshTaxNoticeV402(false);return loadBankV403Base()};
+
+
+/* ============================================================
+   v40.6 AUCTION VALUE CURVE + COLLECTIBLE AUCTION HOUSE
+   ============================================================ */
+let collectibleAuctionModeV406=false;
+
+AUCTION_TIER_META_V35.collectible={name:'소장품 경매',icon:'🏛️',pass:0,listingFee:0,minRarity:5,npcPower:5.2};
+AUCTION_BIDDER_POOLS_V386.collectible=['국립박물관 구매위원','왕실 컬렉션 대리인','세계문화재단 이사','익명 억만장자 수집가','글로벌 갤러리 회장','헤리티지 메종 오너','국제 유물 보존재단','초대형 패밀리오피스'];
+
+const selectAuctionTierV406=selectAuctionTier;
+selectAuctionTier=async function(tier,btn){
+  if(tier==='collectible'){
+    if(!auctionAccessV35.vvip){
+      toast('소장품 경매는 VVIP 입장권을 보유해야 참여할 수 있습니다.');
+      return;
+    }
+    auctionTierV35='collectible';
+    collectibleAuctionModeV406=true;
+    document.querySelectorAll('#auctionTierTabs button').forEach(x=>x.classList.toggle('active',x===btn));
+    document.getElementById('auctionSellPanel')?.classList.add('hidden');
+    document.getElementById('auctionBuyPanel')?.classList.remove('hidden');
+    document.querySelectorAll('.auction-tabs button').forEach((x,i)=>x.classList.toggle('active',i===0));
+    await loadAuctionLobby();
+    return;
+  }
+  collectibleAuctionModeV406=false;
+  return selectAuctionTierV406(tier,btn);
+};
+
+const switchAuctionModeV406=switchAuctionMode;
+switchAuctionMode=function(mode,btn){
+  if(auctionTierV35==='collectible'&&mode==='sell'){
+    toast('소장품 경매의 개인 출품 기능은 별도 심사를 거쳐 추후 제공됩니다.');
+    return;
+  }
+  return switchAuctionModeV406(mode,btn);
+};
+
+const loadAuctionLobbyV406=loadAuctionLobby;
+loadAuctionLobby=async function(){
+  if(auctionTierV35!=='collectible')return loadAuctionLobbyV406();
+  clearInterval(auction?.interval);auction=null;
+  const hall=document.getElementById('auctionHall');if(hall)hall.innerHTML='';
+  await loadAuctionAccessV35();
+  if(!auctionAccessV35.vvip){auctionTierV35='normal';collectibleAuctionModeV406=false;return loadAuctionLobbyV406();}
+  document.querySelectorAll('#auctionTierTabs button').forEach(x=>x.classList.toggle('active',x.dataset.tier==='collectible'));
+  const{data,error}=await db.rpc('get_collectible_auction_choices_v406');
+  if(error){toast('소장품 경매 목록을 불러오지 못했습니다: '+error.message);return;}
+  auctionChoices=Array.isArray(data?.choices)?data.choices:[];
+  renderAuctionChoices(data?.refresh_at);
+};
+
+const renderAuctionChoicesV406=renderAuctionChoices;
+renderAuctionChoices=function(refreshAt){
+  if(auctionTierV35!=='collectible')return renderAuctionChoicesV406(refreshAt);
+  const el=document.getElementById('auctionChoices');if(!el)return;
+  const cards=(auctionChoices||[]).map((a,i)=>{
+    if(a.ended)return `<div class="auction-choice auction-slot-ended"><div class="auction-ended-seal">경매 종료</div><h3>${esc(a.collectible_name||'종료된 소장품')}</h3><p>다음 교체 전까지 빈 자리로 유지됩니다.</p></div>`;
+    const rc=rarityClass(a.rarity);
+    return `<article class="auction-choice collectible-auction-card ${rc}">
+      <button class="auction-enter-zone" onclick="enterAuctionChoice(${i})">
+        <div class="collectible-auction-icon">${a.icon||'🏺'}</div>
+        <h3 class="rarity-text ${rc}">${esc(a.collectible_name)}</h3>
+        <div class="auction-rarity-caption rarity-text ${rc}">${esc(a.rarity)} · ${esc(a.type==='phone_case'?'케이스':'장식 소장품')}</div>
+        <div class="collectible-auction-effect">${esc(a.effect_name||'특수 효과')} +${Number(a.effect_percent||0)}%</div>
+        <b>시작가 ${money(a.start_price)}</b><small>초고액 경매 입장 →</small>
+      </button>
+    </article>`;
+  }).join('');
+  el.innerHTML=`<div id="auctionRotationBanner" class="rotation-banner auction-rotation tier-collectible"><div><b>🏛️ 소장품 특별 경매</b><small>유물은 최소 20억, 고대 유물은 최소 100억에서 시작하며 기관·재단·억만장자들이 치열하게 경쟁합니다.</small></div><strong>다음 교체 <span>--:--</span></strong></div>`+(cards||'<div class="panel empty-state">현재 특별 경매품이 없습니다.</div>');
+  if(refreshAt)startRotationCountdown('auction',refreshAt,'auctionRotationBanner',()=>{if(!auction)loadAuctionLobby()});
+};
+
+const enterAuctionChoiceV406=enterAuctionChoice;
+enterAuctionChoice=async function(i){
+  if(auctionTierV35!=='collectible')return enterAuctionChoiceV406(i);
+  const c=auctionChoices[i];if(!c||c.ended)return toast('이미 종료된 경매입니다.');
+  const{data,error}=await db.rpc('create_collectible_auction_v406',{p_cycle_key:c.cycle_key,p_slot_no:c.slot_no});
+  if(error)return toast(error.message);
+  auction={id:data.auction_id,isCollectible:true,cycleKey:c.cycle_key,slotNo:c.slot_no,tier:'collectible',name:c.collectible_name,icon:c.icon,category:'collectible',rarity:c.rarity,price:Number(data.current_price),highest:false,stopped:false,bids:0,countdown:0,log:[`소장품 특별 경매 시작 ${money(data.current_price)}`]};
+  document.getElementById('auctionChoices')?.classList.add('hidden');renderAuction({forceBottom:true});startAuctionLoop();
+};
+
+const renderAuctionV406=renderAuction;
+renderAuction=function(options={}){
+  if(!auction?.isCollectible)return renderAuctionV406(options);
+  const oldLog=document.getElementById('auctionBidLog'),oldTop=oldLog?oldLog.scrollTop:0,wasNearBottom=oldLog?oldLog.scrollHeight-oldLog.scrollTop-oldLog.clientHeight<32:true;
+  auctionHall.innerHTML=`<div class="auction-card v13 collectible-live-auction"><div class="collectible-live-icon ${rarityClass(auction.rarity)}">${auction.icon||'🏺'}</div><div><span class="badge ${rarityClass(auction.rarity)}">${esc(auction.rarity)}</span><h2 class="rarity-text ${rarityClass(auction.rarity)}">${esc(auction.name)}</h2><div class="bid-price"><span>현재 최고가</span><b>${money(auction.price)}</b><em id="auctionCountdownLabel" class="${auction.countdown?'':'hidden'}">${auction.countdown?`낙찰까지 ${auction.countdown}`:''}</em></div><div id="auctionBidLog" class="bid-log">${auction.log.map(x=>`<p>${esc(x)}</p>`).join('')}</div><div class="auction-actions"><button class="btn light" onclick="playerBid(5)">+5%</button><button class="btn light" onclick="playerBid(12)">+12%</button><button class="btn primary" onclick="leaveAuction()">경매 나가기</button></div></div></div>`;
+  requestAnimationFrame(()=>{const log=document.getElementById('auctionBidLog');if(!log)return;if(options.forceBottom||wasNearBottom)log.scrollTop=log.scrollHeight;else log.scrollTop=oldTop;});
+};
+
+const startAuctionLoopV406=startAuctionLoop;
+startAuctionLoop=function(){
+  if(!auction?.isCollectible)return startAuctionLoopV406();
+  clearInterval(auction.interval);
+  auction.interval=setInterval(async()=>{
+    if(!auction)return;
+    const{data,error}=await db.rpc('npc_collectible_auction_step_v406',{p_auction_id:auction.id});
+    if(error){clearInterval(auction.interval);return toast(error.message);}
+    auction.price=Number(data.current_price);
+    if(data.action==='hold'){auction.stopped=true;clearInterval(auction.interval);startAuctionCountdown();}
+    else{auction.bids++;const bidder=chooseAuctionBidderV386('collectible',data.bidder_name,auction.lastNpcBidder);auction.lastNpcBidder=bidder;auction.log.push(`${bidder} ${data.action==='jump'?'대형 ':''}입찰 +${money(data.increment)}`);renderAuction({forceBottom:true});}
+  },1100);
+};
+
+const playerBidV406=playerBid;
+playerBid=async function(pct){
+  if(!auction?.isCollectible)return playerBidV406(pct);
+  const bid=Math.round(auction.price*(1+pct/100));
+  const{data,error}=await db.rpc('place_collectible_auction_bid_v406',{p_auction_id:auction.id,p_bid_amount:bid});
+  if(error)return toast(error.message);
+  auction.price=Number(data.current_price);auction.highest=true;auction.bids++;auction.log.push('내 입찰 '+money(bid));renderAuction({forceBottom:true});
+};
+
+const startAuctionCountdownV406=startAuctionCountdown;
+startAuctionCountdown=function(){
+  if(!auction?.isCollectible)return startAuctionCountdownV406();
+  auction.countdown=3;auction.log.push('추가 입찰이 없습니다. 3초 후 특별 경매가 종료됩니다.');renderAuction({forceBottom:true});
+  const target=auction;
+  const timer=setInterval(async()=>{
+    if(!auction||auction!==target){clearInterval(timer);return;}
+    auction.countdown--;updateAuctionCountdownLabel();if(auction.countdown>0)return;clearInterval(timer);
+    const finished={...auction};
+    if(auction.highest){
+      const{data,error}=await db.rpc('claim_collectible_auction_v406',{p_auction_id:auction.id});
+      if(error){auction.countdown=0;updateAuctionCountdownLabel();return toast(error.message);}
+      if(data?.won){toast(`소장품 낙찰 성공 ${money(data.final_price)} · ${data.collectible_name}`);playJackpotSound();await Promise.all([loadProfile(),loadCollectibles()]);}
+    }else{
+      const{data,error}=await db.rpc('close_collectible_auction_v406',{p_auction_id:auction.id});
+      if(error)console.warn(error.message);toast(data?.npc_won?`기관 낙찰 ${money(data.final_price)}`:'입찰자가 없어 유찰되었습니다.');
+    }
+    auctionChoices=auctionChoices.map(x=>x.cycle_key===finished.cycleKey&&x.slot_no===finished.slotNo?{...x,ended:true}:x);
+    leaveAuction();renderAuctionChoices();
+  },1000);
+};
