@@ -20,6 +20,15 @@ function collectibleEffectLabel(code,name){
   return labels[String(code||'')]||'특수 효과';
 }
 
+function collectibleEffectText(c){
+  if(!c)return '특수 효과 +0%';
+  const label=collectibleEffectLabel(c.effect_code,c.effect_name);
+  const percent=Number(c.effect_percent||0);
+  return `${label} +${Number.isFinite(percent)?percent:0}%`;
+}
+window.collectibleEffectLabel=collectibleEffectLabel;
+window.collectibleEffectText=collectibleEffectText;
+
 document.addEventListener("DOMContentLoaded",()=>{init();initPremiumUI()});
 document.addEventListener("input",e=>{
   if(e.target?.matches?.("#nickname,#email,#password")){
@@ -4235,25 +4244,45 @@ window.collectibleEffectLabel = window.collectibleEffectLabel || function(code,n
   return String(name||'').trim()||label[String(code||'')]||'특수 효과';
 };
 
-async function loadCollectiblesV4013(){
-  if(!currentUser)return [];
-  const {data,error}=await db.rpc('get_my_collectibles_v4013');
-  if(error){
-    console.error('v40.13 소장품 RPC 실패:',error);
-    toast('소장품을 불러오지 못했습니다: '+error.message);
-    return Array.isArray(collectibles)?collectibles:[];
+async function fetchMyCollectiblesDirectV4014(){
+  const userRows=[];
+  const pageSize=1000;
+  for(let from=0;;from+=pageSize){
+    const {data,error}=await db.from('user_collectibles')
+      .select('id,collectible_id,is_equipped,is_placed,is_listed,acquired_at')
+      .eq('user_id',currentUser.id)
+      .order('acquired_at',{ascending:false})
+      .range(from,from+pageSize-1);
+    if(error)throw error;
+    userRows.push(...(data||[]));
+    if(!data||data.length<pageSize)break;
   }
-  const rows=Array.isArray(data)?data:[];
-  collectibles=rows.map(row=>{
-    const c=row?.collectibles||{};
-    if(!c.id)return null;
+  if(!userRows.length)return [];
+
+  const ids=[...new Set(userRows.map(r=>r.collectible_id).filter(Boolean))];
+  const catalog=[];
+  for(let i=0;i<ids.length;i+=300){
+    const {data,error}=await db.from('collectibles')
+      .select('id,name,type,rarity,effect_code,effect_name,effect_percent,icon')
+      .in('id',ids.slice(i,i+300));
+    if(error)throw error;
+    catalog.push(...(data||[]));
+  }
+  const byId=new Map(catalog.map(c=>[String(c.id),c]));
+  return userRows.map(row=>({...row,collectibles:byId.get(String(row.collectible_id))||null}));
+}
+
+function normalizeCollectibleRowsV4014(rows){
+  return (Array.isArray(rows)?rows:[]).map(row=>{
+    const c=row?.collectibles||row?.collectible||null;
+    if(!c?.id)return null;
     const normalized={...c};
     if(normalized.rarity==='영웅')normalized.rarity='진귀';
-    normalized.effect_name=window.collectibleEffectLabel(normalized.effect_code,normalized.effect_name);
+    normalized.effect_name=collectibleEffectLabel(normalized.effect_code,normalized.effect_name);
     normalized.effect_percent=Number(normalized.effect_percent||0);
     return {
       id:row.id,
-      collectible_id:row.collectible_id,
+      collectible_id:row.collectible_id||normalized.id,
       is_equipped:Boolean(row.is_equipped),
       is_placed:Boolean(row.is_placed),
       is_listed:Boolean(row.is_listed),
@@ -4261,6 +4290,43 @@ async function loadCollectiblesV4013(){
       collectibles:normalized
     };
   }).filter(Boolean);
+}
+
+async function loadCollectiblesV4013(){
+  if(!currentUser)return [];
+  let rows=[];
+  let rpcError=null;
+
+  const rpcResult=await db.rpc('get_my_collectibles_v4013');
+  if(!rpcResult.error&&Array.isArray(rpcResult.data)){
+    rows=rpcResult.data;
+  }else{
+    rpcError=rpcResult.error;
+  }
+
+  // RPC가 없거나 빈 결과를 잘못 반환하면 실제 테이블을 직접 조회한다.
+  if(rpcError||rows.length===0){
+    try{
+      const directRows=await fetchMyCollectiblesDirectV4014();
+      if(directRows.length||rpcError)rows=directRows;
+    }catch(directError){
+      console.error('v40.14 소장품 직접 조회 실패:',directError);
+      if(rpcError)console.error('v40.13 소장품 RPC 실패:',rpcError);
+      if(!Array.isArray(collectibles)||!collectibles.length){
+        toast('소장품을 불러오지 못했습니다: '+(directError?.message||rpcError?.message||'알 수 없는 오류'));
+      }
+      return Array.isArray(collectibles)?collectibles:[];
+    }
+  }
+
+  const normalized=normalizeCollectibleRowsV4014(rows);
+  // 실제 보유 데이터가 비어 있지 않은데 정규화가 전부 실패하면 기존 화면 데이터를 지우지 않는다.
+  if(rows.length>0&&normalized.length===0){
+    console.error('소장품 원본 연결 실패:',rows.slice(0,3));
+    toast('소장품 원본 정보를 연결하지 못했습니다. 기존 목록은 유지합니다.');
+    return Array.isArray(collectibles)?collectibles:[];
+  }
+  collectibles=normalized;
 
   collectiblePage=1;
   casePage=1;
@@ -4279,10 +4345,10 @@ async function loadCollectiblesV4013(){
     ?groupedCollectibleRow(equippedGroup,{mode:'equipped'})
     :'<p class="muted">장착 케이스 없음</p>';
 
-  renderCollectiblePages();
-  renderCasePages();
-  applyPhoneCase(equippedRow||null);
-  fillCollectibleSelect();
+  try{renderCollectiblePages();}catch(e){console.error('소장품 페이지 렌더링 실패:',e);}
+  try{renderCasePages();}catch(e){console.error('케이스 페이지 렌더링 실패:',e);}
+  try{applyPhoneCase(equippedRow||null);}catch(e){console.error('케이스 적용 실패:',e);}
+  try{fillCollectibleSelect();}catch(e){console.error('소장품 판매 선택 갱신 실패:',e);}
   updateGachaButtons();
   updateNetworth();
   return collectibles;
@@ -4336,7 +4402,8 @@ loadRiskDesk=async function(){
   const host=document.getElementById('riskView');
   if(!host)return;
   host.innerHTML='<div class="bank-loading">프로젝트 투자 현황을 불러오는 중...</div>';
-  const {data,error}=await db.rpc('get_project_investment_v4013');
+  let {data,error}=await db.rpc('get_project_investment_v4013');
+  if(error){const fallback=await db.rpc('get_risk_investment_v35');data=fallback.data;error=fallback.error;}
   if(error){host.innerHTML=`<div class="error-panel"><b>프로젝트 투자 조회 실패</b><p>${esc(error.message)}</p><button onclick="loadRiskDesk()">다시 불러오기</button></div>`;return;}
   const active=data?.active||null;
   host.innerHTML=`<div class="risk-warning project-warning"><b>📑 프로젝트 투자</b><p>결과는 투자 시작 순간 서버에서 확정됩니다.</p><strong>사용 가능 현금 ${money(profile?.cash||0)}</strong></div>`+(active
@@ -4351,13 +4418,15 @@ async function startRiskV4013(code){
   if(amount<p[3])return toast(`최소 투자금은 ${money(p[3])}입니다.`);
   if(amount>Number(profile?.cash||0))return toast('투자할 현금이 부족합니다.');
   if(!confirm(`${p[2]}에 ${money(amount)}을 투자할까요?`))return;
-  const {data,error}=await db.rpc('start_project_investment_v4013',{p_product:code,p_amount:amount});
+  let {data,error}=await db.rpc('start_project_investment_v4013',{p_product:code,p_amount:amount});
+  if(error){const fallback=await db.rpc('start_risk_investment_v35',{p_product:code,p_amount:amount});data=fallback.data;error=fallback.error;}
   if(error)return toast(error.message);
   toast(`프로젝트 투자 시작 · ${Number(data?.resolves_in||p[4])}초 후 정산`);
   await loadProfile();updateNetworth();await loadRiskDesk();
 }
 async function claimRiskV4013(){
-  const {data,error}=await db.rpc('claim_project_investment_v4013');
+  let {data,error}=await db.rpc('claim_project_investment_v4013');
+  if(error){const fallback=await db.rpc('claim_risk_investment_v35');data=fallback.data;error=fallback.error;}
   if(error)return toast(error.message);
   const profit=Number(data?.payout||0)-Number(data?.invested_amount||0);
   toast(`${data?.result_label||'프로젝트 정산'} · ${profit>=0?'+':''}${money(profit)}`);
