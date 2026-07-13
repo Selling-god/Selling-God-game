@@ -3048,7 +3048,11 @@ function renderManagementBodyV40(tab){
     const cost=[0,50000000,200000000,800000000,3000000000,10000000000][Math.min(lv+1,5)]||0;
     return `<div class="mgmt-tier-v40"><b>현재 단계 ${lv} · ${names[lv]||names[5]}</b><span>다음 확장비 ${cost?mgmtMoneyV40(cost):'최고 단계'}</span></div><div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('franchise')" ${lv>=5?'disabled':''}>${lv>=5?'전국망 완성':'다음 상권 확장'}</button><button onclick="claimManagementPassiveV40('franchise')">영업 수익 정산</button></div><div class="mgmt-info-v40">직원·물류 수준이 높을수록 지점 매출이 증가하며, 최대 12시간까지 오프라인 수익이 누적됩니다.</div>`;
   }
-  if(tab==='staff'){
+  if(tab==='manufacturing'){
+   const lv=mgmtLevelV40('manufacturing'),cost=mgmtNextCostV401('manufacturing',lv);
+   return `<div class="mgmt-tier-v40"><b>제조 설비 ${lv}/5</b>${mgmtCostBadgeV401(cost)}</div><div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('manufacturing')" ${lv>=5?'disabled':''}>${lv>=5?'최고 제조 설비':'제조 설비 확장 · '+money(cost)}</button></div>`+renderOperationSystemV40('manufacturing',[['basic','생활형 자체 상품','2,000만 원','30초'],['luxury','프리미엄 한정판','1억 원','60초'],['signature','시그니처 컬렉션','5억 원','90초']]);
+ }
+ if(tab==='staff'){
     const lv=mgmtLevelV40('staff'), titles=['직원 없음','신입 판매원 팀','숙련 영업팀','전문 경영진','글로벌 임원진','최정예 인재 그룹'];
     return `<div class="mgmt-tier-v40"><b>인재 수준 ${lv} · ${titles[lv]||titles[5]}</b><span>운영 안정성 +${lv*6}%</span></div><div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('staff')" ${lv>=5?'disabled':''}>교육·채용 투자</button></div><div class="mgmt-personnel-v40">${['영업','감정','협상','재고 관리','신뢰도'].map((x,i)=>`<div><span>${x}</span><b>${Math.min(100,20+lv*14+i*2)}</b></div>`).join('')}</div>`;
   }
@@ -3096,3 +3100,209 @@ async function repayManagementLoanV40(id){await managementRpcV40('repay_collater
 async function createManagementFamilyV40(){const n=document.getElementById('mgmtFamilyNameV40')?.value.trim();if(!n)return toast('가문 이름을 입력하세요.');await managementRpcV40('create_family_v40',{p_name:n})}
 async function donateManagementFamilyV40(){await managementRpcV40('donate_family_v40',{p_amount:100000000})}
 const openPhoneAppV40=openPhoneApp;openPhoneApp=function(name){openPhoneAppV40(name);if(name==='management')loadManagementV40()};
+
+
+/* ============================================================
+   v40.1: costs, offline profits/taxes, large-inventory pagination
+   ============================================================ */
+const MGMT_UPGRADE_COSTS_V401={
+ franchise:[50000000,200000000,800000000,3000000000,10000000000],
+ staff:[30000000,150000000,600000000,2500000000,8000000000],
+ manufacturing:[100000000,500000000,2000000000,10000000000,50000000000],
+ accountant:[20000000,100000000,500000000,2000000000,10000000000],
+ logistics:[50000000,250000000,1000000000,5000000000,20000000000],
+ museum:[300000000,1500000000,7000000000,30000000000,100000000000],
+ family:[0,5000000000,20000000000,100000000000,500000000000]
+};
+function mgmtNextCostV401(key,level){return MGMT_UPGRADE_COSTS_V401[key]?.[level]||0}
+function mgmtCostBadgeV401(cost){if(!cost)return '<span class="mgmt-cost-v401 max">최고 단계</span>';const ok=Number(profile?.cash||0)>=cost;return `<span class="mgmt-cost-v401 ${ok?'afford':'short'}">필요 ${money(cost)}${ok?'':' · 부족 '+money(cost-Number(profile?.cash||0))}</span>`}
+
+const renderManagementBodyV40Base=renderManagementBodyV40;
+renderManagementBodyV40=function(tab){
+ const s=managementStateV40?.state||{};
+ if(tab==='staff'){
+   const lv=mgmtLevelV40('staff'), titles=['직원 없음','신입 판매원 팀','숙련 영업팀','전문 경영진','글로벌 임원진','최정예 인재 그룹'],cost=mgmtNextCostV401('staff',lv);
+   return `<div class="mgmt-tier-v40"><b>인재 수준 ${lv} · ${titles[lv]||titles[5]}</b>${mgmtCostBadgeV401(cost)}</div><div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('staff')" ${lv>=5?'disabled':''}>${lv>=5?'최고 인재 조직 완성':`교육·채용 투자 · ${money(cost)}`}</button></div><div class="mgmt-personnel-v40">${['영업','감정','협상','재고 관리','신뢰도'].map((x,i)=>`<div><span>${x}</span><b>${Math.min(100,20+lv*14+i*2)}</b></div>`).join('')}</div>`;
+ }
+ if(tab==='accounting'){
+   const lv=mgmtLevelV40('accountant'),cost=mgmtNextCostV401('accountant',lv);
+   return `<div class="mgmt-tier-v40"><b>회계사 등급 ${lv}/5</b>${mgmtCostBadgeV401(cost)}<span>예상 사업세율 ${Math.max(3,10-lv*1.4).toFixed(1)}%</span></div><div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('accountant')" ${lv>=5?'disabled':''}>${lv>=5?'최고 회계팀':'회계팀 강화 · '+money(cost)}</button><button onclick="payManagementTaxV40()">미납 세금 ${money(s.tax_due||0)} 납부</button></div><div class="mgmt-info-v40">미접속 수익·예금 이자·보유 자산 관리세가 누적됩니다. 성실 납부 시 신용이 소폭 상승합니다.</div>`;
+ }
+ if(tab==='logistics'){
+   const lv=mgmtLevelV40('logistics'),cost=mgmtNextCostV401('logistics',lv);
+   return `<div class="mgmt-tier-v40"><b>물류 시설 ${lv}/5</b>${mgmtCostBadgeV401(cost)}<span>배송 사고 위험 -${lv*8}%</span></div><div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('logistics')" ${lv>=5?'disabled':''}>${lv>=5?'최고 물류망':'물류 시설 확장 · '+money(cost)}</button></div>`+renderOperationSystemV40('logistics',[['standard','일반 배송 계약','2,000만 원','30초'],['express','특급 배송망','1억 원','45초'],['secure','고가품 보안 운송','5억 원','60초']],true);
+ }
+ if(tab==='museum'){
+   const lv=mgmtLevelV40('museum'),cost=mgmtNextCostV401('museum',lv);
+   return `<div class="mgmt-tier-v40"><b>전시관 등급 ${lv}/5</b>${mgmtCostBadgeV401(cost)}<span>보유 소장품 ${managementStateV40.collectible_count||0}개</span></div><div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('museum')" ${lv>=5?'disabled':''}>${lv>=5?'최고 전시관':'전시관 확장 · '+money(cost)}</button><button onclick="claimManagementPassiveV40('museum')">미접속 관람료 정산</button></div>`+renderOperationSystemV40('museum',[['vintage','빈티지 특별전','5,000만 원','45초'],['royal','왕실 보물전','3억 원','75초'],['ancient','고대 유물 대전','20억 원','120초']],true);
+ }
+ if(tab==='franchise'){
+   const lv=mgmtLevelV40('franchise'),names=['미운영','동네 상점','대학가 지점','관광지 매장','도심 플래그십','전국 프랜차이즈'],cost=mgmtNextCostV401('franchise',lv);
+   return `<div class="mgmt-tier-v40"><b>현재 단계 ${lv} · ${names[lv]||names[5]}</b>${mgmtCostBadgeV401(cost)}</div><div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('franchise')" ${lv>=5?'disabled':''}>${lv>=5?'전국망 완성':'다음 상권 확장 · '+money(cost)}</button><button onclick="claimManagementPassiveV40('franchise')">미접속 영업 수익 정산</button></div><div class="mgmt-info-v40">30분 단위로 최대 24시간까지 누적되며, 정산 수익에는 누진 사업세가 붙습니다.</div>`;
+ }
+ if(tab==='family'&&mgmtLevelV40('family')>0){
+   const lv=mgmtLevelV40('family'),cost=mgmtNextCostV401('family',lv),fname=s.family_name||'';
+   return `<div class="mgmt-family-v40"><div class="family-emblem-v40">♛</div><div><b>${esc(fname)}</b><span>가문 단계 ${lv}/5 · 명성 ${Number(s.family_fame||0).toLocaleString()}</span></div></div><div class="mgmt-tier-v40">${mgmtCostBadgeV401(cost)}</div><div class="mgmt-action-grid-v40"><button onclick="upgradeManagementV40('family')" ${lv>=5?'disabled':''}>${lv>=5?'가문 유산 완성':'가문 유산 확장 · '+money(cost)}</button><button onclick="donateManagementFamilyV40()">가문 신탁에 1억 기부</button></div>`;
+ }
+ return renderManagementBodyV40Base(tab);
+};
+
+// Supabase 기본 1,000행 제한 때문에 새 뽑기마다 오래된 소장품이 사라져 보이던 문제 해결
+loadCollectibles=async function(){
+  const pageSize=1000,rows=[];let from=0;
+  while(true){
+    const{data,error}=await db.from('user_collectibles').select(`id,is_equipped,is_placed,is_listed,acquired_at,collectibles(id,name,type,rarity,effect_code,effect_name,effect_percent,icon)`).eq('user_id',currentUser.id).order('acquired_at',{ascending:false}).range(from,from+pageSize-1);
+    if(error){toast(error.message);return}
+    rows.push(...(data||[]));if(!data||data.length<pageSize)break;from+=pageSize;
+  }
+  collectibles=rows.map(r=>{if(r.collectibles?.rarity==='영웅')r.collectibles.rarity='진귀';return r});
+  const savedCaseId=String(profile?.equipped_phone_case_id||'');
+  const equippedRow=collectibles.find(x=>String(x.id)===savedCaseId&&x.collectibles?.type==='phone_case')||collectibles.find(x=>x.is_equipped&&x.collectibles?.type==='phone_case');
+  const equippedGroup=equippedRow?getGroupedCollectibles('phone_case').find(g=>g.rows.some(r=>r.id===equippedRow.id)):getGroupedCollectibles('phone_case').find(g=>g.equippedCount>0);
+  const eqEl=document.getElementById('equippedCase');if(eqEl)eqEl.innerHTML=equippedGroup?groupedCollectibleRow(equippedGroup,{mode:'equipped'}):'<p class="muted">장착 케이스 없음</p>';
+  try{renderCollectiblePages()}catch(e){console.error(e)}try{renderCasePages()}catch(e){console.error(e)}try{applyPhoneCase(equippedRow)}catch(e){console.error(e)}
+  fillCollectibleSelect();updateGachaButtons();
+};
+
+async function loadTradeNetworkV401(){
+ const host=document.getElementById('tradeNetworkView');if(!host)return;host.innerHTML='<div class="bank-loading">무역 현황을 불러오는 중...</div>';
+ const{data,error}=await db.rpc('get_trade_network_status_v401');if(error){host.innerHTML=`<div class="error-panel">${esc(error.message)}</div>`;return}
+ const n=data?.network||{},active=data?.active_shipment,current=Number(n.tier||0),cash=Number(profile?.cash||0),pending=Number(data?.offline_reward||0);
+ const projects=active?`<article class="capital-active"><b>${esc(active.name)}</b><span>${active.ready?'정산 가능':active.remaining_seconds+'초 남음'}</span><button ${active.ready?'':'disabled'} onclick="claimTradeShipmentV391()">계약 정산</button></article>`:`<div class="capital-project-grid">${[['domestic','국내 프리미엄 도매 계약',100000000,1],['asia','아시아 수출 선적',500000000,2],['europe','유럽 럭셔리 유통 계약',2000000000,3],['global','글로벌 독점 공급 계약',10000000000,4]].map(x=>`<button ${current<x[3]?'disabled':''} onclick="startTradeShipmentV391('${x[0]}')"><b>${x[1]}</b><span>필요 ${money(x[2])}</span></button>`).join('')}</div>`;
+ host.innerHTML=`<section class="capital-hero trade"><div><span>누적 무역 이익</span><b>${money(n.total_profit||0)}</b><small>신뢰도 ${Number(n.reputation||0).toLocaleString()}P</small></div><em>${current?TRADE_TIERS_V391[current-1].name:'네트워크 설립 전'}</em></section><div class="offline-reward-v401"><div><span>미접속 무역 수익</span><b>${money(pending)}</b><small>30분 단위 · 세금 별도 누적</small></div><button ${pending<=0?'disabled':''} onclick="claimTradeOfflineV401()">수익 정산</button></div><div class="capital-tier-grid">${capitalTierCardsV391(TRADE_TIERS_V391,current,cash,'upgradeTradeNetworkV391')}</div>${projects}`;
+}
+async function claimTradeOfflineV401(){const{data,error}=await db.rpc('claim_trade_offline_v401');if(error)return toast(error.message);toast(`무역 미접속 수익 ${money(data.net_amount)} · 세금 ${money(data.tax_added)}`);await Promise.all([loadProfile(),loadTradeNetworkV401()]);updateNetworth()}
+async function loadBrandHouseV401(){
+ const host=document.getElementById('brandHouseView');if(!host)return;host.innerHTML='<div class="bank-loading">브랜드 현황을 불러오는 중...</div>';
+ const{data,error}=await db.rpc('get_brand_house_status_v401');if(error){host.innerHTML=`<div class="error-panel">${esc(error.message)}</div>`;return}
+ const b=data?.brand||{},active=data?.active_campaign,current=Number(b.tier||0),cash=Number(profile?.cash||0),pending=Number(data?.offline_reward||0);
+ const projects=active?`<article class="capital-active"><b>${esc(active.name)}</b><span>${active.ready?'정산 가능':active.remaining_seconds+'초 남음'}</span><button ${active.ready?'':'disabled'} onclick="claimBrandCampaignV391()">캠페인 정산</button></article>`:`<div class="capital-project-grid">${[['limited','시즌 한정 컬렉션',200000000,1],['popup','백화점 팝업 스토어',1000000000,2],['ambassador','글로벌 앰배서더',5000000000,3],['world_launch','월드 플래그십 런칭',20000000000,4]].map(x=>`<button ${current<x[3]?'disabled':''} onclick="startBrandCampaignV391('${x[0]}')"><b>${x[1]}</b><span>필요 ${money(x[2])}</span></button>`).join('')}</div>`;
+ host.innerHTML=`<section class="capital-hero brand"><div><span>브랜드 누적 매출</span><b>${money(b.total_sales||0)}</b><small>브랜드 가치 ${money(b.brand_value||0)} · 명성 ${Number(b.prestige||0).toLocaleString()}P</small></div><em>${current?BRAND_TIERS_V391[current-1].name:'브랜드 설립 전'}</em></section><div class="offline-reward-v401"><div><span>미접속 브랜드 로열티</span><b>${money(pending)}</b><small>30분 단위 · 세금 별도 누적</small></div><button ${pending<=0?'disabled':''} onclick="claimBrandOfflineV401()">로열티 정산</button></div><div class="capital-tier-grid">${capitalTierCardsV391(BRAND_TIERS_V391,current,cash,'buildBrandHouseV391')}</div>${projects}`;
+}
+async function claimBrandOfflineV401(){const{data,error}=await db.rpc('claim_brand_offline_v401');if(error)return toast(error.message);toast(`브랜드 미접속 수익 ${money(data.net_amount)} · 세금 ${money(data.tax_added)}`);await Promise.all([loadProfile(),loadBrandHouseV401()]);updateNetworth()}
+const openPhoneAppV401=openPhoneApp;openPhoneApp=function(name){openPhoneAppV401(name);if(name==='trade')loadTradeNetworkV401();else if(name==='brand')loadBrandHouseV401()};
+
+async function showLoginTaxV401(){
+ const{data,error}=await db.rpc('get_login_tax_notice_v401');if(error){console.warn(error.message);return}
+ if(!data||Number(data.total_due||0)<=0)return;
+ const modal=document.getElementById('loginTaxModalV401');if(!modal)return;
+ document.getElementById('loginTaxHoursV401').textContent=`${Number(data.offline_hours||0).toFixed(1)}시간`;
+ document.getElementById('loginWealthTaxV401').textContent=money(data.wealth_tax_added||0);
+ document.getElementById('loginIncomeTaxV401').textContent=money(Number(data.total_due||0)-Number(data.wealth_tax_added||0));
+ document.getElementById('loginTotalTaxV401').textContent=money(data.total_due||0);
+ const btn=document.getElementById('payLoginTaxBtnV401');btn.disabled=Number(profile?.cash||0)<Number(data.total_due||0);btn.textContent=btn.disabled?'현금 부족 · 세금 납부 필요':'세금 납부 후 게임 시작';
+ modal.classList.remove('hidden');
+}
+async function payLoginTaxesV401(){const btn=document.getElementById('payLoginTaxBtnV401');btn.disabled=true;const{data,error}=await db.rpc('pay_all_taxes_v401');if(error){btn.disabled=false;return toast(error.message)}document.getElementById('loginTaxModalV401')?.classList.add('hidden');toast(`세금 ${money(data.amount)} 납부 · 신용 +${data.credit_gain}`);await loadProfile();updateNetworth()}
+const enterGameV401=enterGame;enterGame=async function(){await enterGameV401();if(profile)setTimeout(showLoginTaxV401,250)};
+
+
+/* ============================================================
+   v40.2 ACCRUING TAX NOTICE / 30-MINUTE GRACE / NEGATIVE CASH
+============================================================ */
+let taxNoticeStateV402=null;
+let taxNoticeTimerV402=null;
+let taxReminderBucketV402=null;
+
+function formatTaxRemainV402(seconds){
+  const s=Math.max(0,Math.floor(Number(seconds)||0));
+  const m=Math.floor(s/60),sec=s%60;
+  return `${m}분 ${String(sec).padStart(2,'0')}초`;
+}
+function applyNegativeCashStyleV402(){
+  const negative=Number(profile?.cash||0)<0;
+  ['cashTop'].forEach(id=>document.getElementById(id)?.classList.toggle('negative-money-v402',negative));
+  document.querySelectorAll('.wallet-card b').forEach(el=>{
+    if(el.parentElement?.textContent?.trim().startsWith('현금'))el.classList.toggle('negative-money-v402',negative);
+  });
+  document.body.classList.toggle('has-negative-cash-v402',negative);
+}
+const loadProfileV402Base=loadProfile;
+loadProfile=async function(){const result=await loadProfileV402Base();applyNegativeCashStyleV402();return result};
+const renderWalletV402Base=renderWallet;
+renderWallet=function(){renderWalletV402Base();applyNegativeCashStyleV402()};
+
+function showTaxPhoneNoticeV402(title,text,urgent=false){
+  showChatNotification({nickname:title,active_title:urgent?'긴급 고지':'세금 안내',chat_text:text,created_at:new Date().toISOString()});
+  const notices=document.querySelectorAll('.chat-phone-notice');
+  const last=notices[notices.length-1];
+  if(last){last.classList.add('tax-phone-notice-v402');if(urgent)last.classList.add('urgent');}
+}
+async function refreshTaxNoticeV402(showModal=false){
+  const {data,error}=await db.rpc('get_login_tax_notice_v402');
+  if(error){console.warn('세금 고지 조회 실패:',error.message);return null}
+  taxNoticeStateV402=data||null;
+  if(data?.auto_collected){
+    await loadProfile();updateNetworth();
+    showTaxPhoneNoticeV402('세금 자동 징수',`유예기간이 만료되어 ${money(data.auto_collected_amount||0)}이 자동 징수되었습니다. 현금이 부족하면 잔액이 음수로 표시됩니다.`,true);
+  }
+  const due=Number(data?.total_due||0);
+  if(showModal&&due>0){
+    const modal=document.getElementById('loginTaxModalV401');modal?.classList.remove('hidden');
+    document.getElementById('loginTaxHoursV401').textContent=`${Number(data.offline_hours||0).toFixed(1)}시간`;
+    document.getElementById('loginWealthTaxV401').textContent=money(data.wealth_tax_added||0);
+    document.getElementById('loginIncomeTaxV401').textContent=money(Math.max(0,due-Number(data.wealth_tax_added||0)));
+    document.getElementById('loginTotalTaxV401').textContent=money(due);
+  }
+  updateTaxDeadlineUIV402();
+  return data;
+}
+function updateTaxDeadlineUIV402(){
+  const d=taxNoticeStateV402||{};
+  const box=document.getElementById('taxDeadlineBoxV402');
+  const txt=document.getElementById('taxDeadlineTextV402');
+  const defer=document.getElementById('deferLoginTaxBtnV402');
+  const remaining=Math.max(0,Number(d.remaining_seconds||0));
+  const deferred=!!d.deferred;
+  if(box)box.classList.toggle('hidden',!deferred);
+  if(txt)txt.textContent=remaining>0?formatTaxRemainV402(remaining):'만기 처리 중';
+  if(defer){defer.disabled=deferred;defer.textContent=deferred?'유예 적용됨':'지금 낼 수 없음 · 30분 유예'}
+  const pay=document.getElementById('payLoginTaxBtnV401');
+  if(pay){pay.disabled=Number(profile?.cash||0)<Number(d.total_due||0);pay.textContent=pay.disabled?'현금 부족 · 유예 선택 가능':'지금 세금 납부'}
+}
+async function showLoginTaxV401(){
+  const data=await refreshTaxNoticeV402(true);
+  if(!data||Number(data.total_due||0)<=0)return;
+  startTaxReminderTimerV402();
+}
+async function payLoginTaxesV402(){
+  const btn=document.getElementById('payLoginTaxBtnV401');if(btn)btn.disabled=true;
+  const{data,error}=await db.rpc('pay_all_taxes_v402');
+  if(error){if(btn)btn.disabled=false;return toast(error.message)}
+  document.getElementById('loginTaxModalV401')?.classList.add('hidden');
+  taxNoticeStateV402=null;taxReminderBucketV402=null;
+  toast(`세금 ${money(data.amount)} 납부 · 신용 +${data.credit_gain}`);
+  await loadProfile();updateNetworth();
+}
+async function deferLoginTaxesV402(){
+  const{data,error}=await db.rpc('defer_tax_notice_v402');
+  if(error)return toast(error.message);
+  toast(`30분 납부 유예 시작 · 신용 ${data.credit_delta}`);
+  await loadProfile();
+  taxNoticeStateV402=data;
+  document.getElementById('loginTaxModalV401')?.classList.add('hidden');
+  showTaxPhoneNoticeV402('세금 납부 유예',`납부 기한까지 ${formatTaxRemainV402(data.remaining_seconds)} 남았습니다. 은행 또는 종합 경영에서 세금을 납부하세요.`,true);
+  startTaxReminderTimerV402();
+}
+function startTaxReminderTimerV402(){
+  clearInterval(taxNoticeTimerV402);
+  taxNoticeTimerV402=setInterval(async()=>{
+    const data=await refreshTaxNoticeV402(false);if(!data)return;
+    const due=Number(data.total_due||0),remaining=Number(data.remaining_seconds||0);
+    if(due<=0){clearInterval(taxNoticeTimerV402);return}
+    if(data.deferred){
+      const bucket=remaining>1200?30:remaining>600?20:remaining>0?10:0;
+      if(bucket!==taxReminderBucketV402&&(bucket===20||bucket===10||bucket===0)){
+        taxReminderBucketV402=bucket;
+        showTaxPhoneNoticeV402(bucket===0?'세금 납부 기한 만료':`세금 납부 ${bucket}분 전`,bucket===0?`${money(due)}이 자동 징수됩니다.`:`미납 세금 ${money(due)} · 남은 시간 ${formatTaxRemainV402(remaining)}`,true);
+      }
+    }
+  },30000);
+}
+const payManagementTaxV40Base=payManagementTaxV40;
+payManagementTaxV40=async function(){
+  const{data,error}=await db.rpc('pay_all_taxes_v402');
+  if(error)return toast(error.message);
+  toast(`세금 ${money(data.amount)} 납부 · 신용 +${data.credit_gain}`);
+  taxNoticeStateV402=null;await loadProfile();await loadManagementV40();updateNetworth();
+};
