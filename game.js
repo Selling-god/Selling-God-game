@@ -4459,3 +4459,237 @@ enterGame=async function(){
   setTimeout(()=>syncExactNetworthV4015(true),600);
   return result;
 };
+
+
+/* ============================================================
+   v40.16 COLLECTION CAP / HOUSE PLACEMENT / CHAT DEDUP FIX
+   ============================================================ */
+const COLLECTION_TYPE_LIMIT_V4016=100;
+function collectionTypeCountV4016(type){
+  return (Array.isArray(collectibles)?collectibles:[]).filter(r=>r?.collectibles?.type===type).length;
+}
+function collectionRemainingV4016(type){return Math.max(0,COLLECTION_TYPE_LIMIT_V4016-collectionTypeCountV4016(type));}
+function updateCollectionLimitUiV4016(){
+  const setup=(type,prefix)=>{
+    const remaining=collectionRemainingV4016(type);
+    document.querySelectorAll(`button[onclick*="drawCollectible('${type}'"]`).forEach(btn=>{
+      const m=btn.getAttribute('onclick')?.match(/,(\d+)\)/);
+      const requested=m?Number(m[1]):1;
+      btn.disabled=gachaDrawingV407||remaining<=0;
+      btn.title=remaining<=0?`${prefix} 보유 한도 100개에 도달했습니다.`:`추가 획득 가능 ${remaining}개`;
+    });
+    const anchor=document.getElementById(type==='phone_case'?'caseGachaBtn':'decorGachaBtn');
+    const machine=anchor?.closest('.machine');
+    if(machine){
+      let note=machine.querySelector('.collection-limit-note-v4016');
+      if(!note){note=document.createElement('small');note.className='collection-limit-note-v4016';machine.appendChild(note)}
+      note.textContent=`${prefix} ${collectionTypeCountV4016(type)}/100개 보유 · ${remaining}개 추가 가능`;
+      note.classList.toggle('limit-reached',remaining<=0);
+    }
+  };
+  setup('decoration','소장품');
+  setup('phone_case','케이스');
+}
+const updateGachaButtonsV4016Base=updateGachaButtons;
+updateGachaButtons=function(){
+  try{updateGachaButtonsV4016Base()}catch{}
+  updateCollectionLimitUiV4016();
+};
+
+const drawCollectibleV4016Base=drawCollectible;
+drawCollectible=async function(type,count=1){
+  const requested=[1,10,100].includes(Number(count))?Number(count):1;
+  const remaining=collectionRemainingV4016(type);
+  if(remaining<=0)return toast(`${type==='phone_case'?'케이스':'소장품'}는 최대 100개까지만 보유할 수 있습니다.`);
+  const actual=Math.min(requested,remaining);
+  if(actual<requested)toast(`보유 한도 때문에 ${requested}회 중 ${actual}회만 진행됩니다.`);
+  if(gachaDrawingV407)return toast('현재 뽑기를 처리하고 있습니다.');
+  restoreGachaSkipPreferencesV407();
+  const skip=gachaSkipEnabledV39(type);
+  const modal=document.getElementById('gachaModal');
+  const summary=document.getElementById('gachaBulkSummary');
+  gachaDrawingV407=true;setGachaButtonsBusyV407(true);
+  try{
+    if(summary){summary.classList.add('hidden');summary.innerHTML=''}
+    if(skip){modal.className='overlay hidden';toast(`${actual}회 뽑기 처리 중 · 연출 스킵`)}
+    else{modal.classList.remove('hidden');modal.className='overlay gacha-spinning rarity-0';gachaRarity.textContent=actual===1?'두근두근...':`${actual}개 캡슐 개봉 중`;gachaResultIcon.textContent=type==='phone_case'?'📱':'🏺';gachaResultName.textContent='캡슐 개봉 중';gachaResultName.className='';gachaResultEffect.textContent='';playGachaBuild();await wait(actual===1?1200:1600)}
+    const{data,error}=await db.rpc('draw_collectibles_bulk_v4016',{p_type:type,p_count:actual});
+    if(error)throw error;
+    const rows=Array.isArray(data?.results)?data.results:[];
+    if(!rows.length)throw new Error('보유 한도에 도달했거나 뽑기 결과가 없습니다.');
+    const highest=rows.reduce((a,b)=>rarityScore(b.rarity)>rarityScore(a?.rarity)?b:a,rows[0]);
+    const rank=rarityScore(highest?.rarity||'일반');
+    modal.classList.remove('hidden');modal.className=`overlay gacha-reveal rarity-${rank} ${skip?'gacha-skipped-v407':''}`;
+    gachaRarity.textContent=rows.length===1?(highest?.rarity||'결과'):`${rows.length}연속 결과 · 최고 ${highest?.rarity||'일반'}`;
+    gachaResultIcon.textContent=highest?.icon||'✨';gachaResultName.textContent=rows.length===1?(highest?.name||'결과 공개'):`${rows.length}개 획득 완료`;
+    gachaResultName.className=`rarity-text ${rarityClass(highest?.rarity||'일반')}`;
+    gachaResultEffect.textContent=rows.length===1?`${collectibleEffectLabel(highest?.effect_code,highest?.effect_name)} +${Number(highest?.effect_percent||0)}%`:`총 비용 ${money(data?.cost||0)} · 보유 ${Number(data?.owned_after||0)}/100${skip?' · 연출 스킵':''}`;
+    if(rows.length>1&&summary){const counts={};rows.forEach(r=>counts[r.rarity]=(counts[r.rarity]||0)+1);summary.innerHTML=`<div class="bulk-rarity-counts">${Object.entries(counts).sort((a,b)=>rarityScore(b[0])-rarityScore(a[0])).map(([r,n])=>`<span class="rarity-text ${rarityClass(r)}">${r} ${n}개</span>`).join('')}</div><div class="bulk-top-results">${rows.slice().sort((a,b)=>rarityScore(b.rarity)-rarityScore(a.rarity)).slice(0,12).map(r=>`<em class="${rarityClass(r.rarity)}">${r.icon||'✨'} ${esc(r.name)}</em>`).join('')}</div>`;summary.classList.remove('hidden')}
+    rank>=4?playJackpotSound():playSuccessSound();
+    await loadProfile();await loadCollectibles();updateNetworth();
+  }catch(error){closeGachaReveal();toast(error?.message||'뽑기에 실패했습니다.')}finally{gachaDrawingV407=false;setGachaButtonsBusyV407(false);updateGachaButtons()}
+};
+
+// 집 장식 서버 상태와 화면 상태를 다시 맞추고, 배치 실패 원인을 구체적으로 표시한다.
+equipGroupedCollectible=async function(collectibleId,action){
+  const pool=(Array.isArray(collectibles)?collectibles:[]).filter(r=>String(r.collectibles?.id)===String(collectibleId));
+  if(!pool.length)return toast('해당 소장품을 찾을 수 없습니다.');
+  let target=null;
+  if(action==='equip')target=pool.find(r=>!r.is_equipped&&!r.is_listed)||pool.find(r=>!r.is_equipped)||pool[0];
+  else if(action==='place')target=pool.find(r=>!r.is_placed&&!r.is_listed)||pool.find(r=>!r.is_placed)||null;
+  else if(action==='unplace')target=pool.find(r=>r.is_placed)||null;
+  if(!target)return toast(action==='unplace'?'배치 해제할 장식이 없습니다.':'현재 거래 등록 중이거나 사용할 수 없는 소장품입니다.');
+  const rpcAction=action==='unplace'?'unplace':action;
+  const{error}=await db.rpc('equip_collectible_v4016',{p_user_collectible_id:target.id,p_action:rpcAction});
+  if(error)return toast(error.message);
+  await loadProfile();await loadCollectibles();await loadEffects();
+  decorationPage=Math.max(1,decorationPage);
+  await loadHouse();
+};
+
+// 채팅 알림은 동일 메시지마다 정확히 한 번만 띄운다.
+const showChatNotificationV4016Base=showChatNotification;
+const chatNoticeDedupV4016=new Map();
+showChatNotification=function(message){
+  const key=String(message?.message_id||message?.id||`${message?.nickname||''}|${message?.chat_text||''}|${message?.created_at||''}`);
+  const now=Date.now();
+  for(const [k,t] of chatNoticeDedupV4016){if(now-t>30000)chatNoticeDedupV4016.delete(k)}
+  if(key&&chatNoticeDedupV4016.has(key))return;
+  if(key)chatNoticeDedupV4016.set(key,now);
+  return showChatNotificationV4016Base(message);
+};
+
+// 내 집 우측 패널은 항상 페이지 버튼까지 스크롤 가능하게 한다.
+const loadHouseV4016Base=loadHouse;
+loadHouse=async function(){
+  await loadHouseV4016Base();
+  requestAnimationFrame(()=>{
+    const side=document.querySelector('.house-side');
+    if(side){side.scrollTop=Math.min(side.scrollTop,Math.max(0,side.scrollHeight-side.clientHeight));}
+    updateCollectionLimitUiV4016();
+  });
+};
+setTimeout(updateCollectionLimitUiV4016,0);
+
+
+/* ============================================================
+   v40.17 PERFORMANCE STABILITY PATCH
+   - 중복 채팅 폴링/구독 정리
+   - 숨겨진 화면 타이머 일시정지
+   - 채팅 DOM 중복 렌더 방지
+   - 화면별 타이머를 실제 열려 있을 때만 실행
+============================================================ */
+let performanceGovernorV4017Started=false;
+let chatRenderSignatureV4017='';
+let chatLoadBusyV4017=false;
+let chatLastLoadAtV4017=0;
+
+function visiblePhoneAppV4017(name){
+  const overlay=document.getElementById('phoneOverlay');
+  const screen=document.getElementById(`phone-${name}`);
+  return Boolean(overlay&&!overlay.classList.contains('hidden')&&screen&&!screen.classList.contains('hidden'));
+}
+function clearDuplicateBackgroundLoopsV4017(){
+  // v33.7 폴링과 v40.10 폴링이 동시에 돌아가던 것을 하나로 통합한다.
+  if(typeof reliableChatPollTimer!=='undefined'&&reliableChatPollTimer){clearInterval(reliableChatPollTimer);reliableChatPollTimer=null}
+  if(typeof chatRefreshTimer!=='undefined'&&chatRefreshTimer&&!visiblePhoneAppV4017('chat')){clearInterval(chatRefreshTimer);chatRefreshTimer=null}
+  if(typeof businessRefreshTimer!=='undefined'&&businessRefreshTimer&&!visiblePhoneAppV4017('business')){clearInterval(businessRefreshTimer);businessRefreshTimer=null}
+}
+
+// 실시간 채팅 채널이 주 경로이며, 폴링은 10초 간격의 장애 대비용 하나만 유지한다.
+if(typeof initializeReliableChatNotifications==='function'){
+  initializeReliableChatNotifications=async function(){
+    if(typeof stopReliableChatNotifications==='function')stopReliableChatNotifications();
+  };
+}
+if(typeof restartChatStableV4010==='function'){
+  const restartChatStableV4017Base=restartChatStableV4010;
+  restartChatStableV4010=async function(){
+    if(typeof stopReliableChatNotifications==='function')stopReliableChatNotifications();
+    await restartChatStableV4017Base();
+    if(typeof chatStableTimerV4010!=='undefined'&&chatStableTimerV4010){
+      clearInterval(chatStableTimerV4010);
+      chatStableTimerV4010=setInterval(()=>{
+        if(document.hidden||!currentUser)return;
+        pollChatStableV4010();
+      },10000);
+    }
+  };
+}
+
+// 같은 채팅 목록이면 DOM을 다시 만들지 않는다. 위 대화를 읽는 중인 스크롤도 보존한다.
+loadChatMessages=async function(options={}){
+  const host=document.getElementById('globalChatList');
+  if(!host||!currentUser||chatLoadBusyV4017)return;
+  const now=Date.now();
+  if(!options.force&&now-chatLastLoadAtV4017<900)return;
+  chatLoadBusyV4017=true;
+  chatLastLoadAtV4017=now;
+  try{
+    const nearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<72;
+    const oldTop=host.scrollTop;
+    const oldHeight=host.scrollHeight;
+    const{data,error}=await db.rpc('get_global_chat_v31',{p_limit:60});
+    if(error){if(!host.children.length)host.innerHTML=`<p class="muted">${esc(error.message)}</p>`;return}
+    const rows=Array.isArray(data)?data:[];
+    const signature=rows.map(r=>`${r.message_id??r.id??''}:${r.created_at??''}:${r.chat_text??''}`).join('|');
+    if(signature!==chatRenderSignatureV4017){
+      host.innerHTML=rows.map(r=>`<article class="global-chat-message ${r.sender_user_id===currentUser.id?'mine':''}"><div class="chat-user"><strong>${esc(r.nickname)}</strong><span class="title-badge ${titleClass(r.active_title)}">${esc(r.active_title||'초보 장사꾼')}</span><time>${chatTime(r.created_at)}</time></div><p>${esc(r.chat_text)}</p></article>`).join('')||'<p class="muted chat-empty">첫 메시지를 남겨 보세요.</p>';
+      chatRenderSignatureV4017=signature;
+      requestAnimationFrame(()=>{
+        if(options.forceBottom||nearBottom)host.scrollTop=host.scrollHeight;
+        else host.scrollTop=Math.max(0,oldTop+(host.scrollHeight-oldHeight));
+      });
+    }
+    const latest=rows.reduce((a,b)=>new Date(b?.created_at||0)>new Date(a?.created_at||0)?b:a,rows[0]);
+    if(isChatScreenOpen()&&latest)markChatRead(latest.created_at);
+  }finally{chatLoadBusyV4017=false}
+};
+
+const openPhoneAppV4017Base=openPhoneApp;
+openPhoneApp=function(name){
+  openPhoneAppV4017Base(name);
+  clearDuplicateBackgroundLoopsV4017();
+  if(name==='chat'){
+    if(chatRefreshTimer){clearInterval(chatRefreshTimer);chatRefreshTimer=null}
+    loadChatMessages({force:true,forceBottom:true});
+    chatRefreshTimer=setInterval(()=>{
+      if(!document.hidden&&visiblePhoneAppV4017('chat'))loadChatMessages();
+    },10000);
+  }
+};
+
+function pauseHiddenWorkV4017(){
+  document.documentElement.classList.toggle('perf-paused-v4017',document.hidden);
+  if(document.hidden){
+    if(chatRefreshTimer){clearInterval(chatRefreshTimer);chatRefreshTimer=null}
+    if(typeof businessRefreshTimer!=='undefined'&&businessRefreshTimer){clearInterval(businessRefreshTimer);businessRefreshTimer=null}
+  }else{
+    clearDuplicateBackgroundLoopsV4017();
+    if(visiblePhoneAppV4017('chat')&&!chatRefreshTimer){
+      loadChatMessages({force:true});
+      chatRefreshTimer=setInterval(()=>{if(!document.hidden&&visiblePhoneAppV4017('chat'))loadChatMessages()},10000);
+    }
+    if(visiblePhoneAppV4017('business')&&typeof loadBusiness==='function')loadBusiness({silent:true});
+  }
+}
+function startPerformanceGovernorV4017(){
+  if(performanceGovernorV4017Started)return;
+  performanceGovernorV4017Started=true;
+  clearDuplicateBackgroundLoopsV4017();
+  document.addEventListener('visibilitychange',pauseHiddenWorkV4017,{passive:true});
+  window.addEventListener('pagehide',()=>{
+    if(chatRefreshTimer)clearInterval(chatRefreshTimer);
+    if(typeof reliableChatPollTimer!=='undefined'&&reliableChatPollTimer)clearInterval(reliableChatPollTimer);
+    if(typeof chatStableTimerV4010!=='undefined'&&chatStableTimerV4010)clearInterval(chatStableTimerV4010);
+    if(typeof businessRefreshTimer!=='undefined'&&businessRefreshTimer)clearInterval(businessRefreshTimer);
+  },{once:true});
+}
+
+const enterGameV4017Base=enterGame;
+enterGame=async function(){
+  await enterGameV4017Base();
+  startPerformanceGovernorV4017();
+  clearDuplicateBackgroundLoopsV4017();
+};
+setTimeout(startPerformanceGovernorV4017,0);
