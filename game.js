@@ -7,27 +7,42 @@ let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdin
 
 /* v40.12: 소장품 효과명 안전 보정 */
 function collectibleEffectLabel(code,name){
-  const clean=String(name||'').trim();
-  if(clean)return clean;
   const labels={
-    market_bonus:'NPC 제안가',
-    pawn_bonus:'전당포 판매가',
-    stock_fee_discount:'주식 수수료 할인',
-    gacha_luck:'뽑기 희귀도',
-    exploration_luck:'탐색 희귀도',
-    auction_discount:'경매 낙찰 할인'
+    market_bonus:'NPC 제안가 증가',
+    pawn_bonus:'전당포 판매가 증가',
+    stock_fee_discount:'주식 거래 수수료 할인',
+    gacha_luck:'소장품·케이스 뽑기 희귀도 증가',
+    exploration_luck:'탐색 희귀 아이템 발견 확률 증가',
+    auction_discount:'경매 낙찰 대금 할인'
   };
-  return labels[String(code||'')]||'특수 효과';
+  const clean=String(name||'').trim();
+  const generic=new Set(['','특수 효과','보유 효과','효과 없음','undefined','null','-']);
+  if(!generic.has(clean))return clean;
+  return labels[String(code||'')]||'보유 시 능력치 보너스';
+}
+
+function collectibleEffectDescription(code){
+  const descriptions={
+    market_bonus:'NPC가 제시하는 매입·거래 가격이 증가합니다.',
+    pawn_bonus:'전당포에 판매할 때 최종 매입가가 증가합니다.',
+    stock_fee_discount:'주식 매수·매도 시 발생하는 수수료가 감소합니다.',
+    gacha_luck:'소장품과 케이스 뽑기에서 높은 등급 등장 확률이 증가합니다.',
+    exploration_luck:'탐색에서 희귀한 아이템을 발견할 확률이 증가합니다.',
+    auction_discount:'경매 낙찰 시 실제 지불하는 금액이 감소합니다.'
+  };
+  return descriptions[String(code||'')]||'장착 또는 배치하면 해당 보유 효과가 적용됩니다.';
 }
 
 function collectibleEffectText(c){
-  if(!c)return '특수 효과 +0%';
+  if(!c)return '보유 효과 +0%';
   const label=collectibleEffectLabel(c.effect_code,c.effect_name);
   const percent=Number(c.effect_percent||0);
   return `${label} +${Number.isFinite(percent)?percent:0}%`;
 }
+window.collectibleEffectDescription=collectibleEffectDescription;
 window.collectibleEffectLabel=collectibleEffectLabel;
 window.collectibleEffectText=collectibleEffectText;
+window.collectibleEffectDescription=collectibleEffectDescription;
 
 document.addEventListener("DOMContentLoaded",()=>{init();initPremiumUI()});
 document.addEventListener("input",e=>{
@@ -663,7 +678,7 @@ function groupedCollectibleRow(group,options={}){
         <b class="rarity-text ${rc}">${esc(c.name)}</b>
         ${countBadge}
       </div>
-      <small><span class="rarity-text ${rc}">${esc(c.rarity)}</span> · ${esc(collectibleEffectText(c))} ${state}</small>
+      <small class="collectible-effect-line" title="${escAttr(collectibleEffectDescription(c.effect_code))}"><span class="rarity-text ${rc}">${esc(c.rarity)}</span> · <strong>${esc(collectibleEffectText(c))}</strong> ${state}</small>
     </div>
     ${button}
   </div>`;
@@ -789,7 +804,7 @@ function renderCollectibleSellPreview(){
 }
 async function createCollectibleListing(){const id=sellCollectible.value,p=Math.floor(Number(collectiblePrice.value));if(!id||p<=0)return toast('소장품과 가격을 확인하세요.');const{error}=await db.rpc('create_collectible_listing',{p_user_collectible_id:id,p_price:p});if(error)return toast(error.message);collectiblePrice.value='';await loadCollectibleMarket()}
 async function loadCollectibleMarket(){
-  const{data,error}=await db.from('collectible_listings').select(`id,asking_price,seller_user_id,user_collectibles(collectibles(name,rarity,effect_name,effect_percent,icon)),profiles:seller_user_id(nickname)`).eq('status','active').order('created_at',{ascending:false});
+  const{data,error}=await db.from('collectible_listings').select(`id,asking_price,seller_user_id,user_collectibles(collectibles(name,rarity,effect_code,effect_name,effect_percent,icon)),profiles:seller_user_id(nickname)`).eq('status','active').order('created_at',{ascending:false});
   if(error)return toast(error.message);
   collectibleMarketList.innerHTML=(data||[]).map(r=>{
     const c=r.user_collectibles.collectibles,mine=r.seller_user_id===currentUser.id,rc=rarityClass(c.rarity);
@@ -3580,7 +3595,7 @@ renderAuctionChoices=function(refreshAt){
         <div class="collectible-auction-icon">${a.icon||'🏺'}</div>
         <h3 class="rarity-text ${rc}">${esc(a.collectible_name)}</h3>
         <div class="auction-rarity-caption rarity-text ${rc}">${esc(a.rarity)} · ${esc(a.type==='phone_case'?'케이스':'장식 소장품')}</div>
-        <div class="collectible-auction-effect">${esc(a.effect_name||'특수 효과')} +${Number(a.effect_percent||0)}%</div>
+        <div class="collectible-auction-effect">${esc(collectibleEffectLabel(a.effect_code,a.effect_name))} +${Number(a.effect_percent||0)}%</div>
         <b>시작가 ${money(a.start_price)}</b><small>초고액 경매 입장 →</small>
       </button>
     </article>`;
