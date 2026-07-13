@@ -1793,3 +1793,6 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 .case-collectible .collectible-effect-line strong,.decoration-collectible .collectible-effect-line strong{white-space:normal}
 .collectible-market-card .meta{color:#493725;font-weight:700;opacity:1}
 .collectible-auction-effect{color:#38291f!important;font-weight:900!important;opacity:1!important}
+
+/* v40.20 유저간 소장품 장터 */
+.collectible-market-card{min-height:220px}.collectible-market-seller{font-weight:900;color:#6b4a2e;margin-bottom:4px}.market-load-error{border:2px solid #a56d4d;background:#fff4df;color:#4b3022}
