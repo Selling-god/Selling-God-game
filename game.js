@@ -3306,3 +3306,70 @@ payManagementTaxV40=async function(){
   toast(`세금 ${money(data.amount)} 납부 · 신용 +${data.credit_gain}`);
   taxNoticeStateV402=null;await loadProfile();await loadManagementV40();updateNetworth();
 };
+
+
+/* ============================================================
+   v40.3 BANK TAX PAYMENT PANEL
+============================================================ */
+let bankTaxCountdownV403=null;
+
+function bankTaxRemainingSecondsV403(){
+  const d=taxNoticeStateV402||{};
+  if(!d.deferred||!d.due_at)return 0;
+  const end=new Date(d.due_at).getTime();
+  return Math.max(0,Math.floor((end-Date.now())/1000));
+}
+function renderBankTaxPanelV403(){
+  const host=document.getElementById('bankView');
+  if(!host)return;
+  host.querySelector('.bank-tax-panel-v403')?.remove();
+  clearInterval(bankTaxCountdownV403);
+  const d=taxNoticeStateV402||{};
+  const due=Number(d.total_due||0);
+  const cash=Number(profile?.cash||0);
+  const deposit=Number(bankState?.deposit_balance||0);
+  const deferred=!!d.deferred;
+  const panel=document.createElement('section');
+  panel.className='bank-product bank-tax-panel-v403'+(deferred?' deferred':'');
+  panel.innerHTML=`<div class="bank-product-head"><span>🧾</span><div><h3>세금 납부 창구</h3><p>${due>0?'접속 고지서에 나온 미납 세금을 은행에서 납부할 수 있습니다.':'현재 납부할 세금이 없습니다.'}</p></div><b class="${due>0?'tax-due-v403':''}">${money(due)}</b></div>
+    ${due>0?`<div class="bank-tax-status-v403"><div><span>보유 현금</span><b>${money(cash)}</b></div><div><span>자유예금</span><b>${money(deposit)}</b></div><div><span>납부 가능 자금</span><b>${money(cash+deposit)}</b></div>${deferred?`<div class="deadline"><span>납부 만기까지</span><b id="bankTaxDeadlineV403">${formatTaxRemainV402(bankTaxRemainingSecondsV403())}</b></div>`:''}</div>
+    <div class="bank-tax-actions-v403"><button class="primary" ${cash<due?'disabled':''} onclick="payBankTaxCashV403()">현금으로 납부</button><button class="sub" ${cash+deposit<due||deposit<=0?'disabled':''} onclick="payBankTaxDepositV403()">현금 + 자유예금으로 납부</button></div>
+    ${cash+deposit<due?`<small class="bank-tax-warning-v403">납부 가능 자금이 ${money(due-(cash+deposit))} 부족합니다. 대출 또는 다른 수익으로 자금을 마련해야 합니다.</small>`:`<small>자유예금 납부는 현금을 먼저 사용하고 부족한 금액만 예금에서 자동 출금합니다.</small>`}`:''}`;
+  const hero=host.querySelector('.bank-hero');
+  if(hero)hero.insertAdjacentElement('afterend',panel);else host.prepend(panel);
+  if(deferred&&due>0){
+    bankTaxCountdownV403=setInterval(()=>{
+      const el=document.getElementById('bankTaxDeadlineV403');
+      if(!el){clearInterval(bankTaxCountdownV403);return}
+      const left=bankTaxRemainingSecondsV403();
+      el.textContent=left>0?formatTaxRemainV402(left):'만기 처리 중';
+      if(left<=0)clearInterval(bankTaxCountdownV403);
+    },1000);
+  }
+}
+async function payBankTaxCashV403(){
+  const due=Number(taxNoticeStateV402?.total_due||0);
+  if(due<=0)return toast('납부할 세금이 없습니다.');
+  if(!confirm(`${money(due)}을 현금으로 납부할까요?`))return;
+  const{data,error}=await db.rpc('pay_all_taxes_v402');
+  if(error)return toast(error.message);
+  taxNoticeStateV402=null;taxReminderBucketV402=null;
+  toast(`세금 ${money(data.amount)} 납부 · 신용 +${data.credit_gain}`);
+  await Promise.all([loadProfile(),loadBank(),loadManagementV40()]);
+  updateNetworth();
+}
+async function payBankTaxDepositV403(){
+  const due=Number(taxNoticeStateV402?.total_due||0);
+  if(due<=0)return toast('납부할 세금이 없습니다.');
+  if(!confirm(`${money(due)}을 현금과 자유예금에서 납부할까요? 부족분은 자유예금에서 자동 출금됩니다.`))return;
+  const{data,error}=await db.rpc('pay_taxes_from_bank_v403');
+  if(error)return toast(error.message);
+  taxNoticeStateV402=null;taxReminderBucketV402=null;
+  toast(`세금 ${money(data.amount)} 납부 · 예금 사용 ${money(data.deposit_used)} · 신용 +${data.credit_gain}`);
+  await Promise.all([loadProfile(),loadBank(),loadManagementV40()]);
+  updateNetworth();
+}
+const renderBankV403Base=renderBank;
+renderBank=function(){renderBankV403Base();renderBankTaxPanelV403()};
+const loadBankV403Base=loadBank;
+loadBank=async function(){await refreshTaxNoticeV402(false);return loadBankV403Base()};
