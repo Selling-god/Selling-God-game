@@ -1200,7 +1200,7 @@ function showChatNotification(message){
     notice.classList.add('leaving');
     setTimeout(()=>notice.remove(),180);
     openPhone();
-    openPhoneApp('chat');
+    openPhoneApp(message?.notice_type==='tax'?'bank':'chat');
   });
 
   stack.prepend(notice);
@@ -3366,10 +3366,9 @@ const renderWalletV402Base=renderWallet;
 renderWallet=function(){renderWalletV402Base();applyNegativeCashStyleV402()};
 
 function showTaxPhoneNoticeV402(title,text,urgent=false){
-  showChatNotification({nickname:title,active_title:urgent?'긴급 고지':'세금 안내',chat_text:text,created_at:new Date().toISOString()});
-  const notices=document.querySelectorAll('.chat-phone-notice');
-  const last=notices[notices.length-1];
-  if(last){last.classList.add('tax-phone-notice-v402');if(urgent)last.classList.add('urgent');}
+  showChatNotification({nickname:title,active_title:urgent?'긴급 고지':'세금 안내',chat_text:text,created_at:new Date().toISOString(),notice_type:'tax'});
+  const latest=document.querySelector('#chatNotificationStack .chat-phone-notice');
+  if(latest){latest.classList.add('tax-phone-notice-v402');if(urgent)latest.classList.add('urgent');}
 }
 async function refreshTaxNoticeV402(showModal=false){
   const {data,error}=await db.rpc('get_login_tax_notice_v402');
@@ -3973,6 +3972,29 @@ function safeCollectibleValueV4011(row){
   return safeNumberV4011(rarityBase[c.rarity]||300000)+safeNumberV4011(c.effect_percent)*10000;
 }
 
+let networthSyncBusyV4015=false;
+let networthSyncAtV4015=0;
+function renderNetworthValueV4015(total){
+  const el=document.getElementById('networth');
+  if(!el)return;
+  el.textContent=money(total);
+  el.classList.toggle('negative-cash',Number(total)<0);
+}
+async function syncExactNetworthV4015(force=false){
+  if(!currentUser||networthSyncBusyV4015)return;
+  const now=Date.now();
+  if(!force&&now-networthSyncAtV4015<5000)return;
+  networthSyncBusyV4015=true;
+  try{
+    const{data,error}=await db.rpc('get_my_networth_v4015');
+    if(error)throw error;
+    const exact=Number(data?.networth??data??0);
+    if(Number.isFinite(exact))renderNetworthValueV4015(exact);
+    networthSyncAtV4015=Date.now();
+  }catch(error){
+    console.warn('정확한 총자산 동기화 실패:',error?.message||error);
+  }finally{networthSyncBusyV4015=false}
+}
 updateNetworth=function(){
   if(!profile)return;
   const sv=(Array.isArray(holdings)?holdings:[]).reduce((sum,h)=>{
@@ -3983,13 +4005,9 @@ updateNetworth=function(){
   const cv=(Array.isArray(collectibles)?collectibles:[]).reduce((sum,row)=>sum+safeCollectibleValueV4011(row),0);
   const bv=safeNumberV4011(globalThis.businessState?.total_company_value);
   const bank=safeNumberV4011(globalThis.bankState?.deposit_balance)+safeNumberV4011(globalThis.bankState?.savings_balance);
-  const total=safeNumberV4011(profile?.cash)+sv+iv+cv+bv+bank;
-  const el=document.getElementById('networth');
-  if(el){
-    el.textContent=money(total);
-    el.classList.toggle('negative-cash',total<0);
-  }
+  renderNetworthValueV4015(safeNumberV4011(profile?.cash)+sv+iv+cv+bv+bank);
   try{renderWallet()}catch(error){console.warn('자산 상세 렌더링 실패:',error)}
+  void syncExactNetworthV4015();
 };
 
 async function fetchCollectibleCatalogV4011(ids){
@@ -4432,3 +4450,12 @@ async function claimRiskV4013(){
   toast(`${data?.result_label||'프로젝트 정산'} · ${profit>=0?'+':''}${money(profit)}`);
   await loadProfile();updateNetworth();await loadRiskDesk();
 }
+
+
+/* v40.15 exact asset/tax notification repair */
+const enterGameV4015Base=enterGame;
+enterGame=async function(){
+  const result=await enterGameV4015Base();
+  setTimeout(()=>syncExactNetworthV4015(true),600);
+  return result;
+};
