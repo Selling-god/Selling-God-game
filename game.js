@@ -71,7 +71,7 @@ async function logout(){
   await db.auth.signOut();
   showAuth();
 }
-function openPage(name,btn){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));document.getElementById("page-"+name).classList.add("active");btn?.classList.add("active");({inventory:loadInventory,pawnshop:loadPawnshop,auction:loadAuctionLobby,appraisal:loadAppraisalCenterV37,restoration:loadRestorationCenter,market:loadMarketHub,house:loadHouse,collection:loadCollectibles,jobs:resetJobPage}[name]||(()=>{}))()}
+function openPage(name,btn){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));document.getElementById("page-"+name).classList.add("active");btn?.classList.add("active");if(name==="collection"){collectiblePage=1;casePage=1;decorationPage=1;}({inventory:loadInventory,pawnshop:loadPawnshop,auction:loadAuctionLobby,appraisal:loadAppraisalCenterV37,restoration:loadRestorationCenter,market:loadMarketHub,house:loadHouse,collection:loadCollectibles,jobs:resetJobPage}[name]||(()=>{}))()}
 function openPageFromPhone(name){closePhone();openPage(name,document.querySelector(`[data-page="${name}"]`))}
 async function refreshAll(){
   await updateStocks();
@@ -531,7 +531,7 @@ function submitNpcBuyOffer(){
 async function acceptNpcBuyDeal(){const n=negotiation;if(!n||n.type!=='npc_buy')return;const{data,error}=await db.rpc('purchase_npc_offer_v18',{p_offer_id:n.offerId,p_final_price:Math.round(n.npcOffer)});if(error)return toast(error.message);toast(`구매 완료 ${money(data.final_price)} · ${money(n.asking-data.final_price)} 절약`);playSuccessSound();closeNegotiation();await Promise.all([loadProfile(),loadInventory(),loadNpcOffers()]);updateNetworth()}
 
 /* 소장품/집 */
-function switchCollectionTab(name,btn){document.querySelectorAll('.collection-tabs button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.collection-tab-panel').forEach(x=>x.classList.add('hidden'));btn?.classList.add('active');document.getElementById('collection-'+name)?.classList.remove('hidden');}
+function switchCollectionTab(name,btn){document.querySelectorAll('.collection-tabs button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.collection-tab-panel').forEach(x=>x.classList.add('hidden'));btn?.classList.add('active');document.getElementById('collection-'+name)?.classList.remove('hidden');if(name==='decor'){collectiblePage=1;renderCollectiblePages();}else if(name==='case'){casePage=1;renderCasePages();}}
 function updateGachaButtons(){const poor=!profile||Number(profile.cash)<300000;['decorGachaBtn','caseGachaBtn'].forEach(id=>{const b=document.getElementById(id);if(!b)return;b.disabled=poor;b.title=poor?'현금 30만원이 필요합니다.':'';});}
 async function drawCollectible(type){if(!profile||Number(profile.cash)<300000){updateGachaButtons();return toast('뽑기에는 현금 30만원이 필요합니다.')}const btn=document.getElementById(type==='phone_case'?'caseGachaBtn':'decorGachaBtn');if(btn?.disabled)return;btn.disabled=true;const modal=document.getElementById('gachaModal');modal.classList.remove('hidden');modal.className='overlay gacha-spinning rarity-0';gachaRarity.textContent='두근두근...';gachaResultIcon.textContent=type==='phone_case'?'📱':'🏺';gachaResultName.textContent='캡슐 개봉 중';gachaResultName.className='';gachaResultEffect.textContent='빛이 강해집니다';playGachaBuild();await wait(1700);const{data,error}=await db.rpc('draw_collectible_v19',{p_type:type});if(error){closeGachaReveal();btn.disabled=false;updateGachaButtons();return toast(error.message)}const rank=rarityScore(data.rarity);modal.className=`overlay gacha-reveal rarity-${rank}`;gachaRarity.textContent=data.rarity;gachaResultIcon.textContent=data.icon||'✨';gachaResultName.textContent=data.name;gachaResultName.className=`rarity-text ${rarityClass(data.rarity)}`;gachaResultEffect.textContent=`${collectibleEffectLabel(data.effect_code,data.effect_name)} +${Number(data.effect_percent||0)}%`;rank>=4?playJackpotSound():playSuccessSound();await Promise.all([loadProfile(),loadCollectibles()]);updateNetworth();updateGachaButtons()}
 function closeGachaReveal(){gachaModal.className='overlay hidden'}
@@ -663,9 +663,11 @@ function renderCollectiblePages(){
   const pageSize=6;
   const total=Math.max(1,Math.ceil(list.length/pageSize));
   collectiblePage=Math.min(Math.max(1,collectiblePage),total);
-  const start=(collectiblePage-1)*pageSize;
+  let start=(collectiblePage-1)*pageSize;
+  if(list.length>0&&start>=list.length){collectiblePage=1;start=0;}
+  const pageRows=list.slice(start,start+pageSize);
   const el=document.getElementById('collectibleInventory');
-  if(el)el.innerHTML=list.slice(start,start+pageSize).map(group=>groupedCollectibleRow(group)).join('')||'<p class="muted">소장품 없음</p>';
+  if(el)el.innerHTML=pageRows.map(group=>groupedCollectibleRow(group)).join('')||(list.length?'<p class="muted">이 페이지에 표시할 소장품이 없어 1페이지로 이동했습니다.</p>':'<p class="muted">소장품 없음</p>');
   const info=document.getElementById('collectiblePageInfo');
   if(info)info.textContent=`${collectiblePage}P / ${total}P · 종류 ${list.length} · 총 ${totalOwned}개`;
   const prev=document.getElementById('collectiblePrev'),next=document.getElementById('collectibleNext');
@@ -685,9 +687,11 @@ function renderCasePages(){
   const pageSize=6;
   const total=Math.max(1,Math.ceil(list.length/pageSize));
   casePage=Math.min(Math.max(1,casePage),total);
-  const start=(casePage-1)*pageSize;
+  let start=(casePage-1)*pageSize;
+  if(list.length>0&&start>=list.length){casePage=1;start=0;}
+  const pageRows=list.slice(start,start+pageSize);
   const el=document.getElementById('caseInventory');
-  if(el)el.innerHTML=list.slice(start,start+pageSize).map(group=>groupedCollectibleRow(group)).join('')||'<p class="muted">보유 케이스 없음</p>';
+  if(el)el.innerHTML=pageRows.map(group=>groupedCollectibleRow(group)).join('')||(list.length?'<p class="muted">이 페이지에 표시할 케이스가 없어 1페이지로 이동했습니다.</p>':'<p class="muted">보유 케이스 없음</p>');
   const info=document.getElementById('casePageInfo');
   if(info)info.textContent=`${casePage}P / ${total}P · 종류 ${list.length} · 총 ${totalOwned}개`;
   const prev=document.getElementById('casePrev'),next=document.getElementById('caseNext');
@@ -1334,7 +1338,7 @@ async function bankWithdrawSavings(){if(!confirm('적금을 해지하고 현재 
 async function takeLoan(){const n=bankInput('loanAmount');if(n<=0)return toast('대출 금액을 입력하세요.');await bankCall('bank_take_loan_v25',{p_amount:n},'대출금이 지급되었습니다.')}
 async function repayLoan(){if(!confirm('이자 1%를 포함한 대출금을 전액 상환할까요?'))return;const data=await bankCall('bank_repay_loan_v25',{},'대출 상환 완료');if(data?.credit_delta)toast(`대출 상환 완료 · 신용 ${data.credit_delta>0?'+':''}${data.credit_delta}`)}
 
-function openPhoneApp(name){document.querySelectorAll('.phone-screen').forEach(x=>x.classList.add('hidden'));const screen=document.getElementById('phone-'+name);if(!screen)return;screen.classList.remove('hidden');if(chatRefreshTimer){clearInterval(chatRefreshTimer);chatRefreshTimer=null}if(name==='stocks')refreshStocks();else if(name==='wallet')renderWallet();else if(name==='ranking')loadRanking();else if(name==='property')loadProperties();else if(name==='bank')loadBank();else if(name==='titles')loadTitles();else if(name==='chat'){loadChatMessages();chatRefreshTimer=setInterval(()=>{if(!document.getElementById('phone-chat')?.classList.contains('hidden'))loadChatMessages()},5000)}else if(name==='skills')loadNegotiationSkills()}
+function openPhoneApp(name){document.querySelectorAll('.phone-screen').forEach(x=>x.classList.add('hidden'));const screen=document.getElementById('phone-'+name);if(!screen)return;screen.classList.remove('hidden');if(chatRefreshTimer){clearInterval(chatRefreshTimer);chatRefreshTimer=null}if(name==='stocks')refreshStocks();else if(name==='wallet')renderWallet();else if(name==='ranking')loadRanking();else if(name==='property')loadProperties();else if(name==='bank')loadBank();else if(name==='titles')loadTitles();else if(name==='chat'){const chatHost=document.getElementById('globalChatList');if(chatHost)delete chatHost.dataset.loadedOnce;loadChatMessages({forceBottom:true});chatRefreshTimer=setInterval(()=>{if(!document.getElementById('phone-chat')?.classList.contains('hidden'))loadChatMessages()},5000)}else if(name==='skills')loadNegotiationSkills()}
 
 function reputationToast(data,prefix='거래 완료'){
   if(!data)return toast(prefix);
@@ -1960,7 +1964,7 @@ function phoneHome(){document.querySelectorAll('.phone-screen').forEach(x=>x.cla
 function openPhoneApp(name){
   document.querySelectorAll('.phone-screen').forEach(x=>x.classList.add('hidden'));const screen=document.getElementById('phone-'+name);if(!screen)return;screen.classList.remove('hidden');
   if(chatRefreshTimer){clearInterval(chatRefreshTimer);chatRefreshTimer=null}if(businessRefreshTimer){clearInterval(businessRefreshTimer);businessRefreshTimer=null}
-  if(name==='stocks')refreshStocks();else if(name==='wallet')renderWallet();else if(name==='ranking')loadRanking();else if(name==='property')loadProperties();else if(name==='bank')loadBank();else if(name==='business')loadBusiness();else if(name==='titles')loadTitles();else if(name==='chat'){loadChatMessages();chatRefreshTimer=setInterval(()=>{if(!document.getElementById('phone-chat')?.classList.contains('hidden'))loadChatMessages()},5000)}else if(name==='skills')loadNegotiationSkills();
+  if(name==='stocks')refreshStocks();else if(name==='wallet')renderWallet();else if(name==='ranking')loadRanking();else if(name==='property')loadProperties();else if(name==='bank')loadBank();else if(name==='business')loadBusiness();else if(name==='titles')loadTitles();else if(name==='chat'){const chatHost=document.getElementById('globalChatList');if(chatHost)delete chatHost.dataset.loadedOnce;loadChatMessages({forceBottom:true});chatRefreshTimer=setInterval(()=>{if(!document.getElementById('phone-chat')?.classList.contains('hidden'))loadChatMessages()},5000)}else if(name==='skills')loadNegotiationSkills();
 }
 
 /* v32 총자산에 회사 가치 포함 */
@@ -2306,19 +2310,28 @@ handleRealtimeChatInsert=async function(payload){
   await processReliableIncomingChat(row,{showPopup:true});
 };
 
-loadChatMessages=async function(){
+loadChatMessages=async function(options={}){
   const host=document.getElementById('globalChatList');
   if(!host)return;
-  const wasNearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<40;
+  const firstLoad=!host.dataset.loadedOnce;
+  const oldTop=host.scrollTop;
+  const oldHeight=host.scrollHeight;
+  const wasNearBottom=oldHeight-oldTop-host.clientHeight<40;
   const{data,error}=await db.rpc('get_global_chat_v31',{p_limit:60});
   if(error){host.innerHTML=`<p class="muted">${esc(error.message)}</p>`;return}
   const rows=Array.isArray(data)?data:[];
   host.innerHTML=rows.map(r=>`<article class="global-chat-message ${r.sender_user_id===currentUser.id?'mine':''}"><div class="chat-user"><strong>${esc(r.nickname)}</strong><span class="title-badge ${titleClass(r.active_title)}">${esc(r.active_title||'초보 장사꾼')}</span><time>${chatTime(r.created_at)}</time></div><p>${esc(r.chat_text)}</p></article>`).join('')||'<p class="muted chat-empty">첫 메시지를 남겨 보세요.</p>';
+  host.dataset.loadedOnce='1';
   const latest=newestChatRow(rows);
   if(latest)rememberReliableChatLatest(getChatMessageId(latest));
   if(isChatScreenOpen())markChatRead(latest?.created_at||new Date().toISOString());
   requestAnimationFrame(()=>{
-    if(isChatScreenOpen()||wasNearBottom)host.scrollTop=host.scrollHeight;
+    if(options.forceBottom||firstLoad||wasNearBottom){
+      host.scrollTop=host.scrollHeight;
+    }else{
+      const heightDelta=host.scrollHeight-oldHeight;
+      host.scrollTop=Math.max(0,oldTop+heightDelta);
+    }
   });
 };
 
@@ -3721,4 +3734,189 @@ const enterGameV408Base=enterGame;
 enterGame=async function(){
   await enterGameV408Base();
   if(profile)setTimeout(startPeriodicTaxTimerV408,700);
+};
+
+/* ============================================================
+   v40.10 FINAL HOTFIX
+   - 브랜드 카운트다운 갱신 시 로열티 정산 카드 유지
+   - 전체 채팅 알림/빨간점 실시간 + 타임스탬프 폴링 복구
+   ============================================================ */
+let brandStableTimerV4010=null;
+let chatStableTimerV4010=null;
+let chatStableBusyV4010=false;
+let chatStableLastAtV4010='';
+const chatStableNotifiedV4010=new Set();
+
+function chatStableStorageKeyV4010(){
+  return `sellingGodChatStableLastAt:${currentUser?.id||'guest'}`;
+}
+function chatRowStableKeyV4010(row){
+  return String(row?.message_id??row?.id??`${row?.sender_user_id||''}:${row?.created_at||''}`);
+}
+function newestChatByTimeV4010(rows){
+  if(!Array.isArray(rows)||!rows.length)return null;
+  return rows.reduce((a,b)=>new Date(b?.created_at||0)>new Date(a?.created_at||0)?b:a,rows[0]);
+}
+function rememberChatTimeV4010(value){
+  if(!value)return;
+  if(!chatStableLastAtV4010||new Date(value)>new Date(chatStableLastAtV4010))chatStableLastAtV4010=value;
+  try{localStorage.setItem(chatStableStorageKeyV4010(),chatStableLastAtV4010)}catch{}
+}
+
+async function loadBrandHouseStableV4010(){
+  const host=document.getElementById('brandHouseView');
+  if(!host)return;
+  if(brandStableTimerV4010){clearTimeout(brandStableTimerV4010);brandStableTimerV4010=null}
+  if(typeof brandTimerV391!=='undefined'&&brandTimerV391){clearTimeout(brandTimerV391);brandTimerV391=null}
+
+  const previousScroll=host.scrollTop;
+  const{data,error}=await db.rpc('get_brand_house_status_v401');
+  if(error){host.innerHTML=`<div class="error-panel">${esc(error.message)}</div>`;return}
+
+  const b=data?.brand||{};
+  const active=data?.active_campaign;
+  const current=Number(b.tier||0);
+  const cash=Number(profile?.cash||0);
+  const pending=Number(data?.offline_reward||0);
+  const projects=active
+    ?`<article class="capital-active"><b>${esc(active.name)}</b><span>${active.ready?'정산 가능':Math.max(0,Number(active.remaining_seconds||0))+'초 남음'}</span><button ${active.ready?'':'disabled'} onclick="claimBrandCampaignStableV4010()">캠페인 정산</button></article>`
+    :`<div class="capital-project-grid">${[['limited','시즌 한정 컬렉션',200000000,1],['popup','백화점 팝업 스토어',1000000000,2],['ambassador','글로벌 앰배서더',5000000000,3],['world_launch','월드 플래그십 런칭',20000000000,4]].map(x=>`<button ${current<x[3]?'disabled':''} onclick="startBrandCampaignStableV4010('${x[0]}')"><b>${x[1]}</b><span>필요 ${money(x[2])}</span></button>`).join('')}</div>`;
+
+  host.innerHTML=`<section class="capital-hero brand"><div><span>브랜드 누적 매출</span><b>${money(b.total_sales||0)}</b><small>브랜드 가치 ${money(b.brand_value||0)} · 명성 ${Number(b.prestige||0).toLocaleString()}P</small></div><em>${current?BRAND_TIERS_V391[current-1].name:'브랜드 설립 전'}</em></section>
+  <div class="offline-reward-v401"><div><span>미접속 브랜드 로열티</span><b>${money(pending)}</b><small>30분 단위 · 세금 별도 누적</small></div><button ${pending<=0?'disabled':''} onclick="claimBrandOfflineStableV4010()">로열티 정산</button></div>
+  <div class="capital-tier-grid">${capitalTierCardsV391(BRAND_TIERS_V391,current,cash,'buildBrandHouseStableV4010')}</div>${projects}`;
+  host.scrollTop=previousScroll;
+
+  if(active&&!active.ready&& !document.getElementById('phone-brand')?.classList.contains('hidden')){
+    brandStableTimerV4010=setTimeout(loadBrandHouseStableV4010,1000);
+  }
+}
+async function buildBrandHouseStableV4010(tier){
+  if(!confirm(`${BRAND_TIERS_V391[tier-1].name}을 설립할까요?`))return;
+  const{data,error}=await db.rpc('build_brand_house_v391',{p_tier:tier});
+  if(error)return toast(error.message);
+  toast(`${data.name} 설립 완료`);playSuccessSound();
+  await loadProfile();await loadBrandHouseStableV4010();updateNetworth();
+}
+async function startBrandCampaignStableV4010(code){
+  if(!confirm('브랜드 캠페인을 시작할까요? 제작비는 즉시 차감되며 흥행 실패 가능성이 있습니다.'))return;
+  const{data,error}=await db.rpc('start_brand_campaign_v391',{p_code:code});
+  if(error)return toast(error.message);
+  toast(`${data.name} 시작`);await loadProfile();await loadBrandHouseStableV4010();
+}
+async function claimBrandCampaignStableV4010(){
+  const{data,error}=await db.rpc('claim_brand_campaign_v391');
+  if(error)return toast(error.message);
+  toast(`${data.result_label} · 매출 ${money(data.payout)}`);playSuccessSound();
+  await loadProfile();await loadBrandHouseStableV4010();updateNetworth();
+}
+async function claimBrandOfflineStableV4010(){
+  const{data,error}=await db.rpc('claim_brand_offline_v401');
+  if(error)return toast(error.message);
+  toast(`브랜드 미접속 수익 ${money(data.net_amount)} · 세금 ${money(data.tax_added)}`);
+  await loadProfile();await loadBrandHouseStableV4010();updateNetworth();
+}
+
+async function processChatStableV4010(row,{popup=true}={}){
+  if(!row||!currentUser||row.sender_user_id===currentUser.id)return;
+  const key=chatRowStableKeyV4010(row);
+  if(isChatScreenOpen()){
+    await loadChatMessages();
+    markChatRead(row.created_at||new Date().toISOString());
+    rememberChatTimeV4010(row.created_at);
+    return;
+  }
+  setChatUnread(true);
+  if(popup&&!chatStableNotifiedV4010.has(key)){
+    chatStableNotifiedV4010.add(key);
+    showChatNotification({
+      nickname:row.nickname||'새 메시지',
+      active_title:row.active_title||'초보 장사꾼',
+      chat_text:row.chat_text||row.message||'',
+      created_at:row.created_at||new Date().toISOString()
+    });
+    if(chatStableNotifiedV4010.size>150)chatStableNotifiedV4010.delete(chatStableNotifiedV4010.values().next().value);
+  }
+}
+async function pollChatStableV4010(){
+  if(chatStableBusyV4010||!currentUser)return;
+  chatStableBusyV4010=true;
+  try{
+    const{data,error}=await db.rpc('get_global_chat_v31',{p_limit:40});
+    if(error)throw error;
+    const rows=Array.isArray(data)?data:[];
+    const baseline=chatStableLastAtV4010?new Date(chatStableLastAtV4010).getTime():0;
+    const incoming=rows.filter(r=>new Date(r.created_at||0).getTime()>baseline).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    for(const row of incoming)await processChatStableV4010(row,{popup:true});
+    const newest=newestChatByTimeV4010(rows);
+    if(newest)rememberChatTimeV4010(newest.created_at);
+  }catch(error){console.warn('채팅 안정화 폴링 실패:',error)}finally{chatStableBusyV4010=false}
+}
+async function restartChatStableV4010(){
+  if(chatStableTimerV4010){clearInterval(chatStableTimerV4010);chatStableTimerV4010=null}
+  chatStableNotifiedV4010.clear();
+  try{chatStableLastAtV4010=localStorage.getItem(chatStableStorageKeyV4010())||''}catch{chatStableLastAtV4010=''}
+
+  try{
+    const{data,error}=await db.rpc('get_global_chat_v31',{p_limit:40});
+    if(!error){
+      const rows=Array.isArray(data)?data:[];
+      const newest=newestChatByTimeV4010(rows);
+      if(!chatStableLastAtV4010&&newest)rememberChatTimeV4010(newest.created_at);
+      let lastSeen='';try{lastSeen=localStorage.getItem(chatLastSeenStorageKey())||''}catch{}
+      const unseen=rows.some(r=>r.sender_user_id!==currentUser.id&&lastSeen&&new Date(r.created_at)>new Date(lastSeen));
+      if(unseen&&!isChatScreenOpen())setChatUnread(true);
+    }
+  }catch(error){console.warn('채팅 안정화 초기화 실패:',error)}
+
+  // 기존 채널이 멈춰 있었을 수 있으므로 새로 연결한다.
+  try{
+    if(realtime){await db.removeChannel(realtime);realtime=null}
+  }catch{}
+  try{
+    realtime=db.channel(`selling-god-chat-v4010-${currentUser.id}`)
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'stocks'},loadStocks)
+      .on('postgres_changes',{event:'*',schema:'public',table:'market_listings'},loadMarket)
+      .on('postgres_changes',{event:'*',schema:'public',table:'collectible_listings'},loadCollectibleMarket)
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'global_chat_messages'},async payload=>{
+        const raw=payload?.new||{};
+        if(!raw?.id||raw.user_id===currentUser?.id)return;
+        let row={message_id:raw.id,sender_user_id:raw.user_id,chat_text:raw.message,created_at:raw.created_at};
+        try{const{data,error}=await db.rpc('get_global_chat_message_v34',{p_message_id:raw.id});if(!error){const h=Array.isArray(data)?data[0]:data;if(h)row=h}}catch{}
+        await processChatStableV4010(row,{popup:true});
+        rememberChatTimeV4010(row.created_at);
+      }).subscribe();
+  }catch(error){console.warn('채팅 실시간 재연결 실패:',error)}
+  chatStableTimerV4010=setInterval(pollChatStableV4010,3000);
+}
+
+const openPhoneAppV4010Base=openPhoneApp;
+openPhoneApp=function(name){
+  openPhoneAppV4010Base(name);
+  if(name==='brand'){
+    if(typeof brandTimerV391!=='undefined'&&brandTimerV391){clearTimeout(brandTimerV391);brandTimerV391=null}
+    setTimeout(loadBrandHouseStableV4010,0);
+  }else if(brandStableTimerV4010){clearTimeout(brandStableTimerV4010);brandStableTimerV4010=null}
+  if(name==='chat'){
+    setChatUnread(false);
+    setTimeout(async()=>{
+      await loadChatMessages({forceBottom:true});
+      const{data}=await db.rpc('get_global_chat_v31',{p_limit:1});
+      const newest=newestChatByTimeV4010(Array.isArray(data)?data:[]);
+      if(newest){markChatRead(newest.created_at);rememberChatTimeV4010(newest.created_at)}
+    },0);
+  }
+};
+
+const enterGameV4010Base=enterGame;
+enterGame=async function(){
+  await enterGameV4010Base();
+  if(currentUser&&profile)setTimeout(restartChatStableV4010,900);
+};
+
+const logoutV4010Base=logout;
+logout=async function(){
+  if(brandStableTimerV4010){clearTimeout(brandStableTimerV4010);brandStableTimerV4010=null}
+  if(chatStableTimerV4010){clearInterval(chatStableTimerV4010);chatStableTimerV4010=null}
+  await logoutV4010Base();
 };
