@@ -5,16 +5,42 @@ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let authMode="login",currentUser=null,profile=null,inventory=[],stocks=[],holdings=[],collectibles=[],effects={},explore=null,auction=null,auctionChoices=[],sellerAuction=null,negotiation=null,job=null,selectedStock=null,toastTimer=null,realtime=null,negotiationSkills={},collectiblePage=1,casePage=1,decorationPage=1,chatBusy=false,auctionRotationTimer=null,marketRotationTimer=null,stockTickerTimer=null,chatRefreshTimer=null,appraisedItemIds=new Set();
 
 document.addEventListener("DOMContentLoaded",()=>{init();initPremiumUI()});
+document.addEventListener("input",e=>{
+  if(e.target?.matches?.("#nickname,#email,#password")){
+    e.target.classList.remove("input-error");
+    if(authMsg)authMsg.textContent="";
+  }
+});
+
 async function init(){
   updatePhoneTime();setInterval(updatePhoneTime,30000);
   const{data:{session}}=await db.auth.getSession();
   if(session?.user){currentUser=session.user;await enterGame()}else showAuth();
   db.auth.onAuthStateChange((_e,s)=>currentUser=s?.user||null);
 }
-function setAuthMode(m){authMode=m;nicknameWrap.classList.toggle("hidden",m!=="signup");loginTab.classList.toggle("active",m==="login");signupTab.classList.toggle("active",m==="signup");authBtn.textContent=m==="login"?"로그인":"회원가입";authMsg.textContent=""}
+function setAuthMode(m){
+  authMode=m;
+  nicknameWrap.classList.toggle("hidden",m!=="signup");
+  loginTab.classList.toggle("active",m==="login");
+  signupTab.classList.toggle("active",m==="signup");
+  authBtn.textContent=m==="login"?"로그인":"회원가입";
+  authMsg.textContent="";
+  nickname.classList.remove("input-error");
+  email.classList.remove("input-error");
+  password.classList.remove("input-error");
+}
+function showAuthValidation(message,input){
+  authMsg.textContent=message;
+  [nickname,email,password].forEach(el=>el?.classList.remove("input-error"));
+  if(input){input.classList.add("input-error");input.focus();}
+}
 async function submitAuth(){
   const nick=nickname.value.trim(),mail=email.value.trim(),pw=password.value;
-  if(!mail||pw.length<6||(authMode==="signup"&&nick.length<2)){authMsg.textContent="입력값을 확인해 주세요.";return}
+  if(authMode==="signup"&&nick.length<2){showAuthValidation("닉네임은 최소 2글자 이상 입력해 주세요.",nickname);return}
+  if(authMode==="signup"&&nick.length>12){showAuthValidation("닉네임은 최대 12글자까지 사용할 수 있습니다.",nickname);return}
+  if(!mail){showAuthValidation("이메일을 입력해 주세요.",email);return}
+  if(!email.checkValidity()){showAuthValidation("올바른 이메일 형식으로 입력해 주세요.",email);return}
+  if(pw.length<6){showAuthValidation("비밀번호는 최소 6글자 이상 입력해 주세요.",password);return}
   authBtn.disabled=true;authBtn.textContent="처리 중...";
   try{
     if(authMode==="signup"){
