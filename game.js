@@ -3920,3 +3920,149 @@ logout=async function(){
   if(chatStableTimerV4010){clearInterval(chatStableTimerV4010);chatStableTimerV4010=null}
   await logoutV4010Base();
 };
+
+
+/* ============================================================
+   v40.11 DATA VISIBILITY / NETWORTH RECOVERY HOTFIX
+   - 총자산 DOM을 명시적으로 찾아 0원 고정 현상 방지
+   - 소장품 관계 조회가 일부 누락되어도 collectible_id로 복구
+   - 한 행 오류가 집/소장품 전체 렌더링을 멈추지 않도록 방어
+   - 내 집 진입 시 1페이지부터 확실히 렌더링
+   ============================================================ */
+function safeNumberV4011(value){
+  const n=Number(value);
+  return Number.isFinite(n)?n:0;
+}
+function safeItemValueV4011(row){
+  try{
+    const average=safeNumberV4011(row?.items?.average_price);
+    const condition=safeNumberV4011(row?.condition_score);
+    if(!average)return 0;
+    return safeNumberV4011(itemValue(average,condition));
+  }catch{return 0}
+}
+function safeCollectibleValueV4011(row){
+  const c=row?.collectibles;
+  if(!c)return 0;
+  const rarityBase={일반:300000,희귀:600000,'초희귀':1500000,진귀:4000000,보물:12000000,유물:50000000,'고대 유물':250000000};
+  return safeNumberV4011(rarityBase[c.rarity]||300000)+safeNumberV4011(c.effect_percent)*10000;
+}
+
+updateNetworth=function(){
+  if(!profile)return;
+  const sv=(Array.isArray(holdings)?holdings:[]).reduce((sum,h)=>{
+    const stock=(Array.isArray(stocks)?stocks:[]).find(x=>String(x?.id)===String(h?.stock_id));
+    return sum+safeNumberV4011(h?.quantity)*safeNumberV4011(stock?.current_price);
+  },0);
+  const iv=(Array.isArray(inventory)?inventory:[]).reduce((sum,row)=>sum+safeItemValueV4011(row),0);
+  const cv=(Array.isArray(collectibles)?collectibles:[]).reduce((sum,row)=>sum+safeCollectibleValueV4011(row),0);
+  const bv=safeNumberV4011(globalThis.businessState?.total_company_value);
+  const bank=safeNumberV4011(globalThis.bankState?.deposit_balance)+safeNumberV4011(globalThis.bankState?.savings_balance);
+  const total=safeNumberV4011(profile?.cash)+sv+iv+cv+bv+bank;
+  const el=document.getElementById('networth');
+  if(el){
+    el.textContent=money(total);
+    el.classList.toggle('negative-cash',total<0);
+  }
+  try{renderWallet()}catch(error){console.warn('자산 상세 렌더링 실패:',error)}
+};
+
+async function fetchCollectibleCatalogV4011(ids){
+  const unique=[...new Set((ids||[]).filter(Boolean).map(String))];
+  if(!unique.length)return new Map();
+  const map=new Map();
+  for(let i=0;i<unique.length;i+=200){
+    const chunk=unique.slice(i,i+200);
+    const{data,error}=await db.from('collectibles').select('id,name,type,rarity,effect_code,effect_name,effect_percent,icon').in('id',chunk);
+    if(error){console.warn('소장품 원본 정보 보조 조회 실패:',error.message);continue}
+    for(const c of data||[])map.set(String(c.id),c);
+  }
+  return map;
+}
+
+loadCollectibles=async function(){
+  if(!currentUser)return [];
+  const raw=[];
+  const pageSize=1000;
+  for(let from=0;;from+=pageSize){
+    const{data,error}=await db.from('user_collectibles')
+      .select('id,collectible_id,is_equipped,is_placed,is_listed,acquired_at,collectibles(id,name,type,rarity,effect_code,effect_name,effect_percent,icon)')
+      .eq('user_id',currentUser.id)
+      .order('acquired_at',{ascending:false})
+      .range(from,from+pageSize-1);
+    if(error){toast('소장품을 불러오지 못했습니다: '+error.message);console.error(error);return collectibles}
+    raw.push(...(data||[]));
+    if(!data||data.length<pageSize)break;
+  }
+
+  const missingIds=raw.filter(r=>!r?.collectibles&&r?.collectible_id).map(r=>r.collectible_id);
+  const catalog=await fetchCollectibleCatalogV4011(missingIds);
+  const recovered=[];
+  for(const row of raw){
+    const c=row?.collectibles||catalog.get(String(row?.collectible_id||''));
+    if(!c){console.warn('표시할 수 없는 소장품 행:',row?.id,row?.collectible_id);continue}
+    const normalized={...c};
+    if(normalized.rarity==='영웅')normalized.rarity='진귀';
+    normalized.effect_name=collectibleEffectLabel(normalized.effect_code,normalized.effect_name);
+    normalized.effect_percent=safeNumberV4011(normalized.effect_percent);
+    recovered.push({...row,collectibles:normalized});
+  }
+  collectibles=recovered;
+
+  collectiblePage=1;
+  casePage=1;
+  decorationPage=1;
+
+  const savedCaseId=String(profile?.equipped_phone_case_id||'');
+  const equippedRow=collectibles.find(x=>String(x?.id)===savedCaseId&&x?.collectibles?.type==='phone_case')
+    ||collectibles.find(x=>x?.is_equipped&&x?.collectibles?.type==='phone_case');
+  const caseGroups=getGroupedCollectibles('phone_case');
+  const equippedGroup=equippedRow?caseGroups.find(g=>g.rows.some(r=>String(r.id)===String(equippedRow.id))):caseGroups.find(g=>g.equippedCount>0);
+  const eqEl=document.getElementById('equippedCase');
+  if(eqEl)eqEl.innerHTML=equippedGroup?groupedCollectibleRow(equippedGroup,{mode:'equipped'}):'<p class="muted">장착 케이스 없음</p>';
+
+  try{renderCollectiblePages()}catch(error){console.error('소장품 목록 렌더링 실패:',error)}
+  try{renderCasePages()}catch(error){console.error('케이스 목록 렌더링 실패:',error)}
+  try{applyPhoneCase(equippedRow)}catch(error){console.error('케이스 테마 적용 실패:',error)}
+  try{fillCollectibleSelect()}catch(error){console.warn('소장품 판매 선택 목록 갱신 실패:',error)}
+  try{updateGachaButtons()}catch{}
+  updateNetworth();
+  return collectibles;
+};
+
+loadHouse=async function(){
+  decorationPage=1;
+  const room=document.getElementById('houseRoom');
+  if(room)room.innerHTML='<div class="house-loading">집 정보를 불러오는 중...</div>';
+  try{
+    await loadProfile();
+    await loadCollectibles();
+    await loadEffects();
+    const cap=Math.max(1,safeNumberV4011(profile?.house_capacity||1));
+    const placed=collectibles.filter(x=>x?.is_placed&&x?.collectibles?.type==='decoration').slice(0,cap);
+    const tier=profile?.property_tier||'basement';
+    const capacityText=document.getElementById('houseCapacityText');
+    if(capacityText)capacityText.textContent=`${profile?.property_name||'반지하'} · 장식 ${placed.length}/${cap}개 배치`;
+    if(room){
+      room.dataset.property=tier;
+      room.innerHTML=`<div class="house-scene">${houseSceneMarkup(tier)}<div id="placedDecorations" class="placed-decorations">${placed.map((r,i)=>`<div class="placed slot-${i}"><span>${r?.collectibles?.icon||'✨'}</span></div>`).join('')}</div><div class="room-vignette"></div></div>`;
+    }
+    const effectHost=document.getElementById('houseEffects');
+    if(effectHost)effectHost.innerHTML=Object.entries(effects||{}).map(([k,v])=>`<div class="effect"><span>${effectName(k)}</span><b>+${safeNumberV4011(v).toFixed(1)}%</b></div>`).join('')||'<p class="muted">활성 효과 없음</p>';
+    renderDecorationPages();
+    updateNetworth();
+  }catch(error){
+    console.error('내 집 불러오기 실패:',error);
+    if(room)room.innerHTML=`<div class="house-load-error"><b>집 정보를 불러오지 못했습니다.</b><span>${esc(error?.message||'잠시 후 새로고침해 주세요.')}</span><button class="btn primary" onclick="loadHouse()">다시 불러오기</button></div>`;
+  }
+};
+
+const enterGameV4011Base=enterGame;
+enterGame=async function(){
+  await enterGameV4011Base();
+  if(!profile)return;
+  try{
+    await Promise.allSettled([loadCollectibles(),loadInventory(),loadStocks(),loadBusinessStateSilent(),typeof loadBank==='function'?loadBank():Promise.resolve()]);
+    updateNetworth();
+  }catch(error){console.warn('로그인 후 자산 복구 갱신 실패:',error)}
+};
