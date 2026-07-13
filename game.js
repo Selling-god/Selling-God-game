@@ -1825,6 +1825,7 @@ function renderNegotiationSafe(feedback='',feedbackType='info'){
   const maxPatience=Math.max(1,Number(n.maxPatience||n.persona?.patience||1));n.maxPatience=maxPatience;
   const patiencePct=Math.max(0,Math.min(100,Number(n.patience||0)/maxPatience*100));
   const recommended=Math.round(Math.max(n.npcOffer+1000,n.npcOffer*1.05,n.market*.98));
+  const [smallStep,bigStep]=haggleMoneyStepsV4021(n.base);
   const history=n.history.map(x=>`<div class="chat ${x.who}"><b>${x.who==='npc'?esc(n.persona.name):'나'}</b><span>${esc(x.text)}</span></div>`).join('');
   const actions=[
     {code:'polite',icon:'🤝',name:'정중한 재제안',desc:'기본 기술 · 안전하지만 상승폭이 작음',free:true},
@@ -3752,7 +3753,7 @@ function taxCycleKeyV408(data){
 
 async function getPeriodicTaxStatusV408(){
   const {data,error}=await db.rpc('get_periodic_tax_status_v408');
-  if(error){console.warn('30분 세금 주기 조회 실패:',error.message);return null}
+  if(error){console.warn('1시간 세금 주기 조회 실패:',error.message);return null}
   return data||null;
 }
 
@@ -3809,14 +3810,14 @@ async function runPeriodicTaxCheckV408({initial=false}={}){
       showTaxPhoneNoticeV402('세금 고지서 5분 전',`다음 세금 고지서가 ${formatTaxRemainV402(nextSeconds)} 뒤 도착합니다.`,false);
     }
 
-    // 30분 경계가 지나 새 세금이 실제로 누적된 경우 고지서를 띄운다.
+    // 1시간 경계가 지나 새 세금이 실제로 누적된 경우 고지서를 띄운다.
     if(periods>0&&due>0){
       const billKey=`${nextKey}:${due}`;
       if(periodicTaxBillKeyV408!==billKey){
         periodicTaxBillKeyV408=billKey;
         periodicTaxWarningKeyV408='';
         if(!initial){
-          showTaxPhoneNoticeV402('30분 세금 고지서',`${periods}회분 세금 ${money(added)}이 추가되어 총 미납액은 ${money(due)}입니다.`,true);
+          showTaxPhoneNoticeV402('1시간 세금 고지서',`${periods}회분 세금 ${money(added)}이 추가되어 총 미납액은 ${money(due)}입니다.`,true);
         }
         updateTaxNoticeModalV408(data);
         startTaxReminderTimerV402();
