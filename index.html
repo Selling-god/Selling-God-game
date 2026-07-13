@@ -298,6 +298,7 @@
       <div class="phone-notch"></div><div class="phone-status"><span id="phoneTime"></span><span>판매폰 5G 🔋</span></div>
       <section id="phoneHome" class="phone-screen phone-home"><h2 id="phoneOwner">판매왕</h2><div class="apps">
         <button onclick="openPhoneApp('stocks')"><span class="app app-stock">📈</span>판매증권</button>
+        <button onclick="openPhoneApp('news')"><span class="app app-news">📰</span>경제 뉴스</button>
         <button onclick="openPageFromPhone('market')"><span class="app app-market">🛒</span>중고장터</button>
         <button onclick="openPageFromPhone('collection')"><span class="app app-gacha">🎁</span>소장품</button>
         <button onclick="openPhoneApp('wallet')"><span class="app app-wallet">💳</span>내 자산</button><button onclick="openPhoneApp('ranking')"><span class="app app-ranking">🏆</span>랭킹</button><button onclick="openPhoneApp('property')"><span class="app app-property">🏢</span>부동산</button><button onclick="openPhoneApp('bank')"><span class="app app-bank">🏦</span>은행</button><button onclick="openPhoneApp('business')"><span class="app app-business">🏭</span>사업 관리</button><button onclick="openPhoneApp('management')"><span class="app app-management">🧭</span>종합 경영</button><button onclick="openPhoneApp('trade')"><span class="app app-trade">🚢</span>글로벌 무역</button><button onclick="openPhoneApp('brand')"><span class="app app-brand">💎</span>브랜드 하우스</button><button onclick="openPhoneApp('foundation')"><span class="app app-foundation">🏛️</span>판매왕 재단</button><button onclick="openPhoneApp('risk')"><span class="app app-risk">📑</span>프로젝트 투자</button><button onclick="openPhoneApp('appraisal')"><span class="app app-appraisal">🔍</span>감정소</button><button onclick="openPhoneApp('restoration')"><span class="app app-restoration">🛠️</span>복원소</button><button onclick="openPhoneApp('titles')"><span class="app app-title">🎖️</span>칭호</button><button id="chatAppButton" class="chat-app-button" onclick="openPhoneApp('chat')"><span class="app app-chat">💬<span id="chatAppUnreadDot" class="chat-unread-dot app-dot hidden" aria-label="읽지 않은 채팅"></span></span>전체 채팅</button><button onclick="openPhoneApp('skills')"><span class="app app-skills">🧠</span>협상 스킬</button>
@@ -306,6 +307,10 @@
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매증권</b><small>종목을 눌러 상세 확인</small></div><button onclick="refreshStocks()">↻</button></div>
         <div id="stockListView"><div id="stockSpendableFunds" class="spendable-funds-card stock-funds"><span>실제 사용 가능 현금</span><b>0원</b><small>주식 매수에 즉시 사용할 수 있는 금액</small></div><div class="stock-next-update"><span>다음 시세 변동</span><b id="stockNextUpdate">계산 중...</b></div><div class="summary"><div><span>평가액</span><b id="stockValue">0원</b></div><div><span>평가손익</span><b id="stockProfit">0원</b></div></div><div id="stockList"></div></div>
         <div id="stockDetailView" class="hidden"><button class="back" onclick="closeStockDetail()">← 목록</button><div id="stockDetail"></div></div>
+      </section>
+      <section id="phone-news" class="phone-screen phone-app hidden">
+        <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매경제 뉴스룸</b><small>전 유저 공통 기사 · 10분마다 갱신</small></div><button onclick="loadStockNewsV4023(true)">↻</button></div>
+        <div id="stockNewsViewV4023" class="stock-news-view-v4023"><div class="bank-loading">경제 뉴스를 불러오는 중...</div></div>
       </section>
       <section id="phone-wallet" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>내 자산</b><small>계정 저장 정보</small></div><span></span></div><div id="walletView"></div></section><section id="phone-ranking" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매왕 랭킹</b><small>총자산 기준 TOP 20</small></div><button onclick="loadRanking()">↻</button></div><div id="rankingList"></div></section><section id="phone-property" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>부동산</b><small>더 큰 집으로 장식 슬롯 확장</small></div><button onclick="loadProperties()">↻</button></div><div id="propertyList"></div></section>
       <section id="phone-bank" class="phone-screen phone-app hidden">
@@ -347,7 +352,7 @@
 <script>
 window.collectibleEffectLabel=window.collectibleEffectLabel||function(code,name){const m={market_bonus:'NPC 제안가',pawn_bonus:'전당포 판매가',stock_fee_discount:'주식 수수료 할인',gacha_luck:'뽑기 희귀도',exploration_luck:'탐색 희귀도',auction_discount:'경매 낙찰 할인'};return String(name||'').trim()||m[String(code||'')]||'특수 효과';};
 </script>
-<script src="game.js?v=40.22"></script>
+<script src="game.js?v=40.23"></script>
 <div id="gachaModal" class="overlay hidden"><div class="gacha-reveal"><div id="gachaRarity" class="gacha-rarity">?</div><div id="gachaResultIcon" class="gacha-result-icon">🎁</div><h2 id="gachaResultName">결과 공개</h2><p id="gachaResultEffect"></p><div id="gachaBulkSummary" class="gacha-bulk-summary hidden"></div><button class="btn primary" onclick="closeGachaReveal()">확인</button></div></div><div id="clickFxLayer" class="click-fx-layer"></div>
 
 <div id="loginTaxModalV401" class="tax-settlement-overlay-v401 hidden" aria-modal="true" role="dialog">
