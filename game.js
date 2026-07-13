@@ -4218,3 +4218,148 @@ claimRiskV35=async function(){
   updateNetworth();
   await loadRiskDesk();
 };
+
+
+
+/* =========================================================
+   v40.13 최종 복구 패치
+   - 소장품/케이스: 조인/RLS/1,000행 제한을 우회하는 단일 RPC 사용
+   - 내 집: 소장품 로딩 실패가 나머지 화면을 멈추지 않도록 순차 처리
+   - 프로젝트 투자: v40.13 전용 RPC로 기존 중복 함수와 분리
+   ========================================================= */
+window.collectibleEffectLabel = window.collectibleEffectLabel || function(code,name){
+  const label={
+    market_bonus:'NPC 제안가',pawn_bonus:'전당포 판매가',stock_fee_discount:'주식 수수료 할인',
+    gacha_luck:'뽑기 희귀도',exploration_luck:'탐색 희귀도',auction_discount:'경매 낙찰 할인'
+  };
+  return String(name||'').trim()||label[String(code||'')]||'특수 효과';
+};
+
+async function loadCollectiblesV4013(){
+  if(!currentUser)return [];
+  const {data,error}=await db.rpc('get_my_collectibles_v4013');
+  if(error){
+    console.error('v40.13 소장품 RPC 실패:',error);
+    toast('소장품을 불러오지 못했습니다: '+error.message);
+    return Array.isArray(collectibles)?collectibles:[];
+  }
+  const rows=Array.isArray(data)?data:[];
+  collectibles=rows.map(row=>{
+    const c=row?.collectibles||{};
+    if(!c.id)return null;
+    const normalized={...c};
+    if(normalized.rarity==='영웅')normalized.rarity='진귀';
+    normalized.effect_name=window.collectibleEffectLabel(normalized.effect_code,normalized.effect_name);
+    normalized.effect_percent=Number(normalized.effect_percent||0);
+    return {
+      id:row.id,
+      collectible_id:row.collectible_id,
+      is_equipped:Boolean(row.is_equipped),
+      is_placed:Boolean(row.is_placed),
+      is_listed:Boolean(row.is_listed),
+      acquired_at:row.acquired_at,
+      collectibles:normalized
+    };
+  }).filter(Boolean);
+
+  collectiblePage=1;
+  casePage=1;
+  decorationPage=1;
+
+  const savedCaseId=String(profile?.equipped_phone_case_id||'');
+  const equippedRow=collectibles.find(x=>String(x.id)===savedCaseId&&x.collectibles?.type==='phone_case')
+    ||collectibles.find(x=>x.is_equipped&&x.collectibles?.type==='phone_case');
+  const caseGroups=getGroupedCollectibles('phone_case');
+  const equippedGroup=equippedRow
+    ?caseGroups.find(g=>g.rows.some(r=>String(r.id)===String(equippedRow.id)))
+    :caseGroups.find(g=>g.equippedCount>0);
+
+  const eqEl=document.getElementById('equippedCase');
+  if(eqEl)eqEl.innerHTML=equippedGroup
+    ?groupedCollectibleRow(equippedGroup,{mode:'equipped'})
+    :'<p class="muted">장착 케이스 없음</p>';
+
+  renderCollectiblePages();
+  renderCasePages();
+  applyPhoneCase(equippedRow||null);
+  fillCollectibleSelect();
+  updateGachaButtons();
+  updateNetworth();
+  return collectibles;
+}
+loadCollectibles=loadCollectiblesV4013;
+
+loadHouse=async function(){
+  decorationPage=1;
+  const room=document.getElementById('houseRoom');
+  const capacityText=document.getElementById('houseCapacityText');
+  const effectHost=document.getElementById('houseEffects');
+  if(room)room.innerHTML='<div class="house-loading">집 정보를 불러오는 중...</div>';
+  try{
+    await loadProfile();
+    await loadCollectiblesV4013();
+    try{await loadEffects();}catch(effectError){console.warn('효과 조회 실패:',effectError);effects={};}
+
+    const cap=Math.max(1,Number(profile?.house_capacity||1));
+    const placed=collectibles.filter(x=>x?.is_placed&&x?.collectibles?.type==='decoration').slice(0,cap);
+    const tier=profile?.property_tier||'basement';
+    if(capacityText)capacityText.textContent=`${profile?.property_name||'반지하'} · 장식 ${placed.length}/${cap}개 배치`;
+    if(room){
+      room.dataset.property=tier;
+      room.innerHTML=`<div class="house-scene">${houseSceneMarkup(tier)}<div id="placedDecorations" class="placed-decorations">${placed.map((r,i)=>`<div class="placed slot-${i}"><span>${r.collectibles?.icon||'✨'}</span></div>`).join('')}</div><div class="room-vignette"></div></div>`;
+    }
+    if(effectHost)effectHost.innerHTML=Object.entries(effects||{}).map(([k,v])=>`<div class="effect"><span>${effectName(k)}</span><b>+${Number(v||0).toFixed(1)}%</b></div>`).join('')||'<p class="muted">활성 효과 없음</p>';
+    renderDecorationPages();
+    updateNetworth();
+  }catch(error){
+    console.error('v40.13 내 집 로딩 실패:',error);
+    if(room)room.innerHTML=`<div class="house-load-error"><b>집 정보를 불러오지 못했습니다.</b><span>${esc(error?.message||'알 수 없는 오류')}</span><button class="btn primary" onclick="loadHouse()">다시 불러오기</button></div>`;
+  }
+};
+
+const PROJECTS_V4013=[
+ ['venture','🏢','상가 리모델링 공동투자',10000000,60,'노후 상가를 개선해 임대하거나 매각합니다.','공실·공사비 위험 · 최대 4.5배'],
+ ['futures','📦','대량 재고 선매입 계약',50000000,45,'유행 상품을 도매가로 선매입합니다.','재고 폭락 위험 · 최대 6배'],
+ ['takeover','🚢','해외 독점 유통권 계약',200000000,90,'해외 브랜드의 국내 독점권을 확보합니다.','계약 파기 위험 · 최대 8배'],
+ ['redevelop','🏗️','도심 재개발 지분 투자',300000000,120,'정비사업 지분을 선매입합니다.','사업 지연 위험 · 최대 7배'],
+ ['hotel','🏨','관광호텔 리뉴얼 펀드',500000000,100,'노후 호텔을 리브랜딩합니다.','가동률 위험 · 최대 6.5배'],
+ ['logistics','🚚','물류센터 개발 프로젝트',800000000,110,'대형 임차인을 유치하는 물류센터를 개발합니다.','공실·금리 위험 · 최대 7.5배'],
+ ['film','🎬','대형 콘텐츠 제작 투자',1000000000,75,'영화·드라마 제작비를 공동 투자합니다.','흥행 실패 위험 · 최대 10배'],
+ ['datacenter','🖥️','데이터센터 건설 컨소시엄',2000000000,150,'장기 임차 기반 데이터센터를 개발합니다.','인허가·전력비 위험 · 최대 9배']
+];
+function projectCardV4013(p){
+  const [code,icon,name,min,duration,desc,odds]=p;
+  const afford=Number(profile?.cash||0)>=min;
+  return `<article class="risk-product ${code}"><span>${icon}</span><div><b>${name}</b><small>${desc}</small><em>최소 ${money(min)} · ${duration}초 후 결과</em><p>${odds}</p></div><div class="risk-input"><input id="riskAmount-${code}" type="number" min="${min}" step="1000000" value="${min}"><button ${afford?'':'disabled'} onclick="startRiskV4013('${code}')">${afford?'투자 실행':'현금 부족'}</button></div></article>`;
+}
+loadRiskDesk=async function(){
+  const host=document.getElementById('riskView');
+  if(!host)return;
+  host.innerHTML='<div class="bank-loading">프로젝트 투자 현황을 불러오는 중...</div>';
+  const {data,error}=await db.rpc('get_project_investment_v4013');
+  if(error){host.innerHTML=`<div class="error-panel"><b>프로젝트 투자 조회 실패</b><p>${esc(error.message)}</p><button onclick="loadRiskDesk()">다시 불러오기</button></div>`;return;}
+  const active=data?.active||null;
+  host.innerHTML=`<div class="risk-warning project-warning"><b>📑 프로젝트 투자</b><p>결과는 투자 시작 순간 서버에서 확정됩니다.</p><strong>사용 가능 현금 ${money(profile?.cash||0)}</strong></div>`+(active
+    ?`<article class="risk-active"><div><span>${active.product_icon||'📑'}</span><b>${esc(active.product_name||'프로젝트 투자')}</b><small>투자금 ${money(active.invested_amount||0)}</small></div><div><em>${active.ready?'정산 가능':`${Number(active.remaining_seconds||0)}초 남음`}</em><button ${active.ready?'':'disabled'} onclick="claimRiskV4013()">${active.ready?'정산 결과 확인':'프로젝트 진행 중'}</button></div></article>`
+    :`<div class="risk-products">${PROJECTS_V4013.map(projectCardV4013).join('')}</div>`);
+  if(riskTimerV35)clearTimeout(riskTimerV35);
+  if(active&&!active.ready)riskTimerV35=setTimeout(loadRiskDesk,1000);
+};
+async function startRiskV4013(code){
+  const p=PROJECTS_V4013.find(x=>x[0]===code);if(!p)return;
+  const amount=Math.floor(Number(document.getElementById(`riskAmount-${code}`)?.value||0));
+  if(amount<p[3])return toast(`최소 투자금은 ${money(p[3])}입니다.`);
+  if(amount>Number(profile?.cash||0))return toast('투자할 현금이 부족합니다.');
+  if(!confirm(`${p[2]}에 ${money(amount)}을 투자할까요?`))return;
+  const {data,error}=await db.rpc('start_project_investment_v4013',{p_product:code,p_amount:amount});
+  if(error)return toast(error.message);
+  toast(`프로젝트 투자 시작 · ${Number(data?.resolves_in||p[4])}초 후 정산`);
+  await loadProfile();updateNetworth();await loadRiskDesk();
+}
+async function claimRiskV4013(){
+  const {data,error}=await db.rpc('claim_project_investment_v4013');
+  if(error)return toast(error.message);
+  const profit=Number(data?.payout||0)-Number(data?.invested_amount||0);
+  toast(`${data?.result_label||'프로젝트 정산'} · ${profit>=0?'+':''}${money(profit)}`);
+  await loadProfile();updateNetworth();await loadRiskDesk();
+}
