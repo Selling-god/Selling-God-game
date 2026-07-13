@@ -4784,3 +4784,105 @@ setTimeout(startPerformanceGovernorV4017,0);
 /* v40.19 은행 출금 안정화 및 소장품 거래 null 방어 */
 globalThis.bankWithdrawDeposit=bankWithdrawDeposit;
 globalThis.loadCollectibleMarket=loadCollectibleMarket;
+
+
+/* ============================================================
+   v40.23 정확한 메인 총자산 + 전 유저 공통 경제 뉴스
+============================================================ */
+let exactNetworthV4023=null;
+let exactNetworthBusyV4023=false;
+let exactNetworthQueuedV4023=false;
+async function refreshExactNetworthV4023(){
+  if(!currentUser){return null}
+  if(exactNetworthBusyV4023){exactNetworthQueuedV4023=true;return exactNetworthV4023}
+  exactNetworthBusyV4023=true;
+  try{
+    const{data,error}=await db.rpc('get_my_networth_v4023');
+    if(error)throw error;
+    const value=Number(data?.networth??data??0);
+    if(Number.isFinite(value)){
+      exactNetworthV4023=value;
+      renderNetworthValueV4015(value);
+    }
+    return value;
+  }catch(error){
+    console.warn('v40.23 총자산 조회 실패:',error?.message||error);
+    return null;
+  }finally{
+    exactNetworthBusyV4023=false;
+    if(exactNetworthQueuedV4023){exactNetworthQueuedV4023=false;setTimeout(refreshExactNetworthV4023,120)}
+  }
+}
+updateNetworth=function(){
+  if(!profile)return;
+  if(exactNetworthV4023===null){
+    const el=document.getElementById('networth');
+    if(el)el.textContent='계산 중...';
+  }else renderNetworthValueV4015(exactNetworthV4023);
+  try{renderWallet()}catch(error){console.warn('자산 상세 렌더링 실패:',error)}
+  void refreshExactNetworthV4023();
+};
+
+let stockNewsStateV4023=null;
+let stockNewsCountdownV4023=null;
+function newsMoneyV4023(v){return money(Number(v||0))}
+function newsTimeLeftV4023(date){
+  const ms=Math.max(0,new Date(date).getTime()-Date.now());
+  const m=Math.floor(ms/60000),s=Math.floor(ms%60000/1000);
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+function stopNewsCountdownV4023(){if(stockNewsCountdownV4023){clearInterval(stockNewsCountdownV4023);stockNewsCountdownV4023=null}}
+function renderStockNewsV4023(){
+  const host=document.getElementById('stockNewsViewV4023');if(!host)return;
+  const state=stockNewsStateV4023||{};
+  const pubs=Array.isArray(state.publishers)?state.publishers:[];
+  const billed=Number(state.billed_amount||0);
+  host.innerHTML=`<div class="news-cycle-card-v4023"><div class="cycle-row"><div><strong>공통 뉴스 회차</strong><b>${esc(state.cycle_label||'-')}</b></div><div><span>다음 기사</span><b id="newsNextV4023">${newsTimeLeftV4023(state.next_cycle_at)}</b></div></div><small>기사와 주가 신호는 모든 유저에게 동일합니다. 뉴스는 방향을 암시하지만 결과를 100% 보장하지는 않습니다.</small></div>${billed>0?`<div class="news-charge-note-v4023"><span class="news-billed-v4023">미접속 구독료 ${newsMoneyV4023(billed)} 자동 청구</span><br>구독 중이던 매체의 10분 단위 이용료가 정산되었습니다.</div>`:''}${pubs.map(p=>{
+    const sub=Boolean(p.subscribed),tier=Number(p.tier||1),article=p.article||{};
+    const signalClass=Number(article.direction||0)>=0?'up':'down';
+    return `<article class="news-publisher-v4023 tier-${tier}"><div class="news-publisher-head-v4023"><h3>${esc(p.icon||'📰')} ${esc(p.name||'뉴스사')}</h3><span>${newsMoneyV4023(p.fee_per_period)}/10분</span></div><div class="news-sub-meta-v4023">${esc(p.description||'')} ${sub?'· 구독 중':''}</div>${sub?`<div class="news-article-v4023"><h4>${esc(article.headline||'새 기사 준비 중')}</h4><p>${esc(article.body||'')}</p><div class="news-signal-v4023"><div>관심 종목 <b>${esc(article.stock_name||'-')}</b></div><div>예상 방향 <b class="${signalClass}">${Number(article.direction||0)>=0?'상승 압력':'하락 압력'}</b></div>${tier>=2?`<div>신뢰도 <b>${Number(article.confidence||0)}%</b></div>`:''}${tier>=3?`<div>예상 영향 <b>${(Number(article.impact||0)*100).toFixed(1)}% 내외</b></div>`:''}</div></div>`:`<div class="news-locked-v4023">🔒 정기 구독 후 현재 회차 기사를 열람할 수 있습니다.</div>`}<div class="news-action-v4023">${sub?`<button class="cancel" onclick="cancelStockNewsSubscriptionV4023('${escAttr(p.code)}')">구독 해지</button>`:`<button onclick="subscribeStockNewsV4023('${escAttr(p.code)}')">구독 시작 · ${newsMoneyV4023(p.fee_per_period)}</button>`}</div></article>`
+  }).join('')}`;
+  stopNewsCountdownV4023();
+  stockNewsCountdownV4023=setInterval(()=>{
+    const el=document.getElementById('newsNextV4023');
+    if(el)el.textContent=newsTimeLeftV4023(stockNewsStateV4023?.next_cycle_at);
+    if(stockNewsStateV4023?.next_cycle_at&&Date.now()>=new Date(stockNewsStateV4023.next_cycle_at).getTime())loadStockNewsV4023(true);
+  },1000);
+}
+async function loadStockNewsV4023(force=false){
+  const host=document.getElementById('stockNewsViewV4023');
+  if(host&&force)host.innerHTML='<div class="bank-loading">최신 공통 뉴스를 불러오는 중...</div>';
+  const{data,error}=await db.rpc('get_stock_news_desk_v4023');
+  if(error){if(host)host.innerHTML=`<div class="wallet-card">${esc(error.message)}</div>`;return}
+  stockNewsStateV4023=data||{};
+  renderStockNewsV4023();
+  if(Number(data?.billed_amount||0)>0){await loadProfile();exactNetworthV4023=null;updateNetworth()}
+}
+async function subscribeStockNewsV4023(code){
+  const{data,error}=await db.rpc('subscribe_stock_news_v4023',{p_publisher_code:code});
+  if(error)return toast(error.message);
+  toast(`${data.publisher_name} 구독 시작 · ${newsMoneyV4023(data.charged)}`);
+  await loadProfile();exactNetworthV4023=null;updateNetworth();await loadStockNewsV4023(true);
+}
+async function cancelStockNewsSubscriptionV4023(code){
+  const{data,error}=await db.rpc('cancel_stock_news_v4023',{p_publisher_code:code});
+  if(error)return toast(error.message);
+  toast(`${data.publisher_name} 구독을 해지했습니다.`);await loadStockNewsV4023(true);
+}
+
+const openPhoneAppV4023Base=openPhoneApp;
+openPhoneApp=function(name){
+  openPhoneAppV4023Base(name);
+  if(name==='news')loadStockNewsV4023();
+  else if(stockNewsCountdownV4023)stopNewsCountdownV4023();
+};
+const enterGameV4023Base=enterGame;
+enterGame=async function(){
+  await enterGameV4023Base();
+  try{
+    const{data,error}=await db.rpc('settle_stock_news_subscriptions_v4023');
+    if(!error&&Number(data?.billed_amount||0)>0){toast(`뉴스 구독료 ${newsMoneyV4023(data.billed_amount)}가 미접속 기간분까지 청구되었습니다.`);await loadProfile()}
+  }catch(error){console.warn('뉴스 구독료 정산 실패:',error)}
+  exactNetworthV4023=null;
+  await refreshExactNetworthV4023();
+};
