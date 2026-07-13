@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <!-- v33.7 reliable chat notifications -->
   <title>판매의 신 — STACKED COLLECTION v20</title>
-  <link rel="stylesheet" href="style.css?v=40.3">
+  <link rel="stylesheet" href="style.css?v=40.4">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -27,9 +27,17 @@
       <button id="loginTab" class="active" onclick="setAuthMode('login')">로그인</button>
       <button id="signupTab" onclick="setAuthMode('signup')">회원가입</button>
     </div>
-    <label id="nicknameWrap" class="field hidden">닉네임<input id="nickname" maxlength="12"></label>
+    <label id="nicknameWrap" class="field hidden">
+      <span class="field-label-row"><span>닉네임</span><small>2~12글자</small></span>
+      <input id="nickname" minlength="2" maxlength="12" placeholder="닉네임을 2글자 이상 입력">
+      <small class="field-help">한글·영문·숫자를 사용할 수 있으며 최소 2글자, 최대 12글자입니다.</small>
+    </label>
     <label class="field">이메일<input id="email" type="email"></label>
-    <label class="field">비밀번호<input id="password" type="password" minlength="6"></label>
+    <label class="field">
+      <span class="field-label-row"><span>비밀번호</span><small>최소 6글자</small></span>
+      <input id="password" type="password" minlength="6" placeholder="비밀번호를 6글자 이상 입력">
+      <small id="passwordHelp" class="field-help">비밀번호는 최소 6글자 이상 입력해야 합니다.</small>
+    </label>
     <button id="authBtn" class="btn primary full" onclick="submitAuth()">로그인</button>
     <p id="authMsg" class="error"></p>
   </div>
@@ -335,7 +343,7 @@
 
 <div id="chatNotificationStack" class="chat-notification-stack" aria-live="polite" aria-atomic="false"></div>
 
-<script src="game.js?v=40.3"></script>
+<script src="game.js?v=40.4"></script>
 <div id="gachaModal" class="overlay hidden"><div class="gacha-reveal"><div id="gachaRarity" class="gacha-rarity">?</div><div id="gachaResultIcon" class="gacha-result-icon">🎁</div><h2 id="gachaResultName">결과 공개</h2><p id="gachaResultEffect"></p><div id="gachaBulkSummary" class="gacha-bulk-summary hidden"></div><button class="btn primary" onclick="closeGachaReveal()">확인</button></div></div><div id="clickFxLayer" class="click-fx-layer"></div>
 
 <div id="loginTaxModalV401" class="tax-settlement-overlay-v401 hidden" aria-modal="true" role="dialog">
