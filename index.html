@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <!-- v33.7 reliable chat notifications -->
   <title>판매의 신 — STACKED COLLECTION v20</title>
-  <link rel="stylesheet" href="style.css?v=38.16">
+  <link rel="stylesheet" href="style.css?v=40.1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -249,7 +249,7 @@
             <div class="machine decor-machine"><div class="machine-glass"><div class="capsule-orbit">✦</div><div class="capsule-core">🏺</div></div><div class="bulk-gacha-buttons"><button id="decorGachaBtn" class="btn gacha-btn" onclick="drawCollectible('decoration',1)">1회 · 30만원</button><button class="btn gacha-btn bulk" onclick="drawCollectible('decoration',10)">10연속 · 285만원</button><button class="btn gacha-btn bulk mega" onclick="drawCollectible('decoration',100)">100연속 · 2,700만원</button></div><label class="gacha-skip-option"><input id="gachaSkipDecor" type="checkbox"> 뽑기 연출 스킵</label><small class="gacha-funds">10연속은 5%, 100연속은 10% 할인됩니다.</small></div>
             <aside class="gacha-rate-card panel">
               <h3>등급 확률표</h3><p class="muted">등급 색상은 결과 연출과 이름에 동일하게 적용됩니다.</p>
-              <div class="rate-row rarity-0"><span>일반</span><b>46%</b></div><div class="rate-row rarity-1"><span>희귀</span><b>25%</b></div><div class="rate-row rarity-2"><span>초희귀</span><b>14%</b></div><div class="rate-row rarity-3"><span>진귀</span><b>8%</b></div><div class="rate-row rarity-4"><span>보물</span><b>4.5%</b></div><div class="rate-row rarity-5"><span>유물</span><b>2%</b></div><div class="rate-row rarity-6"><span>고대 유물</span><b>0.5%</b></div>
+              <div class="rate-row rarity-0"><span>일반</span><b>68%</b></div><div class="rate-row rarity-1"><span>희귀</span><b>22%</b></div><div class="rate-row rarity-2"><span>초희귀</span><b>7.5%</b></div><div class="rate-row rarity-3"><span>진귀</span><b>2%</b></div><div class="rate-row rarity-4"><span>보물</span><b>0.42%</b></div><div class="rate-row rarity-5"><span>유물</span><b>0.075%</b></div><div class="rate-row rarity-6"><span>고대 유물</span><b>0.005%</b></div>
             </aside>
             <div class="panel collection-panel"><div class="section-head"><h3>내 소장품</h3><span id="collectiblePageInfo" class="page-info">1P / 1P</span></div><div id="collectibleInventory" class="paged-list"></div><div class="pager"><button id="collectiblePrev" class="btn light" onclick="changeCollectiblePage(-1)">‹ 이전</button><button id="collectibleNext" class="btn light" onclick="changeCollectiblePage(1)">다음 ›</button></div></div>
           </div>
@@ -257,7 +257,7 @@
         <div id="collection-case" class="collection-tab-panel hidden">
           <div class="gacha-layout">
             <div class="machine case-machine"><div class="machine-glass"><div class="capsule-orbit">✦</div><div class="capsule-core">📱</div></div><div class="bulk-gacha-buttons"><button id="caseGachaBtn" class="btn gacha-btn" onclick="drawCollectible('phone_case',1)">1회 · 30만원</button><button class="btn gacha-btn bulk" onclick="drawCollectible('phone_case',10)">10연속 · 285만원</button><button class="btn gacha-btn bulk mega" onclick="drawCollectible('phone_case',100)">100연속 · 2,700만원</button></div><label class="gacha-skip-option"><input id="gachaSkipCase" type="checkbox"> 뽑기 연출 스킵</label><small class="gacha-funds">고등급 케이스일수록 외형과 전용 바탕화면이 화려해집니다.</small></div>
-            <aside class="gacha-rate-card panel"><h3>등급 확률표</h3><p class="muted">소장품과 동일한 등급 확률을 사용합니다.</p><div class="rate-row rarity-0"><span>일반</span><b>46%</b></div><div class="rate-row rarity-1"><span>희귀</span><b>25%</b></div><div class="rate-row rarity-2"><span>초희귀</span><b>14%</b></div><div class="rate-row rarity-3"><span>진귀</span><b>8%</b></div><div class="rate-row rarity-4"><span>보물</span><b>4.5%</b></div><div class="rate-row rarity-5"><span>유물</span><b>2%</b></div><div class="rate-row rarity-6"><span>고대 유물</span><b>0.5%</b></div></aside>
+            <aside class="gacha-rate-card panel"><h3>등급 확률표</h3><p class="muted">소장품과 동일한 등급 확률을 사용합니다.</p><div class="rate-row rarity-0"><span>일반</span><b>68%</b></div><div class="rate-row rarity-1"><span>희귀</span><b>22%</b></div><div class="rate-row rarity-2"><span>초희귀</span><b>7.5%</b></div><div class="rate-row rarity-3"><span>진귀</span><b>2%</b></div><div class="rate-row rarity-4"><span>보물</span><b>0.42%</b></div><div class="rate-row rarity-5"><span>유물</span><b>0.075%</b></div><div class="rate-row rarity-6"><span>고대 유물</span><b>0.005%</b></div></aside>
             <div class="panel collection-panel"><h3>장착 케이스</h3><div id="equippedCase"></div><div class="section-head"><h3>내 케이스</h3><span id="casePageInfo" class="page-info">1P / 1P</span></div><div id="caseInventory" class="paged-list"></div><div class="pager"><button id="casePrev" class="btn light" onclick="changeCasePage(-1)">‹ 이전</button><button id="caseNext" class="btn light" onclick="changeCasePage(1)">다음 ›</button></div></div>
           </div>
         </div>
@@ -335,7 +335,31 @@
 
 <div id="chatNotificationStack" class="chat-notification-stack" aria-live="polite" aria-atomic="false"></div>
 
-<script src="game.js?v=40.0"></script>
+<script src="game.js?v=40.2"></script>
 <div id="gachaModal" class="overlay hidden"><div class="gacha-reveal"><div id="gachaRarity" class="gacha-rarity">?</div><div id="gachaResultIcon" class="gacha-result-icon">🎁</div><h2 id="gachaResultName">결과 공개</h2><p id="gachaResultEffect"></p><div id="gachaBulkSummary" class="gacha-bulk-summary hidden"></div><button class="btn primary" onclick="closeGachaReveal()">확인</button></div></div><div id="clickFxLayer" class="click-fx-layer"></div>
+
+<div id="loginTaxModalV401" class="tax-settlement-overlay-v401 hidden" aria-modal="true" role="dialog">
+  <div class="tax-settlement-card-v401">
+    <div class="tax-office-mark-v401">🏛️</div>
+    <p class="eyebrow">OFFLINE SETTLEMENT</p>
+    <h2>접속 정산 세금 안내</h2>
+    <p id="loginTaxDescriptionV401">미접속 기간 동안 발생한 수익과 보유 자산에 대한 세금을 정산합니다.</p>
+    <div class="tax-breakdown-v401">
+      <div><span>미접속 시간</span><b id="loginTaxHoursV401">0시간</b></div>
+      <div><span>보유자산 관리세</span><b id="loginWealthTaxV401">0원</b></div>
+      <div><span>누적 사업·이자 세금</span><b id="loginIncomeTaxV401">0원</b></div>
+      <div class="total"><span>납부할 총 세금</span><b id="loginTotalTaxV401">0원</b></div>
+    </div>
+    <div id="taxDeadlineBoxV402" class="tax-deadline-box-v402 hidden">
+      <span>납부 유예 만기</span><b id="taxDeadlineTextV402">30분 남음</b>
+      <small>유예를 선택하면 신용이 2점 감소하며, 만기 후에는 현금이 부족해도 자동 징수되어 잔액이 음수가 될 수 있습니다.</small>
+    </div>
+    <div class="tax-credit-note-v401">즉시 납부하면 신용이 1~2점 상승합니다.</div>
+    <div class="tax-action-row-v402">
+      <button id="payLoginTaxBtnV401" class="btn primary" onclick="payLoginTaxesV402()">지금 세금 납부</button>
+      <button id="deferLoginTaxBtnV402" class="btn light" onclick="deferLoginTaxesV402()">지금 낼 수 없음 · 30분 유예</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
