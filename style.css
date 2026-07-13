@@ -1697,3 +1697,15 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 
 /* v40.2 tax grace and negative cash */
 .tax-action-row-v402{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.tax-deadline-box-v402{margin-top:12px;padding:12px;border:2px solid #c6503e;border-radius:12px;background:#fff0e9;color:#5a241c}.tax-deadline-box-v402 span,.tax-deadline-box-v402 small{display:block}.tax-deadline-box-v402 b{display:block;margin:4px 0;color:#c8231f;font-size:22px}.negative-money-v402{color:#e12323!important;text-shadow:0 0 8px #ff6a6a44}.has-negative-cash-v402 #cashTop::before{content:'적자 ';font-size:10px;color:#ff6b6b}.chat-phone-notice.tax-phone-notice-v402{border-color:#d79135;background:linear-gradient(135deg,#fff3db,#f1d2a2)}.chat-phone-notice.tax-phone-notice-v402.urgent{border-color:#d33b31;background:linear-gradient(135deg,#fff0ea,#f1b6ae);box-shadow:0 12px 30px #b4202040}.chat-phone-notice.tax-phone-notice-v402 .chat-phone-notice-icon{font-size:0}.chat-phone-notice.tax-phone-notice-v402 .chat-phone-notice-icon::after{content:'🧾';font-size:24px}@media(max-width:600px){.tax-action-row-v402{grid-template-columns:1fr}}
+
+
+/* v40.3 은행 세금 납부 창구 */
+.bank-tax-panel-v403{border-color:#b97836!important;background:linear-gradient(145deg,#fff5dd,#f4dfb5)!important;box-shadow:0 8px 22px #6f43131a}
+.bank-tax-panel-v403.deferred{border-color:#c64736!important;background:linear-gradient(145deg,#fff0df,#f4c7b3)!important;box-shadow:0 0 0 2px #d24b3030,0 8px 24px #6f1e131f}
+.bank-tax-panel-v403 .tax-due-v403{color:#b3261e}
+.bank-tax-status-v403{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
+.bank-tax-status-v403>div{padding:10px;border:1px solid #a77a4f;border-radius:9px;background:#fff9ed;display:flex;flex-direction:column;gap:4px}
+.bank-tax-status-v403 span{font-size:11px;color:#755a43}.bank-tax-status-v403 b{font-size:14px}.bank-tax-status-v403 .deadline{border-color:#c84d3b;background:#fff1ec}.bank-tax-status-v403 .deadline b{color:#bb2b20}
+.bank-tax-actions-v403{display:grid;grid-template-columns:1fr 1fr;gap:8px}.bank-tax-actions-v403 button{min-height:42px;border:2px solid #5b3b26;border-radius:8px;font-weight:900}.bank-tax-actions-v403 .primary{background:#9b463c;color:#fff}.bank-tax-actions-v403 .sub{background:#356f91;color:#fff}.bank-tax-actions-v403 button:disabled{opacity:.45;cursor:not-allowed}
+.bank-tax-warning-v403{display:block;margin-top:9px;color:#b3261e;font-weight:800}
+@media(max-width:700px){.bank-tax-status-v403{grid-template-columns:1fr 1fr}.bank-tax-actions-v403{grid-template-columns:1fr}}
