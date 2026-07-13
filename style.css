@@ -1803,3 +1803,16 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 .auction-pawn-value b{font-size:13px}.auction-pawn-value span{font-size:12px;color:#765333}
 .auction-value-protected{display:block;margin-top:4px;color:#2f7654;font-weight:900}
 .deal-summary.deluxe>div small{display:block;margin-top:3px;font-size:11px;opacity:.82}
+
+
+/* v40.23 전역 경제 뉴스 앱 */
+.app-news{background:linear-gradient(145deg,#d9a73d,#7c4a16);box-shadow:inset 0 0 0 2px #fff2b766,0 5px 12px #0003}
+.stock-news-view-v4023{display:flex;flex-direction:column;gap:12px;padding-bottom:40px}
+.news-cycle-card-v4023{padding:12px;border:2px solid #8d6943;border-radius:10px;background:linear-gradient(135deg,#fff7df,#e8d4aa);box-shadow:0 7px 15px #3b26151c}
+.news-cycle-card-v4023 .cycle-row{display:flex;justify-content:space-between;gap:10px;align-items:center}.news-cycle-card-v4023 b{font-size:18px}.news-cycle-card-v4023 small{display:block;margin-top:5px;color:#70553d}
+.news-publisher-v4023{position:relative;overflow:hidden;padding:14px;border:2px solid #9b7955;border-radius:12px;background:#fff6e2;box-shadow:0 8px 17px #2a1b1018}
+.news-publisher-v4023.tier-2{border-color:#587ca6;background:linear-gradient(135deg,#f4f9ff,#dceafa)}
+.news-publisher-v4023.tier-3{border-color:#9b6bba;background:linear-gradient(135deg,#fff7ff,#eadcf3);box-shadow:0 8px 20px #6e34852b}
+.news-publisher-head-v4023{display:flex;align-items:center;justify-content:space-between;gap:10px}.news-publisher-head-v4023 h3{margin:0;font-size:18px}.news-publisher-head-v4023 span{font-weight:900;color:#9b453d}
+.news-sub-meta-v4023{margin:7px 0;color:#655043;font-size:12px}.news-article-v4023{margin-top:10px;padding:12px;border-left:5px solid #c18b3b;background:#ffffffa8}.news-article-v4023 h4{margin:0 0 7px;font-size:17px;color:#292019}.news-article-v4023 p{margin:0;line-height:1.55;color:#46362b}.news-signal-v4023{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.news-signal-v4023 div{padding:8px;border:1px solid #a98b69;background:#fffaf0}.news-signal-v4023 .up{color:#b23f35}.news-signal-v4023 .down{color:#2f638d}
+.news-locked-v4023{margin-top:10px;padding:18px;text-align:center;border:2px dashed #b89b79;background:#ede3d1;color:#725c47}.news-action-v4023{display:flex;gap:8px;margin-top:11px}.news-action-v4023 button{flex:1;padding:10px;border:2px solid #4c3422;background:#7b5035;color:#fff7e5;font-weight:900}.news-action-v4023 button.cancel{background:#6e6d69}.news-charge-note-v4023{padding:10px;border-radius:8px;background:#3b261d;color:#ffeecf;font-size:12px;line-height:1.5}.news-billed-v4023{color:#b94d42;font-weight:900}
