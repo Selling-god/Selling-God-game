@@ -270,7 +270,7 @@ function closeExplore(){clearExplore();exploreModal.classList.add("hidden")}
 
 /* 아이템/전당포 */
 async function loadInventory(){
-  const{data,error}=await db.from("user_items").select(`id,condition_score,is_listed,restoration_locked,items(id,name,category,average_price,rarity)`).eq("user_id",currentUser.id).order("acquired_at",{ascending:false});
+  const{data,error}=await db.from("user_items").select(`id,condition_score,is_listed,restoration_locked,acquisition_cost,acquisition_source,restoration_spent,items(id,name,category,average_price,rarity)`).eq("user_id",currentUser.id).order("acquired_at",{ascending:false});
   if(error)return toast(error.message);inventory=data||[];fillItemSelect();
   const homeCount=document.getElementById("homeInventoryCount");
   if(homeCount)homeCount.textContent=inventory.length;
@@ -284,18 +284,45 @@ async function pawnSell(id,mode,pct){const{data,error}=await db.rpc("sell_item_t
 function getTradeLedger(){try{return JSON.parse(localStorage.getItem(`trade_ledger_${currentUser?.id}`)||"[]")}catch{return[]}}
 function saveTradeLedger(entry){if(!currentUser)return;const rows=getTradeLedger();rows.unshift({...entry,at:new Date().toISOString()});localStorage.setItem(`trade_ledger_${currentUser.id}`,JSON.stringify(rows.slice(0,30)));renderTradeDashboard()}
 function renderTradeDashboard(){const host=document.getElementById("tradeDashboard");if(!host)return;const rows=getTradeLedger(),profit=rows.reduce((s,r)=>s+Number(r.profit||0),0),wins=rows.filter(r=>Number(r.profit)>0).length;host.innerHTML=`<div><span>누적 거래</span><b>${rows.length}건</b></div><div><span>누적 추가이익</span><b class="up">+${money(profit)}</b></div><div><span>성공 거래</span><b>${wins}건</b></div><div><span>평균 추가이익</span><b>${money(rows.length?profit/rows.length:0)}</b></div>`}
+function auctionRecoveryRateV4021(condition){
+  const c=Number(condition||0);
+  return c>=95?.98:c>=85?.95:c>=80?.92:c>=70?.86:c>=55?.78:c>=40?.68:.58;
+}
+function pawnQuoteLocalV4021(r){
+  const avg=Number(r?.items?.average_price||0);
+  const market=Math.max(1,Math.round(avg*conditionMultiplierV383(Number(r?.condition_score||0))));
+  const invested=Math.max(0,Number(r?.acquisition_cost||0)+Number(r?.restoration_spent||0));
+  const auctionFloor=r?.acquisition_source==='auction'&&invested>0?Math.round(invested*auctionRecoveryRateV4021(r.condition_score)):0;
+  const instant=Math.max(market,auctionFloor);
+  const rarity=normalizeRarityV35(r?.items?.rarity);
+  const rank={일반:0,희귀:1,초희귀:2,진귀:3,보물:4,유물:5,'고대 유물':6}[rarity]||0;
+  const valueCap=instant>=10000000000?180:instant>=1000000000?170:instant>=300000000?160:instant>=10000000?150:instant>=1000000?140:132;
+  const rarityCap=rank===6?180:rank===5?165:rank===4?150:rank===3?140:132;
+  const maxPct=Math.max(128+Math.min(25,Math.round(Number(effects?.pawn_bonus||0))),valueCap,rarityCap);
+  return {market,invested,auctionFloor,instant,maxPct,maxPrice:Math.round(instant*maxPct/100),auctionProtected:auctionFloor>market};
+}
+function haggleMoneyStepsV4021(base){
+  const b=Number(base||0);
+  if(b>=1000000000)return [10000000,100000000];
+  if(b>=100000000)return [1000000,10000000];
+  if(b>=10000000)return [100000,1000000];
+  if(b>=1000000)return [10000,100000];
+  return [1000,10000];
+}
 function startPawnNegotiation(id){
-  const r=inventory.find(x=>x.id===id),base=itemValue(r.items.average_price,r.condition_score);
+  const r=inventory.find(x=>x.id===id);
+  if(!r)return toast('아이템 정보를 찾지 못했습니다.');
+  const quote=pawnQuoteLocalV4021(r),base=quote.instant;
   const personalities=[
     {name:"신중한 감정가",icon:"🧐",patience:5,openness:.58,pressure:.22,line:"근거가 분명해야 돈을 더 쓰지."},
     {name:"성격 급한 수집가",icon:"😤",patience:3,openness:.76,pressure:.42,line:"시간 끌지 말고 핵심만 말해."},
     {name:"노련한 장사꾼",icon:"🦊",patience:4,openness:.66,pressure:.33,line:"나도 장사꾼이야. 허풍은 금방 알아보지."}
   ];
   const persona=personalities[Math.floor(Math.random()*personalities.length)];
-  const maxPct=128+Math.min(20,Number(effects.pawn_bonus||0));
-  const market=Math.round(base*(1.15+Math.random()*.12));
-  const opening=Math.round(base*(1.01+Math.random()*.035));
-  negotiation={type:"pawn",id,title:r.items.name,base,market,npcOffer:opening,limit:Math.min(Math.round(base*maxPct/100),Math.round(market*1.08)),round:1,patience:persona.patience,maxPatience:persona.patience,mood:"neutral",ended:false,persona,confidence:50,history:[{who:"npc",text:`${money(opening)}. 첫 제안은 이 정도일세.`}]};
+  const maxPct=quote.maxPct;
+  const market=Math.max(Math.round(base*(1.12+Math.random()*.10)),quote.invested);
+  const opening=Math.round(base*(1.01+Math.random()*.025));
+  negotiation={type:"pawn",id,title:r.items.name,base,market,npcOffer:opening,limit:Math.round(base*maxPct/100),round:1,patience:persona.patience,maxPatience:persona.patience,mood:"neutral",ended:false,persona,confidence:50,quote,history:[{who:"npc",text:`${money(opening)}. 경매 낙찰가와 복원 투자까지 감안한 첫 제안일세.`}]};
   renderNegotiation()
 }
 function negotiationProfit(n,price=n.npcOffer){return Math.round(price-n.base)}
@@ -317,7 +344,8 @@ function renderNegotiation(){
   const n=negotiation,profit=negotiationProfit(n),profitPct=n.base?profit/n.base*100:0;
   const ceiling=Math.max(1,n.limit-n.base),progress=Math.max(0,Math.min(100,(n.npcOffer-n.base)/ceiling*100));
   const patiencePct=Math.max(0,n.patience/n.maxPatience*100);
-  const recommended=Math.round(Math.max(n.npcOffer+1000,n.npcOffer*1.05,n.market*.98));
+  const [smallStep,bigStep]=haggleMoneyStepsV4021(n.base);
+  const recommended=Math.round(Math.max(n.npcOffer+smallStep,n.npcOffer*1.05,n.market*.98));
   const history=n.history.map(x=>`<div class="chat ${x.who}"><b>${x.who==="npc"?n.persona.name:"나"}</b><span>${esc(x.text)}</span></div>`).join("");
   const actions=[
     {code:"polite",icon:"🤝",name:"정중한 재제안",desc:"기본 기술 · 안전하지만 상승폭이 작음",free:true},
@@ -332,7 +360,7 @@ function renderNegotiation(){
   const actionHtml=actions.map(a=>{const unlocked=a.free||hasHaggleSkill(a.skill);return `<button class="haggle-skill-btn ${unlocked?'':'locked'}" ${unlocked?`onclick="submitNegotiationOffer('${a.code}')"`:`onclick="openSkillTreeFromNegotiation()"`}><b>${a.icon} ${a.name}</b><small>${unlocked?a.desc:`🔒 스킬 트리에서 ${HAGGLE_SKILLS[a.skill]?.name||''} 해금 필요`}</small></button>`}).join('');
   negotiationContent.innerHTML=`
     <div class="haggle-top"><div><p class="eyebrow">LIVE NEGOTIATION · ROUND ${n.round}</p><h2>${esc(n.title)}</h2></div><div class="dealer-profile"><strong>${n.persona.icon} ${n.persona.name}</strong><small>${n.persona.line}</small></div></div>
-    <div class="deal-summary deluxe"><div><span>즉시 판매 기준</span><b>${money(n.base)}</b></div><div><span>참고 시세</span><b>${money(n.market)}</b></div><div class="offer-main"><span>현재 제안</span><b>${money(n.npcOffer)}</b></div><div class="profit-main"><span>확정 추가이익</span><b class="${profit>=0?'up':'down'}">${profit>=0?'+':''}${money(profit)}</b><small>${profitPct>=0?'+':''}${profitPct.toFixed(1)}%</small></div></div>
+    <div class="deal-summary deluxe"><div><span>즉시 판매 기준</span><b>${money(n.base)}</b>${n.quote?.auctionProtected?'<small class="auction-value-protected">경매 투자금 보호 적용</small>':''}</div><div><span>총 투자금</span><b>${money(n.quote?.invested||0)}</b><small>낙찰가 + 복원비</small></div><div class="offer-main"><span>현재 제안</span><b>${money(n.npcOffer)}</b></div><div class="profit-main"><span>즉시가 대비 추가</span><b class="${profit>=0?'up':'down'}">${profit>=0?'+':''}${money(profit)}</b><small>${profitPct>=0?'+':''}${profitPct.toFixed(1)}%</small></div></div>
     <div class="haggle-bars"><label>NPC 인내심 <i><em style="width:${patiencePct}%"></em></i></label><label>흥정 성과 <i><em style="width:${progress}%"></em></i></label></div>
     <div id="negChat" class="neg-chat">${history}</div>
     ${n.ended?`<div class="final-offer"><b>최종 제안</b><strong>${money(n.npcOffer)}</strong><button onclick="acceptNpcCounter()">이 가격에 계약</button></div>`:`
@@ -1816,7 +1844,7 @@ function renderNegotiationSafe(feedback='',feedbackType='info'){
     <div id="negotiationFeedback" class="negotiation-feedback ${feedbackType}">${esc(feedback||'희망가를 조절한 뒤 흥정 방식을 선택하세요.')}</div>
     <div id="negChat" class="neg-chat">${history}</div>
     ${n.ended?`<div class="final-offer"><b>최종 제안</b><strong>${money(n.npcOffer)}</strong><button type="button" data-neg-action="pawn-accept">이 가격에 계약</button></div>`:`
-      <div class="manual-offer advanced"><div class="offer-copy"><label>내 희망 판매가</label><small>추천 ${money(recommended)} · 희망가는 자유롭게 입력 가능</small></div><div class="offer-controls"><button type="button" data-neg-action="pawn-adjust" data-value="-10000">-1만</button><button type="button" data-neg-action="pawn-adjust" data-value="-1000">-1천</button><input id="haggleAsk" type="number" min="${n.npcOffer+1}" step="1000" value="${recommended}"><button type="button" data-neg-action="pawn-adjust" data-value="1000">+1천</button><button type="button" data-neg-action="pawn-adjust" data-value="10000">+1만</button><button type="button" class="recommend" data-neg-action="pawn-recommend" data-value="${recommended}">추천가</button></div></div>
+      <div class="manual-offer advanced"><div class="offer-copy"><label>내 희망 판매가</label><small>추천 ${money(recommended)} · 희망가는 자유롭게 입력 가능</small></div><div class="offer-controls"><button type="button" data-neg-action="pawn-adjust" data-value="-${bigStep}">-${money(bigStep)}</button><button type="button" data-neg-action="pawn-adjust" data-value="-${smallStep}">-${money(smallStep)}</button><input id="haggleAsk" type="number" min="${n.npcOffer+1}" step="${smallStep}" value="${recommended}"><button type="button" data-neg-action="pawn-adjust" data-value="${smallStep}">+${money(smallStep)}</button><button type="button" data-neg-action="pawn-adjust" data-value="${bigStep}">+${money(bigStep)}</button><button type="button" class="recommend" data-neg-action="pawn-recommend" data-value="${recommended}">추천가</button></div></div>
       <div class="haggle-actions skill-grid">${actionHtml}</div>`}
     <button type="button" class="accept-now" data-neg-action="pawn-accept">현재 제안 확정 · 순이익 ${profit>=0?'+':''}${money(profit)}</button>`;
   injectPatienceTradePreview();
@@ -2968,7 +2996,7 @@ function hiddenConditionTextV387(){return '🔒 상태 미감정 · 감정소에
 
 loadInventory=async function(){
   const [itemsRes, appraisalRes]=await Promise.all([
-    db.from('user_items').select(`id,condition_score,is_listed,restoration_locked,items(id,name,category,average_price,rarity)`).eq('user_id',currentUser.id).order('acquired_at',{ascending:false}),
+    db.from('user_items').select(`id,condition_score,is_listed,restoration_locked,acquisition_cost,acquisition_source,restoration_spent,items(id,name,category,average_price,rarity)`).eq('user_id',currentUser.id).order('acquired_at',{ascending:false}),
     db.from('user_item_appraisals_v38').select('user_item_id').eq('user_id',currentUser.id)
   ]);
   if(itemsRes.error)return toast(itemsRes.error.message);
@@ -3003,8 +3031,9 @@ fillItemSelect=function(){
 loadPawnshop=async function(){
   await loadInventory();
   pawnshopList.innerHTML=inventory.filter(x=>!x.is_listed&&!x.restoration_locked).map(r=>{
-    const known=isItemAppraisedV387(r.id),avg=Number(r.items.average_price||0),v=Math.round(avg*conditionMultiplierV383(r.condition_score)),diff=v-avg,rc=rarityClass(normalizeRarityV35(r.items.rarity));
-    return `<article class="item-card pawn-v387-card"><div class="item-image"><img src="${itemImage(r.items.name,r.items.category)}"></div><div class="item-body"><h3 class="rarity-text ${rc}">${esc(r.items.name)}</h3>${known?`<div class="meta">상태 ${r.condition_score}/100 · ${conditionLabelV383(r.condition_score)}</div>`:`<div class="hidden-condition-v383">${hiddenConditionTextV387()}</div>`}<div class="price">즉시 매입가 ${money(v)}</div>${known?`<small class="condition-price-note ${diff>=0?'up':'down'}">평균 원가 대비 ${diff>=0?'+':''}${money(diff)}</small>`:`<small class="condition-price-note">전당포가 자체 평가한 매입가입니다.</small>`}<div class="item-actions"><button class="btn light" onclick="pawnSell('${r.id}','instant',100)">즉시 판매</button><button class="btn primary" onclick="startPawnNegotiation('${r.id}')">흥정 판매</button></div></div></article>`;
+    const known=isItemAppraisedV387(r.id),q=pawnQuoteLocalV4021(r),rc=rarityClass(normalizeRarityV35(r.items.rarity));
+    const recovery=q.invested>0?Math.round(q.instant/q.invested*100):0;
+    return `<article class="item-card pawn-v387-card"><div class="item-image"><img src="${itemImage(r.items.name,r.items.category)}"></div><div class="item-body"><h3 class="rarity-text ${rc}">${esc(r.items.name)}</h3>${known?`<div class="meta">상태 ${r.condition_score}/100 · ${conditionLabelV383(r.condition_score)}</div>`:`<div class="hidden-condition-v383">${hiddenConditionTextV387()}</div>`}<div class="price">즉시 매입가 ${money(q.instant)}</div>${r.acquisition_source==='auction'&&q.invested>0?`<div class="auction-pawn-value"><b>경매·복원 총 투자 ${money(q.invested)}</b><span>즉시 회수율 약 ${recovery}% · 흥정 최대 ${money(q.maxPrice)}</span></div>`:`<small class="condition-price-note">상태와 시장가를 반영한 전당포 매입가입니다.</small>`}<div class="item-actions"><button class="btn light" onclick="pawnSell('${r.id}','instant',100)">즉시 판매</button><button class="btn primary" onclick="startPawnNegotiation('${r.id}')">흥정 판매</button></div></div></article>`;
   }).join('')||'<div class="panel" style="padding:20px">판매할 아이템이 없습니다.</div>';
 };
 
