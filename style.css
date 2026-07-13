@@ -1764,3 +1764,24 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 .chat-phone-notice.tax-phone-notice-v402 .chat-phone-notice-time{color:#743715!important;font-weight:900!important}
 .chat-phone-notice.tax-phone-notice-v402.urgent{border-color:#a71919!important;background:linear-gradient(135deg,#fff4ef,#ffc2b7)!important;box-shadow:0 14px 36px #8c11115e,0 0 0 1px #fff inset!important}
 .chat-phone-notice.tax-phone-notice-v402.urgent .chat-phone-notice-head strong,.chat-phone-notice.tax-phone-notice-v402.urgent .chat-phone-notice-text{color:#651313!important}
+
+
+/* v40.16 집 장식 스크롤 및 100개 한도 표시 */
+.house-layout{align-items:stretch!important;min-height:0!important}
+.house-side{display:flex!important;flex-direction:column!important;max-height:calc(100vh - 190px)!important;min-height:520px!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;scrollbar-gutter:stable!important;padding-bottom:28px!important}
+.house-side .paged-list{overflow:visible!important;min-height:auto!important;flex:0 0 auto!important}
+.house-side .pager{position:sticky!important;bottom:-1px!important;z-index:5!important;padding:10px 0 4px!important;background:linear-gradient(transparent,#f4e7cf 32%)!important}
+.house-side::-webkit-scrollbar{width:11px}.house-side::-webkit-scrollbar-thumb{background:#72543a;border:3px solid #ead8b9;border-radius:20px}.house-side::-webkit-scrollbar-track{background:#ead8b9}
+.collection-limit-note-v4016{display:block;margin:7px 0 0;padding:7px 10px;border:1px solid #9c7b56;background:#fff4df;color:#5b422f;font-weight:900;text-align:center;border-radius:7px}.collection-limit-note-v4016.limit-reached{border-color:#a9473e;background:#ffe6df;color:#9b3028}
+@media(max-width:1100px){.house-side{max-height:640px!important;min-height:420px!important}}
+
+
+/* v40.17 성능 최적화: 숨겨진 대형 화면과 목록의 렌더 비용 차단 */
+.phone-screen.hidden,.overlay.hidden,.scene.hidden{display:none!important}
+.phone-screen,.scene,.home-stage,.auction-grid,.market-grid,.collection-grid,.business-view{contain:layout paint style}
+.market-card,.collectible,.stock-row,.ranking-row,.business-card{content-visibility:auto;contain-intrinsic-size:120px}
+.perf-paused-v4017 *{animation-play-state:paused!important}
+#globalChatList{overflow-anchor:none;contain:layout paint style}
+#globalChatList .global-chat-message{content-visibility:auto;contain-intrinsic-size:72px}
+/* 보이지 않는 고광량 효과는 GPU 레이어를 계속 점유하지 않도록 제한 */
+.phone-overlay.hidden .phone-shell,.phone-overlay.hidden .phone-shell::before,.phone-overlay.hidden .phone-shell::after{animation:none!important;filter:none!important}
