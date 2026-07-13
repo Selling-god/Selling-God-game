@@ -1744,3 +1744,9 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 .gacha-skipped-v407 .gacha-reveal{animation:none!important;transform:none!important}
 .gacha-skipped-v407 .gacha-result-icon{animation:none!important}
 .bulk-gacha-buttons button.gacha-busy-v407{cursor:wait;filter:grayscale(.25);opacity:.68}
+
+
+/* v40.11 자산/소장품 복구 화면 */
+.house-loading,.house-load-error{min-height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#6d513a;font-weight:800;text-align:center;background:linear-gradient(180deg,#d8e2e8 0 31%,#dfcda8 31% 68%,#79523e 68%)}
+.house-load-error span{font-weight:500;max-width:560px}
+#networth.negative-cash{color:#e3483d!important;text-shadow:0 0 8px #ff3c302c}
