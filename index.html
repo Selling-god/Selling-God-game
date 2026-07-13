@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <!-- v33.7 reliable chat notifications -->
   <title>판매의 신 — STACKED COLLECTION v20</title>
-  <link rel="stylesheet" href="style.css?v=40.4">
+  <link rel="stylesheet" href="style.css?v=40.6">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -201,6 +201,7 @@
           <button class="active" data-tier="normal" onclick="selectAuctionTier('normal',this)"><span>🔨</span><b>일반 경매장</b><small>진귀 중심 · 보물 희귀 등장</small></button>
           <button data-tier="vip" onclick="selectAuctionTier('vip',this)"><span>👑</span><b>VIP 경매장</b><small>진귀~유물 · 24시간 입장권</small></button>
           <button data-tier="vvip" onclick="selectAuctionTier('vvip',this)"><span>💎</span><b>VVIP 경매장</b><small>보물~고대 유물 · 초고액 경쟁</small></button>
+          <button data-tier="collectible" onclick="selectAuctionTier('collectible',this)"><span>🏛️</span><b>소장품 경매</b><small>유물·고대 유물 케이스/장식 · VVIP 전용</small></button>
         </div>
         <div class="auction-tabs"><button class="active" onclick="switchAuctionMode('buy',this)">경매 참여</button><button onclick="switchAuctionMode('sell',this)">내 물건 출품</button></div>
         <div id="auctionBuyPanel"><div id="auctionChoices" class="auction-choice-grid"></div><div id="auctionHall"></div></div>
@@ -343,7 +344,7 @@
 
 <div id="chatNotificationStack" class="chat-notification-stack" aria-live="polite" aria-atomic="false"></div>
 
-<script src="game.js?v=40.4"></script>
+<script src="game.js?v=40.6"></script>
 <div id="gachaModal" class="overlay hidden"><div class="gacha-reveal"><div id="gachaRarity" class="gacha-rarity">?</div><div id="gachaResultIcon" class="gacha-result-icon">🎁</div><h2 id="gachaResultName">결과 공개</h2><p id="gachaResultEffect"></p><div id="gachaBulkSummary" class="gacha-bulk-summary hidden"></div><button class="btn primary" onclick="closeGachaReveal()">확인</button></div></div><div id="clickFxLayer" class="click-fx-layer"></div>
 
 <div id="loginTaxModalV401" class="tax-settlement-overlay-v401 hidden" aria-modal="true" role="dialog">
