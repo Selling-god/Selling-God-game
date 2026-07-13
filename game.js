@@ -802,29 +802,43 @@ function renderCollectibleSellPreview(){
   host.className=`collectible-sell-preview ${rc}`;
   host.innerHTML=`<div class="sell-preview-icon">${c.icon}</div><div><b class="rarity-text ${rc}">${esc(c.name)}</b><small><span class="rarity-text ${rc}">${esc(c.rarity)}</span> · ${esc(collectibleEffectText(c))}</small></div>`;
 }
-async function createCollectibleListing(){const id=sellCollectible.value,p=Math.floor(Number(collectiblePrice.value));if(!id||p<=0)return toast('소장품과 가격을 확인하세요.');const{error}=await db.rpc('create_collectible_listing',{p_user_collectible_id:id,p_price:p});if(error)return toast(error.message);collectiblePrice.value='';await loadCollectibleMarket()}
+async function createCollectibleListing(){const id=sellCollectible.value,p=Math.floor(Number(collectiblePrice.value));if(!id||p<=0)return toast('소장품과 가격을 확인하세요.');const btn=document.querySelector('[onclick="createCollectibleListing()"]');if(btn)btn.disabled=true;try{const{error}=await db.rpc('create_collectible_listing_v4020',{p_user_collectible_id:id,p_price:p});if(error)throw error;collectiblePrice.value='';sellCollectible.value='';renderCollectibleSellPreview();await Promise.all([loadCollectibles(),loadCollectibleMarket()]);fillCollectibleSelect();toast('소장품 매물이 전체 장터에 등록되었습니다.');}catch(error){toast(error?.message||'소장품 등록에 실패했습니다.');}finally{if(btn)btn.disabled=false;}}
 async function loadCollectibleMarket(){
   const host=document.getElementById('collectibleMarketList')||globalThis.collectibleMarketList;
   if(!host)return;
-  const{data,error}=await db.from('collectible_listings').select(`id,asking_price,seller_user_id,user_collectibles(collectibles(name,rarity,effect_code,effect_name,effect_percent,icon)),profiles:seller_user_id(nickname)`).eq('status','active').order('created_at',{ascending:false});
-  if(error){host.innerHTML=`<div class="panel" style="padding:20px">소장품 거래 목록을 불러오지 못했습니다.<br><small>${esc(error.message)}</small></div>`;return}
-  const valid=(data||[]).filter(r=>r&&r.user_collectibles&&r.user_collectibles.collectibles);
-  host.innerHTML=valid.map(r=>{
-    const c=r.user_collectibles.collectibles;
-    const mine=r.seller_user_id===currentUser?.id;
-    const rc=rarityClass(c.rarity||'일반');
-    return `<article class="market-card collectible-market-card ${rc}">
-      <div class="market-rarity-glow"></div>
-      <div class="item-image collectible-market-icon">${c.icon||'✨'}</div>
-      <div class="market-body"><div class="collectible-market-seller">${mine?'내 매물':esc(r.profiles?.nickname||'유저의 매물')}</div><h3 class="rarity-text ${rc}">${esc(c.name||'이름 없는 소장품')}</h3><div class="meta"><span class="rarity-chip ${rc}">${esc(c.rarity||'일반')}</span> · ${esc(collectibleEffectText(c))}</div><div class="price">${money(r.asking_price)}</div><button class="btn ${mine?'light':'primary'} full" onclick="${mine?`cancelCollectible('${r.id}')`:`buyCollectible('${r.id}')`}">${mine?'판매 취소':'구매'}</button></div>
-    </article>`
-  }).join('')||'<div class="panel" style="padding:20px">소장품 매물 없음</div>';
+  host.dataset.loading='1';
+  try{
+    const{data,error}=await db.rpc('get_collectible_market_listings_v4020');
+    if(error)throw error;
+    const rows=Array.isArray(data)?data:[];
+    host.innerHTML=rows.map(r=>{
+      const c={
+        name:r.item_name,
+        rarity:r.rarity,
+        effect_code:r.effect_code,
+        effect_name:r.effect_name,
+        effect_percent:r.effect_percent,
+        icon:r.icon
+      };
+      const mine=String(r.seller_user_id)===String(currentUser?.id);
+      const rc=rarityClass(c.rarity||'일반');
+      return `<article class="market-card collectible-market-card ${rc}" data-listing-id="${escAttr(String(r.id))}">
+        <div class="market-rarity-glow"></div>
+        <div class="item-image collectible-market-icon">${c.icon||'✨'}</div>
+        <div class="market-body"><div class="collectible-market-seller">${mine?'내 매물':esc(r.seller_nickname||'유저의 매물')}</div><h3 class="rarity-text ${rc}">${esc(c.name||'이름 없는 소장품')}</h3><div class="meta"><span class="rarity-chip ${rc}">${esc(c.rarity||'일반')}</span> · ${esc(collectibleEffectText(c))}</div><div class="price">${money(r.asking_price)}</div><button class="btn ${mine?'light':'primary'} full" onclick="${mine?`cancelCollectible('${r.id}')`:`buyCollectible('${r.id}')`}">${mine?'판매 취소':'구매'}</button></div>
+      </article>`;
+    }).join('')||'<div class="panel" style="padding:20px">현재 등록된 소장품 매물이 없습니다.</div>';
+  }catch(error){
+    host.innerHTML=`<div class="panel market-load-error" style="padding:20px">소장품 거래 목록을 불러오지 못했습니다.<br><small>${esc(error?.message||'알 수 없는 오류')}</small><br><button class="btn light" style="margin-top:10px" onclick="loadCollectibleMarket()">다시 불러오기</button></div>`;
+  }finally{
+    delete host.dataset.loading;
+  }
 }
 async function buyCollectible(id){
   const button=document.querySelector(`[onclick="buyCollectible('${id}')"]`);
   if(button){button.disabled=true;button.textContent='구매 처리 중...';}
   try{
-    const{data,error}=await db.rpc('buy_collectible_listing',{p_listing_id:id});
+    const{data,error}=await db.rpc('buy_collectible_listing_v4020',{p_listing_id:id});
     if(error)throw error;
 
     toast('구매 완료 '+money(data.final_price)+' · 바로 재판매할 수 있습니다.');
@@ -863,7 +877,7 @@ async function refreshCollectiblesAfterPurchase(expectedId){
   }
   return false;
 }
-async function cancelCollectible(id){const{error}=await db.rpc('cancel_collectible_listing',{p_listing_id:id});if(error)return toast(error.message);await loadCollectibleMarket()}
+async function cancelCollectible(id){const{error}=await db.rpc('cancel_collectible_listing_v4020',{p_listing_id:id});if(error)return toast(error.message);await Promise.all([loadCollectibles(),loadCollectibleMarket()]);fillCollectibleSelect();toast('소장품 판매 등록을 취소했습니다.');}
 async function loadEffects(){const{data}=await db.rpc('get_active_effects');effects=data||{}}
 function houseSceneMarkup(tier){
   const scenes={
