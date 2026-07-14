@@ -4894,3 +4894,58 @@ enterGame=async function(){
   exactNetworthV4023=null;
   await refreshExactNetworthV4023();
 };
+
+
+/* ============================================================
+   v40.27 PHONE APP FOLDERS
+   Keep core apps on the home screen and group related apps.
+   ============================================================ */
+const PHONE_FOLDER_APPS={
+  asset:{
+    title:'자산·생활',subtitle:'자산 확인 · 부동산 · 감정 · 복원',
+    apps:[
+      {name:'wallet',icon:'💳',label:'내 자산',className:'app-wallet'},
+      {name:'property',icon:'🏢',label:'부동산',className:'app-property'},
+      {name:'appraisal',icon:'🔍',label:'감정소',className:'app-appraisal'},
+      {name:'restoration',icon:'🛠️',label:'복원소',className:'app-restoration'}
+    ]
+  },
+  business:{
+    title:'사업·경영',subtitle:'회사와 장기 사업을 한곳에서 관리',
+    apps:[
+      {name:'business',icon:'🏭',label:'사업 관리',className:'app-business'},
+      {name:'management',icon:'🧭',label:'종합 경영',className:'app-management'},
+      {name:'trade',icon:'🚢',label:'글로벌 무역',className:'app-trade'},
+      {name:'brand',icon:'💎',label:'브랜드 하우스',className:'app-brand'},
+      {name:'foundation',icon:'🏛️',label:'판매왕 재단',className:'app-foundation'}
+    ]
+  },
+  info:{
+    title:'투자·정보',subtitle:'경제 정보와 고위험 프로젝트',
+    apps:[
+      {name:'news',icon:'📰',label:'경제 뉴스',className:'app-news'},
+      {name:'risk',icon:'📑',label:'프로젝트 투자',className:'app-risk'}
+    ]
+  }
+};
+let activePhoneFolder='';
+function openPhoneFolder(folderKey){
+  const folder=PHONE_FOLDER_APPS[folderKey];
+  if(!folder)return;
+  activePhoneFolder=folderKey;
+  document.querySelectorAll('.phone-screen').forEach(x=>x.classList.add('hidden'));
+  const screen=document.getElementById('phone-folder');
+  const title=document.getElementById('phoneFolderTitle');
+  const subtitle=document.getElementById('phoneFolderSubtitle');
+  const grid=document.getElementById('phoneFolderGrid');
+  if(!screen||!grid)return;
+  if(title)title.textContent=folder.title;
+  if(subtitle)subtitle.textContent=folder.subtitle;
+  grid.innerHTML=folder.apps.map(app=>`<button class="folder-app-button" onclick="openPhoneApp('${app.name}')"><span class="app ${app.className||''}">${app.icon}</span><b>${app.label}</b></button>`).join('');
+  screen.classList.remove('hidden');
+}
+function closePhoneFolder(){
+  activePhoneFolder='';
+  document.querySelectorAll('.phone-screen').forEach(x=>x.classList.add('hidden'));
+  document.getElementById('phoneHome')?.classList.remove('hidden');
+}
