@@ -3750,6 +3750,10 @@ let periodicTaxBusyV408=false;
 function taxCycleKeyV408(data){
   return String(data?.next_tax_at||'');
 }
+function formatHourlyTaxRateV4024(rate){
+  const pct=Number(rate||0)*100;
+  return pct>=1?pct.toFixed(2):pct.toFixed(3);
+}
 
 async function getPeriodicTaxStatusV408(){
   const {data,error}=await db.rpc('get_periodic_tax_status_v408');
@@ -3778,7 +3782,10 @@ function updateTaxNoticeModalV408(data){
   const income=document.getElementById('loginIncomeTaxV401');
   const total=document.getElementById('loginTotalTaxV401');
   if(hours)hours.textContent=`${Number(data.offline_hours||0).toFixed(1)}시간`;
-  if(wealth)wealth.textContent=money(added);
+  if(wealth){
+    wealth.textContent=money(added);
+    wealth.title=`총자산 ${money(data.wealth||0)} · 시간당 ${formatHourlyTaxRateV4024(data.hourly_rate)}%`;
+  }
   if(income)income.textContent=money(Math.max(0,due-added));
   if(total)total.textContent=money(due);
   modal.classList.remove('hidden');
@@ -3817,7 +3824,8 @@ async function runPeriodicTaxCheckV408({initial=false}={}){
         periodicTaxBillKeyV408=billKey;
         periodicTaxWarningKeyV408='';
         if(!initial){
-          showTaxPhoneNoticeV402('1시간 세금 고지서',`${periods}회분 세금 ${money(added)}이 추가되어 총 미납액은 ${money(due)}입니다.`,true);
+          const rateText=formatHourlyTaxRateV4024(data.hourly_rate);
+          showTaxPhoneNoticeV402('1시간 세금 고지서',`총자산 ${money(data.wealth||0)} · 시간당 ${rateText}% · ${periods}회분 ${money(added)} 추가 · 총 미납 ${money(due)}`,true);
         }
         updateTaxNoticeModalV408(data);
         startTaxReminderTimerV402();
