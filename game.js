@@ -3465,12 +3465,17 @@ async function refreshTaxNoticeV402(showModal=false){
     showTaxPhoneNoticeV402('세금 자동 징수',`유예기간이 만료되어 ${money(data.auto_collected_amount||0)}이 자동 징수되었습니다. 현금이 부족하면 잔액이 음수로 표시됩니다.`,true);
   }
   const due=Number(data?.total_due||0);
-  if(showModal&&due>0){
+  const suppressed=!!data?.notice_suppressed;
+  const alreadyDeferred=!!data?.deferred;
+  if(showModal&&due>0&&!suppressed&&!alreadyDeferred){
     const modal=document.getElementById('loginTaxModalV401');modal?.classList.remove('hidden');
     document.getElementById('loginTaxHoursV401').textContent=`${Number(data.offline_hours||0).toFixed(1)}시간`;
     document.getElementById('loginWealthTaxV401').textContent=money(data.wealth_tax_added||0);
     document.getElementById('loginIncomeTaxV401').textContent=money(Math.max(0,due-Number(data.wealth_tax_added||0)));
     document.getElementById('loginTotalTaxV401').textContent=money(due);
+  }
+  if((suppressed||alreadyDeferred)&&showModal){
+    document.getElementById('loginTaxModalV401')?.classList.add('hidden');
   }
   updateTaxDeadlineUIV402();
   return data;
@@ -3505,11 +3510,11 @@ async function payLoginTaxesV402(){
 async function deferLoginTaxesV402(){
   const{data,error}=await db.rpc('defer_tax_notice_v402');
   if(error)return toast(error.message);
-  toast(`30분 납부 유예 시작 · 신용 ${data.credit_delta}`);
+  toast(`납부 유예 적용 · 다음 세금 고지서는 1시간 뒤 · 신용 ${data.credit_delta}`);
   await loadProfile();
   taxNoticeStateV402=data;
   document.getElementById('loginTaxModalV401')?.classList.add('hidden');
-  showTaxPhoneNoticeV402('세금 납부 유예',`납부 기한까지 ${formatTaxRemainV402(data.remaining_seconds)} 남았습니다. 은행 또는 종합 경영에서 세금을 납부하세요.`,true);
+  showTaxPhoneNoticeV402('세금 납부 유예',`납부 기한은 ${formatTaxRemainV402(data.remaining_seconds)} 남았습니다. 재접속해도 고지서는 다시 열리지 않으며 다음 정기 고지는 1시간 뒤입니다.`,true);
   startTaxReminderTimerV402();
 }
 function startTaxReminderTimerV402(){
@@ -3777,6 +3782,11 @@ function updateTaxNoticeModalV408(data){
   const added=Number(data.accrued_amount||0);
   const modal=document.getElementById('loginTaxModalV401');
   if(!modal||due<=0)return;
+  if(data.notice_suppressed||data.deferred){
+    modal.classList.add('hidden');
+    updateTaxDeadlineUIV402();
+    return;
+  }
   const hours=document.getElementById('loginTaxHoursV401');
   const wealth=document.getElementById('loginWealthTaxV401');
   const income=document.getElementById('loginIncomeTaxV401');
@@ -3818,7 +3828,7 @@ async function runPeriodicTaxCheckV408({initial=false}={}){
     }
 
     // 1시간 경계가 지나 새 세금이 실제로 누적된 경우 고지서를 띄운다.
-    if(periods>0&&due>0){
+    if(periods>0&&due>0&&!data.notice_suppressed&&!data.deferred){
       const billKey=`${nextKey}:${due}`;
       if(periodicTaxBillKeyV408!==billKey){
         periodicTaxBillKeyV408=billKey;
@@ -3833,8 +3843,11 @@ async function runPeriodicTaxCheckV408({initial=false}={}){
     }
 
     // 이미 미납 세금이 있고 로그인 직후라면 기존 고지서를 보여준다.
-    if(initial&&due>0){
+    if(initial&&due>0&&!data.deferred&&!data.notice_suppressed){
       updateTaxNoticeModalV408(data);
+      startTaxReminderTimerV402();
+    }else if(initial&&(data.deferred||data.notice_suppressed)){
+      document.getElementById('loginTaxModalV401')?.classList.add('hidden');
       startTaxReminderTimerV402();
     }
   }finally{
