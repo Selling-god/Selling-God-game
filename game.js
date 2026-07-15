@@ -4962,3 +4962,72 @@ function closePhoneFolder(){
   document.querySelectorAll('.phone-screen').forEach(x=>x.classList.add('hidden'));
   document.getElementById('phoneHome')?.classList.remove('hidden');
 }
+
+/* v40.29 tax click/flow repair */
+window.payLoginTaxesV402=async function(){
+  const btn=document.getElementById('payLoginTaxBtnV401');
+  if(btn){btn.disabled=true;btn.textContent='납부 처리 중...';}
+  try{
+    const{data,error}=await db.rpc('pay_tax_notice_immediate_v4029');
+    if(error)throw error;
+    document.getElementById('loginTaxModalV401')?.classList.add('hidden');
+    taxNoticeStateV402=null;taxReminderBucketV402=null;
+    toast(`세금 ${money(data.amount)} 즉시 납부 · 신용 +10`);
+    await loadProfile();
+    try{await loadManagementV40();}catch(_e){}
+    updateNetworth();
+  }catch(error){
+    toast(error?.message||'세금 납부에 실패했습니다.');
+    if(btn){btn.disabled=false;btn.textContent='지금 세금 납부';}
+  }
+};
+
+window.deferLoginTaxesV402=async function(){
+  const btn=document.getElementById('deferLoginTaxBtnV402');
+  if(btn){btn.disabled=true;btn.textContent='유예 처리 중...';}
+  try{
+    const{data,error}=await db.rpc('defer_tax_notice_v402');
+    if(error)throw error;
+    taxNoticeStateV402={...(taxNoticeStateV402||{}),...data,deferred:true};
+    document.getElementById('loginTaxModalV401')?.classList.add('hidden');
+    toast('세금 납부가 30분 유예되었습니다. 은행에서 납부해 주세요.');
+    showTaxPhoneNoticeV402('세금 30분 유예',`미납 세금 ${money(data.total_due||0)} · 은행 세금 납부 창구에서 ${formatTaxRemainV402(data.remaining_seconds||1800)} 안에 납부해 주세요.`,true);
+    startTaxReminderLoopV402();
+  }catch(error){
+    toast(error?.message||'세금 유예에 실패했습니다.');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='지금 낼 수 없음 · 30분 유예';}
+  }
+};
+
+window.payBankTaxCashV403=async function(){
+  toast('유예된 세금은 현금과 자유예금을 합쳐 은행에서 납부됩니다.');
+  return window.payBankTaxDepositV403();
+};
+
+window.payBankTaxDepositV403=async function(){
+  const due=Number(taxNoticeStateV402?.total_due||0);
+  if(due<=0)return toast('납부할 세금이 없습니다.');
+  try{
+    const{data,error}=await db.rpc('pay_taxes_from_bank_v403');
+    if(error)throw error;
+    taxNoticeStateV402=null;taxReminderBucketV402=null;
+    toast(`유예 세금 ${money(data.amount)} 납부 완료 · 신용 변화 없음`);
+    await loadProfile();
+    try{await loadBank();}catch(_e){}
+    try{await loadManagementV40();}catch(_e){}
+    updateNetworth();
+  }catch(error){toast(error?.message||'은행 세금 납부에 실패했습니다.');}
+};
+
+// 버튼을 항상 클릭 가능 상태와 정확한 문구로 동기화한다.
+const _renderTaxNoticeStateV4029=window.renderTaxNoticeStateV402;
+window.renderTaxNoticeStateV402=function(){
+  try{if(typeof _renderTaxNoticeStateV4029==='function')_renderTaxNoticeStateV4029();}catch(_e){}
+  const d=taxNoticeStateV402||{};
+  const pay=document.getElementById('payLoginTaxBtnV401');
+  const defer=document.getElementById('deferLoginTaxBtnV402');
+  const cash=Number(profile?.cash||0),due=Number(d.total_due||0),deferred=!!d.deferred;
+  if(pay){pay.disabled=deferred||cash<due||due<=0;pay.textContent=deferred?'은행에서 납부':cash<due?'현금 부족 · 30분 유예':'지금 세금 납부 (신용 +10)';}
+  if(defer){defer.disabled=deferred||due<=0;defer.textContent=deferred?'30분 유예 중':'지금 낼 수 없음 · 30분 유예';}
+};
