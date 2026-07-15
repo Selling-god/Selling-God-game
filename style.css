@@ -1837,3 +1837,11 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 .folder-app-button b{max-width:100%;font-size:11px;line-height:1.25;white-space:normal;text-align:center;text-shadow:0 1px 3px #000}
 .folder-app-button:hover .app{transform:translateY(-3px) scale(1.04)}
 @media(max-width:430px){.folder-app-grid{grid-template-columns:repeat(3,1fr);gap:20px 6px}.folder-app-button .app{width:56px;height:56px}}
+
+/* v40.29 세금 고지 버튼 클릭 안정화 */
+#loginTaxModalV401 .tax-actions-v401{position:relative;z-index:4;pointer-events:auto!important}
+#loginTaxModalV401 .tax-actions-v401 button{pointer-events:auto!important;cursor:pointer;min-height:58px}
+#loginTaxModalV401 .tax-actions-v401 button:disabled{cursor:not-allowed;opacity:.58}
+
+#loginTaxModalV401 .tax-action-row-v402{position:relative;z-index:8;pointer-events:auto!important}
+#loginTaxModalV401 .tax-action-row-v402 button{pointer-events:auto!important;cursor:pointer;min-height:58px}
