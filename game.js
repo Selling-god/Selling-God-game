@@ -5268,3 +5268,42 @@ const closePhoneV4034=closePhone;
 closePhone=function(){if(corporateRefreshTimerV4034){clearInterval(corporateRefreshTimerV4034);corporateRefreshTimerV4034=null}return closePhoneV4034.apply(this,arguments)};
 const phoneHomeV4034=phoneHome;
 phoneHome=function(){if(corporateRefreshTimerV4034){clearInterval(corporateRefreshTimerV4034);corporateRefreshTimerV4034=null}return phoneHomeV4034.apply(this,arguments)};
+
+
+/* ============================================================
+   v40.36 TAX MODAL / ONE-HOUR CYCLE / STOCK EXCLUSION UI FIX
+============================================================ */
+function updateTaxNoticeFieldsV4036(data){
+  if(!data)return;
+  const offlineSeconds=Math.max(0,Number(data.offline_seconds??window.__lastOfflineSessionV4032?.offline_seconds??0));
+  const hours=document.getElementById('loginTaxHoursV401');
+  if(hours)hours.textContent=typeof formatOfflineDurationV4032==='function'?formatOfflineDurationV4032(offlineSeconds):`${Math.floor(offlineSeconds/3600)}시간 ${Math.floor((offlineSeconds%3600)/60)}분`;
+  const wealth=document.getElementById('loginWealthTaxV401');
+  if(wealth){
+    wealth.textContent=money(Number(data.accrued_amount??data.wealth_tax_added??0));
+    wealth.title=`현금·예금·일반 아이템·소장품 기준 ${money(data.tax_base||0)} · 주식 평가액과 회사 가치 제외`;
+  }
+  const base=document.getElementById('loginTaxBaseV4032');
+  if(base)base.textContent=money(data.tax_base||0);
+  const hourly=document.getElementById('loginHourlyTaxV4032');
+  if(hourly)hourly.textContent=money(data.hourly_tax_estimate||0);
+  const stockTax=document.getElementById('loginStockTaxV4032');
+  if(stockTax)stockTax.textContent=money(data.stock_profit_tax||0);
+  const companyTax=document.getElementById('loginCompanyTaxV4032');
+  if(companyTax)companyTax.textContent=money(data.company_profit_tax||0);
+}
+
+const __updateTaxNoticeModalBeforeV4036=updateTaxNoticeModalV408;
+updateTaxNoticeModalV408=function(data){
+  __updateTaxNoticeModalBeforeV4036(data);
+  updateTaxNoticeFieldsV4036(data);
+  const card=document.querySelector('#loginTaxModalV401 .tax-settlement-card-v401');
+  if(card&&!document.getElementById('loginTaxModalV401')?.classList.contains('hidden'))card.scrollTop=0;
+};
+
+const __getPeriodicTaxStatusBeforeV4036=getPeriodicTaxStatusV408;
+getPeriodicTaxStatusV408=async function(){
+  const data=await __getPeriodicTaxStatusBeforeV4036();
+  if(data)updateTaxNoticeFieldsV4036(data);
+  return data;
+};
