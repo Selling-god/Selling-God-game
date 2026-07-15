@@ -362,7 +362,7 @@
 <script>
 window.collectibleEffectLabel=window.collectibleEffectLabel||function(code,name){const m={market_bonus:'NPC 제안가',pawn_bonus:'전당포 판매가',stock_fee_discount:'주식 수수료 할인',gacha_luck:'뽑기 희귀도',exploration_luck:'탐색 희귀도',auction_discount:'경매 낙찰 할인'};return String(name||'').trim()||m[String(code||'')]||'특수 효과';};
 </script>
-<script src="game.js?v=40.28"></script>
+<script src="game.js?v=40.30"></script>
 <div id="gachaModal" class="overlay hidden"><div class="gacha-reveal"><div id="gachaRarity" class="gacha-rarity">?</div><div id="gachaResultIcon" class="gacha-result-icon">🎁</div><h2 id="gachaResultName">결과 공개</h2><p id="gachaResultEffect"></p><div id="gachaBulkSummary" class="gacha-bulk-summary hidden"></div><button class="btn primary" onclick="closeGachaReveal()">확인</button></div></div><div id="clickFxLayer" class="click-fx-layer"></div>
 
 <div id="loginTaxModalV401" class="tax-settlement-overlay-v401 hidden" aria-modal="true" role="dialog">
@@ -379,9 +379,9 @@ window.collectibleEffectLabel=window.collectibleEffectLabel||function(code,name)
     </div>
     <div id="taxDeadlineBoxV402" class="tax-deadline-box-v402 hidden">
       <span>납부 유예 만기</span><b id="taxDeadlineTextV402">30분 남음</b>
-      <small>유예를 선택하면 신용이 2점 감소하며, 만기 후에는 현금이 부족해도 자동 징수되어 잔액이 음수가 될 수 있습니다.</small>
+      <small>유예 후 30분 안에 은행에서 납부할 수 있습니다. 만기 후에는 현금이 부족해도 자동 징수되어 잔액이 음수가 될 수 있습니다.</small>
     </div>
-    <div class="tax-credit-note-v401">즉시 납부하면 신용이 1~2점 상승합니다.</div>
+    <div class="tax-credit-note-v401">고지서에서 즉시 납부하면 신용이 10점 상승합니다. 유예 후 은행 납부는 신용 변화가 없습니다.</div>
     <div class="tax-action-row-v402">
       <button id="payLoginTaxBtnV401" class="btn primary" onclick="payLoginTaxesV402()">지금 세금 납부</button>
       <button id="deferLoginTaxBtnV402" class="btn light" onclick="deferLoginTaxesV402()">지금 낼 수 없음 · 30분 유예</button>
