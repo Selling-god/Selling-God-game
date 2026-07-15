@@ -3781,7 +3781,13 @@ function updateTaxNoticeModalV408(data){
   const due=Number(data.total_due||0);
   const added=Number(data.accrued_amount||0);
   const modal=document.getElementById('loginTaxModalV401');
-  if(!modal||due<=0)return;
+  if(!modal)return;
+  if(due<=0){
+    modal.classList.add('hidden');
+    taxNoticeStateV402=null;
+    taxReminderBucketV402=null;
+    return;
+  }
   if(data.notice_suppressed||data.deferred){
     modal.classList.add('hidden');
     updateTaxDeadlineUIV402();
