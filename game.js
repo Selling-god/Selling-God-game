@@ -1288,7 +1288,9 @@ const TITLE_FALLBACKS={
   '전설의 협상가':'진귀','경매의 지배자':'진귀','도시의 부동산왕':'진귀','지역 기업가':'진귀','브랜드 메이커':'진귀',
   '억만장자':'보물','명성의 화신':'보물','신용의 상징':'보물','중견기업 회장':'보물','산업 다각화의 귀재':'보물','고수익 경영자':'보물',
   '재계의 거물':'유물','대저택의 주인':'유물','일의 신':'유물','글로벌 CEO':'유물','재벌 총수':'유물','혁신의 아이콘':'유물',
-  '기업 제국':'고대 유물','산업의 지배자':'고대 유물','세계 경제의 설계자':'고대 유물','판매의 신':'고대 유물','무한의 상인':'고대 유물'
+  '기업 제국':'고대 유물','산업의 지배자':'고대 유물','세계 경제의 설계자':'고대 유물','판매의 신':'고대 유물','무한의 상인':'고대 유물',
+  '첫 배당주주':'희귀','주요주주':'초희귀','이사회 입성':'진귀','대표이사':'보물','부회장':'유물','회장':'고대 유물',
+  '분산투자의 달인':'진귀','재계의 핵심':'보물','배당 수익가':'보물','배당왕':'유물','지배구조 설계자':'고대 유물','다국적 회장':'고대 유물'
 };
 function titleRarity(title){return TITLE_FALLBACKS[title]||'일반'}
 function titleClass(title){return `title-rarity-${TITLE_RARITIES[titleRarity(title)]||0}`}
@@ -5037,3 +5039,232 @@ window.renderTaxNoticeStateV402=function(){
   if(pay){pay.disabled=deferred||cash<due||due<=0;pay.textContent=deferred?'은행에서 납부':cash<due?'현금 부족 · 30분 유예':'지금 세금 납부 (신용 +10)';}
   if(defer){defer.disabled=deferred||due<=0;defer.textContent=deferred?'30분 유예 중':'지금 낼 수 없음 · 30분 유예';}
 };
+
+/* ============================================================
+   v40.32 SHAREHOLDER / STOCK SUPPLY / TAX REFORM
+============================================================ */
+let stockOwnershipV4032=[];
+let playerHeartbeatV4032=null;
+
+function formatOfflineDurationV4032(seconds){
+  const s=Math.max(0,Number(seconds||0));
+  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);
+  if(h>0)return `${h}시간 ${m}분`;
+  return `${m}분`;
+}
+
+async function beginPlayerSessionV4032(){
+  try{
+    const{data,error}=await db.rpc('begin_player_session_v4032');
+    if(error)throw error;
+    if(data)window.__lastOfflineSessionV4032=data;
+  }catch(e){console.warn('미접속 시간 기록 실패',e.message)}
+  clearInterval(playerHeartbeatV4032);
+  playerHeartbeatV4032=setInterval(()=>{if(currentUser&&!document.hidden)db.rpc('touch_player_session_v4032').then(()=>{});},60000);
+}
+
+const _enterGameV4032=enterGame;
+enterGame=async function(){
+  await beginPlayerSessionV4032();
+  return _enterGameV4032();
+};
+
+async function loadStockOwnershipV4032(){
+  const{data,error}=await db.rpc('get_stock_ownership_v4032');
+  if(error){console.warn('주식 공급/대주주 조회 실패',error.message);stockOwnershipV4032=[];return []}
+  stockOwnershipV4032=Array.isArray(data)?data:[];
+  return stockOwnershipV4032;
+}
+
+const _loadStocksV4032=loadStocks;
+loadStocks=async function(){
+  await Promise.all([_loadStocksV4032(),loadStockOwnershipV4032()]);
+  if(selectedStock)renderStockDetail(selectedStock);
+};
+
+const _renderStockDetailV4032=renderStockDetail;
+renderStockDetail=function(id){
+  _renderStockDetailV4032(id);
+  const host=document.getElementById('stockDetail');
+  if(!host)return;
+  const own=stockOwnershipV4032.find(x=>String(x.stock_id)===String(id));
+  if(!own)return;
+  const panel=document.createElement('section');
+  panel.className='stock-ownership-v4032';
+  panel.innerHTML=`<div class="stock-supply-head-v4032"><div><span>공용 발행 주식</span><b>${Number(own.available_shares||0).toLocaleString('ko-KR')}주 남음</b></div><div><span>내 지분</span><b>${Number(own.my_shares||0).toLocaleString('ko-KR')}주 · ${Number(own.my_percent||0).toFixed(3)}%</b></div></div><div class="stock-supply-bar-v4032"><i style="width:${Math.min(100,Number(own.issued_shares||0)/Math.max(1,Number(own.total_shares||1))*100)}%"></i></div><small>총 ${Number(own.total_shares||0).toLocaleString('ko-KR')}주를 모든 유저가 나누어 보유합니다.</small><h4>대주주 TOP 5</h4><div class="major-holder-list-v4032">${(own.top_holders||[]).map((h,i)=>`<div><span>${i+1}. ${esc(h.nickname||'익명 주주')}</span><b>${Number(h.quantity||0).toLocaleString('ko-KR')}주 · ${Number(h.percent||0).toFixed(3)}%</b></div>`).join('')||'<p>아직 대주주가 없습니다.</p>'}</div>`;
+  host.appendChild(panel);
+};
+
+const _tradeStockV4032=tradeStock;
+tradeStock=async function(id,type){
+  const q=Number(document.getElementById('qty-'+id)?.value||0);
+  if(!Number.isInteger(q)||q<=0)return toast('매매 수량을 확인하세요.');
+  const{data,error}=await db.rpc(type==='buy'?'buy_stock_v2':'sell_stock_v2',{p_stock_id:id,p_quantity:q});
+  if(error)return toast(error.message);
+  if(type==='sell'&&Number(data?.tax||0)>0)toast(`매도 완료 · 실현수익 세금 ${money(data.tax)} · 실수령 ${money(data.net)}`);
+  else toast(type==='buy'?`매수 완료 · 시장 잔여 ${Number(data?.remaining_shares||0).toLocaleString('ko-KR')}주`:'매도 완료');
+  await Promise.all([loadProfile(),loadStocks()]);
+  updateNetworth();
+};
+
+async function enrichBusinessStockLinksV4032(){
+  if(!businessState?.catalog?.length)return;
+  const{data,error}=await db.from('company_catalog_v32').select('code,stock_symbol,required_shares');
+  if(error)return;
+  const map=new Map((data||[]).map(x=>[x.code,x]));
+  businessState.catalog=businessState.catalog.map(c=>({...c,...(map.get(c.code)||{})}));
+}
+
+const _loadBusinessV4032=loadBusiness;
+loadBusiness=async function(opts={}){
+  await _loadBusinessV4032(opts);
+  await Promise.all([loadStockOwnershipV4032(),enrichBusinessStockLinksV4032()]);
+  renderBusiness();
+};
+
+const _renderCompanyMarketCardV4032=renderCompanyMarketCard;
+renderCompanyMarketCard=function(c){
+  const raw=_renderCompanyMarketCardV4032(c);
+  const own=stockOwnershipV4032.find(x=>x.symbol===c.stock_symbol);
+  const my=Number(own?.my_shares||0),need=Number(c.required_shares||0);
+  return raw.replace('<div class="company-requirements">',`<div class="company-share-condition-v4032 ${my>=need?'ok':'bad'}"><b>경영권 조건 · ${esc(c.stock_symbol||'-')} ${need.toLocaleString('ko-KR')}주</b><span>현재 ${my.toLocaleString('ko-KR')}주 보유 ${my>=need?'· 경영권 조건 충족':'· '+Math.max(0,need-my).toLocaleString('ko-KR')+'주 부족'}</span></div><div class="company-requirements">`);
+};
+
+const _renderOwnedCompanyV4032=renderOwnedCompany;
+renderOwnedCompany=function(c){
+  const own=stockOwnershipV4032.find(x=>x.symbol===c.stock_symbol);
+  const pct=Number(own?.my_percent||0),shares=Number(own?.my_shares||0);
+  const raw=_renderOwnedCompanyV4032(c);
+  return raw.replace('<div class="company-finance-grid">',`<div class="company-shareholder-banner-v4032"><span>내 지분 ${pct.toFixed(3)}%</span><b>${shares.toLocaleString('ko-KR')}주 보유</b><small>지분이 많을수록 회사 정산 수익이 증가합니다.</small></div><div class="company-finance-grid">`);
+};
+
+function explainAssetManagementTaxV4032(){
+  toast('보유자산 관리세는 현금·예금·일반 아이템·소장품을 기준으로 매기는 1시간 단위 자산 유지세입니다. 주식과 회사 가치는 제외되고, 주식 매도차익과 회사 수익에는 별도 세금이 적용됩니다.');
+}
+
+function updateTaxNoticeV4032(data){
+  if(!data)return;
+  const offlineSec=Number(data.offline_seconds??window.__lastOfflineSessionV4032?.offline_seconds??0);
+  const h=document.getElementById('loginTaxHoursV401');
+  if(h)h.textContent=formatOfflineDurationV4032(offlineSec);
+  const wealth=document.getElementById('loginWealthTaxV401');
+  if(wealth){wealth.textContent=money(data.wealth_tax_added||0);wealth.title=`과세표준 ${money(data.tax_base||0)} · 주식/회사 가치 제외`;}
+  const hourly=document.getElementById('loginHourlyTaxV4032');
+  if(hourly)hourly.textContent=money(data.hourly_tax_estimate||0);
+  const base=document.getElementById('loginTaxBaseV4032');
+  if(base)base.textContent=money(data.tax_base||0);
+  const stockTax=document.getElementById('loginStockTaxV4032');
+  if(stockTax)stockTax.textContent=money(data.stock_profit_tax||0);
+  const companyTax=document.getElementById('loginCompanyTaxV4032');
+  if(companyTax)companyTax.textContent=money(data.company_profit_tax||0);
+}
+
+const _refreshTaxNoticeV4032=refreshTaxNoticeV402;
+refreshTaxNoticeV402=async function(showModal=false){
+  const data=await _refreshTaxNoticeV4032(showModal);
+  updateTaxNoticeV4032(data);
+  return data;
+};
+
+const _updateTaxNoticeModalV4032=typeof updateTaxNoticeModalV408==='function'?updateTaxNoticeModalV408:null;
+if(_updateTaxNoticeModalV4032){
+  updateTaxNoticeModalV408=function(data){_updateTaxNoticeModalV4032(data);updateTaxNoticeV4032(data)};
+}
+
+// v40.34: 지분 직함·주주 배당 중심 회사 경영 화면
+let corporateBoardV4034=[];
+let corporateDividendV4034={companies:[],tax_rate:0,wealth:0};
+let corporateRefreshTimerV4034=null;
+
+function shareholderRoleClassV4034(title=''){
+  return ({'회장':'chairman','부회장':'vice-chairman','대표이사':'ceo','사내이사':'director','주요주주':'major','배당주주':'shareholder','일반주주':'minor'})[title]||'minor';
+}
+function formatPercentV4034(v){return `${Number(v||0).toFixed(3)}%`}
+function corporateTaxPercentV4034(){return `${(Number(corporateDividendV4034?.tax_rate||0)*100).toFixed(1)}%`}
+
+loadBusiness=async function(options={}){
+  const host=document.getElementById('businessView');
+  if(!host)return;
+  if(!options.silent)host.innerHTML='<div class="business-loading"><span class="business-spinner"></span><b>주주명부와 배당 장부 확인 중</b><small>전 유저의 지분과 직함을 서버에서 불러오고 있습니다.</small></div>';
+  const [boardRes,divRes]=await Promise.all([
+    db.rpc('get_corporate_board_v4034'),
+    db.rpc('get_shareholder_dividend_status_v4034')
+  ]);
+  if(boardRes.error||divRes.error){
+    const msg=boardRes.error?.message||divRes.error?.message||'회사 정보를 불러오지 못했습니다.';
+    host.innerHTML=`<div class="business-error"><b>주주 경영 정보를 불러오지 못했습니다.</b><p>${esc(msg)}</p><small>v40.34 추가 SQL 실행 여부를 확인하세요.</small><button onclick="loadBusiness()">다시 시도</button></div>`;
+    return;
+  }
+  corporateBoardV4034=Array.isArray(boardRes.data)?boardRes.data:[];
+  corporateDividendV4034=divRes.data||{companies:[],tax_rate:0,wealth:0};
+  renderCorporateBoardV4034();
+  if(corporateRefreshTimerV4034)clearInterval(corporateRefreshTimerV4034);
+  corporateRefreshTimerV4034=setInterval(()=>{
+    if(document.getElementById('phone-business')?.classList.contains('hidden'))return;
+    let reload=false;
+    document.querySelectorAll('[data-corp-countdown-v4034]').forEach(el=>{
+      const n=Math.max(0,Number(el.dataset.corpCountdownV4034||0)-1);
+      el.dataset.corpCountdownV4034=String(n);
+      el.textContent=n<=0?'정산 가능':businessCountdown(n);
+      if(n<=0)reload=true;
+    });
+    if(reload){clearInterval(corporateRefreshTimerV4034);corporateRefreshTimerV4034=null;loadBusiness({silent:true});}
+  },1000);
+};
+
+function renderCorporateBoardV4034(){
+  const host=document.getElementById('businessView');if(!host)return;
+  const divMap=new Map((corporateDividendV4034.companies||[]).map(x=>[String(x.stock_id),x]));
+  const eligible=(corporateDividendV4034.companies||[]).filter(x=>x.eligible);
+  const claimable=eligible.some(x=>Number(x.claimable_periods||0)>0);
+  host.innerHTML=`
+    <section class="corp-hero-v4034">
+      <div><span>SHAREHOLDER GOVERNANCE</span><h2>상장회사 주주 경영</h2><p>주식 지분으로 직함과 배당이 결정됩니다. 기존 레벨업 투자는 사용하지 않습니다.</p></div>
+      <div class="corp-tax-v4034"><small>회사 수익 원천징수</small><b>${corporateTaxPercentV4034()}</b><em>현재 총자산 ${money(corporateDividendV4034.wealth||0)} 기준</em></div>
+    </section>
+    <section class="corp-rule-v4034">
+      <b>배당 자격은 지분 2%부터</b>
+      <span>50% 이상 회장 · 30% 이상 부회장 · 20% 이상 대표이사 · 10% 이상 사내이사 · 5% 이상 주요주주 · 2% 이상 배당주주</span>
+      <small>직함은 지분율만으로 정해지므로 회장이 없을 수도 있고, 같은 직함이 여러 명일 수도 있습니다.</small>
+    </section>
+    <button class="corp-claim-all-v4034" ${claimable?'':'disabled'} onclick="claimCorporateDividendV4034(null)"><span>💰</span><div><b>전체 회사 배당 수령</b><small>${claimable?'현재 정산 가능한 배당을 세금 공제 후 수령합니다.':'아직 정산 가능한 배당이 없습니다.'}</small></div></button>
+    <div class="corp-company-grid-v4034">${corporateBoardV4034.map(c=>renderCorporateCompanyV4034(c,divMap.get(String(c.stock_id)))).join('')||'<div class="business-empty">연결된 상장회사가 없습니다.</div>'}</div>`;
+}
+
+function renderCorporateCompanyV4034(c,d={}){
+  const pct=Number(c.my_percent||0),shares=Number(c.my_shares||0),need=Number(c.minimum_dividend_shares||0);
+  const title=c.my_title||'일반주주',role=shareholderRoleClassV4034(title),eligible=Boolean(c.eligible);
+  const remaining=Math.max(0,Number(d?.remaining_seconds??300)),periods=Number(d?.claimable_periods||0),estimate=Number(d?.estimated_net_per_5m||0);
+  const roster=Array.isArray(c.shareholders)?c.shareholders:[];
+  return `<article class="corp-company-card-v4034 ${role}">
+    <header><div class="corp-company-symbol-v4034">${c.icon||'🏢'}</div><div><small>${esc(c.symbol||'')}</small><h3>${esc(c.name||'상장회사')}</h3><p>${esc(c.description||'')}</p></div><div class="corp-my-role-v4034 ${role}"><span>내 직함</span><b>${esc(title)}</b></div></header>
+    <div class="corp-share-metrics-v4034">
+      <div><span>내 보유</span><b>${shares.toLocaleString('ko-KR')}주</b></div>
+      <div><span>내 지분</span><b>${formatPercentV4034(pct)}</b></div>
+      <div><span>배당 최소 조건</span><b>${need.toLocaleString('ko-KR')}주 · 2%</b></div>
+      <div><span>5분 예상 순수익</span><b class="up">${eligible?'+'+money(estimate):'배당 대상 아님'}</b></div>
+    </div>
+    <div class="corp-position-bar-v4034"><i style="width:${Math.min(100,pct)}%"></i><span>${eligible?`${title} 직함으로 배당 참여 중`:`${Math.max(0,need-shares).toLocaleString('ko-KR')}주를 더 확보하면 배당 가능`}</span></div>
+    <div class="corp-settlement-v4034"><div><span>다음 배당 정산</span><b data-corp-countdown-v4034="${remaining}">${periods>0?'정산 가능':businessCountdown(remaining)}</b><small>오프라인 누적 최대 8시간</small></div><button ${eligible&&periods>0?'':'disabled'} onclick="claimCorporateDividendV4034('${c.stock_id}')">${periods>0?'배당 수령':'대기 중'}</button></div>
+    <details class="corp-roster-v4034"><summary>주주 직함·지분 명부 보기 <em>${roster.length}명</em></summary><div>${roster.map((h,i)=>`<div class="corp-roster-row-v4034 ${shareholderRoleClassV4034(h.title)}"><span>${i+1}. ${esc(h.nickname||'익명 주주')}</span><b>${esc(h.title||'일반주주')}</b><em>${Number(h.shares||0).toLocaleString('ko-KR')}주 · ${formatPercentV4034(h.percent)}</em></div>`).join('')||'<p>아직 주주가 없습니다.</p>'}</div></details>
+  </article>`;
+}
+
+async function claimCorporateDividendV4034(stockId){
+  const buttons=[...document.querySelectorAll('#businessView button:not(:disabled)')];buttons.forEach(b=>b.disabled=true);
+  const args=stockId?{p_stock_id:stockId}:{p_stock_id:null};
+  const{data,error}=await db.rpc('claim_shareholder_dividends_v4034',args);
+  if(error){buttons.forEach(b=>b.disabled=false);return toast(error.message)}
+  const gross=Number(data?.gross||0),tax=Number(data?.tax||0),net=Number(data?.net||0);
+  if(gross<=0)toast('아직 정산 가능한 회사 배당이 없습니다.');
+  else toast(`회사 배당 ${money(gross)} · 원천징수 ${money(tax)} · 실수령 ${money(net)}`);
+  await loadProfile();
+  if(typeof updateNetworth==='function')await updateNetworth();
+  await loadBusiness({silent:true});
+}
+
+// 회사 앱을 닫을 때 전용 카운트다운도 정리한다.
+const closePhoneV4034=closePhone;
+closePhone=function(){if(corporateRefreshTimerV4034){clearInterval(corporateRefreshTimerV4034);corporateRefreshTimerV4034=null}return closePhoneV4034.apply(this,arguments)};
+const phoneHomeV4034=phoneHome;
+phoneHome=function(){if(corporateRefreshTimerV4034){clearInterval(corporateRefreshTimerV4034);corporateRefreshTimerV4034=null}return phoneHomeV4034.apply(this,arguments)};
