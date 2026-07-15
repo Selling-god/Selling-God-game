@@ -1304,7 +1304,20 @@ async function loadRanking(){
 async function loadTitles(){
   const{data,error}=await db.rpc('get_title_catalog_v21');
   if(error)return titleList.innerHTML=`<p>${esc(error.message)}</p>`;
-  titleList.innerHTML=(data||[]).map(t=>`<div class="title-card ${t.unlocked?'unlocked':'locked'} title-card-rarity-${TITLE_RARITIES[t.rarity]||0}"><span class="title-medal">${esc(t.icon||'🎖️')}</span><div><b class="title-badge title-rarity-${TITLE_RARITIES[t.rarity]||0}">${esc(t.title_name)}</b><small>${esc(t.rarity)} · ${esc(t.condition_text)}</small></div><button ${t.unlocked?'':'disabled'} onclick="equipTitle('${escAttr(t.title_name)}')">${profile?.active_title===t.title_name?'사용 중':'장착'}</button></div>`).join('');
+
+  const rows=[...(data||[])].sort((a,b)=>{
+    const rarityA=TITLE_RARITIES[a?.rarity]??TITLE_RARITIES[titleRarity(a?.title_name)]??0;
+    const rarityB=TITLE_RARITIES[b?.rarity]??TITLE_RARITIES[titleRarity(b?.title_name)]??0;
+    if(rarityA!==rarityB)return rarityA-rarityB;
+
+    // 같은 등급 안에서는 해금된 칭호를 먼저 보여 주고, 이름순으로 안정적으로 정렬한다.
+    const unlockedA=a?.unlocked?0:1;
+    const unlockedB=b?.unlocked?0:1;
+    if(unlockedA!==unlockedB)return unlockedA-unlockedB;
+    return String(a?.title_name||'').localeCompare(String(b?.title_name||''),'ko');
+  });
+
+  titleList.innerHTML=rows.map(t=>`<div class="title-card ${t.unlocked?'unlocked':'locked'} title-card-rarity-${TITLE_RARITIES[t.rarity]||0}"><span class="title-medal">${esc(t.icon||'🎖️')}</span><div><b class="title-badge title-rarity-${TITLE_RARITIES[t.rarity]||0}">${esc(t.title_name)}</b><small>${esc(t.rarity)} · ${esc(t.condition_text)}</small></div><button ${t.unlocked?'':'disabled'} onclick="equipTitle('${escAttr(t.title_name)}')">${profile?.active_title===t.title_name?'사용 중':'장착'}</button></div>`).join('');
 }
 async function equipTitle(n){
   const{error}=await db.rpc('equip_title_v21',{p_title:n});
