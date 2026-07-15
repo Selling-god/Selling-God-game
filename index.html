@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <!-- v33.7 reliable chat notifications -->
   <title>판매의 신 — STACKED COLLECTION v20</title>
-  <link rel="stylesheet" href="style.css?v=40.21">
+  <link rel="stylesheet" href="style.css?v=40.35">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -362,7 +362,7 @@
 <script>
 window.collectibleEffectLabel=window.collectibleEffectLabel||function(code,name){const m={market_bonus:'NPC 제안가',pawn_bonus:'전당포 판매가',stock_fee_discount:'주식 수수료 할인',gacha_luck:'뽑기 희귀도',exploration_luck:'탐색 희귀도',auction_discount:'경매 낙찰 할인'};return String(name||'').trim()||m[String(code||'')]||'특수 효과';};
 </script>
-<script src="game.js?v=40.31"></script>
+<script src="game.js?v=40.35"></script>
 <div id="gachaModal" class="overlay hidden"><div class="gacha-reveal"><div id="gachaRarity" class="gacha-rarity">?</div><div id="gachaResultIcon" class="gacha-result-icon">🎁</div><h2 id="gachaResultName">결과 공개</h2><p id="gachaResultEffect"></p><div id="gachaBulkSummary" class="gacha-bulk-summary hidden"></div><button class="btn primary" onclick="closeGachaReveal()">확인</button></div></div><div id="clickFxLayer" class="click-fx-layer"></div>
 
 <div id="loginTaxModalV401" class="tax-settlement-overlay-v401 hidden" aria-modal="true" role="dialog">
@@ -370,10 +370,10 @@ window.collectibleEffectLabel=window.collectibleEffectLabel||function(code,name)
     <div class="tax-office-mark-v401">🏛️</div>
     <p class="eyebrow">OFFLINE SETTLEMENT</p>
     <h2>접속 정산 세금 안내</h2>
-    <p id="loginTaxDescriptionV401">미접속 기간 동안 발생한 수익과 보유 자산에 대한 세금을 정산합니다.</p>
+    <p id="loginTaxDescriptionV401">실제 미접속 시간과 1시간 단위 자산세, 주식 매도차익세, 회사 수익세를 정산합니다.</p>
     <div class="tax-breakdown-v401">
       <div><span>미접속 시간</span><b id="loginTaxHoursV401">0시간</b></div>
-      <div><span>보유자산 관리세</span><b id="loginWealthTaxV401">0원</b></div>
+      <div><span>보유자산 관리세 <button class="tax-help-v4032" onclick="explainAssetManagementTaxV4032()">?</button></span><b id="loginWealthTaxV401">0원</b></div><div><span>현재 과세표준</span><b id="loginTaxBaseV4032">0원</b></div><div><span>1시간당 예상 세금</span><b id="loginHourlyTaxV4032">0원</b></div><div><span>주식 매도차익 세금</span><b id="loginStockTaxV4032">0원</b></div><div><span>회사 수익 세금</span><b id="loginCompanyTaxV4032">0원</b></div>
       <div><span>누적 사업·이자 세금</span><b id="loginIncomeTaxV401">0원</b></div>
       <div class="total"><span>납부할 총 세금</span><b id="loginTotalTaxV401">0원</b></div>
     </div>
