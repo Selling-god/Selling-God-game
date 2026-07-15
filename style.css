@@ -1852,3 +1852,41 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 /* v40.34 주주 직함·배당 경영 */
 .corp-hero-v4034{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;padding:20px;border:1px solid #a67d4c;border-radius:18px;background:linear-gradient(135deg,#4a2f20,#1f1712);color:#fff3d6}.corp-hero-v4034 span{font-size:11px;letter-spacing:3px;color:#e4bc79}.corp-hero-v4034 h2{margin:5px 0}.corp-hero-v4034 p{margin:0;color:#e8d9c2}.corp-tax-v4034{min-width:180px;padding:14px;border:1px solid #d9b06d66;border-radius:14px;background:#ffffff0f;text-align:right}.corp-tax-v4034 small,.corp-tax-v4034 em{display:block;color:#dac7aa}.corp-tax-v4034 b{display:block;font-size:28px;color:#ffcf76}.corp-rule-v4034{display:grid;gap:6px;margin-top:12px;padding:15px;border-left:5px solid #397b65;background:#edf6ef;color:#25382f}.corp-rule-v4034 span{font-weight:800}.corp-rule-v4034 small{color:#596b62}.corp-claim-all-v4034{display:flex;align-items:center;gap:12px;width:100%;margin:12px 0;padding:15px;border:0;border-radius:14px;background:linear-gradient(135deg,#8e4b35,#4f2e24);color:#fff;text-align:left}.corp-claim-all-v4034 span{font-size:28px}.corp-claim-all-v4034 div{display:grid}.corp-claim-all-v4034 b{font-size:17px}.corp-claim-all-v4034 small{color:#ead7c4}.corp-claim-all-v4034:disabled{opacity:.45}.corp-company-grid-v4034{display:grid;gap:14px}.corp-company-card-v4034{padding:16px;border:2px solid #a78660;border-radius:18px;background:linear-gradient(145deg,#fff8e9,#e7d2ae);box-shadow:0 8px 18px #3b24131a}.corp-company-card-v4034>header{display:grid;grid-template-columns:58px 1fr auto;gap:12px;align-items:center}.corp-company-symbol-v4034{display:grid;place-items:center;width:56px;height:56px;border-radius:16px;background:#5b3b29;color:#fff;font-size:29px}.corp-company-card-v4034 h3{margin:2px 0;font-size:21px}.corp-company-card-v4034 header p{margin:2px 0;color:#665747}.corp-my-role-v4034{min-width:105px;padding:9px 12px;border-radius:12px;background:#ddd1be;text-align:center}.corp-my-role-v4034 span{display:block;font-size:11px}.corp-my-role-v4034 b{font-size:18px}.corp-my-role-v4034.chairman{background:linear-gradient(135deg,#5d2b69,#c49b40);color:white;box-shadow:0 0 18px #ac56c766}.corp-my-role-v4034.vice-chairman{background:#6d4b83;color:#fff}.corp-my-role-v4034.ceo{background:#265f77;color:#fff}.corp-my-role-v4034.director{background:#476b57;color:#fff}.corp-my-role-v4034.major{background:#9b6d2f;color:#fff}.corp-my-role-v4034.shareholder{background:#71829a;color:#fff}.corp-share-metrics-v4034{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:13px}.corp-share-metrics-v4034>div{padding:10px;border:1px solid #a98a64;border-radius:10px;background:#fff9ed}.corp-share-metrics-v4034 span{display:block;font-size:11px;color:#786754}.corp-share-metrics-v4034 b{display:block;margin-top:4px}.corp-position-bar-v4034{position:relative;height:30px;margin-top:10px;overflow:hidden;border-radius:9px;background:#d9c8ad}.corp-position-bar-v4034 i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#557c9c,#8b54a5,#d5a339)}.corp-position-bar-v4034 span{position:relative;z-index:1;display:grid;place-items:center;height:100%;font-size:12px;font-weight:900}.corp-settlement-v4034{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px;padding:11px;border-radius:11px;background:#3a2a21;color:#fff}.corp-settlement-v4034 div{display:grid}.corp-settlement-v4034 small{color:#d8c6ae}.corp-settlement-v4034 button{min-width:105px;padding:11px;border:1px solid #f1c983;background:#96613e;color:#fff;font-weight:900}.corp-roster-v4034{margin-top:10px;border-top:1px solid #aa8c68;padding-top:9px}.corp-roster-v4034 summary{cursor:pointer;font-weight:900}.corp-roster-v4034 summary em{float:right}.corp-roster-v4034>div{margin-top:8px;max-height:260px;overflow:auto}.corp-roster-row-v4034{display:grid;grid-template-columns:1fr 90px 170px;gap:8px;padding:8px;border-bottom:1px solid #cdb898}.corp-roster-row-v4034 b{text-align:center}.corp-roster-row-v4034 em{text-align:right}.corp-roster-row-v4034.chairman b{color:#8c2e95}.corp-roster-row-v4034.vice-chairman b{color:#64427a}.corp-roster-row-v4034.ceo b{color:#17647e}.corp-roster-row-v4034.director b{color:#35654d}.corp-roster-row-v4034.major b{color:#93631f}
 @media(max-width:760px){.corp-hero-v4034{grid-template-columns:1fr}.corp-tax-v4034{text-align:left}.corp-company-card-v4034>header{grid-template-columns:48px 1fr}.corp-my-role-v4034{grid-column:1/-1}.corp-share-metrics-v4034{grid-template-columns:1fr 1fr}.corp-roster-row-v4034{grid-template-columns:1fr 78px}.corp-roster-row-v4034 em{grid-column:1/-1;text-align:left}}
+
+
+/* v40.36 세금 고지서: 전체 카드 스크롤 + 버튼 접근성 */
+#loginTaxModalV401{overflow:hidden}
+#loginTaxModalV401 .tax-settlement-card-v401{
+  width:min(520px,96vw);
+  max-height:calc(100dvh - 24px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  padding:22px 24px 18px;
+  display:block;
+}
+#loginTaxModalV401 .tax-breakdown-v401{max-height:none!important;overflow:visible!important}
+#loginTaxModalV401 .tax-action-row-v402{
+  position:sticky!important;
+  bottom:-18px;
+  z-index:20;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin:12px -4px -2px;
+  padding:12px 4px 16px;
+  background:linear-gradient(180deg,rgba(235,214,174,0),#ead4aa 22%,#ead4aa 100%);
+  box-shadow:0 -10px 20px rgba(81,54,29,.12);
+}
+#loginTaxModalV401 .tax-credit-note-v401{margin-bottom:4px}
+#loginTaxModalV401 .tax-breakdown-v401>div span{display:block}
+@media(max-height:720px){
+  #loginTaxModalV401 .tax-settlement-card-v401{padding-top:14px}
+  #loginTaxModalV401 .tax-office-mark-v401{font-size:30px}
+  #loginTaxModalV401 .tax-settlement-card-v401>p{margin:5px 0}
+  #loginTaxModalV401 .tax-breakdown-v401{margin:10px 0}
+  #loginTaxModalV401 .tax-breakdown-v401>div{padding:8px 10px}
+}
+@media(max-width:520px){
+  #loginTaxModalV401 .tax-action-row-v402{grid-template-columns:1fr}
+}
