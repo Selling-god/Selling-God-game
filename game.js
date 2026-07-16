@@ -5399,22 +5399,46 @@ loadBusiness=async function(options={}){
 };
 
 const _renderCorporateBoardV4040=renderCorporateBoardV4039;
-renderCorporateBoardV4039=function(){_renderCorporateBoardV4040();const host=document.getElementById('businessView');if(!host)return;const hero=host.querySelector('.corp-hero-v4039');if(hero)hero.insertAdjacentHTML('afterend',renderCompanyInboxV4040());};
+renderCorporateBoardV4039=function(){_renderCorporateBoardV4040();updateCompanyNoticeBadgeV4042();};
 function renderCompanyInboxV4040(){const list=companyAsyncV4040.notifications||[];return `<details class="company-inbox-v4040" ${companyAsyncV4040.unread_count?'open':''}><summary>🔔 회사 알림함 <em>${companyAsyncV4040.unread_count||0}개 새 알림</em><button type="button" onclick="event.preventDefault();event.stopPropagation();markCompanyNoticesV4040()">모두 읽음</button></summary><div>${list.map(n=>`<article class="${n.is_read?'read':'unread'}"><span>${n.kind==='crisis'?'⚠️':n.kind.includes('meeting')?'🗳️':n.kind.includes('block')?'🤝':'📌'}</span><div><b>${esc(n.title)}</b><p>${esc(n.body)}</p><small>${new Date(n.created_at).toLocaleString('ko-KR')}</small></div></article>`).join('')||'<p class="empty">아직 회사 알림이 없습니다.</p>'}</div></details>`}
-async function markCompanyNoticesV4040(){try{await rpcV4039('mark_company_notifications_read_v4040');companyAsyncV4040.unread_count=0;(companyAsyncV4040.notifications||[]).forEach(n=>n.is_read=true);renderCorporateBoardV4039()}catch(e){toast(e.message||String(e))}}
+async function markCompanyNoticesV4040(){return markCompanyNoticesV4042()}
 
 const _renderCorporateCompanyV4040=renderCorporateCompanyV4039;
 renderCorporateCompanyV4039=function(c,d={}){let raw=_renderCorporateCompanyV4040(c,d);const a=companyAsyncMapV4040().get(String(c.stock_id));if(!a)return raw;const panel=renderAsyncCompanyPanelV4040(c,a);return raw.replace('<details class="corp-roster-v4034">',panel+'<details class="corp-roster-v4034">')};
 function renderAsyncCompanyPanelV4040(c,a){return `<section class="company-async-v4040">
-  <div class="policy-v4040"><b>⚙ 자동 운영 방침</b><select onchange="setCompanyPolicyV4040('${c.stock_id}',this.value)">${Object.entries(policyLabelsV4040).map(([k,v])=>`<option value="${k}" ${a.policy===k?'selected':''}>${v}</option>`).join('')}</select><small>미접속 중 선택 기한이 끝나면 이 방침으로 자동 대응합니다.</small></div>
+  <div class="random-auto-v4042"><b>🎲 무응답 자동 결정</b><small>마감까지 아무도 참여하지 않으면 서버가 가능한 선택지 중 하나를 무작위로 실행하고 기업 알림센터에 결과를 남깁니다.</small></div>
   ${renderMeetingV4040(a.meeting,a.my_meeting_vote)}
   ${renderCrisisV4040(a.crisis,a.my_crisis_vote)}
   ${renderBlockDealsV4040(c,a.block_deals||[])}
 </section>`}
 function renderMeetingV4040(m,my){if(!m)return '';const open=m.status==='open'&&new Date(m.closes_at)>new Date();return `<div class="async-card-v4040 meeting"><header><b>🗳️ ${esc(m.title)}</b><em>${open?dateLeftV4040(m.closes_at)+' 남음':'결과 확정'}</em></header><p>${esc(m.description||'')}</p>${open?`<div class="async-actions-v4040"><button class="${my==='yes'?'picked':''}" onclick="voteMeetingV4040('${m.id}','yes')">찬성</button><button class="${my==='no'?'picked':''}" onclick="voteMeetingV4040('${m.id}','no')">반대</button><button class="${my==='abstain'?'picked':''}" onclick="voteMeetingV4040('${m.id}','abstain')">기권</button></div>`:`<strong>${esc(m.result_summary||'결과가 정산되었습니다.')}</strong>`}</div>`}
-function renderCrisisV4040(c,my){if(!c)return '';const open=c.status==='open'&&new Date(c.closes_at)>new Date();return `<div class="async-card-v4040 crisis"><header><b>⚠️ ${esc(c.title)}</b><em>${open?dateLeftV4040(c.closes_at)+' 남음':'대응 완료'}</em></header><p>${esc(c.description||'')}</p>${open?`<div class="async-actions-v4040"><button class="${my==='safe'?'picked':''}" onclick="voteCrisisV4040('${c.id}','safe')">안전 대응</button><button class="${my==='balanced'?'picked':''}" onclick="voteCrisisV4040('${c.id}','balanced')">균형 대응</button><button class="${my==='aggressive'?'picked':''}" onclick="voteCrisisV4040('${c.id}','aggressive')">공격 대응</button></div>`:`<strong>${esc(c.result_summary||'자동 방침에 따라 정산되었습니다.')}</strong>`}</div>`}
+function renderCrisisV4040(c,my){if(!c)return '';const open=c.status==='open'&&new Date(c.closes_at)>new Date();return `<div class="async-card-v4040 crisis"><header><b>⚠️ ${esc(c.title)}</b><em>${open?dateLeftV4040(c.closes_at)+' 남음':'대응 완료'}</em></header><p>${esc(c.description||'')}</p>${open?`<div class="async-actions-v4040"><button class="${my==='safe'?'picked':''}" onclick="voteCrisisV4040('${c.id}','safe')">안전 대응</button><button class="${my==='balanced'?'picked':''}" onclick="voteCrisisV4040('${c.id}','balanced')">균형 대응</button><button class="${my==='aggressive'?'picked':''}" onclick="voteCrisisV4040('${c.id}','aggressive')">공격 대응</button></div>`:`<strong>${esc(c.result_summary||'참여가 없으면 무작위 방침으로 정산됩니다.')}</strong>`}</div>`}
 function renderBlockDealsV4040(c,deals){return `<details class="block-deals-v4040"><summary>🤝 비동기 블록딜 <em>${deals.length}건</em></summary><div class="block-create-v4040"><input id="bdQty-${c.stock_id}" type="number" min="1" placeholder="수량"><input id="bdPrice-${c.stock_id}" type="number" min="1" placeholder="주당 가격"><button onclick="createBlockDealV4040('${c.stock_id}')">24시간 공개 제안</button></div><div class="block-list-v4040">${deals.map(d=>`<div><span><b>${esc(d.seller_nickname||'주주')}</b><small>${Number(d.quantity).toLocaleString('ko-KR')}주 · 주당 ${money(d.price_per_share)} · ${dateLeftV4040(d.expires_at)}</small></span>${d.is_mine?`<button onclick="cancelBlockDealV4040('${d.id}')">취소</button>`:`<button onclick="acceptBlockDealV4040('${d.id}')">수락</button>`}</div>`).join('')||'<small>현재 공개된 블록딜이 없습니다.</small>'}</div></details>`}
 async function setCompanyPolicyV4040(id,p){try{await rpcV4039('set_company_policy_v4040',{p_stock_id:id,p_policy:p});toast('자동 운영 방침을 저장했습니다.')}catch(e){toast(e.message||String(e));await loadBusiness({silent:true})}}
+function companyNoticeIconV4042(kind=''){
+  return kind==='crisis'||kind==='crisis_result'?'⚠️':kind.includes('meeting')?'🗳️':kind.includes('block')?'🤝':kind.includes('random')?'🎲':'📌';
+}
+function updateCompanyNoticeBadgeV4042(){
+  const count=Number(companyAsyncV4040?.unread_count||0),dot=document.getElementById('companyNoticeUnreadDotV4042');
+  if(dot){dot.textContent=count>99?'99+':String(count);dot.classList.toggle('hidden',count<=0)}
+  const label=document.getElementById('companyNoticeCountV4042');if(label)label.textContent=`새 알림 ${count}개`;
+}
+function renderCompanyNoticesV4042(){
+  const host=document.getElementById('companyNoticeViewV4042');if(!host)return;
+  const list=companyAsyncV4040?.notifications||[];
+  host.innerHTML=list.length?list.map(n=>`<article class="company-notice-card-v4042 ${n.is_read?'read':'unread'}"><span>${companyNoticeIconV4042(n.kind||'')}</span><div><header><b>${esc(n.title||'기업 알림')}</b>${n.is_read?'':'<em>NEW</em>'}</header><p>${esc(n.body||'')}</p><small>${new Date(n.created_at).toLocaleString('ko-KR')}</small></div></article>`).join(''):'<div class="company-notice-empty-v4042"><b>아직 기업 알림이 없습니다.</b><span>주주총회, 위기 사건, 블록딜 결과가 이곳에 저장됩니다.</span></div>';
+  updateCompanyNoticeBadgeV4042();
+}
+async function loadCompanyNoticesV4042(force=false){
+  const host=document.getElementById('companyNoticeViewV4042');if(host&&!force)host.innerHTML='<div class="bank-loading">기업 알림을 불러오는 중...</div>';
+  try{const data=await rpcV4039('get_company_async_dashboard_v4040');companyAsyncV4040=data||{notifications:[],unread_count:0,companies:[]};renderCompanyNoticesV4042()}catch(e){if(host)host.innerHTML=`<div class="business-error"><b>기업 알림을 불러오지 못했습니다.</b><p>${esc(e.message||String(e))}</p><button onclick="loadCompanyNoticesV4042(true)">다시 시도</button></div>`}
+}
+async function markCompanyNoticesV4042(){
+  try{await rpcV4039('mark_company_notifications_read_v4040');companyAsyncV4040.unread_count=0;(companyAsyncV4040.notifications||[]).forEach(n=>n.is_read=true);renderCompanyNoticesV4042();toast('기업 알림을 모두 읽음 처리했습니다.')}catch(e){toast(e.message||String(e))}
+}
+const openPhoneAppV4042Base=openPhoneApp;
+openPhoneApp=function(name){openPhoneAppV4042Base(name);if(name==='company-notices')loadCompanyNoticesV4042();};
+
 async function voteMeetingV4040(id,o){try{await rpcV4039('vote_shareholder_meeting_v4040',{p_meeting_id:id,p_option:o});toast('주주총회 투표가 저장되었습니다.');await loadBusiness({silent:true})}catch(e){toast(e.message||String(e))}}
 async function voteCrisisV4040(id,o){try{await rpcV4039('vote_company_crisis_v4040',{p_crisis_id:id,p_option:o});toast('위기 대응 의견이 저장되었습니다.');await loadBusiness({silent:true})}catch(e){toast(e.message||String(e))}}
 async function createBlockDealV4040(stockId){const q=Number(document.getElementById(`bdQty-${stockId}`)?.value||0),p=Number(document.getElementById(`bdPrice-${stockId}`)?.value||0);try{await rpcV4039('create_block_deal_v4040',{p_stock_id:stockId,p_quantity:q,p_price_per_share:p,p_buyer_id:null});toast('24시간 공개 블록딜을 등록했습니다.');await loadBusiness({silent:true})}catch(e){toast(e.message||String(e))}}
