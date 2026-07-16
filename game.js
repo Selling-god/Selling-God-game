@@ -2883,7 +2883,7 @@ async function loadRiskDesk(){
   const active=data?.active;
   host.innerHTML=`<div class="risk-warning project-warning"><b>📑 프로젝트 투자</b><p>상가 개발, 대량 재고 매입, 해외 유통 계약처럼 현실에서 가능한 고액 사업에 자금을 투입합니다. 공실·재고 실패·계약 파기 등으로 큰 손실이 날 수 있으며, 결과는 서버에서 시작 순간 확정됩니다.</p><strong>사용 가능 현금 ${money(profile?.cash||0)}</strong></div>`+
   (active?`<article class="risk-active"><div><span>${active.product_icon}</span><b>${esc(active.product_name)}</b><small>투자금 ${money(active.invested_amount)}</small></div><div><em>${active.ready?'정산 가능':`${active.remaining_seconds}초 남음`}</em><button ${active.ready?'':'disabled'} onclick="claimRiskV35()">${active.ready?'정산 결과 확인':'프로젝트 진행 중'}</button></div></article>`:
-  `<div class="risk-products">${riskProductCardV35('venture','🏢','상가 리모델링 공동투자',10000000,60,'노후 상가를 매입·리모델링한 뒤 임대 또는 매각합니다.','공실·공사비 초과 위험 · 최대 4.5배')}${riskProductCardV35('futures','📦','대량 재고 선매입 계약',50000000,45,'유행 상품을 도매가로 대량 매입해 유통 마진을 노립니다.','재고 폭락 위험 · 최대 6배')}${riskProductCardV35('takeover','🚢','해외 독점 유통권 계약',200000000,90,'해외 브랜드의 국내 독점 유통권을 확보해 대형 계약을 추진합니다.','계약 파기·환율 위험 · 최대 8배')}</div>`);
+  `<div class="risk-products">${riskProductCardV35('venture','🏢','상가 리모델링 공동투자',10000000,60,'노후 상가를 매입·리모델링한 뒤 임대 또는 매각합니다.','공실·공사비 초과 위험 · 최대 1.45배')}${riskProductCardV35('futures','📦','대량 재고 선매입 계약',50000000,45,'유행 상품을 도매가로 대량 매입해 유통 마진을 노립니다.','재고 폭락 위험 · 최대 1.8배')}${riskProductCardV35('takeover','🚢','해외 독점 유통권 계약',200000000,90,'해외 브랜드의 국내 독점 유통권을 확보해 대형 계약을 추진합니다.','계약 파기·환율 위험 · 최대 2.2배')}</div>`);
   if(riskTimerV35)clearTimeout(riskTimerV35);
   if(active&&!active.ready)riskTimerV35=setTimeout(loadRiskDesk,1000);
 }
@@ -2942,7 +2942,7 @@ async function appraiseOwnedItemV38(id,cost){if(!confirm(`이 아이템을 ${mon
 const openPhoneAppV38=openPhoneApp;openPhoneApp=function(name){openPhoneAppV38(name);if(name==='appraisal')loadOwnedAppraisalV38();if(name==='restoration')loadRestorationCenter()};
 
 loadRiskDesk=async function(){const host=document.getElementById('riskView');if(!host)return;const{data,error}=await db.rpc('get_risk_investment_v35');if(error){host.innerHTML=`<div class="error-panel">${esc(error.message)}</div>`;return}const active=data?.active;const products=[
-['venture','🏢','상가 리모델링 공동투자',10000000,60,'노후 상가를 개선해 임대·매각','공실·공사비 위험 · 최대 4.5배'],['futures','📦','대량 재고 선매입 계약',50000000,45,'유행 상품을 도매가로 선매입','재고 폭락 위험 · 최대 6배'],['takeover','🚢','해외 독점 유통권 계약',200000000,90,'해외 브랜드 국내 독점권 확보','계약 파기 위험 · 최대 8배'],['redevelop','🏗️','도심 재개발 지분 투자',300000000,120,'정비사업 지분을 선매입','사업 지연·분담금 위험 · 최대 7배'],['hotel','🏨','관광호텔 리뉴얼 펀드',500000000,100,'노후 호텔을 리브랜딩','객실 가동률 위험 · 최대 6.5배'],['logistics','🚚','물류센터 개발 프로젝트',800000000,110,'대형 임차인을 유치하는 물류센터 개발','공실·금리 위험 · 최대 7.5배'],['film','🎬','대형 콘텐츠 제작 투자',1000000000,75,'영화·드라마 제작비 공동 투자','흥행 실패 위험 · 최대 10배'],['datacenter','🖥️','데이터센터 건설 컨소시엄',2000000000,150,'전력 계약과 장기 임차를 기반으로 개발','인허가·전력비 위험 · 최대 9배']];host.innerHTML=`<div class="risk-warning project-warning"><b>📑 프로젝트 투자</b><p>현실적인 개발·유통·콘텐츠 사업에 투자합니다. 성공 시 큰 수익이 있지만 지연, 공실, 흥행 실패로 원금 대부분을 잃을 수 있습니다.</p><strong>사용 가능 현금 ${money(profile?.cash||0)}</strong></div>`+(active?`<article class="risk-active"><div><span>${active.product_icon}</span><b>${esc(active.product_name)}</b><small>투자금 ${money(active.invested_amount)}</small></div><div><em>${active.ready?'정산 가능':`${active.remaining_seconds}초 남음`}</em><button ${active.ready?'':'disabled'} onclick="claimRiskV35()">${active.ready?'정산 결과 확인':'프로젝트 진행 중'}</button></div></article>`:`<div class="risk-products">${products.map(x=>riskProductCardV35(...x)).join('')}</div>`);if(riskTimerV35)clearTimeout(riskTimerV35);if(active&&!active.ready)riskTimerV35=setTimeout(loadRiskDesk,1000)};
+['venture','🏢','상가 리모델링 공동투자',10000000,300,'노후 상가를 개선해 임대·매각','공실·공사비 위험 · 최대 1.45배'],['futures','📦','대량 재고 선매입 계약',50000000,360,'유행 상품을 도매가로 선매입','재고 폭락 위험 · 최대 1.8배'],['takeover','🚢','해외 독점 유통권 계약',200000000,480,'해외 브랜드 국내 독점권 확보','계약 파기 위험 · 최대 2.2배'],['redevelop','🏗️','도심 재개발 지분 투자',300000000,600,'정비사업 지분을 선매입','사업 지연·분담금 위험 · 최대 2배'],['hotel','🏨','관광호텔 리뉴얼 펀드',500000000,540,'노후 호텔을 리브랜딩','객실 가동률 위험 · 최대 1.9배'],['logistics','🚚','물류센터 개발 프로젝트',800000000,660,'대형 임차인을 유치하는 물류센터 개발','공실·금리 위험 · 최대 2.15배'],['film','🎬','대형 콘텐츠 제작 투자',1000000000,420,'영화·드라마 제작비 공동 투자','흥행 실패 위험 · 최대 3배'],['datacenter','🖥️','데이터센터 건설 컨소시엄',2000000000,720,'전력 계약과 장기 임차를 기반으로 개발','인허가·전력비 위험 · 최대 2.45배']];host.innerHTML=`<div class="risk-warning project-warning"><b>📑 프로젝트 투자</b><p>현실적인 개발·유통·콘텐츠 사업에 투자합니다. 성공 시 큰 수익이 있지만 지연, 공실, 흥행 실패로 원금 대부분을 잃을 수 있습니다.</p><strong>사용 가능 현금 ${money(profile?.cash||0)}</strong></div>`+(active?`<article class="risk-active"><div><span>${active.product_icon}</span><b>${esc(active.product_name)}</b><small>투자금 ${money(active.invested_amount)}</small></div><div><em>${active.ready?'정산 가능':`${active.remaining_seconds}초 남음`}</em><button ${active.ready?'':'disabled'} onclick="claimRiskV35()">${active.ready?'정산 결과 확인':'프로젝트 진행 중'}</button></div></article>`:`<div class="risk-products">${products.map(x=>riskProductCardV35(...x)).join('')}</div>`);if(riskTimerV35)clearTimeout(riskTimerV35);if(active&&!active.ready)riskTimerV35=setTimeout(loadRiskDesk,1000)};
 
 // 출품 탭에서도 입장권이 없는 경매장은 선택/출품 불가
 fillAuctionSellItems=function(){const select=document.getElementById('auctionSellItem');if(!select)return;const tier=document.getElementById('auctionSellTier')?.value||auctionTierV35||'normal',meta=AUCTION_TIER_META_V35[tier],unlocked=tier==='normal'||!!auctionAccessV35[tier],previous=select.value;select.innerHTML='<option value="">'+(unlocked?'출품할 아이템 선택':`${meta.name} 입장권을 먼저 구매하세요`)+'</option>';const available=unlocked?inventory.filter(x=>!x.is_listed&&!x.restoration_locked&&rarityScore(normalizeRarityV35(x.items.rarity))>=meta.minRarity):[];available.forEach(x=>select.add(new Option(`${x.items.name} · ${normalizeRarityV35(x.items.rarity)} · 상태 ${x.condition_score}`,x.id)));if(available.some(x=>String(x.id)===String(previous)))select.value=previous;select.disabled=!unlocked;const button=select.closest('.auction-seller')?.querySelector('button');if(button)button.disabled=!unlocked||!available.length};
@@ -4311,14 +4311,14 @@ async function loadCollectiblesV4012(){
 loadCollectibles=loadCollectiblesV4012;
 
 const PROJECTS_V4012=[
- ['venture','🏢','상가 리모델링 공동투자',10000000,60,'노후 상가를 개선해 임대하거나 매각합니다.','공실·공사비 위험 · 최대 4.5배'],
- ['futures','📦','대량 재고 선매입 계약',50000000,45,'유행 상품을 도매가로 선매입합니다.','재고 폭락 위험 · 최대 6배'],
- ['takeover','🚢','해외 독점 유통권 계약',200000000,90,'해외 브랜드의 국내 독점권을 확보합니다.','계약 파기 위험 · 최대 8배'],
- ['redevelop','🏗️','도심 재개발 지분 투자',300000000,120,'정비사업 지분을 선매입합니다.','사업 지연 위험 · 최대 7배'],
- ['hotel','🏨','관광호텔 리뉴얼 펀드',500000000,100,'노후 호텔을 리브랜딩합니다.','가동률 위험 · 최대 6.5배'],
- ['logistics','🚚','물류센터 개발 프로젝트',800000000,110,'대형 임차인을 유치하는 물류센터를 개발합니다.','공실·금리 위험 · 최대 7.5배'],
- ['film','🎬','대형 콘텐츠 제작 투자',1000000000,75,'영화·드라마 제작비를 공동 투자합니다.','흥행 실패 위험 · 최대 10배'],
- ['datacenter','🖥️','데이터센터 건설 컨소시엄',2000000000,150,'장기 임차 기반 데이터센터를 개발합니다.','인허가·전력비 위험 · 최대 9배']
+ ['venture','🏢','상가 리모델링 공동투자',10000000,300,'노후 상가를 개선해 임대하거나 매각합니다.','공실·공사비 위험 · 최대 1.45배'],
+ ['futures','📦','대량 재고 선매입 계약',50000000,360,'유행 상품을 도매가로 선매입합니다.','재고 폭락 위험 · 최대 1.8배'],
+ ['takeover','🚢','해외 독점 유통권 계약',200000000,480,'해외 브랜드의 국내 독점권을 확보합니다.','계약 파기 위험 · 최대 2.2배'],
+ ['redevelop','🏗️','도심 재개발 지분 투자',300000000,600,'정비사업 지분을 선매입합니다.','사업 지연 위험 · 최대 2배'],
+ ['hotel','🏨','관광호텔 리뉴얼 펀드',500000000,540,'노후 호텔을 리브랜딩합니다.','가동률 위험 · 최대 1.9배'],
+ ['logistics','🚚','물류센터 개발 프로젝트',800000000,660,'대형 임차인을 유치하는 물류센터를 개발합니다.','공실·금리 위험 · 최대 2.15배'],
+ ['film','🎬','대형 콘텐츠 제작 투자',1000000000,420,'영화·드라마 제작비를 공동 투자합니다.','흥행 실패 위험 · 최대 3배'],
+ ['datacenter','🖥️','데이터센터 건설 컨소시엄',2000000000,720,'장기 임차 기반 데이터센터를 개발합니다.','인허가·전력비 위험 · 최대 2.45배']
 ];
 
 function projectCardV4012(p){
@@ -4530,14 +4530,14 @@ loadHouse=async function(){
 };
 
 const PROJECTS_V4013=[
- ['venture','🏢','상가 리모델링 공동투자',10000000,60,'노후 상가를 개선해 임대하거나 매각합니다.','공실·공사비 위험 · 최대 4.5배'],
- ['futures','📦','대량 재고 선매입 계약',50000000,45,'유행 상품을 도매가로 선매입합니다.','재고 폭락 위험 · 최대 6배'],
- ['takeover','🚢','해외 독점 유통권 계약',200000000,90,'해외 브랜드의 국내 독점권을 확보합니다.','계약 파기 위험 · 최대 8배'],
- ['redevelop','🏗️','도심 재개발 지분 투자',300000000,120,'정비사업 지분을 선매입합니다.','사업 지연 위험 · 최대 7배'],
- ['hotel','🏨','관광호텔 리뉴얼 펀드',500000000,100,'노후 호텔을 리브랜딩합니다.','가동률 위험 · 최대 6.5배'],
- ['logistics','🚚','물류센터 개발 프로젝트',800000000,110,'대형 임차인을 유치하는 물류센터를 개발합니다.','공실·금리 위험 · 최대 7.5배'],
- ['film','🎬','대형 콘텐츠 제작 투자',1000000000,75,'영화·드라마 제작비를 공동 투자합니다.','흥행 실패 위험 · 최대 10배'],
- ['datacenter','🖥️','데이터센터 건설 컨소시엄',2000000000,150,'장기 임차 기반 데이터센터를 개발합니다.','인허가·전력비 위험 · 최대 9배']
+ ['venture','🏢','상가 리모델링 공동투자',10000000,300,'노후 상가를 개선해 임대하거나 매각합니다.','공실·공사비 위험 · 최대 1.45배'],
+ ['futures','📦','대량 재고 선매입 계약',50000000,360,'유행 상품을 도매가로 선매입합니다.','재고 폭락 위험 · 최대 1.8배'],
+ ['takeover','🚢','해외 독점 유통권 계약',200000000,480,'해외 브랜드의 국내 독점권을 확보합니다.','계약 파기 위험 · 최대 2.2배'],
+ ['redevelop','🏗️','도심 재개발 지분 투자',300000000,600,'정비사업 지분을 선매입합니다.','사업 지연 위험 · 최대 2배'],
+ ['hotel','🏨','관광호텔 리뉴얼 펀드',500000000,540,'노후 호텔을 리브랜딩합니다.','가동률 위험 · 최대 1.9배'],
+ ['logistics','🚚','물류센터 개발 프로젝트',800000000,660,'대형 임차인을 유치하는 물류센터를 개발합니다.','공실·금리 위험 · 최대 2.15배'],
+ ['film','🎬','대형 콘텐츠 제작 투자',1000000000,420,'영화·드라마 제작비를 공동 투자합니다.','흥행 실패 위험 · 최대 3배'],
+ ['datacenter','🖥️','데이터센터 건설 컨소시엄',2000000000,720,'장기 임차 기반 데이터센터를 개발합니다.','인허가·전력비 위험 · 최대 2.45배']
 ];
 function projectCardV4013(p){
   const [code,icon,name,min,duration,desc,odds]=p;
@@ -5444,3 +5444,32 @@ async function voteCrisisV4040(id,o){try{await rpcV4039('vote_company_crisis_v40
 async function createBlockDealV4040(stockId){const q=Number(document.getElementById(`bdQty-${stockId}`)?.value||0),p=Number(document.getElementById(`bdPrice-${stockId}`)?.value||0);try{await rpcV4039('create_block_deal_v4040',{p_stock_id:stockId,p_quantity:q,p_price_per_share:p,p_buyer_id:null});toast('24시간 공개 블록딜을 등록했습니다.');await loadBusiness({silent:true})}catch(e){toast(e.message||String(e))}}
 async function acceptBlockDealV4040(id){if(!confirm('이 블록딜을 수락할까요?'))return;try{const d=await rpcV4039('accept_block_deal_v4040',{p_deal_id:id});toast(`${Number(d.quantity||0).toLocaleString('ko-KR')}주 블록딜 체결 · ${money(d.cost||0)}`);await loadProfile();await loadBusiness({silent:true})}catch(e){toast(e.message||String(e))}}
 async function cancelBlockDealV4040(id){try{await rpcV4039('cancel_block_deal_v4040',{p_deal_id:id});toast('블록딜 제안을 취소했습니다.');await loadBusiness({silent:true})}catch(e){toast(e.message||String(e))}}
+
+
+/* v40.41 STRATEGIC ECONOMY BALANCE */
+const ECONOMY_STRATEGIES_V4041={
+ balanced:{icon:'⚖️',name:'균형 운영',tag:'모든 수익을 고르게',desc:'특정 보너스 없이 자유롭게 여러 수익 방식을 병행합니다.',bonus:'전략 변경을 고민 중인 유저에게 적합'},
+ trader:{icon:'📈',name:'주식 트레이더',tag:'시세 차익 중심',desc:'주식 매도차익에 붙는 세금이 30% 감소합니다.',bonus:'단기 매매와 시장 분석에 유리'},
+ shareholder:{icon:'👑',name:'전문 주주',tag:'지분·배당 중심',desc:'주주 배당 효율이 일반 전략보다 높아집니다.',bonus:'장기 보유와 지배구조 경쟁에 유리'},
+ entrepreneur:{icon:'🏭',name:'기업가',tag:'회사 경영 중심',desc:'보유 회사의 실질 정산 수익이 증가합니다.',bonus:'회사 업그레이드와 운영 전략에 유리'},
+ investor:{icon:'📑',name:'프로젝트 투자자',tag:'위험 투자 중심',desc:'프로젝트에서 이익이 발생하면 이익 부분이 15% 증가합니다.',bonus:'손실 위험을 감수하는 고수익 전략'},
+ banker:{icon:'🏦',name:'은행가',tag:'안정 자산 중심',desc:'자유예금과 목표 적금 이자가 25% 우대됩니다.',bonus:'접속이 뜸한 안정형 유저에게 적합'},
+ worker:{icon:'🧰',name:'현장 전문가',tag:'알바 활동 중심',desc:'알바 성공 보상이 25% 증가합니다.',bonus:'직접 플레이로 확실히 성장하는 전략'}
+};
+let economyStrategyStateV4041=null;
+function economyStrategyTimeV4041(sec){sec=Math.max(0,Number(sec||0));const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60);return h?`${h}시간 ${m}분`:`${m}분`}
+async function loadEconomyStrategyV4041(){
+ const host=document.getElementById('economyStrategyViewV4041');if(!host)return;
+ host.innerHTML='<div class="bank-loading">경제 전략을 불러오는 중...</div>';
+ try{const{data,error}=await db.rpc('get_economy_strategy_v4041');if(error)throw error;economyStrategyStateV4041=data||{strategy:'balanced',change_available:true,remaining_seconds:0};renderEconomyStrategyV4041()}catch(e){host.innerHTML=`<div class="business-error"><b>경제 전략을 불러오지 못했습니다.</b><p>${esc(e.message||String(e))}</p><small>v40.41 추가 SQL 실행 여부를 확인하세요.</small><button onclick="loadEconomyStrategyV4041()">다시 시도</button></div>`}
+}
+function renderEconomyStrategyV4041(){
+ const host=document.getElementById('economyStrategyViewV4041');if(!host)return;const s=economyStrategyStateV4041||{},current=s.strategy||'balanced',can=Boolean(s.change_available);
+ host.innerHTML=`<section class="economy-strategy-hero-v4041"><span>${ECONOMY_STRATEGIES_V4041[current]?.icon||'⚖️'}</span><div><small>CURRENT STRATEGY</small><h3>${esc(ECONOMY_STRATEGIES_V4041[current]?.name||'균형 운영')}</h3><p>${esc(ECONOMY_STRATEGIES_V4041[current]?.desc||'')}</p></div></section>
+ <div class="economy-strategy-cooldown-v4041 ${can?'ready':''}"><b>${can?'전략 변경 가능':'전략 변경 대기 중'}</b><span>${can?'아래에서 새로운 주력 전략을 선택하세요.':economyStrategyTimeV4041(s.remaining_seconds)+' 후 변경 가능'}</span></div>
+ <div class="economy-strategy-grid-v4041">${Object.entries(ECONOMY_STRATEGIES_V4041).map(([k,v])=>`<button class="economy-strategy-card-v4041 ${current===k?'active':''}" ${!can||current===k?'disabled':''} onclick="setEconomyStrategyV4041('${k}')"><span>${v.icon}</span><div><small>${esc(v.tag)}</small><b>${esc(v.name)}</b><p>${esc(v.desc)}</p><em>${esc(v.bonus)}</em></div>${current===k?'<strong>사용 중</strong>':''}</button>`).join('')}</div>
+ <section class="economy-balance-guide-v4041"><b>🎯 전략형 경제 밸런스</b><p>한 가지 방식만 정답이 되지 않도록 주식·주주·회사·프로젝트의 수익 구조를 조정했습니다. 은행과 알바 보상은 기존 수치를 유지합니다. 전략은 보너스를 주지만 다른 콘텐츠 이용을 막지는 않습니다.</p><small>전당포 흥정, 중고장터 거래, 경매 매수·판매 구조는 이번 패치에서 변경되지 않았습니다.</small></section>`;
+}
+async function setEconomyStrategyV4041(strategy){const info=ECONOMY_STRATEGIES_V4041[strategy];if(!info)return;if(!confirm(`${info.name} 전략을 선택할까요?\n선택 후 24시간 동안 변경할 수 없습니다.`))return;try{const{data,error}=await db.rpc('set_economy_strategy_v4041',{p_strategy:strategy});if(error)throw error;economyStrategyStateV4041=data;renderEconomyStrategyV4041();toast(`경제 전략을 ${info.name}(으)로 변경했습니다.`)}catch(e){toast(e.message||String(e));await loadEconomyStrategyV4041()}}
+const openPhoneAppV4041Base=openPhoneApp;
+openPhoneApp=function(name){openPhoneAppV4041Base(name);if(name==='economy-strategy')loadEconomyStrategyV4041();};
