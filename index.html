@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <!-- v33.7 reliable chat notifications -->
   <title>판매의 신 — STACKED COLLECTION v20</title>
-  <link rel="stylesheet" href="style.css?v=40.40.1">
+  <link rel="stylesheet" href="style.css?v=40.41.1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -300,6 +300,7 @@
         <button onclick="openPhoneApp('stocks')"><span class="app app-stock">📈</span>판매증권</button>
         <button onclick="openPhoneApp('ranking')"><span class="app app-ranking">🏆</span>랭킹</button>
         <button onclick="openPhoneApp('bank')"><span class="app app-bank">🏦</span>은행</button>
+        <button onclick="openPhoneApp('economy-strategy')"><span class="app app-economy-strategy-v4041">🧭</span>경제 전략</button>
         <button onclick="openPageFromPhone('market')"><span class="app app-market">🛒</span>중고장터</button>
         <button onclick="openPageFromPhone('collection')"><span class="app app-gacha">🎁</span>소장품</button>
         <button id="chatAppButton" class="chat-app-button" onclick="openPhoneApp('chat')"><span class="app app-chat">💬<span id="chatAppUnreadDot" class="chat-unread-dot app-dot hidden" aria-label="읽지 않은 채팅"></span></span>전체 채팅</button>
@@ -327,6 +328,10 @@
       <section id="phone-bank" class="phone-screen phone-app hidden">
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매은행</b><small>예금·적금·대출은 서버에 자동 저장</small></div><button onclick="loadBank()">↻</button></div>
         <div id="bankView" class="bank-view"><div class="bank-loading">은행 정보를 불러오는 중...</div></div>
+      </section>
+      <section id="phone-economy-strategy" class="phone-screen phone-app hidden">
+        <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>나의 경제 전략</b><small>24시간마다 주력 수익 방식을 변경할 수 있습니다</small></div><button onclick="loadEconomyStrategyV4041()">↻</button></div>
+        <div id="economyStrategyViewV4041" class="economy-strategy-view-v4041"><div class="bank-loading">경제 전략을 불러오는 중...</div></div>
       </section>
       <section id="phone-business" class="phone-screen phone-app hidden">
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>사업 관리</b><small>포트폴리오·정산·투자 전략을 운영하세요</small></div><button onclick="loadBusiness()">↻</button></div>
@@ -368,7 +373,7 @@
 <script>
 window.collectibleEffectLabel=window.collectibleEffectLabel||function(code,name){const m={market_bonus:'NPC 제안가',pawn_bonus:'전당포 판매가',stock_fee_discount:'주식 수수료 할인',gacha_luck:'뽑기 희귀도',exploration_luck:'탐색 희귀도',auction_discount:'경매 낙찰 할인'};return String(name||'').trim()||m[String(code||'')]||'특수 효과';};
 </script>
-<script src="game.js?v=40.40.2"></script>
+<script src="game.js?v=40.41.1"></script>
 <div id="gachaModal" class="overlay hidden"><div class="gacha-reveal"><div id="gachaRarity" class="gacha-rarity">?</div><div id="gachaResultIcon" class="gacha-result-icon">🎁</div><h2 id="gachaResultName">결과 공개</h2><p id="gachaResultEffect"></p><div id="gachaBulkSummary" class="gacha-bulk-summary hidden"></div><button class="btn primary" onclick="closeGachaReveal()">확인</button></div></div><div id="clickFxLayer" class="click-fx-layer"></div>
 
 <div id="loginTaxModalV401" class="tax-settlement-overlay-v401 hidden" aria-modal="true" role="dialog">
