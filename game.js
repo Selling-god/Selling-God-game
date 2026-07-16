@@ -5320,3 +5320,61 @@ getPeriodicTaxStatusV408=async function(){
   if(data)updateTaxNoticeFieldsV4036(data);
   return data;
 };
+
+// v40.39 대주주 독점 방지·회장 임기·유상증자·인수연합·주주 시즌
+let shareholderSeasonV4039=null;
+async function rpcV4039(name,args={}){const r=await db.rpc(name,args);if(r.error)throw r.error;return r.data}
+function timeLeftV4039(v){if(!v)return '없음';const s=Math.max(0,Math.floor((new Date(v).getTime()-Date.now())/1000));if(s<=0)return '만료';const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);return h?`${h}시간 ${m}분`:`${m}분`}
+
+loadBusiness=async function(options={}){
+  const host=document.getElementById('businessView');if(!host)return;
+  if(!options.silent)host.innerHTML='<div class="business-loading"><span class="business-spinner"></span><b>주주 경쟁과 지배구조 확인 중</b><small>회장 임기·지분 집중·연합·시즌 정보를 불러오고 있습니다.</small></div>';
+  try{
+    const [board,div,season]=await Promise.all([
+      rpcV4039('get_corporate_board_v4039'),
+      rpcV4039('get_shareholder_dividend_status_v4039'),
+      rpcV4039('get_shareholder_season_v4039')
+    ]);
+    corporateBoardV4034=Array.isArray(board)?board:[];corporateDividendV4034=div||{companies:[],tax_rate:0,wealth:0};shareholderSeasonV4039=season||null;
+    renderCorporateBoardV4039();
+  }catch(e){
+    console.error(e);host.innerHTML=`<div class="business-error"><b>주주 경쟁 시스템을 불러오지 못했습니다.</b><p>${esc(e.message||String(e))}</p><small>v40.39 추가 SQL 실행 여부를 확인하세요.</small><button onclick="loadBusiness()">다시 시도</button></div>`;
+  }
+};
+
+function renderCorporateBoardV4039(){
+  const host=document.getElementById('businessView');if(!host)return;
+  const divMap=new Map((corporateDividendV4034.companies||[]).map(x=>[String(x.stock_id),x]));
+  const eligible=(corporateDividendV4034.companies||[]).filter(x=>x.eligible),claimable=eligible.some(x=>Number(x.claimable_periods||0)>0);
+  const season=shareholderSeasonV4039||{};
+  host.innerHTML=`
+  <section class="corp-hero-v4034 corp-hero-v4039"><div><span>COMPETITIVE GOVERNANCE</span><h2>경쟁형 상장회사 경영</h2><p>지분 독점은 비용과 책임을 만들고, 연합·유상증자·시즌 경쟁으로 추격 기회를 제공합니다.</p></div><div class="corp-tax-v4034"><small>회사 수익 원천징수</small><b>${corporateTaxPercentV4034()}</b><em>총자산 ${money(corporateDividendV4034.wealth||0)} 기준</em></div></section>
+  <section class="corp-rule-v4034 corp-rule-v4039"><b>핵심 규칙</b><span>개인 최대 유효 지분 49.9% · 회장은 20% 이상 최대주주 중 24시간 임기 · 배당은 2%부터</span><small>10% 이상은 독점 관리비가 발생하며, 40% 이상 집중이 지속되면 신규 주식이 발행됩니다.</small></section>
+  ${renderShareholderSeasonV4039(season)}
+  <button class="corp-claim-all-v4034" ${claimable?'':'disabled'} onclick="claimCorporateDividendV4039(null)"><span>💰</span><div><b>전체 회사 배당 수령</b><small>${claimable?'독점 관리비와 세금 공제 후 수령합니다.':'아직 정산 가능한 배당이 없습니다.'}</small></div></button>
+  <div class="corp-company-grid-v4034">${corporateBoardV4034.map(c=>renderCorporateCompanyV4039(c,divMap.get(String(c.stock_id)))).join('')||'<div class="business-empty">연결된 상장회사가 없습니다.</div>'}</div>`;
+}
+function renderShareholderSeasonV4039(s){const rows=Array.isArray(s.ranking)?s.ranking:[];return `<details class="shareholder-season-v4039"><summary>🏆 주주 시즌 ${Number(s.season_no||1)} · 성장 경쟁 <em>${timeLeftV4039(s.ends_at)} 남음</em></summary><p>절대 자산이 아니라 이번 시즌 매수·실현수익·배당·경영 활동 점수로 경쟁합니다.</p><div>${rows.slice(0,10).map(r=>`<div class="season-row-v4039 ${r.is_me?'me':''}"><span>${r.rank}위</span><b>${esc(r.nickname||'익명')}</b><em>${Number(r.score||0).toLocaleString('ko-KR')}점</em></div>`).join('')||'<small>아직 시즌 기록이 없습니다.</small>'}</div></details>`}
+
+function renderCorporateCompanyV4039(c,d={}){
+ const pct=Number(c.my_percent||0),eff=Number(c.my_effective_percent??Math.min(49.9,pct)),shares=Number(c.my_shares||0),need=Number(c.minimum_dividend_shares||0),title=c.my_title||'일반주주',role=shareholderRoleClassV4034(title),eligible=Boolean(c.eligible),remaining=Math.max(0,Number(d?.remaining_seconds??300)),periods=Number(d?.claimable_periods||0),estimate=Number(d?.estimated_net_per_5m||0),roster=Array.isArray(c.shareholders)?c.shareholders:[],alliances=Array.isArray(c.alliances)?c.alliances:[];
+ const isChair=String(c.chairman_user_id||'')===String(profile?.id||'')&&title==='회장';
+ const liquidityMine=String(c.liquidity_owner_id||'')===String(profile?.id||'');
+ const warning=liquidityMine?`<div class="corp-warning-v4039"><b>⚠ 시장 유동성 공급 의무</b><span>${Number(c.liquidity_required_shares||0).toLocaleString('ko-KR')}주를 ${timeLeftV4039(c.liquidity_deadline)} 안에 시장에 공급하세요.</span><small>기한을 넘기면 해당 회사 배당이 50% 감소합니다.</small></div>`:'';
+ return `<article class="corp-company-card-v4034 ${role} corp-company-card-v4039"><header><div class="corp-company-symbol-v4034">${c.icon||'🏢'}</div><div><small>${esc(c.symbol||'')}</small><h3>${esc(c.name||'상장회사')}</h3><p>${esc(c.description||'')}</p></div><div class="corp-my-role-v4034 ${role}"><span>내 직함</span><b>${esc(title)}</b></div></header>
+ <div class="corp-chair-v4039"><div><span>현재 회장</span><b>${esc(c.chairman_nickname||'공석')}</b><small>${c.chairman_term_ends_at?`임기 ${timeLeftV4039(c.chairman_term_ends_at)} 남음`:'20% 이상 최대주주가 없어 공석'}</small></div><div><span>회사 성과</span><b>${Number(c.performance||100).toFixed(0)}점</b><small>${esc(c.decision||'기본 운영')}</small></div><div><span>시장 잔여</span><b>${Number(c.available_shares||0).toLocaleString('ko-KR')}주</b><small>증자 잠금 ${c.issue_lock_until&&new Date(c.issue_lock_until)>new Date()?timeLeftV4039(c.issue_lock_until):'없음'}</small></div></div>
+ <div class="corp-share-metrics-v4034"><div><span>내 보유</span><b>${shares.toLocaleString('ko-KR')}주</b></div><div><span>실제 지분</span><b>${formatPercentV4034(pct)}</b></div><div><span>배당 유효 지분</span><b>${formatPercentV4034(Number(d?.effective_percent??eff))}</b></div><div><span>5분 예상 순수익</span><b class="up">${eligible?'+'+money(estimate):'배당 대상 아님'}</b></div></div>
+ <div class="corp-position-bar-v4034"><i style="width:${Math.min(100,eff*2)}%"></i><span>${pct>49.9?'49.9% 초과분은 배당·의결권이 동결됩니다.':eligible?`${title} 직함으로 배당 참여 중`:`${Math.max(0,need-shares).toLocaleString('ko-KR')}주를 더 확보하면 배당 가능`}</span></div>${warning}
+ ${isChair?renderChairDecisionV4039(c):''}
+ <div class="corp-settlement-v4034"><div><span>다음 배당 정산</span><b data-corp-countdown-v4034="${remaining}">${periods>0?'정산 가능':businessCountdown(remaining)}</b><small>지분 집중 시 독점 관리비 자동 공제</small></div><button ${eligible&&periods>0?'':'disabled'} onclick="claimCorporateDividendV4039('${c.stock_id}')">${periods>0?'배당 수령':'대기 중'}</button></div>
+ ${renderAlliancePanelV4039(c,alliances)}
+ <details class="corp-roster-v4034"><summary>주주 직함·지분 명부 보기 <em>${roster.length}명</em></summary><div>${roster.map((h,i)=>`<div class="corp-roster-row-v4034 ${shareholderRoleClassV4034(h.title)}"><span>${i+1}. ${esc(h.nickname||'익명 주주')}</span><b>${esc(h.title||'일반주주')}</b><em>${Number(h.shares||0).toLocaleString('ko-KR')}주 · ${formatPercentV4034(h.percent)}${Number(h.percent)>49.9?' (초과 동결)':''}</em></div>`).join('')||'<p>아직 주주가 없습니다.</p>'}</div></details></article>`;
+}
+function renderChairDecisionV4039(c){return `<section class="chair-decision-v4039"><b>👑 회장 경영 결정</b><small>6시간마다 한 번 선택합니다. 단기 배당과 장기 성과 사이의 균형이 필요합니다.</small><div><button onclick="makeCompanyDecisionV4039('${c.stock_id}','rd')">연구개발</button><button onclick="makeCompanyDecisionV4039('${c.stock_id}','wages')">임금 인상</button><button onclick="makeCompanyDecisionV4039('${c.stock_id}','maintenance')">설비 유지</button><button onclick="makeCompanyDecisionV4039('${c.stock_id}','dividend')">배당 확대</button><button onclick="makeCompanyDecisionV4039('${c.stock_id}','expansion')">신규 사업</button></div></section>`}
+function renderAlliancePanelV4039(c,alliances){const mine=alliances.find(a=>a.is_member);return `<details class="takeover-alliance-v4039"><summary>🤝 적대적 인수 연합 <em>${alliances.length}개</em></summary><p>여러 주주의 지분을 합쳐 최대주주에게 도전합니다. 회사별 한 연합에 참여하는 것을 권장합니다.</p>${mine?`<div class="my-alliance-v4039"><b>${esc(mine.name)}</b><span>연합 지분 ${formatPercentV4034(mine.combined_percent)} · ${mine.member_count}명</span>${String(mine.leader_user_id)!==String(profile?.id||'')?`<button onclick="leaveAllianceV4039('${mine.id}')">탈퇴</button>`:'<em>연합 대표</em>'}</div>`:`<div class="create-alliance-v4039"><input id="allianceName-${c.stock_id}" maxlength="20" placeholder="새 연합 이름"><button onclick="createAllianceV4039('${c.stock_id}')">연합 만들기</button></div>`}<div class="alliance-list-v4039">${alliances.map(a=>`<div><span><b>${esc(a.name)}</b><small>대표 ${esc(a.leader_nickname||'-')}</small></span><em>${formatPercentV4034(a.combined_percent)} · ${a.member_count}명</em>${!mine&&!a.is_member?`<button onclick="joinAllianceV4039('${a.id}')">가입</button>`:''}</div>`).join('')||'<small>아직 생성된 연합이 없습니다.</small>'}</div></details>`}
+
+async function claimCorporateDividendV4034(stockId){try{const data=await rpcV4039('claim_shareholder_dividends_v4039',{p_stock_id:stockId||null});const gross=Number(data?.gross||0),tax=Number(data?.tax||0),fee=Number(data?.monopoly_fee||0),net=Number(data?.net||0);toast(gross>0?`배당 ${money(gross)} · 세금 ${money(tax)} · 독점 관리비 ${money(fee)} · 실수령 ${money(net)}`:'아직 정산 가능한 배당이 없습니다.');await loadProfile();if(typeof updateNetworth==='function')await updateNetworth();await loadBusiness({silent:true})}catch(e){toast(e.message||String(e))}}
+async function makeCompanyDecisionV4039(stockId,decision){if(!confirm('이 경영 결정을 실행할까요? 6시간 동안 다시 변경할 수 없습니다.'))return;try{const d=await rpcV4039('make_company_decision_v4039',{p_stock_id:stockId,p_decision:decision});toast(`${d.decision} 결정 완료 · 회사 성과 ${Number(d.performance||0).toFixed(0)}점`);await loadBusiness({silent:true})}catch(e){toast(e.message||String(e))}}
+async function createAllianceV4039(stockId){const input=document.getElementById(`allianceName-${stockId}`);try{await rpcV4039('create_takeover_alliance_v4039',{p_stock_id:stockId,p_name:input?.value||''});toast('인수 연합을 만들었습니다.');await loadBusiness({silent:true})}catch(e){toast(e.message||String(e))}}
+async function joinAllianceV4039(id){try{await rpcV4039('join_takeover_alliance_v4039',{p_alliance_id:id});toast('인수 연합에 가입했습니다.');await loadBusiness({silent:true})}catch(e){toast(e.message||String(e))}}
+async function leaveAllianceV4039(id){try{await rpcV4039('leave_takeover_alliance_v4039',{p_alliance_id:id});toast('인수 연합에서 탈퇴했습니다.');await loadBusiness({silent:true})}catch(e){toast(e.message||String(e))}}
