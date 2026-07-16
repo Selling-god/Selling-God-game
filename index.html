@@ -304,6 +304,7 @@
         <button onclick="openPageFromPhone('collection')"><span class="app app-gacha">🎁</span>소장품</button>
         <button id="chatAppButton" class="chat-app-button" onclick="openPhoneApp('chat')"><span class="app app-chat">💬<span id="chatAppUnreadDot" class="chat-unread-dot app-dot hidden" aria-label="읽지 않은 채팅"></span></span>전체 채팅</button>
         <button onclick="openPhoneApp('titles')"><span class="app app-title">🎖️</span>칭호</button>
+        <button id="companyNoticeAppButtonV4042" onclick="openPhoneApp('company-notices')"><span class="app app-company-notice-v4042">🔔<span id="companyNoticeUnreadDotV4042" class="company-notice-dot-v4042 hidden">0</span></span>기업 알림</button>
         <button onclick="openPhoneApp('skills')"><span class="app app-skills">🧠</span>협상 스킬</button>
         <button class="folder-launcher" onclick="openPhoneFolder('asset')"><span class="app app-folder folder-asset"><i>💳</i><i>🏢</i><i>🔍</i><i>🛠️</i></span>자산·생활</button>
         <button class="folder-launcher" onclick="openPhoneFolder('business')"><span class="app app-folder folder-business"><i>🏭</i><i>🧭</i><i>🚢</i><i>💎</i></span>사업·경영</button>
@@ -346,6 +347,11 @@
       <section id="phone-appraisal" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>전문 감정소</b><small>내가 보유한 아이템의 실제 상태를 확인</small></div><button onclick="loadOwnedAppraisalV38()">↻</button></div><div id="ownedAppraisalList" class="expert-phone-list"></div></section>
       <section id="phone-restoration" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>전문 복원소</b><small>감정 완료 보유품을 최대 3개까지 30초 복원</small></div><button onclick="loadRestorationCenter()">↻</button></div><div class="expert-phone-notice restoration-guide">① 먼저 감정소에서 상태 확인 → ② 복원할 아이템 선택 → ③ 30초 후 수령</div><div id="restorationJobs"></div><div id="restorationInventory"></div></section>
       <section id="phone-titles" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>칭호</b><small>업적을 달성해 칭호 획득</small></div><span></span></div><div id="titleList"></div></section>
+      <section id="phone-company-notices" class="phone-screen phone-app hidden">
+        <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>기업 알림센터</b><small>총회·위기·블록딜 결과를 한곳에서 확인</small></div><button onclick="loadCompanyNoticesV4042(true)">↻</button></div>
+        <div class="company-notice-toolbar-v4042"><span id="companyNoticeCountV4042">새 알림 0개</span><button onclick="markCompanyNoticesV4042()">모두 읽음</button></div>
+        <div id="companyNoticeViewV4042" class="company-notice-view-v4042"><div class="bank-loading">기업 알림을 불러오는 중...</div></div>
+      </section>
       <section id="phone-chat" class="phone-screen phone-app chat-app hidden">
         <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>전체 채팅</b><small>장착 칭호와 함께 대화하세요</small></div><button onclick="loadChatMessages()">↻</button></div>
         <div class="chat-notice">욕설·도배 없이 즐겁게 거래 정보를 나눠 주세요.</div>
@@ -362,7 +368,7 @@
 <script>
 window.collectibleEffectLabel=window.collectibleEffectLabel||function(code,name){const m={market_bonus:'NPC 제안가',pawn_bonus:'전당포 판매가',stock_fee_discount:'주식 수수료 할인',gacha_luck:'뽑기 희귀도',exploration_luck:'탐색 희귀도',auction_discount:'경매 낙찰 할인'};return String(name||'').trim()||m[String(code||'')]||'특수 효과';};
 </script>
-<script src="game.js?v=40.40.1"></script>
+<script src="game.js?v=40.40.2"></script>
 <div id="gachaModal" class="overlay hidden"><div class="gacha-reveal"><div id="gachaRarity" class="gacha-rarity">?</div><div id="gachaResultIcon" class="gacha-result-icon">🎁</div><h2 id="gachaResultName">결과 공개</h2><p id="gachaResultEffect"></p><div id="gachaBulkSummary" class="gacha-bulk-summary hidden"></div><button class="btn primary" onclick="closeGachaReveal()">확인</button></div></div><div id="clickFxLayer" class="click-fx-layer"></div>
 
 <div id="loginTaxModalV401" class="tax-settlement-overlay-v401 hidden" aria-modal="true" role="dialog">
