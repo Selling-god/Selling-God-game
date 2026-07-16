@@ -5324,7 +5324,7 @@ getPeriodicTaxStatusV408=async function(){
 // v40.39 대주주 독점 방지·회장 임기·유상증자·인수연합·주주 시즌
 let shareholderSeasonV4039=null;
 async function rpcV4039(name,args={}){const r=await db.rpc(name,args);if(r.error)throw r.error;return r.data}
-function timeLeftV4039(v){if(!v)return '없음';const s=Math.max(0,Math.floor((new Date(v).getTime()-Date.now())/1000));if(s<=0)return '만료';const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);return h?`${h}시간 ${m}분`:`${m}분`}
+function timeLeftV4039(v){if(!v)return '없음';const s=Math.max(0,Math.floor((new Date(v).getTime()-Date.now())/1000));if(s<=0)return '만료';const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60);if(d>0)return `${d}일 ${h}시간 ${m}분`;return h?`${h}시간 ${m}분`:`${m}분`}
 
 loadBusiness=async function(options={}){
   const host=document.getElementById('businessView');if(!host)return;
