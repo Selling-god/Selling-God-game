@@ -1,392 +1,238 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <!-- v33.7 reliable chat notifications -->
-  <title>판매의 신 — STACKED COLLECTION v20</title>
-  <link rel="stylesheet" href="style.css?v=40.35">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PID 스마트 빌딩 제어 시뮬레이터</title>
+  <link rel="stylesheet" href="./style.css?v=mold-limit-health-final-20260716" />
 </head>
+
 <body>
-<div id="bootScreen" class="boot-screen">
-  <div class="boot-emblem">♛</div>
-  <h1>판매의 신</h1><p>DEFINITIVE EDITION</p>
-  <div class="boot-bar"><i></i></div><small>상점 문을 여는 중...</small>
-</div>
-<div class="ambient-grain"></div><div class="ambient-vignette"></div>
-<div id="toast" class="toast"></div>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1>PID 스마트 빌딩 제어 시뮬레이터</h1>
+        <p class="version">VERSION_SPLIT_FILES_MOLD_LIMIT_HEALTH_FINAL_20260716 · 건물/환경 시각화 복구 · index + style.css + game.js</p>
+      </div>
 
-<section id="auth" class="screen auth-screen">
-  <div class="auth-card panel">
-    <div class="logo">👑</div>
-    <p class="eyebrow">SELLING TYCOON ONLINE</p>
-    <h1>판매의 신</h1>
-    <p class="muted">흥정·경매·거래·하우징이 계정에 저장됩니다. 시작 자금 50만원이 지급됩니다.</p>
-    <div class="tabs">
-      <button id="loginTab" class="active" onclick="setAuthMode('login')">로그인</button>
-      <button id="signupTab" onclick="setAuthMode('signup')">회원가입</button>
-    </div>
-    <label id="nicknameWrap" class="field hidden">
-      <span class="field-label-row"><span>닉네임</span><small>2~12글자</small></span>
-      <input id="nickname" minlength="2" maxlength="12" placeholder="닉네임을 2글자 이상 입력">
-      <small class="field-help">한글·영문·숫자를 사용할 수 있으며 최소 2글자, 최대 12글자입니다.</small>
-    </label>
-    <label class="field">이메일<input id="email" type="email"></label>
-    <label class="field">
-      <span class="field-label-row"><span>비밀번호</span><small>최소 6글자</small></span>
-      <input id="password" type="password" minlength="6" placeholder="비밀번호를 6글자 이상 입력">
-      <small id="passwordHelp" class="field-help">비밀번호는 최소 6글자 이상 입력해야 합니다.</small>
-    </label>
-    <button id="authBtn" class="btn primary full" onclick="submitAuth()">로그인</button>
-    <p id="authMsg" class="error"></p>
-  </div>
-</section>
+      <div class="top-actions">
+        <button id="showExplainBtn" class="btn blue">설명창 Explanation</button>
+        <button id="showExperimentBtn" class="btn green">실험창 Experiment</button>
+      </div>
+    </header>
 
-<section id="game" class="screen hidden">
-  <header class="hud">
-    <div class="player"><div class="avatar">👑</div><div><small id="titleTop">초보 장사꾼</small><b id="nicknameTop">판매왕</b></div></div>
-    <div class="resources">
-      <div><span>현금</span><b id="cashTop">0원</b></div>
-      <div><span>신용</span><b id="credit">500</b></div>
-      <div><span>명성</span><b id="reputation">50</b></div>
-      <div><span>총자산</span><b id="networth">0원</b></div>
-    </div>
-    <div class="hud-buttons">
-      <button id="manualSaveBtn" class="hud-save" onclick="manualSave()" title="현재 서버 저장 상태 확인"><span>💾</span><b>저장</b><small id="saveStateText">자동 저장</small></button>
-      <button id="soundToggle" class="hud-icon" onclick="toggleSound()" title="효과음">🔊</button>
-      <button id="hudPhoneButton" class="hud-icon hud-phone-button" onclick="openPhone()" title="휴대폰">📱<span id="phoneChatUnreadDot" class="chat-unread-dot hidden" aria-label="읽지 않은 채팅"></span></button>
-      <button class="hud-icon danger" onclick="logout()" title="로그아웃">🚪</button>
-    </div>
-  </header>
+    <main>
+      <section id="explainPage" class="page explain-page active">
+        <div class="explain-wrap">
+          <article class="card">
+            <h2>실험 개요 / Experiment Overview</h2>
+            <p>
+              이 시뮬레이터는 <b>일반 건물 Normal Building</b>과
+              <b>PID 제어 건물 PID-Controlled Building</b>을 비교합니다.
+            </p>
+            <p>
+              폭염 Heatwave, 폭우 Heavy Rain, 폭설 Heavy Snow, 지진 Earthquake을 발생시켜
+              두 건물의 온도, 습도, 기울기, 식물 생존 상태가 어떻게 달라지는지 확인합니다.
+            </p>
+            <button id="goExperimentA" class="btn green wide">실험창으로 이동 Go to Experiment</button>
+          </article>
 
-  <div class="layout">
-    <nav class="nav">
-      <button class="active" data-page="city" onclick="openPage('city',this)">🎭<span>메인</span></button>
-      <button data-page="jobs" onclick="openPage('jobs',this)">📦<span>알바</span></button>
-      <button data-page="inventory" onclick="openPage('inventory',this)">🎒<span>가방</span></button>
-      <button data-page="pawnshop" onclick="openPage('pawnshop',this)">🏚️<span>전당포</span></button>
-      <button data-page="auction" onclick="openPage('auction',this)">🔨<span>경매장</span></button>
-      <button data-page="market" onclick="openPage('market',this)">🛒<span>중고장터</span></button>
-      <button data-page="house" onclick="openPage('house',this)">🏠<span>내 집</span></button>
-      <button data-page="collection" onclick="openPage('collection',this)">✨<span>소장품</span></button>
-    </nav>
+          <article class="card">
+            <h2>PID 한눈에 보기 / PID at a Glance</h2>
 
-    <main class="stage">
-      <section id="page-city" class="page active">
-        <div class="negotiation-game">
-          <div class="game-day-bar">
-            <div>
-              <b class="main-shop-title"><span id="nicknameHero">판매왕</span>의 전당포</b>
-            </div>
-            <div class="day-resources">
-              <span>시작 지원금 <b>50만원</b></span>
-              <span>가방 <b id="homeInventoryCount">0</b></span>
-              <button class="phone-mini" onclick="openPhone()">📱</button>
-            </div>
-          </div>
-
-          <div class="shop-playfield">
-            <div class="back-wall">
-              <div class="wall-sign"><span>OLD JOE'S</span><strong>PAWNSHOP</strong><small>BUY · SELL · NEGOTIATE</small></div>
-              <div class="wall-clock">🕰️</div>
-              <div class="wall-lamp left-lamp">💡</div>
-              <div class="wall-lamp right-lamp">💡</div>
+            <div class="concept">
+              <b class="p">P</b>
+              <span>
+                <strong>비례 제어 Proportional</strong><br />
+                현재 오차가 클수록 강하게 반응합니다.
+              </span>
             </div>
 
-            <div class="display-shelf left-display">
-              <div>📻</div><div>🏺</div><div>📚</div>
-              <div>🎮</div><div>💎</div><div>🧸</div>
+            <div class="concept">
+              <b class="i">I</b>
+              <span>
+                <strong>적분 제어 Integral</strong><br />
+                오랫동안 남아 있는 작은 오차를 누적해서 없앱니다.
+              </span>
             </div>
 
-            <div class="display-shelf right-display">
-              <div>⌚</div><div>🎸</div><div>📷</div>
-              <div>🪙</div><div>🧭</div><div>🪞</div>
+            <div class="concept">
+              <b class="d">D</b>
+              <span>
+                <strong>미분 제어 Derivative</strong><br />
+                변화 속도를 보고 브레이크처럼 작동해 흔들림을 줄입니다.
+              </span>
             </div>
+          </article>
 
-            <div class="customer-area owner-scene">
-              <div class="customer-portrait">
-                <div class="customer-head">🧓🏻</div>
-                <div class="customer-body">🦺</div>
+          <article class="card">
+            <h2>온도 제어 / Temperature Control</h2>
+            <p>
+              목표 온도는 <b>22℃</b>입니다. 폭염에서는 파란 냉방 바람이,
+              폭설에서는 붉은 난방 바람이 PID 건물 내부에 보입니다.
+            </p>
+          </article>
+
+          <article class="card">
+            <h2>습도 제어 / Humidity Control</h2>
+            <p>
+              목표 습도는 <b>45%</b>입니다. 폭우 상황에서는 일반 건물에 곰팡이가 생기고,
+              PID 건물은 제습을 통해 습도를 낮춥니다.
+            </p>
+          </article>
+
+          <article class="card">
+            <h2>진동 제어 / Vibration Control</h2>
+            <p>
+              지진이 발생하면 건물이 기울어집니다. 일반 건물은 크게 흔들리고,
+              PID 건물은 제진장치가 작동하여 더 빠르게 중심으로 돌아옵니다.
+            </p>
+          </article>
+
+          <article class="card">
+            <h2>식물 생존 / Plant Survival</h2>
+            <p>
+              식물은 온도, 습도, 진동이 나빠지면 건강도가 낮아집니다.
+              PID 건물의 식물이 더 오래 초록색으로 유지되면 제어가 성공적으로 작동하는 것입니다.
+            </p>
+            <button id="goExperimentB" class="btn green wide">실험창으로 이동 Go to Experiment</button>
+          </article>
+        </div>
+      </section>
+
+      <section id="experimentPage" class="page experiment-page">
+        <div class="stage">
+          <div class="canvas-panel">
+            <canvas id="sceneCanvas"></canvas>
+
+            <div class="hud">
+              <div class="pill" id="mainMessage">환경 버튼을 누르면 바로 실험이 시작됩니다</div>
+              <div class="legend">
+                <span class="tag normal">일반 건물 Normal</span>
+                <span class="tag pid">PID 건물 PID</span>
+                <span class="tag">흰 선: 수직 기준</span>
               </div>
-              <div class="customer-tag">전당포 주인 조</div>
             </div>
 
-            <div class="counter-table">
-              <div class="counter-left">📦</div>
-              <div class="counter-middle">
-                <div class="counter-cloth"></div>
-                <div class="counter-object">💰</div>
+            <div class="status-ribbon">
+              <span>환경 <strong id="envModeChip">정상</strong></span>
+              <span>외부 온도 <strong id="outsideTempChip">22.0℃</strong></span>
+              <span>외부 습도 <strong id="outsideHumChip">45%</strong></span>
+              <span>지진 강도 <strong id="quakeChip">0.00</strong></span>
+            </div>
+          </div>
+
+          <div class="graph-panel">
+            <canvas id="graphCanvas"></canvas>
+          </div>
+        </div>
+
+        <div class="controls">
+          <section class="control-card">
+            <h2>환경 선택 / Environment</h2>
+
+            <div class="env-columns">
+              <div class="env-col">
+                <h3>기본 환경</h3>
+                <button id="heatBtn" class="env-btn heat">폭염 Heatwave</button>
+                <button id="snowBtn" class="env-btn snow">폭설 Heavy Snow</button>
+                <button id="rainBtn" class="env-btn rain">폭우 Heavy Rain</button>
+                <button id="quakeBtn" class="env-btn quake">지진 Earthquake</button>
               </div>
-              <div class="counter-right">🧾</div>
-            </div>
 
-            <div class="dialogue-panel">
-              <div class="speaker-name">전당포 주인 조</div>
-              <div class="dialogue-copy">
-                <b>“오늘은 탐색 없이 바로 장사다. 가진 돈 50만원으로 물건을 돌리고, 비싸게 팔아 보라고.”</b>
-                <p>아래 이동 버튼은 제거했습니다. 왼쪽 메뉴에서 이동하고, 알바는 실제 미니게임을 완료해야 급여를 받을 수 있습니다.</p>
+              <div class="env-col">
+                <h3>실험 제어</h3>
+                <button id="megaQuakeBtn" class="env-btn quake">강진 Strong Quake</button>
+                <button id="stressBtn" class="env-btn disaster">복합 재난 Disaster</button>
+                <button id="holdEnvBtn" class="env-btn blue">모든 환경 일시 정지</button>
+                <button id="experimentResetBtn" class="env-btn green">실험 초기화</button>
+                <button id="pauseBtn" class="env-btn gray">일시 정지</button>
               </div>
-              <div class="dialogue-arrow">▼</div>
             </div>
-          </div>
 
-          <div class="main-scene-tip"><span class="live-dot"></span> 오늘의 상점이 영업 중입니다 <b>·</b> 좌측 메뉴에서 원하는 장소를 선택하세요.</div>
-          <div id="tradeDashboard" class="trade-dashboard"><div><span>누적 거래</span><b>0건</b></div><div><span>누적 추가이익</span><b>0원</b></div><div><span>성공 거래</span><b>0건</b></div><div><span>평균 추가이익</span><b>0원</b></div></div>
-        </div>
-      </section>
+            <p class="hint">
+              환경 버튼을 누르는 순간 실험이 바로 시작됩니다. 다른 환경 버튼을 누르기 전까지 현재 환경이 계속 유지됩니다.
+            </p>
+          </section>
 
+          <section class="control-card">
+            <h2>PID 제어 강도 / PID Gains</h2>
 
-      <section id="page-jobs" class="page">
-        <div class="title"><div><p class="eyebrow">PART-TIME JOB</p><h1 id="jobPageTitle">알바 선택</h1><p id="jobPageDesc">서로 다른 방식의 알바 3개 중 하나를 선택하세요.</p></div><button class="btn light" onclick="resetJobPage()">알바 목록</button></div>
-        <div class="job-layout">
-          <div class="job-warehouse">
-            <div class="warehouse-sign">SELLING WORK AGENCY</div>
-            <div class="warehouse-shelf left">📦<br>🧾<br>🔦</div>
-            <div class="warehouse-shelf right">🧸<br>🥤<br>🥷</div>
-            <div id="jobSelect" class="job-select">
-              <button class="job-choice logistics" onclick="selectJob('logistics')"><span>📦</span><div><small>속도·판단</small><b>물류센터 분류</b><p>주문과 같은 물건을 찾아 컨베이어를 처리하세요.</p></div><em>기본급 5.5만원</em></button>
-              <button class="job-choice cashier" onclick="selectJob('cashier')"><span>🧾</span><div><small>계산·집중</small><b>편의점 계산</b><p>상품 3개의 가격을 더해 정확한 결제 금액을 고르세요.</p></div><em>기본급 6만원</em></button>
-              <button class="job-choice security" onclick="selectJob('security')"><span>🔦</span><div><small>순발력·관찰</small><b>야간 보안</b><p>일반 손님은 보내고 수상한 침입자만 검거하세요.</p></div><em>기본급 5만원</em></button>
+            <label>
+              온도 제어 Temperature
+              <span id="tempGainText">1.25</span>
+            </label>
+            <input id="tempGain" type="range" min="0" max="2" step="0.01" value="1.25" />
+
+            <label>
+              습도 제어 Humidity
+              <span id="humGainText">1.25</span>
+            </label>
+            <input id="humGain" type="range" min="0" max="2" step="0.01" value="1.25" />
+
+            <label>
+              진동 제어 Vibration
+              <span id="vibGainText">1.35</span>
+            </label>
+            <input id="vibGain" type="range" min="0" max="2" step="0.01" value="1.35" />
+          </section>
+
+          <section class="control-card">
+            <h2>실험 결과 / Results</h2>
+
+            <div class="result-grid">
+              <div class="result-box">
+                <span>일반 기울기</span>
+                <strong id="normalTiltText">0.0°</strong>
+              </div>
+
+              <div class="result-box">
+                <span>PID 기울기</span>
+                <strong id="pidTiltText">0.0°</strong>
+              </div>
+
+              <div class="result-box">
+                <span>일반 식물</span>
+                <strong id="normalPlantScore">100</strong>
+              </div>
+
+              <div class="result-box">
+                <span>PID 식물</span>
+                <strong id="pidPlantScore">100</strong>
+              </div>
+
+              <div class="result-box">
+                <span>온도 출력</span>
+                <strong id="tempPower">0%</strong>
+              </div>
+
+              <div class="result-box">
+                <span>습도 출력</span>
+                <strong id="humPower">0%</strong>
+              </div>
+
+              <div class="result-box">
+                <span>제진 출력</span>
+                <strong id="vibPower">0%</strong>
+              </div>
+
+              <div class="result-box">
+                <span>보호 효과</span>
+                <strong id="protectText">0</strong>
+              </div>
             </div>
-            <div id="jobIntro" class="job-intro panel hidden"></div>
-            <div id="jobGame" class="job-game hidden">
-              <div class="job-hud"><span>업무 <b id="jobOrder">📦</b></span><span>성공 <b id="jobScore">0</b>/<b id="jobTarget">0</b></span><span>실수 <b id="jobMiss">0</b></span><span>남은 시간 <b id="jobTime">0</b>초</span></div>
-              <div id="jobStage" class="job-stage"></div>
-            </div>
-            <div id="jobResult" class="job-result panel hidden"></div>
-          </div>
-          <aside class="panel job-guide"><h3>근무 안내</h3><p><b>물류센터:</b> 요구 물건이 매 라운드 반드시 등장합니다.</p><p><b>편의점:</b> 상품 가격의 합계를 빠르게 계산합니다.</p><p><b>야간 보안:</b> 침입자와 일반 손님을 구분합니다.</p><p>목표 달성 시 기본급과 성과 보너스가 지급됩니다.</p></aside>
-        </div>
-      </section>
 
-      <section id="page-inventory" class="page">
-        <div class="title"><div><p class="eyebrow">INVENTORY</p><h1>내 가방</h1><p>수집한 아이템을 확인합니다.</p></div><button class="btn light" onclick="loadInventory()">새로고침</button></div>
-        <div id="inventory" class="card-grid"></div>
-      </section>
+            <button id="goExplainFromExperiment" class="btn blue wide back-btn">
+              설명창으로 이동 Back to Explanation
+            </button>
+          </section>
+        </div>
 
-      <section id="page-pawnshop" class="page">
-        <div class="title"><div><p class="eyebrow">PAWNSHOP</p><h1>조 아저씨의 전당포</h1><p>원가로 즉시 팔거나 흥정하여 더 비싸게 판매하세요.</p></div><button class="btn light" onclick="loadPawnshop()">새로고침</button></div>
-        <div class="pawn-scene">
-          <div class="pawn-room">
-            <div class="pawn-back-sign">OLD JOE'S</div>
-            <div class="pawn-shelf pawn-left">
-              <span>📻</span><span>🏺</span><span>⌚</span><span>📚</span>
-            </div>
-            <div class="pawn-shelf pawn-right">
-              <span>🎸</span><span>📷</span><span>🧭</span><span>💎</span>
-            </div>
-            <div class="pawn-dealer">
-              <div class="pawn-face">🧓🏻</div>
-              <div class="pawn-body">🦺</div>
-            </div>
-            <div class="pawn-counter">
-              <div>🧾</div>
-              <div class="pawn-item-slot">아이템을 선택하세요</div>
-              <div>💰</div>
-            </div>
-            <div class="pawn-dialogue">
-              <span>조 아저씨</span>
-              <b>“원가에 바로 넘기겠나, 아니면 내 인내심을 시험해 보겠나?”</b>
-            </div>
-          </div>
-        </div>
-        <div id="pawnshopList" class="card-grid deal-inventory"></div>
-      </section>
-
-      <section id="page-auction" class="page">
-        <div class="title"><div><p class="eyebrow">LIVE AUCTION HOUSE</p><h1>등급별 경매 하우스</h1><p>일반·VIP·VVIP 경매장의 위험과 보상이 다릅니다. 상태는 감정 전까지 공개되지 않습니다.</p></div><button class="btn light" onclick="loadAuctionLobby()">새로고침</button></div>
-        <div id="auctionAccessPanel" class="auction-access-panel"></div>
-        <div class="auction-tier-tabs" id="auctionTierTabs">
-          <button class="active" data-tier="normal" onclick="selectAuctionTier('normal',this)"><span>🔨</span><b>일반 경매장</b><small>진귀 중심 · 보물 희귀 등장</small></button>
-          <button data-tier="vip" onclick="selectAuctionTier('vip',this)"><span>👑</span><b>VIP 경매장</b><small>진귀~유물 · 24시간 입장권</small></button>
-          <button data-tier="vvip" onclick="selectAuctionTier('vvip',this)"><span>💎</span><b>VVIP 경매장</b><small>보물~고대 유물 · 초고액 경쟁</small></button>
-          <button data-tier="collectible" onclick="selectAuctionTier('collectible',this)"><span>🏛️</span><b>소장품 경매</b><small>유물·고대 유물 케이스/장식 · VVIP 전용</small></button>
-        </div>
-        <div class="auction-tabs"><button class="active" onclick="switchAuctionMode('buy',this)">경매 참여</button><button onclick="switchAuctionMode('sell',this)">내 물건 출품</button></div>
-        <div id="auctionBuyPanel"><div id="auctionChoices" class="auction-choice-grid"></div><div id="auctionHall"></div></div>
-        <div id="auctionSellPanel" class="hidden"><div class="panel auction-seller premium-seller"><div><h3>NPC 경매 출품</h3><p>VIP·VVIP는 출품 수수료가 있지만 더 큰 자금을 가진 수집가들이 경쟁합니다.</p></div><select id="auctionSellTier" onchange="fillAuctionSellItems()"><option value="normal">일반 경매장 · 무료</option><option value="vip">VIP 경매장 · 수수료 200만원</option><option value="vvip">VVIP 경매장 · 수수료 2,000만원</option></select><select id="auctionSellItem"></select><button class="btn primary" onclick="startSellerAuction()">이 물건 출품하기</button></div><div id="sellerAuctionHall"></div></div>
-      </section>
-
-      <section id="page-appraisal" class="page">
-        <div class="title"><div><p class="eyebrow">EXPERT APPRAISAL</p><h1>전문 감정소</h1><p>현재 경매 라인업의 숨겨진 상태를 확인합니다. 등급이 높을수록 감정료가 크게 증가합니다.</p></div><button class="btn light" onclick="loadAppraisalCenterV37()">새로고침</button></div>
-        <div class="expert-service-banner appraisal"><span>🔍</span><div><b>감정은 현재 30분 경매 회차 동안 유지됩니다.</b><small>일반 경매장은 항상 확인할 수 있으며 VIP·VVIP는 유효한 입장권이 있어야 합니다.</small></div></div>
-        <div id="appraisalCenterList" class="appraisal-center-grid"></div>
-      </section>
-
-      <section id="page-restoration" class="page">
-        <div class="title"><div><p class="eyebrow">MASTER RESTORER</p><h1>전문 복원소</h1><p>손상된 보유품의 상태를 높입니다. 동시에 최대 3개, 작업 시간은 30초입니다.</p></div><button class="btn light" onclick="loadRestorationCenter()">새로고침</button></div>
-        <div class="expert-service-banner restoration"><span>🛠️</span><div><b>복원 중인 아이템은 거래하거나 출품할 수 없습니다.</b><small>등급과 손상 정도가 높을수록 복원 비용이 천차만별로 증가합니다.</small></div></div>
-        <div id="legacyRestorationJobs" class="restoration-jobs"></div>
-        <div id="legacyRestorationInventory" class="restoration-inventory"></div>
-      </section>
-
-      <section id="page-market" class="page">
-        <div class="title"><div><p class="eyebrow">SECONDHAND MARKET</p><h1>중고 장터</h1><p>유저 매물은 그대로 거래하고, NPC 상품은 가격을 흥정해 더 싸게 구매할 수 있습니다.</p></div><button class="btn light" onclick="loadMarketHub()">새로고침</button></div>
-        <div class="market-tabs">
-          <button class="active" onclick="switchMarketTab('items',this)">아이템 거래</button>
-          <button onclick="switchMarketTab('offers',this)">NPC 흥정 구매</button>
-          <button onclick="switchMarketTab('collectibles',this)">소장품 거래</button>
-        </div>
-        <div id="market-items" class="market-panel">
-          <div class="sell-form panel"><select id="sellItem"><option value="">판매할 아이템</option></select><input id="sellPrice" type="number" placeholder="희망 가격"><button class="btn primary" onclick="createListing()">등록</button></div>
-          <div id="marketList" class="card-grid"></div>
-        </div>
-        <div id="market-offers" class="market-panel hidden"><div id="npcOfferList" class="card-grid"></div></div>
-        <div id="market-collectibles" class="market-panel hidden">
-          <div class="sell-form panel collectible-sell-form"><select id="sellCollectible" onchange="renderCollectibleSellPreview()"><option value="">판매할 소장품</option></select><input id="collectiblePrice" type="number" placeholder="희망 가격"><button class="btn primary" onclick="createCollectibleListing()">등록</button><div id="collectibleSellPreview" class="collectible-sell-preview empty"><span>소장품을 선택하면 등급과 효과를 미리 볼 수 있습니다.</span></div></div>
-          <div id="collectibleMarketList" class="card-grid"></div>
-        </div>
-      </section>
-
-      <section id="page-house" class="page">
-        <div class="title"><div><p class="eyebrow">MY HOME</p><h1>내 집 꾸미기</h1><p id="houseCapacityText">현재 집의 수용량 안에서 장식을 배치할 수 있습니다.</p></div><button class="btn light" onclick="loadHouse()">새로고침</button></div>
-        <div class="house-layout">
-          <div id="houseRoom" class="house-room" data-property="basement"><div class="house-loading">집을 꾸미는 중...</div></div>
-          <aside class="house-side panel"><h3>활성 효과</h3><div id="houseEffects"></div><div class="section-head"><h3>보유 장식</h3><span id="decorationPageInfo" class="page-info">1P / 1P</span></div><div id="decorationInventory" class="paged-list compact"></div><div class="pager"><button id="decorationPrev" class="btn light" onclick="changeDecorationPage(-1)">‹ 이전</button><button id="decorationNext" class="btn light" onclick="changeDecorationPage(1)">다음 ›</button></div></aside>
-        </div>
-      </section>
-
-      <section id="page-collection" class="page">
-        <div class="title"><div><p class="eyebrow">LUXURY GACHA</p><h1>사치품 뽑기</h1><p>집 장식과 휴대폰 케이스를 각각 따로 뽑고 관리합니다.</p></div></div>
-        <div class="collection-tabs">
-          <button class="active" onclick="switchCollectionTab('decor',this)">🏺 소장품 뽑기</button>
-          <button onclick="switchCollectionTab('case',this)">📱 케이스 뽑기</button>
-        </div>
-        <div id="collection-decor" class="collection-tab-panel">
-          <div class="gacha-layout">
-            <div class="machine decor-machine"><div class="machine-glass"><div class="capsule-orbit">✦</div><div class="capsule-core">🏺</div></div><div class="bulk-gacha-buttons"><button id="decorGachaBtn" class="btn gacha-btn" onclick="drawCollectible('decoration',1)">1회 · 30만원</button><button class="btn gacha-btn bulk" onclick="drawCollectible('decoration',10)">10연속 · 285만원</button><button class="btn gacha-btn bulk mega" onclick="drawCollectible('decoration',100)">100연속 · 2,700만원</button></div><label class="gacha-skip-option"><input id="gachaSkipDecor" type="checkbox"> 뽑기 연출 스킵</label><small class="gacha-funds">10연속은 5%, 100연속은 10% 할인됩니다.</small></div>
-            <aside class="gacha-rate-card panel">
-              <h3>등급 확률표</h3><p class="muted">등급 색상은 결과 연출과 이름에 동일하게 적용됩니다.</p>
-              <div class="rate-row rarity-0"><span>일반</span><b>68%</b></div><div class="rate-row rarity-1"><span>희귀</span><b>22%</b></div><div class="rate-row rarity-2"><span>초희귀</span><b>7.5%</b></div><div class="rate-row rarity-3"><span>진귀</span><b>2%</b></div><div class="rate-row rarity-4"><span>보물</span><b>0.42%</b></div><div class="rate-row rarity-5"><span>유물</span><b>0.075%</b></div><div class="rate-row rarity-6"><span>고대 유물</span><b>0.005%</b></div>
-            </aside>
-            <div class="panel collection-panel"><div class="section-head"><h3>내 소장품</h3><span id="collectiblePageInfo" class="page-info">1P / 1P</span></div><div id="collectibleInventory" class="paged-list"></div><div class="pager"><button id="collectiblePrev" class="btn light" onclick="changeCollectiblePage(-1)">‹ 이전</button><button id="collectibleNext" class="btn light" onclick="changeCollectiblePage(1)">다음 ›</button></div></div>
-          </div>
-        </div>
-        <div id="collection-case" class="collection-tab-panel hidden">
-          <div class="gacha-layout">
-            <div class="machine case-machine"><div class="machine-glass"><div class="capsule-orbit">✦</div><div class="capsule-core">📱</div></div><div class="bulk-gacha-buttons"><button id="caseGachaBtn" class="btn gacha-btn" onclick="drawCollectible('phone_case',1)">1회 · 30만원</button><button class="btn gacha-btn bulk" onclick="drawCollectible('phone_case',10)">10연속 · 285만원</button><button class="btn gacha-btn bulk mega" onclick="drawCollectible('phone_case',100)">100연속 · 2,700만원</button></div><label class="gacha-skip-option"><input id="gachaSkipCase" type="checkbox"> 뽑기 연출 스킵</label><small class="gacha-funds">고등급 케이스일수록 외형과 전용 바탕화면이 화려해집니다.</small></div>
-            <aside class="gacha-rate-card panel"><h3>등급 확률표</h3><p class="muted">소장품과 동일한 등급 확률을 사용합니다.</p><div class="rate-row rarity-0"><span>일반</span><b>68%</b></div><div class="rate-row rarity-1"><span>희귀</span><b>22%</b></div><div class="rate-row rarity-2"><span>초희귀</span><b>7.5%</b></div><div class="rate-row rarity-3"><span>진귀</span><b>2%</b></div><div class="rate-row rarity-4"><span>보물</span><b>0.42%</b></div><div class="rate-row rarity-5"><span>유물</span><b>0.075%</b></div><div class="rate-row rarity-6"><span>고대 유물</span><b>0.005%</b></div></aside>
-            <div class="panel collection-panel"><h3>장착 케이스</h3><div id="equippedCase"></div><div class="section-head"><h3>내 케이스</h3><span id="casePageInfo" class="page-info">1P / 1P</span></div><div id="caseInventory" class="paged-list"></div><div class="pager"><button id="casePrev" class="btn light" onclick="changeCasePage(-1)">‹ 이전</button><button id="caseNext" class="btn light" onclick="changeCasePage(1)">다음 ›</button></div></div>
-          </div>
-        </div>
+        <div class="bottom-safe-space"></div>
       </section>
     </main>
   </div>
 
-  <div id="exploreModal" class="overlay hidden" onclick="closeByBackdrop(event,'exploreModal')"><div class="modal panel"><button class="x" onclick="closeExplore()">×</button><div id="exploreContent"></div></div></div>
-  <div id="negotiationModal" class="overlay hidden" onclick="closeByBackdrop(event,'negotiationModal')">
-    <div class="modal negotiation-window">
-      <button class="x" onclick="closeNegotiation()">×</button>
-      <div class="negotiation-room">
-        <div class="negotiation-sign">OLD JOE'S PAWNSHOP</div>
-        <div class="negotiator-character">
-          <div class="negotiator-head">🧓🏻</div>
-          <div class="negotiator-torso">🦺</div>
-        </div>
-        <div class="negotiation-counter">
-          <div class="negotiation-item">📦</div>
-        </div>
-        <div class="negotiation-name">조 아저씨</div>
-        <div id="negotiationContent"></div>
-      </div>
-    </div>
-  </div>
-
-  <div id="phoneOverlay" class="phone-overlay hidden" onclick="phoneBackdrop(event)">
-    <div class="phone-shell">
-      <div class="phone-notch"></div><div class="phone-status"><span id="phoneTime"></span><span>판매폰 5G 🔋</span></div>
-      <section id="phoneHome" class="phone-screen phone-home"><h2 id="phoneOwner">판매왕</h2><div class="apps organized-apps">
-        <button onclick="openPhoneApp('stocks')"><span class="app app-stock">📈</span>판매증권</button>
-        <button onclick="openPhoneApp('ranking')"><span class="app app-ranking">🏆</span>랭킹</button>
-        <button onclick="openPhoneApp('bank')"><span class="app app-bank">🏦</span>은행</button>
-        <button onclick="openPageFromPhone('market')"><span class="app app-market">🛒</span>중고장터</button>
-        <button onclick="openPageFromPhone('collection')"><span class="app app-gacha">🎁</span>소장품</button>
-        <button id="chatAppButton" class="chat-app-button" onclick="openPhoneApp('chat')"><span class="app app-chat">💬<span id="chatAppUnreadDot" class="chat-unread-dot app-dot hidden" aria-label="읽지 않은 채팅"></span></span>전체 채팅</button>
-        <button onclick="openPhoneApp('titles')"><span class="app app-title">🎖️</span>칭호</button>
-        <button onclick="openPhoneApp('skills')"><span class="app app-skills">🧠</span>협상 스킬</button>
-        <button class="folder-launcher" onclick="openPhoneFolder('asset')"><span class="app app-folder folder-asset"><i>💳</i><i>🏢</i><i>🔍</i><i>🛠️</i></span>자산·생활</button>
-        <button class="folder-launcher" onclick="openPhoneFolder('business')"><span class="app app-folder folder-business"><i>🏭</i><i>🧭</i><i>🚢</i><i>💎</i></span>사업·경영</button>
-        <button class="folder-launcher" onclick="openPhoneFolder('info')"><span class="app app-folder folder-info"><i>📰</i><i>📑</i><i>🏛️</i><i>💼</i></span>투자·정보</button>
-      </div></section>
-      <section id="phone-folder" class="phone-screen phone-folder-screen hidden">
-        <div class="folder-head"><button onclick="closePhoneFolder()">‹</button><div><b id="phoneFolderTitle">폴더</b><small id="phoneFolderSubtitle">앱을 선택하세요</small></div><span></span></div>
-        <div id="phoneFolderGrid" class="folder-app-grid"></div>
-      </section>
-      <section id="phone-stocks" class="phone-screen phone-app hidden">
-        <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매증권</b><small>종목을 눌러 상세 확인</small></div><button onclick="refreshStocks()">↻</button></div>
-        <div id="stockListView"><div id="stockSpendableFunds" class="spendable-funds-card stock-funds"><span>실제 사용 가능 현금</span><b>0원</b><small>주식 매수에 즉시 사용할 수 있는 금액</small></div><div class="stock-next-update"><span>다음 시세 변동</span><b id="stockNextUpdate">계산 중...</b></div><div class="summary"><div><span>평가액</span><b id="stockValue">0원</b></div><div><span>평가손익</span><b id="stockProfit">0원</b></div></div><div id="stockList"></div></div>
-        <div id="stockDetailView" class="hidden"><button class="back" onclick="closeStockDetail()">← 목록</button><div id="stockDetail"></div></div>
-      </section>
-      <section id="phone-news" class="phone-screen phone-app hidden">
-        <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매경제 뉴스룸</b><small>전 유저 공통 기사 · 10분마다 갱신</small></div><button onclick="loadStockNewsV4023(true)">↻</button></div>
-        <div id="stockNewsViewV4023" class="stock-news-view-v4023"><div class="bank-loading">경제 뉴스를 불러오는 중...</div></div>
-      </section>
-      <section id="phone-wallet" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>내 자산</b><small>계정 저장 정보</small></div><span></span></div><div id="walletView"></div></section><section id="phone-ranking" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매왕 랭킹</b><small>총자산 기준 TOP 20</small></div><button onclick="loadRanking()">↻</button></div><div id="rankingList"></div></section><section id="phone-property" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>부동산</b><small>더 큰 집으로 장식 슬롯 확장</small></div><button onclick="loadProperties()">↻</button></div><div id="propertyList"></div></section>
-      <section id="phone-bank" class="phone-screen phone-app hidden">
-        <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매은행</b><small>예금·적금·대출은 서버에 자동 저장</small></div><button onclick="loadBank()">↻</button></div>
-        <div id="bankView" class="bank-view"><div class="bank-loading">은행 정보를 불러오는 중...</div></div>
-      </section>
-      <section id="phone-business" class="phone-screen phone-app hidden">
-        <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>사업 관리</b><small>포트폴리오·정산·투자 전략을 운영하세요</small></div><button onclick="loadBusiness()">↻</button></div>
-        <div id="businessView"></div>
-      </section>
-
-      <section id="phone-management" class="phone-screen phone-app hidden">
-        <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매왕 종합 경영 본부</b><small>프랜차이즈부터 가문까지 10가지 경영 시스템</small></div><button onclick="loadManagementV40()">↻</button></div>
-        <div id="managementViewV40" class="management-v40"><div class="bank-loading">종합 경영 정보를 불러오는 중...</div></div>
-      </section>
-      <section id="phone-trade" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>글로벌 무역 네트워크</b><small>물류 거점을 확장하고 고액 무역 계약을 운영하세요</small></div><button onclick="loadTradeNetworkV391()">↻</button></div><div id="tradeNetworkView" class="capital-system-view"><div class="bank-loading">무역 네트워크를 불러오는 중...</div></div></section>
-      <section id="phone-brand" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>럭셔리 브랜드 하우스</b><small>자체 브랜드를 키우고 글로벌 캠페인을 운영하세요</small></div><button onclick="loadBrandHouseV391()">↻</button></div><div id="brandHouseView" class="capital-system-view"><div class="bank-loading">브랜드 정보를 불러오는 중...</div></div></section>
-      <section id="phone-foundation" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>판매왕 재단</b><small>수십억·100억 자산가를 위한 프라이빗 컬렉션 사업</small></div><button onclick="loadFoundationV39()">↻</button></div><div id="foundationView" class="foundation-view"><div class="bank-loading">재단 정보를 불러오는 중...</div></div></section>
-      <section id="phone-risk" class="phone-screen phone-app hidden">
-        <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>프로젝트 투자</b><small>현실적인 사업 프로젝트에 참여하고 위험을 관리하세요</small></div><button onclick="loadRiskDesk()">↻</button></div>
-        <div id="riskView" class="risk-view"><div class="bank-loading">투자 정보를 불러오는 중...</div></div>
-      </section>
-      <section id="phone-appraisal" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>전문 감정소</b><small>내가 보유한 아이템의 실제 상태를 확인</small></div><button onclick="loadOwnedAppraisalV38()">↻</button></div><div id="ownedAppraisalList" class="expert-phone-list"></div></section>
-      <section id="phone-restoration" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>전문 복원소</b><small>감정 완료 보유품을 최대 3개까지 30초 복원</small></div><button onclick="loadRestorationCenter()">↻</button></div><div class="expert-phone-notice restoration-guide">① 먼저 감정소에서 상태 확인 → ② 복원할 아이템 선택 → ③ 30초 후 수령</div><div id="restorationJobs"></div><div id="restorationInventory"></div></section>
-      <section id="phone-titles" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>칭호</b><small>업적을 달성해 칭호 획득</small></div><span></span></div><div id="titleList"></div></section>
-      <section id="phone-chat" class="phone-screen phone-app chat-app hidden">
-        <div class="app-head"><button onclick="phoneHome()">‹</button><div><b>전체 채팅</b><small>장착 칭호와 함께 대화하세요</small></div><button onclick="loadChatMessages()">↻</button></div>
-        <div class="chat-notice">욕설·도배 없이 즐겁게 거래 정보를 나눠 주세요.</div>
-        <div id="globalChatList" class="global-chat-list"></div>
-        <div class="global-chat-compose"><input id="globalChatInput" maxlength="120" placeholder="메시지를 입력하세요" onkeydown="handleChatKey(event)"><button id="globalChatSend" onclick="sendChatMessage()">전송</button></div>
-      </section>
-      <section id="phone-skills" class="phone-screen phone-app hidden"><div class="app-head"><button onclick="phoneHome()">‹</button><div><b>협상 스킬 트리</b><small>포인트를 투자해 새로운 흥정 수단 해금</small></div><button onclick="loadNegotiationSkills()">↻</button></div><div id="skillTreeList"></div></section><button class="home-dot" onclick="phoneHome()">●</button><button class="phone-close" onclick="closePhone()">휴대폰 넣기</button>
-    </div>
-  </div>
-</section>
-
-<div id="chatNotificationStack" class="chat-notification-stack" aria-live="polite" aria-atomic="false"></div>
-
-<script>
-window.collectibleEffectLabel=window.collectibleEffectLabel||function(code,name){const m={market_bonus:'NPC 제안가',pawn_bonus:'전당포 판매가',stock_fee_discount:'주식 수수료 할인',gacha_luck:'뽑기 희귀도',exploration_luck:'탐색 희귀도',auction_discount:'경매 낙찰 할인'};return String(name||'').trim()||m[String(code||'')]||'특수 효과';};
-</script>
-<script src="game.js?v=40.38"></script>
-<div id="gachaModal" class="overlay hidden"><div class="gacha-reveal"><div id="gachaRarity" class="gacha-rarity">?</div><div id="gachaResultIcon" class="gacha-result-icon">🎁</div><h2 id="gachaResultName">결과 공개</h2><p id="gachaResultEffect"></p><div id="gachaBulkSummary" class="gacha-bulk-summary hidden"></div><button class="btn primary" onclick="closeGachaReveal()">확인</button></div></div><div id="clickFxLayer" class="click-fx-layer"></div>
-
-<div id="loginTaxModalV401" class="tax-settlement-overlay-v401 hidden" aria-modal="true" role="dialog">
-  <div class="tax-settlement-card-v401">
-    <div class="tax-office-mark-v401">🏛️</div>
-    <p class="eyebrow">OFFLINE SETTLEMENT</p>
-    <h2>접속 정산 세금 안내</h2>
-    <p id="loginTaxDescriptionV401">1시간 단위 보유자산 관리세와 누적된 사업·이자 세금을 정산합니다. 주식 평가액과 회사 가치는 자산세에서 제외됩니다.</p>
-    <div class="tax-breakdown-v401">
-      <div><span>미접속 시간</span><b id="loginTaxHoursV401">0시간</b></div>
-      <div><span>보유자산 관리세</span><b id="loginWealthTaxV401">0원</b></div><div><span>현재 과세표준</span><b id="loginTaxBaseV4032">0원</b></div><div><span>1시간당 예상 세금</span><b id="loginHourlyTaxV4032">0원</b></div><div><span>주식 매도차익 세금</span><b id="loginStockTaxV4032">0원</b></div><div><span>회사 수익 세금</span><b id="loginCompanyTaxV4032">0원</b></div>
-      <div><span>누적 사업·이자 세금</span><b id="loginIncomeTaxV401">0원</b></div>
-      <div class="total"><span>납부할 총 세금</span><b id="loginTotalTaxV401">0원</b></div>
-    </div>
-    <div id="taxDeadlineBoxV402" class="tax-deadline-box-v402 hidden">
-      <span>납부 유예 만기</span><b id="taxDeadlineTextV402">30분 남음</b>
-      <small>유예 후 30분 안에 은행에서 납부할 수 있습니다. 만기 후에는 현금이 부족해도 자동 징수되어 잔액이 음수가 될 수 있습니다.</small>
-    </div>
-    <div class="tax-credit-note-v401">고지서에서 즉시 납부하면 신용이 10점 상승합니다. 유예 후 은행 납부는 신용 변화가 없습니다.</div>
-    <div class="tax-action-row-v402">
-      <button id="payLoginTaxBtnV401" class="btn primary" onclick="payLoginTaxesV402()">지금 세금 납부</button>
-      <button id="deferLoginTaxBtnV402" class="btn light" onclick="deferLoginTaxesV402()">지금 낼 수 없음 · 30분 유예</button>
-    </div>
-  </div>
-</div>
+  <script src="./game.js?v=mold-limit-health-final-20260716"></script>
 </body>
 </html>
