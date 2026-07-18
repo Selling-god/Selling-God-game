@@ -1943,3 +1943,17 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 .business-related-section-v40431{margin-top:14px}
 .business-related-section-v40431+.business-related-section-v40431{padding-top:14px;border-top:1px dashed rgba(100,65,35,.28)}
 @media(max-width:430px){.business-tabs-v40431 button{font-size:11px;padding:7px 3px}.business-tabs-v40431 button em{display:block;margin:4px auto 0}.business-relation-summary-v40431{align-items:flex-start}.business-relation-summary-v40431>span{font-size:26px}}
+
+/* v40.43.2 배당 자격별 회사 탭 */
+.corp-dividend-tabs-v40432{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 10px 10px;position:sticky;top:0;z-index:4;padding:8px;background:rgba(244,232,205,.96);border:1px solid #b99763;border-radius:14px;box-shadow:0 5px 16px rgba(53,32,12,.12)}
+.corp-dividend-tabs-v40432 button{min-width:0;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:12px 10px;border:1px solid #ad8a5b;border-radius:10px;background:#fff8e9;color:#51371f;font-weight:800;cursor:pointer}
+.corp-dividend-tabs-v40432 button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.corp-dividend-tabs-v40432 button em{flex:0 0 auto;padding:2px 7px;border-radius:999px;background:#e8d6b6;font-style:normal;font-size:12px}
+.corp-dividend-tabs-v40432 button.active{background:linear-gradient(135deg,#725033,#3f2c1e);color:#fff4d4;border-color:#3f2c1e;box-shadow:inset 0 0 0 1px rgba(255,255,255,.15)}
+.corp-dividend-tabs-v40432 button.active em{background:#f0c76c;color:#3b2918}
+.corp-dividend-tab-guide-v40432{margin:0 10px 12px;padding:10px 12px;border-radius:11px;border-left:4px solid #b88b32;background:#fff9eb;display:flex;flex-direction:column;gap:3px;color:#594126}
+.corp-dividend-tab-guide-v40432.ineligible{border-left-color:#8d7560;background:#f4efe8}
+.corp-dividend-tab-guide-v40432 b{font-size:14px}.corp-dividend-tab-guide-v40432 span{font-size:12px;line-height:1.45;color:#78644c}
+.corp-filter-empty-v40432{display:flex!important;flex-direction:column;gap:6px;align-items:center;text-align:center;padding:28px 16px!important}
+.corp-filter-empty-v40432 span{font-size:12px;color:#7b6853;line-height:1.5}
+@media(max-width:430px){.corp-dividend-tabs-v40432{gap:6px;margin-left:6px;margin-right:6px;padding:6px}.corp-dividend-tabs-v40432 button{padding:11px 7px;font-size:12px}.corp-dividend-tabs-v40432 button em{font-size:11px;padding:2px 5px}.corp-dividend-tab-guide-v40432{margin-left:6px;margin-right:6px}}
