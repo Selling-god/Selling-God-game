@@ -5409,8 +5409,8 @@ function renderCorporateBoardV4039(){
   ${renderShareholderSeasonV4039(season)}
   <button class="corp-claim-all-v4034" ${claimable?'':'disabled'} onclick="claimCorporateDividendV4039(null)"><span>💰</span><div><b>전체 회사 배당 수령</b><small>${claimable?'독점 관리비와 세금 공제 후 수령합니다.':'아직 정산 가능한 배당이 없습니다.'}</small></div></button>
   <nav class="corp-dividend-tabs-v40432" aria-label="회사 배당 자격 분류">
-    <button class="${corporateDividendTabV40432==='eligible'?'active':''}" onclick="switchCorporateDividendTabV40432('eligible')"><span>💰 배당 가능 회사</span><em>${eligibleCompanies.length}개</em></button>
-    <button class="${corporateDividendTabV40432==='ineligible'?'active':''}" onclick="switchCorporateDividendTabV40432('ineligible')"><span>🏢 배당 조건 미달</span><em>${ineligibleCompanies.length}개</em></button>
+    <button class="${corporateDividendTabV40432==='eligible'?'active':''}" onclick="switchCorporateDividendTabV40432('eligible')"><span>💰 배당O</span><em>${eligibleCompanies.length}개</em></button>
+    <button class="${corporateDividendTabV40432==='ineligible'?'active':''}" onclick="switchCorporateDividendTabV40432('ineligible')"><span>🏢 배당X</span><em>${ineligibleCompanies.length}개</em></button>
   </nav>
   <section class="corp-dividend-tab-guide-v40432 ${corporateDividendTabV40432}">
     <b>${corporateDividendTabV40432==='eligible'?'현재 배당을 받을 수 있는 회사':'아직 배당을 받을 수 없는 회사'}</b>
