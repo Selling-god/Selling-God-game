@@ -5384,17 +5384,39 @@ loadBusiness=async function(options={}){
   }
 };
 
+let corporateDividendTabV40432='eligible';
+function switchCorporateDividendTabV40432(tab){
+  corporateDividendTabV40432=tab==='ineligible'?'ineligible':'eligible';
+  renderCorporateBoardV4039();
+}
 function renderCorporateBoardV4039(){
   const host=document.getElementById('businessView');if(!host)return;
   const divMap=new Map((corporateDividendV4034.companies||[]).map(x=>[String(x.stock_id),x]));
-  const eligible=(corporateDividendV4034.companies||[]).filter(x=>x.eligible),claimable=eligible.some(x=>Number(x.claimable_periods||0)>0);
+  const eligibleStatus=(corporateDividendV4034.companies||[]).filter(x=>Boolean(x.eligible));
+  const claimable=eligibleStatus.some(x=>Number(x.claimable_periods||0)>0);
+  const eligibleCompanies=[],ineligibleCompanies=[];
+  for(const c of corporateBoardV4034){
+    const d=divMap.get(String(c.stock_id))||{};
+    const canReceive=Boolean(d.eligible??c.eligible);
+    (canReceive?eligibleCompanies:ineligibleCompanies).push(c);
+  }
+  if(!['eligible','ineligible'].includes(corporateDividendTabV40432))corporateDividendTabV40432='eligible';
+  const shown=corporateDividendTabV40432==='eligible'?eligibleCompanies:ineligibleCompanies;
   const season=shareholderSeasonV4039||{};
   host.innerHTML=`
-  <section class="corp-hero-v4034 corp-hero-v4039"><div><span>COMPETITIVE GOVERNANCE</span><h2>경쟁형 상장회사 경영</h2><p>지분 독점은 비용과 책임을 만들고, 연합·유상증자·시즌 경쟁으로 추격 기회를 제공합니다.</p></div><div class="corp-tax-v4034"><small>회사 수익 원천징수</small><b>${corporateTaxPercentV4034()}</b><em>총자산 ${money(corporateDividendV4034.wealth||0)} 기준</em></div></section>
-  <section class="corp-rule-v4034 corp-rule-v4039"><b>핵심 규칙</b><span>개인 최대 유효 지분 49.9% · 회장은 20% 이상 최대주주 중 24시간 임기 · 배당은 2%부터</span><small>10% 이상은 독점 관리비가 발생하며, 40% 이상 집중이 지속되면 신규 주식이 발행됩니다.</small></section>
+  <section class="corp-hero-v4034 corp-hero-v4039"><div><span>COMPETITIVE GOVERNANCE</span><h2>경쟁형 상장회사 경영</h2><p>배당 가능 회사와 배당 조건 미달 회사를 나누어 빠르게 확인할 수 있습니다.</p></div><div class="corp-tax-v4034"><small>회사 수익 원천징수</small><b>${corporateTaxPercentV4034()}</b><em>현금·소득 과세 규칙 적용</em></div></section>
+  <section class="corp-rule-v4034 corp-rule-v4039"><b>핵심 규칙</b><span>개인 최대 유효 지분 49.9% · 회장은 최대주주 조건 · 배당은 지분 2%부터</span><small>배당 가능 탭에는 현재 실제로 배당을 받을 자격이 있는 회사만 표시됩니다.</small></section>
   ${renderShareholderSeasonV4039(season)}
   <button class="corp-claim-all-v4034" ${claimable?'':'disabled'} onclick="claimCorporateDividendV4039(null)"><span>💰</span><div><b>전체 회사 배당 수령</b><small>${claimable?'독점 관리비와 세금 공제 후 수령합니다.':'아직 정산 가능한 배당이 없습니다.'}</small></div></button>
-  <div class="corp-company-grid-v4034">${corporateBoardV4034.map(c=>renderCorporateCompanyV4039(c,divMap.get(String(c.stock_id)))).join('')||'<div class="business-empty">연결된 상장회사가 없습니다.</div>'}</div>`;
+  <nav class="corp-dividend-tabs-v40432" aria-label="회사 배당 자격 분류">
+    <button class="${corporateDividendTabV40432==='eligible'?'active':''}" onclick="switchCorporateDividendTabV40432('eligible')"><span>💰 배당 가능 회사</span><em>${eligibleCompanies.length}개</em></button>
+    <button class="${corporateDividendTabV40432==='ineligible'?'active':''}" onclick="switchCorporateDividendTabV40432('ineligible')"><span>🏢 배당 조건 미달</span><em>${ineligibleCompanies.length}개</em></button>
+  </nav>
+  <section class="corp-dividend-tab-guide-v40432 ${corporateDividendTabV40432}">
+    <b>${corporateDividendTabV40432==='eligible'?'현재 배당을 받을 수 있는 회사':'아직 배당을 받을 수 없는 회사'}</b>
+    <span>${corporateDividendTabV40432==='eligible'?'지분 2% 이상 등 서버의 배당 자격 판정을 충족한 회사만 모았습니다.':'필요 주식 수를 확인하고 지분을 늘리면 배당 가능 탭으로 자동 이동합니다.'}</span>
+  </section>
+  <div class="corp-company-grid-v4034">${shown.map(c=>renderCorporateCompanyV4039(c,divMap.get(String(c.stock_id)))).join('')||`<div class="business-empty corp-filter-empty-v40432"><b>${corporateDividendTabV40432==='eligible'?'현재 배당 가능한 회사가 없습니다.':'배당 조건 미달 회사가 없습니다.'}</b><span>${corporateDividendTabV40432==='eligible'?'주식을 추가 매수해 지분 2% 이상을 확보하면 이곳에 표시됩니다.':'모든 관련 회사에서 배당 자격을 충족했습니다.'}</span></div>`}</div>`;
 }
 function renderShareholderSeasonV4039(s){const rows=Array.isArray(s.ranking)?s.ranking:[];return `<details class="shareholder-season-v4039"><summary>🏆 주주 시즌 ${Number(s.season_no||1)} · 성장 경쟁 <em>${timeLeftV4039(s.ends_at)} 남음</em></summary><p>절대 자산이 아니라 이번 시즌 매수·실현수익·배당·경영 활동 점수로 경쟁합니다.</p><div>${rows.slice(0,10).map(r=>`<div class="season-row-v4039 ${r.is_me?'me':''}"><span>${r.rank}위</span><b>${esc(r.nickname||'익명')}</b><em>${Number(r.score||0).toLocaleString('ko-KR')}점</em></div>`).join('')||'<small>아직 시즌 기록이 없습니다.</small>'}</div></details>`}
 
