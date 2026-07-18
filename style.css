@@ -1929,3 +1929,17 @@ html,body,#game{height:100%;overflow:hidden}.stage{height:calc(100vh - 68px);ove
 .business-relation-tabs-v4042 button.active{background:linear-gradient(#76533a,#4f3526);color:#fff4da;box-shadow:inset 0 0 0 1px #d8ad67}
 .business-relation-tabs-v4042 em{font-style:normal;padding:2px 6px;border-radius:999px;background:#ffffff2b;font-size:10px}
 .business-relation-note-v4042{padding:9px 11px;border:1px solid #a47d54;background:#fff5df;color:#71583f;font-size:10px;line-height:1.5}
+
+/* v40.43.1 사업 관리 관계별 메인 탭 */
+.business-tabs-v40431{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;position:sticky;top:0;z-index:8;background:linear-gradient(180deg,#f7ecd3 0%,#f4e4c5 100%);padding:8px 0 10px}
+.business-tabs-v40431 button{min-height:48px;white-space:normal;line-height:1.2;padding:8px 6px;font-size:13px}
+.business-tabs-v40431 button em{display:inline-flex;align-items:center;justify-content:center;min-width:21px;height:21px;margin-left:3px;padding:0 6px;border-radius:999px;background:rgba(89,56,31,.12);font-style:normal;font-size:11px}
+.business-tabs-v40431 button.active em{background:rgba(255,255,255,.22)}
+.business-relation-summary-v40431{display:flex;gap:12px;align-items:center;margin:10px 0 12px;padding:13px 14px;border:1px solid #b88c55;border-radius:16px;background:linear-gradient(135deg,#fff8e9,#f3dfbd)}
+.business-relation-summary-v40431.other{background:linear-gradient(135deg,#f9f5ea,#e9dfce)}
+.business-relation-summary-v40431>span{font-size:30px}
+.business-relation-summary-v40431 b{display:block;font-size:16px;color:#402715}
+.business-relation-summary-v40431 p{margin:4px 0 0;font-size:12px;line-height:1.45;color:#73583f}
+.business-related-section-v40431{margin-top:14px}
+.business-related-section-v40431+.business-related-section-v40431{padding-top:14px;border-top:1px dashed rgba(100,65,35,.28)}
+@media(max-width:430px){.business-tabs-v40431 button{font-size:11px;padding:7px 3px}.business-tabs-v40431 button em{display:block;margin:4px auto 0}.business-relation-summary-v40431{align-items:flex-start}.business-relation-summary-v40431>span{font-size:26px}}
