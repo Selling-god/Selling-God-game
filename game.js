@@ -1427,9 +1427,9 @@ function renderBank(){
   const host=document.getElementById('bankView');if(!host||!bankState)return;
   const b=bankState,loan=b.loan||null;
   host.innerHTML=`
-    <div class="bank-hero"><div><span>판매은행 총 금융자산</span><b>${money(Number(b.deposit_balance||0)+Number(b.savings_balance||0))}</b></div><small>30분 단위 이자는 서버 시간으로 계산되며 로그아웃해도 유지됩니다.</small></div>
-    <section class="bank-product deposit"><div class="bank-product-head"><span>💳</span><div><h3>자유 예금</h3><p>한도 없이 30분마다 복리 0.2%</p></div><b>${money(b.deposit_balance||0)}</b></div><div class="bank-actions"><input id="depositAmount" type="number" min="1" placeholder="금액"><button onclick="bankDeposit()">입금</button><button class="sub" onclick="bankWithdrawDeposit()">출금</button></div><small>다음 이자까지 약 ${formatRemaining(b.deposit_next_seconds)} 남음</small></section>
-    <section class="bank-product savings"><div class="bank-product-head"><span>📈</span><div><h3>목표 적금</h3><p>30분마다 5% · 설정한 목표액에서 성장 종료</p></div><b>${money(b.savings_balance||0)}</b></div><div class="savings-progress"><i style="width:${Math.min(100,Number(b.savings_target||0)>0?Number(b.savings_balance||0)/Number(b.savings_target)*100:0)}%"></i></div><div class="bank-target">목표 ${money(b.savings_target||0)} · 다음 이자 ${formatRemaining(b.savings_next_seconds)}</div><div class="bank-actions savings-inputs"><input id="savingsAmount" type="number" min="1" placeholder="넣을 금액"><input id="savingsTarget" type="number" min="1" placeholder="목표 금액"><button onclick="bankSavingsDeposit()">적금 넣기</button><button class="sub" onclick="bankWithdrawSavings()">해지/출금</button></div></section>
+    <div class="bank-hero"><div><span>판매은행 총 금융자산</span><b>${money(Number(b.deposit_balance||0)+Number(b.savings_balance||0))}</b></div><small>30분 단위 이자는 서버 시간으로 계산됩니다. 원금에는 세금이 없고, 출금한 이자 부분에만 소득세가 누적됩니다.</small></div>
+    <section class="bank-product deposit"><div class="bank-product-head"><span>💳</span><div><h3>자유 예금</h3><p>한도 없이 30분마다 복리 0.2% · 이자 출금 시 과세</p></div><b>${money(b.deposit_balance||0)}</b></div><div class="bank-actions"><input id="depositAmount" type="number" min="1" placeholder="금액"><button onclick="bankDeposit()">입금</button><button class="sub" onclick="bankWithdrawDeposit()">출금</button></div><small>다음 이자까지 약 ${formatRemaining(b.deposit_next_seconds)} 남음</small></section>
+    <section class="bank-product savings"><div class="bank-product-head"><span>📈</span><div><h3>목표 적금</h3><p>30분마다 5% · 해지할 때 이자에만 과세</p></div><b>${money(b.savings_balance||0)}</b></div><div class="savings-progress"><i style="width:${Math.min(100,Number(b.savings_target||0)>0?Number(b.savings_balance||0)/Number(b.savings_target)*100:0)}%"></i></div><div class="bank-target">목표 ${money(b.savings_target||0)} · 다음 이자 ${formatRemaining(b.savings_next_seconds)}</div><div class="bank-actions savings-inputs"><input id="savingsAmount" type="number" min="1" placeholder="넣을 금액"><input id="savingsTarget" type="number" min="1" placeholder="목표 금액"><button onclick="bankSavingsDeposit()">적금 넣기</button><button class="sub" onclick="bankWithdrawSavings()">해지/출금</button></div></section>
     <section class="bank-product loan"><div class="bank-product-head"><span>🏦</span><div><h3>신용 대출</h3><p>15분 만기 · 이자 1% · 최소 5분 후 상환</p></div><b>한도 ${money(b.loan_limit||0)}</b></div>${loan?`<div class="loan-active"><div><span>상환액</span><b>${money(loan.due_amount)}</b></div><div><span>상환 가능</span><b>${loan.repay_available? '지금 가능':formatRemaining(loan.repay_available_seconds)}</b></div><div><span>만기까지</span><b class="${loan.overdue?'down':''}">${loan.overdue?'연체 '+formatRemaining(loan.overdue_seconds):formatRemaining(loan.due_seconds)}</b></div></div><button class="bank-repay" ${loan.repay_available?'':'disabled'} onclick="repayLoan()">전액 상환</button><small>${loan.overdue?'연체 신용 패널티가 적용됩니다.':'빠르게 상환할수록 신용 상승 폭이 커집니다.'}</small>`:`<div class="bank-actions"><input id="loanAmount" type="number" min="10000" step="10000" placeholder="대출 금액"><button onclick="takeLoan()">대출 실행</button></div><small>대출 직후 상환으로 신용을 복사하지 못하도록 5분간 상환이 잠깁니다.</small>`}</section>`;
 }
 async function bankCall(fn,args={},success='처리 완료'){const{data,error}=await db.rpc(fn,args);if(error)return toast(error.message);toast(success);playSuccessSound();await loadBank();return data}
@@ -1445,7 +1445,7 @@ async function bankWithdrawDeposit(){
     const{data,error}=await db.rpc('bank_withdraw_deposit_v4019',{p_amount:n});
     if(error)throw error;
     if(input)input.value='';
-    toast(`예금 ${money(data?.withdrawn||n)} 출금 완료`);
+    toast(`예금 ${money(data?.withdrawn||n)} 출금 · 이자소득 ${money(data?.interest_withdrawn||0)} · 세금 누적 ${money(data?.income_tax_added||0)}`);
     playSuccessSound();
     await loadBank();
     await loadProfile();
@@ -1458,7 +1458,7 @@ async function bankWithdrawDeposit(){
   }
 }
 async function bankSavingsDeposit(){const amount=bankInput('savingsAmount'),target=bankInput('savingsTarget');if(amount<=0||target<=0)return toast('넣을 금액과 목표 금액을 입력하세요.');await bankCall('bank_savings_deposit_v25',{p_amount:amount,p_target:target},'적금 입금 완료')}
-async function bankWithdrawSavings(){if(!confirm('적금을 해지하고 현재 적립액 전부를 현금으로 받을까요?'))return;await bankCall('bank_withdraw_savings_v25',{},'적금 출금 완료')}
+async function bankWithdrawSavings(){if(!confirm('적금을 해지하고 현재 적립액 전부를 현금으로 받을까요? 원금은 비과세이며 이자에만 소득세가 누적됩니다.'))return;const data=await bankCall('bank_withdraw_savings_v25',{},'적금 출금 완료');if(data)toast(`적금 ${money(data.amount||0)} 출금 · 이자 ${money(data.interest||0)} · 세금 누적 ${money(data.income_tax_added||0)}`)}
 async function takeLoan(){const n=bankInput('loanAmount');if(n<=0)return toast('대출 금액을 입력하세요.');await bankCall('bank_take_loan_v25',{p_amount:n},'대출금이 지급되었습니다.')}
 async function repayLoan(){if(!confirm('이자 1%를 포함한 대출금을 전액 상환할까요?'))return;const data=await bankCall('bank_repay_loan_v25',{},'대출 상환 완료');if(data?.credit_delta)toast(`대출 상환 완료 · 신용 ${data.credit_delta>0?'+':''}${data.credit_delta}`)}
 
@@ -1919,7 +1919,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
    - 포트폴리오 대시보드 / 회사별 손익 분석 / 운영 전략
    - 전체 수익 수령 / 투자 회수기간 / 활동 기록
 ============================================================ */
-let businessState=null,businessRefreshTimer=null,businessTab='overview';
+let businessState=null,businessRefreshTimer=null,businessTab='overview',businessAcquireFilter='related';
 
 const BUSINESS_STRATEGIES={
   balanced:{name:'균형 운영',icon:'⚖️',desc:'매출과 비용을 안정적으로 유지',gross:1,cost:1},
@@ -2003,6 +2003,14 @@ async function loadBusiness({silent=false}={}){
 }
 
 function switchBusinessTab(tab){businessTab=tab;renderBusiness()}
+function switchBusinessAcquireFilter(filter){businessAcquireFilter=filter;renderBusiness()}
+function isBusinessRelatedV4042(c){
+  if(c?.owned)return true;
+  const st=(stocks||[]).find(x=>x.company_code===c.code||(c.stock_symbol&&x.symbol===c.stock_symbol));
+  if(!st)return false;
+  return Number((holdings||[]).find(h=>h.stock_id===st.id)?.quantity||0)>0;
+}
+function businessScrollHostV4042(){return document.getElementById('phone-business')}
 function renderBusiness(){
   const host=document.getElementById('businessView');if(!host||!businessState)return;
   const catalog=businessState.catalog||[],owned=catalog.filter(c=>c.owned),available=catalog.filter(c=>!c.owned),p=businessState.portfolio||{};
@@ -2065,8 +2073,18 @@ function renderCompanyLevel(label,kind,level,c,icon,desc){
   return `<div class="company-level director"><div class="level-head"><span>${icon}</span><div><b>${label} Lv.${level}</b><small>${desc}</small></div></div><div class="level-track">${Array.from({length:10},(_,i)=>`<i class="${i<Number(level)?'on':''}"></i>`).join('')}</div><div class="level-effect"><span>다음 순익</span><b class="up">+${money(projection.delta)} / 5분</b><small>회수 ${businessDuration(projection.payback)}</small></div><button ${Number(level)>=max||!canAfford?'disabled':''} onclick="upgradeBusiness('${c.company_id}','${kind}')">${Number(level)>=max?'MAX':`${money(projection.cost)} 투자`}</button></div>`;
 }
 function renderBusinessAcquisition(available){
-  return `<section class="business-acquisition-intro"><span>🏦</span><div><b>기업 인수 시장</b><p>인수 가격뿐 아니라 기본 영업이익, 예상 회수기간, 명성·신용 조건을 함께 비교하세요.</p></div></section><div class="company-market director">${available.map(renderCompanyMarketCard).join('')||'<div class="business-empty">모든 회사를 인수했습니다. 이제 기업 제국 칭호에 도전하세요.</div>'}</div>`;
+  const related=available.filter(isBusinessRelatedV4042);
+  const others=available.filter(c=>!isBusinessRelatedV4042(c));
+  const list=businessAcquireFilter==='other'?others:related;
+  return `<section class="business-acquisition-intro"><span>🏦</span><div><b>기업 인수 시장</b><p>보유 주식과 연결된 회사와 그 밖의 회사를 분리했습니다. 탭을 바꿔 필요한 기업만 확인하세요.</p></div></section>
+  <nav class="business-relation-tabs-v4042">
+    <button class="${businessAcquireFilter==='related'?'active':''}" onclick="switchBusinessAcquireFilter('related')">📈 내 주식 관련 <em>${related.length}</em></button>
+    <button class="${businessAcquireFilter==='other'?'active':''}" onclick="switchBusinessAcquireFilter('other')">🏢 기타 회사 <em>${others.length}</em></button>
+  </nav>
+  <div class="business-relation-note-v4042">${businessAcquireFilter==='related'?'현재 보유 중인 주식과 연결된 회사입니다.':'아직 주식을 보유하지 않은 회사입니다. 먼저 해당 회사 주식을 확보하면 관련 회사 탭으로 이동합니다.'}</div>
+  <div class="company-market director">${list.map(renderCompanyMarketCard).join('')||`<div class="business-empty">${businessAcquireFilter==='related'?'현재 보유 주식과 연결된 인수 가능 회사가 없습니다.':'표시할 기타 회사가 없습니다.'}</div>`}</div>`;
 }
+
 function renderCompanyMarketCard(c){
   const rep=Number(profile?.reputation||0),credit=Number(profile?.credit_score||0),cash=Number(profile?.cash||0),locked=rep<Number(c.required_reputation)||credit<Number(c.required_credit)||cash<Number(c.buy_price),est=estimateCompany({...c,facility_level:1,staff_level:0,product_level:0,company_reputation:50,strategy:'balanced'}),payback=est.net>0?Number(c.buy_price)/est.net:Infinity;
   return `<article class="company-buy-card director theme-${esc(c.theme)}"><div class="company-buy-top"><span>${c.icon}</span><div><small>5분 예상 순익 +${money(est.net)}</small><h3>${esc(c.name)}</h3></div><em>${businessDuration(payback)} 회수</em></div><p>${esc(c.description)}</p><div class="acquisition-finance"><div><span>인수가</span><b>${money(c.buy_price)}</b></div><div><span>기본 매출</span><b>${money(c.base_income)}</b></div><div><span>기본 비용</span><b>${money(c.base_cost)}</b></div><div><span>이익률</span><b>${est.margin.toFixed(1)}%</b></div></div><div class="company-requirements"><span class="${cash>=c.buy_price?'ok':'bad'}">현금 ${money(c.buy_price)}</span><span class="${rep>=c.required_reputation?'ok':'bad'}">명성 ${c.required_reputation}</span><span class="${credit>=c.required_credit?'ok':'bad'}">신용 ${c.required_credit}</span></div><button ${locked?'disabled':''} onclick="buyBusiness('${c.code}')">${locked?'인수 조건 부족':'회사 인수 계약'}</button></article>`;
@@ -2074,7 +2092,16 @@ function renderCompanyMarketCard(c){
 
 async function businessRpc(fn,args,success){
   const buttons=[...document.querySelectorAll('#businessView button:not(:disabled)')];buttons.forEach(b=>b.disabled=true);
-  try{const{data,error}=await db.rpc(fn,args);if(error)throw error;toast(success);playSuccessSound();await loadBusiness();return data}catch(e){toast(e.message||'사업 처리 중 오류가 발생했습니다.');return null}finally{buttons.forEach(b=>b.disabled=false)}
+  const scrollHost=businessScrollHostV4042();
+  const savedScroll=scrollHost?.scrollTop||0;
+  try{
+    const{data,error}=await db.rpc(fn,args);if(error)throw error;
+    toast(success);playSuccessSound();
+    await loadBusiness({silent:true});
+    requestAnimationFrame(()=>{if(scrollHost)scrollHost.scrollTop=savedScroll});
+    return data;
+  }catch(e){toast(e.message||'사업 처리 중 오류가 발생했습니다.');return null}
+  finally{buttons.forEach(b=>b.disabled=false)}
 }
 async function buyBusiness(code){if(!confirm('이 회사를 인수할까요? 인수 금액은 현금에서 즉시 차감됩니다.'))return;await businessRpc('buy_company_v33',{p_code:code},'회사 인수 계약이 완료되었습니다.')}
 async function upgradeBusiness(id,kind){const labels={facility:'시설',staff:'직원',product:'상품 개발'};if(!confirm(`${labels[kind]} 투자를 진행할까요? 투자금은 개인 현금에서 차감됩니다.`))return;await businessRpc('upgrade_company_v33',{p_company_id:id,p_kind:kind},`${labels[kind]} 투자가 완료되었습니다.`)}
@@ -2184,9 +2211,9 @@ function renderBank(){
   const cash=spendableCash(),deposit=Number(b.deposit_balance||0),liquid=cash+deposit,due=Number(loan?.due_amount||0),netAfterLoan=Math.max(0,liquid-due);
   host.innerHTML=`
     <div class="bank-liquidity-grid"><div class="spendable-funds-card bank-cash"><span>지금 바로 쓸 수 있는 현금</span><b>${money(cash)}</b><small>게임 내 구매·투자에 즉시 사용 가능</small></div><div class="spendable-funds-card bank-liquid"><span>자유예금 출금 포함 가용액</span><b>${money(liquid)}</b><small>현금 ${money(cash)} + 자유예금 ${money(deposit)}</small></div>${loan?`<div class="spendable-funds-card bank-net"><span>대출 상환 후 순가용액</span><b>${money(netAfterLoan)}</b><small>가용액에서 상환액 ${money(due)} 차감 기준</small></div>`:''}</div>
-    <div class="bank-hero"><div><span>판매은행 총 금융자산</span><b>${money(Number(b.deposit_balance||0)+Number(b.savings_balance||0))}</b></div><small>30분 단위 이자는 서버 시간으로 계산되며 로그아웃해도 유지됩니다.</small></div>
-    <section class="bank-product deposit"><div class="bank-product-head"><span>💳</span><div><h3>자유 예금</h3><p>한도 없이 30분마다 복리 0.2%</p></div><b>${money(b.deposit_balance||0)}</b></div><div class="bank-actions"><input id="depositAmount" type="number" min="1" placeholder="금액"><button onclick="bankDeposit()">입금</button><button class="sub" onclick="bankWithdrawDeposit()">출금</button></div><small>다음 이자까지 약 ${formatRemaining(b.deposit_next_seconds)} 남음</small></section>
-    <section class="bank-product savings"><div class="bank-product-head"><span>📈</span><div><h3>목표 적금</h3><p>30분마다 5% · 설정한 목표액에서 성장 종료</p></div><b>${money(b.savings_balance||0)}</b></div><div class="savings-progress"><i style="width:${Math.min(100,Number(b.savings_target||0)>0?Number(b.savings_balance||0)/Number(b.savings_target)*100:0)}%"></i></div><div class="bank-target">목표 ${money(b.savings_target||0)} · 다음 이자 ${formatRemaining(b.savings_next_seconds)}</div><div class="bank-actions savings-inputs"><input id="savingsAmount" type="number" min="1" placeholder="넣을 금액"><input id="savingsTarget" type="number" min="1" placeholder="목표 금액"><button onclick="bankSavingsDeposit()">적금 넣기</button><button class="sub" onclick="bankWithdrawSavings()">해지/출금</button></div></section>
+    <div class="bank-hero"><div><span>판매은행 총 금융자산</span><b>${money(Number(b.deposit_balance||0)+Number(b.savings_balance||0))}</b></div><small>30분 단위 이자는 서버 시간으로 계산됩니다. 원금에는 세금이 없고, 출금한 이자 부분에만 소득세가 누적됩니다.</small></div>
+    <section class="bank-product deposit"><div class="bank-product-head"><span>💳</span><div><h3>자유 예금</h3><p>한도 없이 30분마다 복리 0.2% · 이자 출금 시 과세</p></div><b>${money(b.deposit_balance||0)}</b></div><div class="bank-actions"><input id="depositAmount" type="number" min="1" placeholder="금액"><button onclick="bankDeposit()">입금</button><button class="sub" onclick="bankWithdrawDeposit()">출금</button></div><small>다음 이자까지 약 ${formatRemaining(b.deposit_next_seconds)} 남음</small></section>
+    <section class="bank-product savings"><div class="bank-product-head"><span>📈</span><div><h3>목표 적금</h3><p>30분마다 5% · 해지할 때 이자에만 과세</p></div><b>${money(b.savings_balance||0)}</b></div><div class="savings-progress"><i style="width:${Math.min(100,Number(b.savings_target||0)>0?Number(b.savings_balance||0)/Number(b.savings_target)*100:0)}%"></i></div><div class="bank-target">목표 ${money(b.savings_target||0)} · 다음 이자 ${formatRemaining(b.savings_next_seconds)}</div><div class="bank-actions savings-inputs"><input id="savingsAmount" type="number" min="1" placeholder="넣을 금액"><input id="savingsTarget" type="number" min="1" placeholder="목표 금액"><button onclick="bankSavingsDeposit()">적금 넣기</button><button class="sub" onclick="bankWithdrawSavings()">해지/출금</button></div></section>
     <section class="bank-product loan"><div class="bank-product-head"><span>🏦</span><div><h3>신용 대출</h3><p>15분 만기 · 이자 10% · 최소 3분 후 상환</p></div><b>한도 ${money(b.loan_limit||0)}</b></div>${loan?`<div class="loan-active"><div><span>대출 원금</span><b>${money(loan.principal)}</b></div><div><span>상환액</span><b>${money(loan.due_amount)}</b></div><div><span>상환 가능</span><b>${loan.repay_available?'지금 가능':formatRemaining(loan.repay_available_seconds)}</b></div><div><span>만기까지</span><b class="${loan.overdue?'down':''}">${loan.overdue?'연체 '+formatRemaining(loan.overdue_seconds):formatRemaining(loan.due_seconds)}</b></div></div><button class="bank-repay" ${loan.repay_available?'':'disabled'} onclick="repayLoan()">전액 상환</button><small>${loan.overdue?'연체로 신용점수가 하락했습니다. 상환해도 연체 패널티는 복구되지 않습니다.':'3분 이후 가능한 한 빨리 상환할수록 신용 상승 폭이 커집니다.'}</small>`:`<div class="bank-actions"><input id="loanAmount" type="number" min="10000" step="10000" max="${Number(b.loan_limit||0)}" placeholder="대출 금액"><button onclick="takeLoan()">대출 실행</button></div><small>신용점수가 높을수록 한도가 크게 증가합니다. 소액 반복 대출은 신용 보상이 매우 작습니다.</small>`}</section>`;
 }
 async function repayLoan(){
@@ -3431,7 +3458,7 @@ async function showLoginTaxV401(){
  if(!data||Number(data.total_due||0)<=0)return;
  const modal=document.getElementById('loginTaxModalV401');if(!modal)return;
  document.getElementById('loginTaxHoursV401').textContent=`${Number(data.offline_hours||0).toFixed(1)}시간`;
- document.getElementById('loginWealthTaxV401').textContent=money(data.wealth_tax_added||0);
+ document.getElementById('loginWealthTaxV401').textContent='0원 · 자산 직접 과세 없음';
  document.getElementById('loginIncomeTaxV401').textContent=money(Number(data.total_due||0)-Number(data.wealth_tax_added||0));
  document.getElementById('loginTotalTaxV401').textContent=money(data.total_due||0);
  const btn=document.getElementById('payLoginTaxBtnV401');btn.disabled=Number(profile?.cash||0)<Number(data.total_due||0);btn.textContent=btn.disabled?'현금 부족 · 세금 납부 필요':'세금 납부 후 게임 시작';
@@ -3485,8 +3512,8 @@ async function refreshTaxNoticeV402(showModal=false){
   if(showModal&&due>0&&!suppressed&&!alreadyDeferred){
     const modal=document.getElementById('loginTaxModalV401');modal?.classList.remove('hidden');
     document.getElementById('loginTaxHoursV401').textContent=`${Number(data.offline_hours||0).toFixed(1)}시간`;
-    document.getElementById('loginWealthTaxV401').textContent=money(data.wealth_tax_added||0);
-    document.getElementById('loginIncomeTaxV401').textContent=money(Math.max(0,due-Number(data.wealth_tax_added||0)));
+    document.getElementById('loginWealthTaxV401').textContent='0원 · 자산 직접 과세 없음';
+    document.getElementById('loginIncomeTaxV401').textContent=money(due);
     document.getElementById('loginTotalTaxV401').textContent=money(due);
   }
   if((suppressed||alreadyDeferred)&&showModal){
@@ -5473,3 +5500,81 @@ function renderEconomyStrategyV4041(){
 async function setEconomyStrategyV4041(strategy){const info=ECONOMY_STRATEGIES_V4041[strategy];if(!info)return;if(!confirm(`${info.name} 전략을 선택할까요?\n선택 후 24시간 동안 변경할 수 없습니다.`))return;try{const{data,error}=await db.rpc('set_economy_strategy_v4041',{p_strategy:strategy});if(error)throw error;economyStrategyStateV4041=data;renderEconomyStrategyV4041();toast(`경제 전략을 ${info.name}(으)로 변경했습니다.`)}catch(e){toast(e.message||String(e));await loadEconomyStrategyV4041()}}
 const openPhoneAppV4041Base=openPhoneApp;
 openPhoneApp=function(name){openPhoneAppV4041Base(name);if(name==='economy-strategy')loadEconomyStrategyV4041();};
+
+/* ============================================================
+   v40.42 INCOME-BASED TAX UI FINAL OVERRIDE
+============================================================ */
+function explainAssetManagementTaxV4032(){
+  toast('보유 자산 자체에는 시간당 세금이 부과되지 않습니다. 주식 매도차익, 회사 순이익, 프로젝트 수익, 은행에서 실제 출금한 이자 등 새로 발생한 소득에만 세금이 누적됩니다.');
+}
+function updateTaxNoticeIncomeOnlyV4042(data){
+  if(!data)return;
+  const wealth=document.getElementById('loginWealthTaxV401');
+  if(wealth){wealth.textContent='0원 · 자산 직접 과세 없음';wealth.title='현금·예금 원금·아이템·소장품 자체에는 시간당 세금이 붙지 않습니다.'}
+  const base=document.getElementById('loginTaxBaseV4032');
+  if(base)base.textContent='미적용';
+  const hourly=document.getElementById('loginHourlyTaxV4032');
+  if(hourly)hourly.textContent='0원';
+  const income=document.getElementById('loginIncomeTaxV401');
+  if(income)income.textContent=money(Number(data.total_due||0));
+}
+const __refreshTaxNoticeBeforeV4042=refreshTaxNoticeV402;
+refreshTaxNoticeV402=async function(showModal=false){
+  const data=await __refreshTaxNoticeBeforeV4042(showModal);
+  updateTaxNoticeIncomeOnlyV4042(data);
+  return data;
+};
+if(typeof updateTaxNoticeModalV408==='function'){
+  const __updateTaxModalBeforeV4042=updateTaxNoticeModalV408;
+  updateTaxNoticeModalV408=function(data){
+    __updateTaxModalBeforeV4042(data);
+    updateTaxNoticeIncomeOnlyV4042(data);
+  };
+}
+
+/* ============================================================
+   v40.43 CASH-BASED HOURLY TAX NOTICE FINAL OVERRIDE
+============================================================ */
+function explainAssetManagementTaxV4032(){
+  toast('1시간 세금 고지서는 총자산이 아니라 현재 보유 현금만 기준으로 계산됩니다. 예금·주식·회사·아이템·소장품은 현금 보유세 과세표준에서 제외되며, 각 수익에 붙는 기존 소득세는 별도로 누적됩니다.');
+}
+function updateCashTaxNoticeV4043(data){
+  if(!data)return;
+  const added=Number(data.cash_tax_added??data.wealth_tax_added??data.accrued_amount??0);
+  const base=Number(data.cash_base??data.tax_base??data.wealth??0);
+  const due=Number(data.total_due||0);
+  const cashTax=document.getElementById('loginWealthTaxV401');
+  if(cashTax){
+    cashTax.textContent=money(added);
+    cashTax.title=`현금 과세표준 ${money(base)} · 시간당 ${formatHourlyTaxRateV4024(data.hourly_rate)}%`;
+  }
+  const baseEl=document.getElementById('loginTaxBaseV4032');
+  if(baseEl)baseEl.textContent=money(base);
+  const hourly=document.getElementById('loginHourlyTaxV4032');
+  if(hourly)hourly.textContent=money(Number(data.hourly_tax_estimate||0));
+  const income=document.getElementById('loginIncomeTaxV401');
+  if(income)income.textContent=money(Math.max(0,due-added));
+  const total=document.getElementById('loginTotalTaxV401');
+  if(total)total.textContent=money(due);
+}
+const __refreshTaxNoticeBeforeV4043=refreshTaxNoticeV402;
+refreshTaxNoticeV402=async function(showModal=false){
+  const data=await __refreshTaxNoticeBeforeV4043(showModal);
+  updateCashTaxNoticeV4043(data);
+  return data;
+};
+if(typeof updateTaxNoticeModalV408==='function'){
+  const __updateTaxModalBeforeV4043=updateTaxNoticeModalV408;
+  updateTaxNoticeModalV408=function(data){
+    __updateTaxModalBeforeV4043(data);
+    updateCashTaxNoticeV4043(data);
+  };
+}
+// 기존 알림 문구의 '총자산' 표현을 현금 기준으로 교체한다.
+const __showTaxPhoneNoticeBeforeV4043=showTaxPhoneNoticeV402;
+showTaxPhoneNoticeV402=function(title,text,urgent=false){
+  const revised=String(text||'')
+    .replace(/총자산\s*([0-9,]+원)/g,'보유 현금 $1')
+    .replace(/자산세/g,'현금 보유세');
+  return __showTaxPhoneNoticeBeforeV4043(title,revised,urgent);
+};
