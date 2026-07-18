@@ -1919,7 +1919,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
    - 포트폴리오 대시보드 / 회사별 손익 분석 / 운영 전략
    - 전체 수익 수령 / 투자 회수기간 / 활동 기록
 ============================================================ */
-let businessState=null,businessRefreshTimer=null,businessTab='overview',businessAcquireFilter='related';
+let businessState=null,businessRefreshTimer=null,businessTab='overview';
 
 const BUSINESS_STRATEGIES={
   balanced:{name:'균형 운영',icon:'⚖️',desc:'매출과 비용을 안정적으로 유지',gross:1,cost:1},
@@ -2003,7 +2003,6 @@ async function loadBusiness({silent=false}={}){
 }
 
 function switchBusinessTab(tab){businessTab=tab;renderBusiness()}
-function switchBusinessAcquireFilter(filter){businessAcquireFilter=filter;renderBusiness()}
 function isBusinessRelatedV4042(c){
   if(c?.owned)return true;
   const st=(stocks||[]).find(x=>x.company_code===c.code||(c.stock_symbol&&x.symbol===c.stock_symbol));
@@ -2014,14 +2013,37 @@ function businessScrollHostV4042(){return document.getElementById('phone-busines
 function renderBusiness(){
   const host=document.getElementById('businessView');if(!host||!businessState)return;
   const catalog=businessState.catalog||[],owned=catalog.filter(c=>c.owned),available=catalog.filter(c=>!c.owned),p=businessState.portfolio||{};
-  const tabs=[['overview','대시보드'],['companies','내 회사'],['acquire','회사 인수']];
+  const relatedAvailable=available.filter(isBusinessRelatedV4042);
+  const otherAvailable=available.filter(c=>!isBusinessRelatedV4042(c));
+  if(!['overview','related','other'].includes(businessTab))businessTab='overview';
+  const tabs=[
+    ['overview','📊 대시보드'],
+    ['related',`📈 내 회사·관련 기업 <em>${owned.length+relatedAvailable.length}</em>`],
+    ['other',`🏢 기타 회사 <em>${otherAvailable.length}</em>`]
+  ];
+  const body=businessTab==='overview'
+    ?renderBusinessOverview(owned,p)
+    :businessTab==='related'
+      ?renderBusinessRelatedV40431(owned,relatedAvailable)
+      :renderBusinessOtherV40431(otherAvailable);
   host.innerHTML=`
     <section class="business-command-center">
       <div class="business-command-copy"><span>BUSINESS DIRECTOR</span><h2>기업 경영 본부</h2><p>5분 단위 자동 정산 · 오프라인 수익 최대 8시간</p></div>
       <div class="business-command-value"><small>기업 제국 가치</small><b>${money(p.total_company_value||businessState.total_company_value||0)}</b><em>${Number(p.owned_count||businessState.owned_count||0)}개 회사 운영</em></div>
     </section>
-    <nav class="business-tabs">${tabs.map(([k,v])=>`<button class="${businessTab===k?'active':''}" onclick="switchBusinessTab('${k}')">${v}</button>`).join('')}</nav>
-    <div class="business-tab-body">${businessTab==='overview'?renderBusinessOverview(owned,p):businessTab==='companies'?renderBusinessCompanies(owned):renderBusinessAcquisition(available)}</div>`;
+    <nav class="business-tabs business-tabs-v40431">${tabs.map(([k,v])=>`<button class="${businessTab===k?'active':''}" onclick="switchBusinessTab('${k}')">${v}</button>`).join('')}</nav>
+    <div class="business-tab-body">${body}</div>`;
+}
+
+function renderBusinessRelatedV40431(owned,relatedAvailable){
+  return `<section class="business-relation-summary-v40431"><span>📈</span><div><b>내 회사·주식 관련 기업</b><p>직접 운영 중인 회사와 현재 주식을 보유한 기업만 모아서 보여줍니다.</p></div></section>
+  <section class="business-related-section-v40431"><div class="business-section-head"><h3>내가 운영 중인 회사</h3><span>${owned.length}개</span></div>${renderBusinessCompanies(owned)}</section>
+  <section class="business-related-section-v40431"><div class="business-section-head"><h3>주식 보유 관련 인수 가능 기업</h3><span>${relatedAvailable.length}개</span></div><div class="company-market director">${relatedAvailable.map(renderCompanyMarketCard).join('')||'<div class="business-empty">현재 보유 주식과 연결된 인수 가능 기업이 없습니다.</div>'}</div></section>`;
+}
+
+function renderBusinessOtherV40431(otherAvailable){
+  return `<section class="business-relation-summary-v40431 other"><span>🏢</span><div><b>기타 회사</b><p>현재 운영하지 않고 관련 주식도 보유하지 않은 회사만 따로 표시합니다.</p></div></section>
+  <div class="company-market director">${otherAvailable.map(renderCompanyMarketCard).join('')||'<div class="business-empty">표시할 기타 회사가 없습니다.</div>'}</div>`;
 }
 function renderBusinessOverview(owned,p){
   const totalCash=Number(p.total_company_cash||0),net=Number(p.total_net_per_tick||0),gross=Number(p.total_gross_per_tick||0),cost=Number(p.total_cost_per_tick||0),margin=gross?Math.max(0,(gross-cost)/gross*100):0,avgRep=Number(p.average_reputation||0);
@@ -2048,7 +2070,7 @@ function businessAdvisor(owned){
 }
 function renderBusinessMiniCard(c){
   const rp=businessRankProgress(c),strategy=businessStrategy(c);
-  return `<button class="business-mini-card theme-${esc(c.theme)}" onclick="businessTab='companies';renderBusiness();setTimeout(()=>document.getElementById('company-${c.company_id}')?.scrollIntoView({behavior:'smooth',block:'start'}),50)"><span>${c.icon}</span><div><small>${businessRank(c)} · ${strategy.icon} ${strategy.name}</small><b>${esc(c.custom_name||c.name)}</b><em>5분 +${money(c.estimated_net_per_tick||0)}</em><i><u style="width:${rp.pct}%"></u></i></div></button>`;
+  return `<button class="business-mini-card theme-${esc(c.theme)}" onclick="businessTab='related';renderBusiness();setTimeout(()=>document.getElementById('company-${c.company_id}')?.scrollIntoView({behavior:'smooth',block:'start'}),50)"><span>${c.icon}</span><div><small>${businessRank(c)} · ${strategy.icon} ${strategy.name}</small><b>${esc(c.custom_name||c.name)}</b><em>5분 +${money(c.estimated_net_per_tick||0)}</em><i><u style="width:${rp.pct}%"></u></i></div></button>`;
 }
 function renderBusinessActivity(){
   const rows=businessState.recent_activity||[];
@@ -2075,14 +2097,7 @@ function renderCompanyLevel(label,kind,level,c,icon,desc){
 function renderBusinessAcquisition(available){
   const related=available.filter(isBusinessRelatedV4042);
   const others=available.filter(c=>!isBusinessRelatedV4042(c));
-  const list=businessAcquireFilter==='other'?others:related;
-  return `<section class="business-acquisition-intro"><span>🏦</span><div><b>기업 인수 시장</b><p>보유 주식과 연결된 회사와 그 밖의 회사를 분리했습니다. 탭을 바꿔 필요한 기업만 확인하세요.</p></div></section>
-  <nav class="business-relation-tabs-v4042">
-    <button class="${businessAcquireFilter==='related'?'active':''}" onclick="switchBusinessAcquireFilter('related')">📈 내 주식 관련 <em>${related.length}</em></button>
-    <button class="${businessAcquireFilter==='other'?'active':''}" onclick="switchBusinessAcquireFilter('other')">🏢 기타 회사 <em>${others.length}</em></button>
-  </nav>
-  <div class="business-relation-note-v4042">${businessAcquireFilter==='related'?'현재 보유 중인 주식과 연결된 회사입니다.':'아직 주식을 보유하지 않은 회사입니다. 먼저 해당 회사 주식을 확보하면 관련 회사 탭으로 이동합니다.'}</div>
-  <div class="company-market director">${list.map(renderCompanyMarketCard).join('')||`<div class="business-empty">${businessAcquireFilter==='related'?'현재 보유 주식과 연결된 인수 가능 회사가 없습니다.':'표시할 기타 회사가 없습니다.'}</div>`}</div>`;
+  return businessTab==='other'?renderBusinessOtherV40431(others):renderBusinessRelatedV40431([],related);
 }
 
 function renderCompanyMarketCard(c){
