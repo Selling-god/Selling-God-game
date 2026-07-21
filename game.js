@@ -5615,3 +5615,115 @@ showTaxPhoneNoticeV402=function(title,text,urgent=false){
     .replace(/자산세/g,'현금 보유세');
   return __showTaxPhoneNoticeBeforeV4043(title,revised,urgent);
 };
+
+/* ============================================================
+   v40.45 현실 경제 순환
+   소득세 고지 + 공공기금 + 경제 환급금
+============================================================ */
+let publicEconomyStateV4044=null;
+function publicRemainV4044(iso){
+  if(!iso)return '-';
+  const sec=Math.max(0,Math.floor((new Date(iso).getTime()-Date.now())/1000));
+  const d=Math.floor(sec/86400),h=Math.floor(sec%86400/3600),m=Math.floor(sec%3600/60);
+  return d>0?`${d}일 ${h}시간`:h>0?`${h}시간 ${m}분`:`${m}분`;
+}
+function renderPublicEconomyV4044(){
+  const host=document.getElementById('publicEconomyViewV4044');if(!host)return;
+  const s=publicEconomyStateV4044||{};const pending=Number(s.pending_rebate||0);
+  const cycles=Array.isArray(s.recent_cycles)?s.recent_cycles:[];
+  host.innerHTML=`
+    <section class="public-economy-hero-v4044"><span>현재 공공기금</span><b>${money(Number(s.treasury_balance||0))}</b><small>다음 경제 순환까지 ${publicRemainV4044(s.next_cycle_at)}</small></section>
+    <div class="public-economy-grid-v4044">
+      <div class="public-economy-card-v4044"><span>누적 세입</span><b>${money(Number(s.lifetime_revenue||0))}</b></div>
+      <div class="public-economy-card-v4044"><span>누적 환류</span><b>${money(Number(s.lifetime_redistributed||0))}</b></div>
+    </div>
+    <section class="public-rebate-v4044"><span>내 경제 환급금</span><b>${money(pending)}</b><small>${pending>0?`수령 기한 ${publicRemainV4044(s.rebate_expires_at)} 남음`:'현재 수령 가능한 환급금이 없습니다.'}</small><button ${pending>0?'':'disabled'} onclick="claimPublicRebateV4044()">경제 환급금 수령</button></section>
+    <div class="public-economy-note-v4044">세금은 현금이나 보유자산 자체가 아니라 주식 매도차익, 회사 수익, 프로젝트 수익, 은행 이자 등 실제로 발생한 소득에 누적됩니다. 납부된 세금의 70%는 6시간마다 최근 활동 유저에게 환급되며, 절반은 균등 배분하고 나머지는 현금이 적은 유저에게 더 크게 배분합니다. 30%는 다음 순환을 위한 재정 준비금으로 남습니다.</div>
+    <h3>최근 경제 순환</h3><div class="public-cycle-list-v4044">${cycles.length?cycles.map(c=>`<div class="public-cycle-row-v4044"><div><b>제${Number(c.cycle_no||0)}회 경제 순환</b><small>${new Date(c.started_at).toLocaleString('ko-KR')}</small></div><div><b>${money(Number(c.distributed_pool||0))}</b><small>${Number(c.eligible_users||0)}명 대상</small></div></div>`).join(''):'<div class="public-economy-note-v4044">아직 완료된 경제 순환이 없습니다.</div>'}</div>`;
+}
+async function loadPublicEconomyV4044(force=false){
+  const host=document.getElementById('publicEconomyViewV4044');if(host&&(!publicEconomyStateV4044||force))host.innerHTML='<div class="bank-loading">국가 재정 정보를 불러오는 중...</div>';
+  try{const{data,error}=await db.rpc('get_public_economy_v4044');if(error)throw error;publicEconomyStateV4044=data||{};renderPublicEconomyV4044()}catch(e){if(host)host.innerHTML=`<div class="business-error"><b>국가 재정 정보를 불러오지 못했습니다.</b><p>${esc(e.message||String(e))}</p><small>v40.45 추가 SQL 실행 여부를 확인하세요.</small><button onclick="loadPublicEconomyV4044(true)">다시 시도</button></div>`}
+}
+async function claimPublicRebateV4044(){
+  try{const{data,error}=await db.rpc('claim_public_rebate_v4044');if(error)throw error;toast(`경제 환급금 ${money(Number(data?.amount||0))}을 수령했습니다.`);await loadProfile();updateNetworth();await loadPublicEconomyV4044(true)}catch(e){toast(e.message||String(e))}
+}
+const openPhoneAppV4044=openPhoneApp;openPhoneApp=function(name){openPhoneAppV4044(name);if(name==='public-economy')loadPublicEconomyV4044()};
+
+// 기존 현금 보유세 안내를 현실적인 소득세 안내로 교체한다.
+if(typeof showWealthTaxInfoV4036==='function'){
+  showWealthTaxInfoV4036=function(){toast('현금·예금·아이템 같은 보유자산 자체에는 시간당 세금을 부과하지 않습니다. 주식 매도차익, 회사 수익, 프로젝트 수익, 은행 이자처럼 실제 소득이 발생할 때 소득세가 누적되고, 납부된 세금은 국가 재정 앱을 통해 경제 환급금으로 다시 순환됩니다.')}
+}
+
+/* v40.45 현실형 글로벌 무역 시장 */
+let tradeMarketTimerV4045=null;
+function tradeFactorClassV4045(v,goodHigh=true){v=Number(v||100);const good=goodHigh?v>=100:v<=100;return good?'good':'bad'}
+function tradeAmountPresetV4045(min,max,ratio){return Math.round(min+(max-min)*ratio)}
+function setTradeAmountV4045(code,value){const input=document.getElementById(`tradeAmount-${code}`);if(input){input.value=Math.round(Number(value)||0);const out=document.getElementById(`tradeAmountLabel-${code}`);if(out)out.textContent=money(input.value)}}
+function tradeOfferCardV4045(o,cash){const min=Number(o.min_amount||0),max=Math.max(min,Number(o.max_amount||0)),can=max>=min&&cash>=min;const defaultAmt=Math.min(max,Math.max(min,Math.round(Math.min(cash,max)*.35)));return `<article class="trade-offer-v4045">
+ <header><span>${o.icon}</span><div><b>${esc(o.name)}</b><small>거래처 · ${esc(o.counterparty)}</small></div><em>${Number(o.duration_seconds||0)}초</em></header>
+ <div class="trade-market-factors-v4045">
+  <span class="${tradeFactorClassV4045(o.demand_index)}">수요 ${Number(o.demand_index).toFixed(0)}</span>
+  <span class="${tradeFactorClassV4045(o.fx_index)}">환율 ${Number(o.fx_index).toFixed(0)}</span>
+  <span class="${tradeFactorClassV4045(o.freight_index,false)}">운임 ${Number(o.freight_index).toFixed(0)}</span>
+  <span class="${tradeFactorClassV4045(o.tariff_index)}">통관 ${Number(o.tariff_index).toFixed(0)}</span>
+ </div>
+ <div class="trade-risk-v4045"><div><small>예상 마진</small><b>약 ${Number(o.expected_margin).toFixed(1)}%</b></div><div><small>손실 위험</small><b>${Number(o.risk_percent).toFixed(1)}%</b></div></div>
+ <div class="trade-amount-v4045"><label>계약 금액 <b id="tradeAmountLabel-${o.code}">${money(defaultAmt)}</b></label><input id="tradeAmount-${o.code}" type="number" min="${min}" max="${max}" step="1000000" value="${defaultAmt}" oninput="document.getElementById('tradeAmountLabel-${o.code}').textContent=money(this.value)">
+ <div><button onclick="setTradeAmountV4045('${o.code}',${min})">최소</button><button onclick="setTradeAmountV4045('${o.code}',${tradeAmountPresetV4045(min,max,.35)})">35%</button><button onclick="setTradeAmountV4045('${o.code}',${tradeAmountPresetV4045(min,max,.65)})">65%</button><button onclick="setTradeAmountV4045('${o.code}',${max})">최대</button></div></div>
+ <footer><small>${money(min)} ~ ${money(max)} · 큰 계약은 규모 효율이 있지만 손실액도 커집니다.</small><button ${can?'':'disabled'} onclick="startTradeContractV4045('${o.code}')">계약 시작</button></footer>
+ </article>`}
+function activeTradeCardV4045(a){return `<article class="trade-active-v4045"><div><span>${a.icon||'📦'}</span><div><b>${esc(a.name)}</b><small>${esc(a.counterparty||'거래처')} · 투입 ${money(a.capital)}</small></div></div><div><em>${a.ready?'정산 가능':`${a.remaining_seconds}초 남음`}</em><button ${a.ready?'':'disabled'} onclick="claimTradeContractV4045('${a.id}')">${a.ready?'계약 정산':'진행 중'}</button></div></article>`}
+async function loadTradeNetworkV4045(){
+ const host=document.getElementById('tradeNetworkView');if(!host)return;host.innerHTML='<div class="bank-loading">국제 시장과 거래처 제안을 불러오는 중...</div>';
+ const{data,error}=await db.rpc('get_trade_market_v4045');if(error){host.innerHTML=`<div class="error-panel">${esc(error.message)}</div>`;return}
+ const n=data?.network||{},cash=Number(data?.cash??profile?.cash??0),offers=data?.offers||[],active=data?.active_shipments||[],slots=Number(data?.slot_limit||1),current=Number(n.tier||0),refresh=Number(data?.market_refresh_seconds||0);
+ host.innerHTML=`<section class="capital-hero trade"><div><span>누적 무역 이익</span><b>${money(n.total_profit||0)}</b><small>신뢰도 ${Number(n.reputation||0).toLocaleString('ko-KR')}P · 계약 슬롯 ${active.length}/${slots}</small></div><em>${current?TRADE_TIERS_V391[current-1].name:'네트워크 설립 전'}</em></section>
+ <section class="trade-market-summary-v4045"><div><b>실시간 국제시장</b><small>수요·환율·운임·통관 여건이 30분마다 변합니다.</small></div><span>${Math.floor(refresh/60)}분 ${refresh%60}초 후 갱신</span></section>
+ <div class="capital-tier-grid">${capitalTierCardsV391(TRADE_TIERS_V391,current,cash,'upgradeTradeNetworkV391')}</div>
+ ${active.length?`<section class="trade-active-list-v4045"><h3>진행 중인 계약</h3>${active.map(activeTradeCardV4045).join('')}</section>`:''}
+ <section class="trade-offer-list-v4045"><h3>거래처 제안</h3><p>고정 상품을 고르는 대신, 시장 상황과 투자 여력에 맞춰 계약 금액을 직접 정하세요. NPC 거래처가 부족한 플레이어 수를 보완합니다.</p>${offers.length?offers.map(o=>tradeOfferCardV4045(o,cash)).join(''):'<div class="empty-state">네트워크를 확장하면 더 많은 거래처가 제안합니다.</div>'}</section>`;
+ if(tradeMarketTimerV4045)clearTimeout(tradeMarketTimerV4045);tradeMarketTimerV4045=setTimeout(loadTradeNetworkV4045,1000);
+}
+async function startTradeContractV4045(code){const el=document.getElementById(`tradeAmount-${code}`),amount=Number(el?.value||0);if(!amount)return toast('계약 금액을 입력하세요.');if(!confirm(`${money(amount)}을 투입해 계약을 시작할까요? 시장 상황에 따라 손실이 발생할 수 있습니다.`))return;const{data,error}=await db.rpc('start_trade_contract_v4045',{p_code:code,p_capital:amount});if(error)return toast(error.message);toast(`${data.counterparty}와 ${data.name} 시작 · 예상마진 ${data.expected_margin}% · 위험 ${data.risk_percent}%`);await Promise.all([loadProfile(),loadTradeNetworkV4045()]);updateNetworth()}
+async function claimTradeContractV4045(id){const{data,error}=await db.rpc('claim_trade_contract_v4045',{p_shipment_id:id});if(error)return toast(error.message);toast(`${data.result_label} · 정산 ${money(data.payout)} · 세금 ${money(data.tax_added||0)}`);playSuccessSound();await Promise.all([loadProfile(),loadTradeNetworkV4045()]);updateNetworth()}
+const openPhoneAppV4045=openPhoneApp;openPhoneApp=function(name){openPhoneAppV4045(name);if(name==='trade')loadTradeNetworkV4045()};
+
+/* v40.45.1: 공개 성공 확률 + 연속 계약 프리미엄 */
+function tradeOfferCardV4045(o,cash){
+ const min=Number(o.min_amount||0),max=Math.max(min,Number(o.max_amount||0)),can=max>=min&&cash>=min;
+ const defaultAmt=Math.min(max,Math.max(min,Math.round(Math.min(cash,max)*.35)));
+ const success=Number(o.success_rate||Math.max(0,100-Number(o.risk_percent||0)));
+ const chain=Number(o.relationship_chain||0),successBonus=Number(o.relationship_success_bonus||0),marginBonus=Number(o.relationship_margin_bonus||0);
+ const relation=chain>0?`연속 ${chain}회 · 성공 +${successBonus.toFixed(1)}%p · 마진 +${marginBonus.toFixed(1)}%p`:'첫 계약 · 정산 후 같은 거래처를 이어가면 프리미엄 발생';
+ return `<article class="trade-offer-v4045">
+ <header><span>${o.icon}</span><div><b>${esc(o.name)}</b><small>거래처 · ${esc(o.counterparty)}</small></div><em>${Number(o.duration_seconds||0)}초</em></header>
+ <div class="trade-market-factors-v4045">
+  <span class="${tradeFactorClassV4045(o.demand_index)}">수요 ${Number(o.demand_index).toFixed(0)}</span>
+  <span class="${tradeFactorClassV4045(o.fx_index)}">환율 ${Number(o.fx_index).toFixed(0)}</span>
+  <span class="${tradeFactorClassV4045(o.freight_index,false)}">운임 ${Number(o.freight_index).toFixed(0)}</span>
+  <span class="${tradeFactorClassV4045(o.tariff_index)}">통관 ${Number(o.tariff_index).toFixed(0)}</span>
+ </div>
+ <div class="trade-probability-v40451"><div><small>계약 성공 확률</small><b>${success.toFixed(1)}%</b><span><i style="width:${Math.max(0,Math.min(100,success))}%"></i></span></div><div><small>예상 마진</small><b>약 ${Number(o.expected_margin).toFixed(1)}%</b><em>실패 ${Number(o.risk_percent).toFixed(1)}%</em></div></div>
+ <div class="trade-relation-v40451"><b>🤝 거래처 관계 프리미엄</b><span>${relation}</span></div>
+ <div class="trade-amount-v4045"><label>계약 금액 <b id="tradeAmountLabel-${o.code}">${money(defaultAmt)}</b></label><input id="tradeAmount-${o.code}" type="number" min="${min}" max="${max}" step="1000000" value="${defaultAmt}" oninput="document.getElementById('tradeAmountLabel-${o.code}').textContent=money(this.value)">
+ <div><button onclick="setTradeAmountV4045('${o.code}',${min})">최소</button><button onclick="setTradeAmountV4045('${o.code}',${tradeAmountPresetV4045(min,max,.35)})">35%</button><button onclick="setTradeAmountV4045('${o.code}',${tradeAmountPresetV4045(min,max,.65)})">65%</button><button onclick="setTradeAmountV4045('${o.code}',${max})">최대</button></div></div>
+ <footer><small>${money(min)} ~ ${money(max)} · 확률과 프리미엄은 계약 시작 순간 고정됩니다.</small><button ${can?'':'disabled'} onclick="startTradeContractV4045('${o.code}')">계약 시작</button></footer>
+ </article>`;
+}
+function activeTradeCardV4045(a){
+ const success=Number(a.success_rate||a.market?.success_rate||0),chain=Number(a.relationship_chain||0);
+ return `<article class="trade-active-v4045"><div><span>${a.icon||'📦'}</span><div><b>${esc(a.name)}</b><small>${esc(a.counterparty||'거래처')} · 투입 ${money(a.capital)}</small>${success?`<small>시작 시 성공 확률 ${success.toFixed(1)}%${chain?` · 연속 ${chain}회 프리미엄`:''}</small>`:''}</div></div><div><em>${a.ready?'정산 가능':`${a.remaining_seconds}초 남음`}</em><button ${a.ready?'':'disabled'} onclick="claimTradeContractV4045('${a.id}')">${a.ready?'계약 정산':'진행 중'}</button></div></article>`;
+}
+async function startTradeContractV4045(code){
+ const el=document.getElementById(`tradeAmount-${code}`),amount=Number(el?.value||0);if(!amount)return toast('계약 금액을 입력하세요.');
+ if(!confirm(`${money(amount)}을 투입해 계약을 시작할까요? 화면에 표시된 성공 확률과 관계 프리미엄이 시작 순간 고정됩니다.`))return;
+ const{data,error}=await db.rpc('start_trade_contract_v4045',{p_code:code,p_capital:amount});if(error)return toast(error.message);
+ toast(`${data.counterparty} 계약 시작 · 성공 ${data.success_rate}% · 예상마진 ${data.expected_margin}%${Number(data.relationship_bonus||0)>0?` · 관계 +${data.relationship_bonus}%p`:''}`);
+ await Promise.all([loadProfile(),loadTradeNetworkV4045()]);updateNetworth();
+}
+async function claimTradeContractV4045(id){
+ const{data,error}=await db.rpc('claim_trade_contract_v4045',{p_shipment_id:id});if(error)return toast(error.message);
+ toast(`${data.result_label} · 정산 ${money(data.payout)} · 세금 ${money(data.tax_added||0)} · 다음 연속 ${Number(data.next_chain||1)}회`);
+ playSuccessSound();await Promise.all([loadProfile(),loadTradeNetworkV4045()]);updateNetworth();
+}
