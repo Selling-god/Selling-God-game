@@ -5727,3 +5727,79 @@ async function claimTradeContractV4045(id){
  toast(`${data.result_label} · 정산 ${money(data.payout)} · 세금 ${money(data.tax_added||0)} · 다음 연속 ${Number(data.next_chain||1)}회`);
  playSuccessSound();await Promise.all([loadProfile(),loadTradeNetworkV4045()]);updateNetworth();
 }
+
+
+/* v40.45.2: 스크롤 안정화 + 짧고 선명한 하이리스크·하이리턴 무역 */
+const phoneScrollStateV40452=new WeakMap();
+function installPhoneScrollGuardV40452(){
+ document.querySelectorAll('.phone-screen.phone-app').forEach(screen=>{
+  if(screen.dataset.scrollGuardV40452)return;
+  screen.dataset.scrollGuardV40452='1';
+  phoneScrollStateV40452.set(screen,screen.scrollTop||0);
+  screen.addEventListener('scroll',()=>phoneScrollStateV40452.set(screen,screen.scrollTop),{passive:true});
+  const observer=new MutationObserver(()=>{
+   const wanted=Number(phoneScrollStateV40452.get(screen)||0);
+   if(wanted<8||screen.classList.contains('hidden'))return;
+   requestAnimationFrame(()=>{
+    const max=Math.max(0,screen.scrollHeight-screen.clientHeight);
+    const target=Math.min(wanted,max);
+    if(Math.abs(screen.scrollTop-target)>4)screen.scrollTop=target;
+   });
+  });
+  observer.observe(screen,{childList:true,subtree:true});
+ });
+}
+setTimeout(installPhoneScrollGuardV40452,0);
+
+function formatContractTimeV40452(seconds){
+ const total=Math.max(0,Math.floor(Number(seconds)||0));
+ const m=Math.floor(total/60),s=total%60;
+ return m>0?`${m}분 ${String(s).padStart(2,'0')}초`:`${s}초`;
+}
+let tradeCountdownTimerV40452=null;
+function startTradeCountdownV40452(){
+ clearInterval(tradeCountdownTimerV40452);
+ tradeCountdownTimerV40452=setInterval(()=>{
+  document.querySelectorAll('[data-trade-remaining-v40452]').forEach(el=>{
+   let left=Math.max(0,Number(el.dataset.tradeRemainingV40452||0)-1);
+   el.dataset.tradeRemainingV40452=String(left);
+   el.textContent=left>0?`${formatContractTimeV40452(left)} 남음`:'정산 가능';
+   const card=el.closest('.trade-active-v4045');
+   const btn=card?.querySelector('button');
+   if(btn&&left<=0){btn.disabled=false;btn.textContent='계약 정산';}
+  });
+ },1000);
+}
+function activeTradeCardV4045(a){
+ const success=Number(a.success_rate||a.market?.success_rate||0),chain=Number(a.relationship_chain||0),left=Math.max(0,Number(a.remaining_seconds||0));
+ return `<article class="trade-active-v4045"><div><span>${a.icon||'📦'}</span><div><b>${esc(a.name)}</b><small>${esc(a.counterparty||'거래처')} · 투입 ${money(a.capital)}</small>${success?`<small>시작 시 성공 확률 ${success.toFixed(1)}%${chain?` · 연속 ${chain}회 프리미엄`:''}</small>`:''}</div></div><div><em data-trade-remaining-v40452="${left}">${a.ready?'정산 가능':`${formatContractTimeV40452(left)} 남음`}</em><button ${a.ready?'':'disabled'} onclick="claimTradeContractV4045('${a.id}')">${a.ready?'계약 정산':'진행 중'}</button></div></article>`;
+}
+function tradeOfferCardV4045(o,cash){
+ const min=Number(o.min_amount||0),max=Math.max(min,Number(o.max_amount||0)),can=max>=min&&cash>=min;
+ const defaultAmt=Math.min(max,Math.max(min,Math.round(Math.min(cash,max)*.35)));
+ const success=Number(o.success_rate||Math.max(0,100-Number(o.risk_percent||0)));
+ const chain=Number(o.relationship_chain||0),successBonus=Number(o.relationship_success_bonus||0),marginBonus=Number(o.relationship_margin_bonus||0);
+ const relation=chain>0?`연속 ${chain}회 · 성공 +${successBonus.toFixed(1)}%p · 마진 +${marginBonus.toFixed(1)}%p`:'첫 계약 · 정산 후 같은 거래처를 이어가면 프리미엄 발생';
+ const risk=Number(o.risk_percent||0),riskLabel=risk>=42?'초고위험':risk>=30?'고위험':risk>=20?'중위험':'저위험';
+ return `<article class="trade-offer-v4045">
+ <header><span>${o.icon}</span><div><b>${esc(o.name)}</b><small>거래처 · ${esc(o.counterparty)}</small></div><em>${formatContractTimeV40452(o.duration_seconds)}</em></header>
+ <div class="trade-market-factors-v4045"><span class="${tradeFactorClassV4045(o.demand_index)}">수요 ${Number(o.demand_index).toFixed(0)}</span><span class="${tradeFactorClassV4045(o.fx_index)}">환율 ${Number(o.fx_index).toFixed(0)}</span><span class="${tradeFactorClassV4045(o.freight_index,false)}">운임 ${Number(o.freight_index).toFixed(0)}</span><span class="${tradeFactorClassV4045(o.tariff_index)}">통관 ${Number(o.tariff_index).toFixed(0)}</span></div>
+ <div class="trade-probability-v40451"><div><small>계약 성공 확률</small><b>${success.toFixed(1)}%</b><span><i style="width:${Math.max(0,Math.min(100,success))}%"></i></span></div><div><small>${riskLabel} · 실패 시 원금 손실</small><b>예상 +${Number(o.expected_margin).toFixed(1)}%</b><em>실패 ${risk.toFixed(1)}%</em></div></div>
+ <div class="trade-relation-v40451"><b>🤝 거래처 관계 프리미엄</b><span>${relation}</span></div>
+ <div class="trade-amount-v4045"><label>계약 금액 <b id="tradeAmountLabel-${o.code}">${money(defaultAmt)}</b></label><input id="tradeAmount-${o.code}" type="number" min="${min}" max="${max}" step="1000000" value="${defaultAmt}" oninput="document.getElementById('tradeAmountLabel-${o.code}').textContent=money(this.value)"><div><button onclick="setTradeAmountV4045('${o.code}',${min})">최소</button><button onclick="setTradeAmountV4045('${o.code}',${tradeAmountPresetV4045(min,max,.35)})">35%</button><button onclick="setTradeAmountV4045('${o.code}',${tradeAmountPresetV4045(min,max,.65)})">65%</button><button onclick="setTradeAmountV4045('${o.code}',${max})">최대</button></div></div>
+ <footer><small>${money(min)} ~ ${money(max)} · 짧은 계약이지만 좋은 결과만 나오지는 않습니다.</small><button ${can?'':'disabled'} onclick="startTradeContractV4045('${o.code}')">계약 시작</button></footer></article>`;
+}
+async function loadTradeNetworkV4045(force=false){
+ const host=document.getElementById('tradeNetworkView');if(!host)return;
+ const screen=document.getElementById('phone-trade');const savedTop=screen?.scrollTop||0;
+ const savedInputs={};host.querySelectorAll('input[id^="tradeAmount-"]').forEach(x=>savedInputs[x.id]=x.value);
+ if(force||!host.dataset.loadedV40452)host.innerHTML='<div class="bank-loading">국제 시장과 거래처 제안을 불러오는 중...</div>';
+ const{data,error}=await db.rpc('get_trade_market_v4045');if(error){host.innerHTML=`<div class="error-panel">${esc(error.message)}</div>`;return}
+ const n=data?.network||{},cash=Number(data?.cash??profile?.cash??0),offers=data?.offers||[],active=data?.active_shipments||[],slots=Number(data?.slot_limit||1),current=Number(n.tier||0),refresh=Number(data?.market_refresh_seconds||0);
+ host.innerHTML=`<section class="capital-hero trade"><div><span>누적 무역 이익</span><b>${money(n.total_profit||0)}</b><small>신뢰도 ${Number(n.reputation||0).toLocaleString('ko-KR')}P · 계약 슬롯 ${active.length}/${slots}</small></div><em>${current?TRADE_TIERS_V391[current-1].name:'네트워크 설립 전'}</em></section><section class="trade-market-summary-v4045"><div><b>실시간 국제시장</b><small>짧은 시간 안에 결과가 나오지만, 높은 수익에는 큰 손실 위험이 따릅니다.</small></div><span>${Math.floor(refresh/60)}분 ${refresh%60}초 후 갱신</span></section><div class="capital-tier-grid">${capitalTierCardsV391(TRADE_TIERS_V391,current,cash,'upgradeTradeNetworkV391')}</div>${active.length?`<section class="trade-active-list-v4045"><h3>진행 중인 계약</h3>${active.map(activeTradeCardV4045).join('')}</section>`:''}<section class="trade-offer-list-v4045"><h3>거래처 제안</h3><p>시장 조건, 성공 확률, 손실 가능성을 비교해 투자 규모를 선택하세요. NPC 거래처가 플레이어 수가 적어도 시장을 유지합니다.</p>${offers.length?offers.map(o=>tradeOfferCardV4045(o,cash)).join(''):'<div class="empty-state">네트워크를 확장하면 더 많은 거래처가 제안합니다.</div>'}</section>`;
+ host.dataset.loadedV40452='1';
+ Object.entries(savedInputs).forEach(([id,value])=>{const input=document.getElementById(id);if(input){input.value=value;const label=document.getElementById(id.replace('tradeAmount-','tradeAmountLabel-'));if(label)label.textContent=money(value)}});
+ requestAnimationFrame(()=>{if(screen){screen.scrollTop=Math.min(savedTop,Math.max(0,screen.scrollHeight-screen.clientHeight));phoneScrollStateV40452.set(screen,screen.scrollTop)}});
+ startTradeCountdownV40452();
+ if(tradeMarketTimerV4045)clearTimeout(tradeMarketTimerV4045);tradeMarketTimerV4045=setTimeout(()=>loadTradeNetworkV4045(false),10000);
+}
