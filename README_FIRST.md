@@ -1,66 +1,47 @@
-# 먼저 읽어주세요 - 기존 selling-god-game Render 주소를 새 주식 게임으로 교체하는 버전
+# KX EXCHANGE - UNIVERSAL RENDER FIX
 
-이 패키지는 **저장소 최상위(root)에 그대로 넣는 구조**입니다.
-기존 판매왕/전당포 게임 파일과 나란히 두는 것이 아니라, 기존 실행 소스를 제거한 뒤 이 파일들이 root가 되어야 합니다.
-상세 순서는 `RENDER_EXISTING_SITE_REPLACE.txt`를 따르세요.
+이 버전은 기존 Render 서비스가 Web Service인지 Static Site인지 헷갈리는 상황에서도 배포할 수 있도록 만든 호환 배포본입니다.
 
----
+## 왜 이전 화면에서 `Not Found`가 나왔나
+이전 프로젝트는 Next.js 서버 렌더링 방식이었는데, 현재 Render 서비스가 정적 사이트 방식으로 파일을 찾고 있으면 `.next` 빌드가 성공해도 루트에 `index.html`이 없어 Render가 앱까지 요청을 보내지 않고 `Not Found`를 반환할 수 있습니다.
 
-# KX EXCHANGE — 실제 거래소형 주식 게임 V1
+이 버전은 `next build`가 반드시 `out/index.html`을 만들도록 정적 export를 사용합니다.
+동시에 `server.js`도 `out` 폴더를 직접 서비스하기 때문에 Render Web Service에서도 같은 프로젝트를 그대로 실행할 수 있습니다.
 
-스토리 없이 순수하게 '주식 거래'만 하는 멀티플레이 웹게임입니다.
-PC / 태블릿 / 휴대폰 반응형 UI를 포함합니다.
+## 1. GitHub 교체
+ZIP 내부 파일을 GitHub 저장소 최상단에 올리세요.
+`package.json`, `server.js`, `next.config.mjs`, `app`, `lib`, `public`, `supabase`가 저장소 첫 화면에 보여야 합니다.
 
-## 핵심 구조
-- Supabase PostgreSQL이 모든 유저가 공유하는 단 하나의 시장 상태를 보관합니다.
-- 가격, 뉴스, 캔들, 호가, 체결은 클라이언트별 랜덤값이 아니라 DB의 공용 값입니다.
-- 접속 중인 클라이언트가 5초마다 서버 tick API를 호출하지만, PostgreSQL advisory lock + 마지막 tick 시각으로 한 번만 진행되므로 모든 유저가 같은 시장을 봅니다.
-- 실제 사용자 지정가 주문도 호가에 합산됩니다.
-- 서로 가격이 교차한 유저 주문은 가격우선·시간우선으로 사용자↔사용자 체결됩니다.
-- 부족한 유동성은 시장조성 호가가 보완해 유저가 적어도 게임이 멈추지 않습니다.
+## 2. Supabase
+처음 설치라면 `supabase/001_schema.sql` 전체를 실행하세요.
+이미 001_schema.sql을 실행했다면 `supabase/002_UNIVERSAL_RENDER_FIX.sql`만 추가 실행하세요.
 
-## 구현 기능
-- 이메일 회원가입/로그인 + 닉네임
-- 초기자금 1억원
-- 18개 가상 상장기업
-- 지정가 / 시장가
-- DAY / IOC / FOK
-- 부분체결 / 미체결 주문 / 주문취소
-- 10단계 매수·매도 호가
-- 가격우선·시간우선 방식
-- 일일 ±30% 가격제한
-- 가격대별 호가 단위
-- 장전 동시호가 / 정규장 / 장마감 동시호가 / 시간외 단일가 표시
-- OHLC / 거래량 / 캔들 차트
-- 기업별 공용 뉴스 / 속보 / 호외
-- 뉴스가 해당 종목 가격 심리에 실제 반영
-- 보유수량 / 평균단가 / 평가손익 / 실현손익
-- 총자산 랭킹
-- PC / 태블릿 / 모바일 반응형
+## 3-A. Render가 Web Service인 경우
+- Root Directory: 비움
+- Build Command: `npm install && npm run build`
+- Start Command: `npm start`
+- Environment:
+  - NEXT_PUBLIC_SUPABASE_URL
+  - NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-## 설치
-1. Supabase 프로젝트를 만듭니다.
-2. Supabase SQL Editor에서 `supabase/001_schema.sql` 전체를 1회 실행합니다.
-3. Authentication > Providers에서 Email을 활성화합니다.
-4. Realtime에서 `kx_stocks`, `kx_news`, `kx_trades`를 활성화하면 더 빠르게 동기화됩니다. (폴링 fallback도 있습니다.)
-5. `.env.example`을 `.env.local`로 복사해 키를 넣습니다.
-6. `npm install`
-7. `npm run dev`
+그 뒤 Clear build cache & deploy.
 
-## Vercel 배포 환경변수
-- NEXT_PUBLIC_SUPABASE_URL
-- NEXT_PUBLIC_SUPABASE_ANON_KEY
-- SUPABASE_SERVICE_ROLE_KEY
+정상 로그:
+`[KX Exchange] static export server ready at http://0.0.0.0:xxxxx`
 
-주의: SERVICE_ROLE_KEY는 절대 NEXT_PUBLIC_ 접두사를 붙이지 마세요.
+## 3-B. Render가 Static Site인 경우
+- Root Directory: 비움
+- Build Command: `npm install && npm run build`
+- Publish Directory: `out`
+- Environment:
+  - NEXT_PUBLIC_SUPABASE_URL
+  - NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-## 게임 시간
-현실 장 구조를 유지하되 게임성을 위해 1 시장일을 약 30분으로 압축합니다.
-- 장전 동시호가 약 3분
-- 정규장 약 20분
-- 장마감 동시호가 약 2분
-- 시간외 단일가 약 5분
+이 경우 Start Command는 없습니다.
 
-## V1에서 의도적으로 현실보다 단순화한 부분
-실제 KRX 전체 규정은 매우 방대하므로 증거금/신용/공매도/VI 세부 산식/정산 T+2/관리종목 제도는 V1에 넣지 않았습니다.
-반면 일반 유저가 직접 체감하는 주문·호가·부분체결·미체결·가격우선·시간우선·시장가/지정가·IOC/FOK·가격제한·동시 사용자 공용 시장은 핵심 기능으로 구현했습니다.
+## 정상 확인
+메인 주소에 접속하면 아래 문구가 보여야 합니다.
+`KX EXCHANGE`
+`STOCK BUILD · UNIVERSAL RENDER 2026.09.03-C`
+
+이 버전은 더 이상 `/api/market/tick`을 사용하지 않습니다. 로그인한 플레이어들이 Supabase RPC를 호출하며, DB advisory lock 때문에 동시에 여러 플레이어가 접속해도 하나의 공용 시장만 진행됩니다.

@@ -1,0 +1,19 @@
+현재 화면이 검은 배경 + 'Not Found' 한 줄이라면 Next.js 404가 아니라 Render가 앱에 도달하기 전에 404를 내는 상태일 가능성이 큽니다.
+
+가장 중요한 설정:
+
+[Web Service]
+Build Command = npm install && npm run build
+Start Command = npm start
+Root Directory = 비움
+
+[Static Site]
+Build Command = npm install && npm run build
+Publish Directory = out
+Root Directory = 비움
+
+둘 중 현재 Render 서비스 유형에 맞는 한 쪽만 사용하세요.
+
+배포 후 KX EXCHANGE 로그인 화면과
+STOCK BUILD · UNIVERSAL RENDER 2026.09.03-C
+표시가 나오면 새 코드가 정상 서비스되고 있는 것입니다.
