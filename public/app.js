@@ -14,7 +14,7 @@ let session=null;
 let state={
   stocks:[],ticker:'A101',candles:[],depth:[],news:[],clock:null,
   account:null,positions:[],orders:[],trades:[],ranking:[],
-  side:'BUY',type:'LIMIT',tif:'DAY',tab:'market'
+  side:'BUY',type:'LIMIT',tif:'DAY',tab:'market',tradeTab:'book'
 };
 
 const headers=(auth=true)=>{
@@ -82,12 +82,8 @@ function processIncomingNews(rows){
   const maxId=Math.max(...ids,0);
   if(!newsBaselineReady){
     newsBaselineReady=true;
-    if(!lastSeenNewsId)lastSeenNewsId=maxId;
-    else {
-      const unseen=rows.filter(n=>(Number(n.id)||0)>lastSeenNewsId&&['BREAKING','EXTRA'].includes(n.severity)).sort((a,b)=>(Number(a.id)||0)-(Number(b.id)||0));
-      if(unseen.length)showNewsFlash(unseen[unseen.length-1]);
-    }
-    lastSeenNewsId=Math.max(lastSeenNewsId,maxId);
+    // Login/reload establishes a baseline. Only news published after this session starts pops live.
+    lastSeenNewsId=maxId;
     localStorage.setItem(NEWS_SEEN_KEY,String(lastSeenNewsId));
     return;
   }
@@ -112,7 +108,7 @@ function gameTime(m=0){return `${String(Math.floor(m/60)).padStart(2,'0')}:${Str
 const SESS={PREOPEN:'장전',REGULAR:'정규장',CLOSING:'장마감',AFTERHOURS:'시간외'};
 const NEWS_SEV={NORMAL:'일반',BREAKING:'속보',EXTRA:'호외'};
 const ORDER_STATUS={OPEN:'미체결',PARTIAL:'부분체결',FILLED:'체결완료',CANCELED:'취소',REJECTED:'거절'};
-let syncBusy=false,syncRound=0;
+let syncBusy=false,syncRound=0,marketSyncTimer=null;
 
 function save(){localStorage.setItem(LS,JSON.stringify(session||{}))}
 function logout(){localStorage.removeItem(LS);session=null;renderAuth()}
@@ -229,24 +225,20 @@ function topNav(){
   return `<nav class="main-nav">${items.map(([k,label])=>`<button data-main-tab="${k}" class="${state.tab===k?'on':''}">${label}</button>`).join('')}</nav>`;
 }
 
-function renderWatch(s){
-  return `<section class="panel watch">
-    <div class="panel-title"><b>종목</b><small>${state.stocks.length}개</small></div>
-    <div class="watch-list">${state.stocks.map(x=>{
-      const c=changeOf(x);
-      return `<button class="stockrow ${x.ticker===s.ticker?'on':''}" data-ticker="${x.ticker}">
-        <span class="stock-name"><b>${escapeHtml(x.name)}</b><small>${escapeHtml(x.sector)}</small></span>
-        <span class="stock-price"><b>${nf.format(x.last_price)}</b><small class="${c>=0?'up':'down'}">${pct(c)}</small></span>
-      </button>`;
-    }).join('')}</div>
-  </section>`;
+function renderStockPicker(s){
+  const sorted=[...state.stocks].sort((a,b)=>Math.abs(changeOf(b))-Math.abs(changeOf(a)));
+  return `<div class="market-picker">
+    <label class="stock-select-wrap"><span>종목 선택</span><select id="stockSelect">${state.stocks.map(x=>`<option value="${x.ticker}" ${x.ticker===s.ticker?'selected':''}>${escapeHtml(x.name)} · ${x.ticker}</option>`).join('')}</select></label>
+    <div class="market-movers" aria-label="변동 종목">${sorted.slice(0,4).map(x=>{const c=changeOf(x);return `<button data-ticker="${x.ticker}" class="mover ${x.ticker===s.ticker?'on':''}"><span>${escapeHtml(x.name)}</span><b>${nf.format(x.last_price)}</b><em class="${c>=0?'up':'down'}">${pct(c)}</em></button>`}).join('')}</div>
+  </div>`;
 }
 
 function renderChartPanel(s,ch){
-  const keyNews=state.news.find(n=>n.ticker===s.ticker&&n.severity!=='NORMAL');
-  const tape=state.trades.slice(0,5);
+  const keyNews=state.news.find(n=>(n.ticker===s.ticker||(!n.ticker&&n.sector===s.sector))&&n.severity!=='NORMAL');
+  const tape=state.trades.slice(0,3);
   return `<section class="panel chart-panel">
-    <div class="stockhead">
+    ${renderStockPicker(s)}
+    <div class="stockhead compact-head">
       <div>
         <div class="stock-code">${s.ticker} · ${escapeHtml(s.sector)}</div>
         <h1>${escapeHtml(s.name)}</h1>
@@ -254,21 +246,14 @@ function renderChartPanel(s,ch){
       </div>
       <div class="quote"><b>${nf.format(s.last_price)}</b><strong class="${ch>=0?'up':'down'}">${pct(ch)}</strong></div>
     </div>
-    <div class="ohlc">
-      <span>시가 <b>${nf.format(s.open_price)}</b></span>
-      <span>고가 <b>${nf.format(s.high_price)}</b></span>
-      <span>저가 <b>${nf.format(s.low_price)}</b></span>
-      <span>전일 <b>${nf.format(s.prev_close)}</b></span>
-      <span>거래량 <b>${nf.format(s.volume)}</b></span>
-    </div>
     ${keyNews?`<button class="headline-strip" data-main-tab="news"><span>${keyNews.severity==='EXTRA'?'호외':'속보'}</span><b>${escapeHtml(keyNews.headline)}</b></button>`:''}
     <div class="chartbox"><canvas id="chart"></canvas></div>
-    <div class="tape">
-      <div class="tape-head"><b>최근 체결</b><small>체결이 있을 때만 현재가가 변합니다</small></div>
-      <div class="tape-list">${tape.length?tape.map(t=>`<div class="tape-row">
-        <span>${new Date(t.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}</span>
-        <b>${nf.format(t.price)}</b><span>${nf.format(t.quantity)}주</span>
-      </div>`).join(''):`<div class="empty compact">아직 체결이 없습니다.</div>`}</div>
+    <div class="ohlc compact-ohlc">
+      <span>시가 <b>${nf.format(s.open_price)}</b></span><span>고가 <b>${nf.format(s.high_price)}</b></span><span>저가 <b>${nf.format(s.low_price)}</b></span><span>전일 <b>${nf.format(s.prev_close)}</b></span><span>거래량 <b>${nf.format(s.volume)}</b></span>
+    </div>
+    <div class="tape compact-tape">
+      <div class="tape-head"><b>최근 체결</b><small>체결가가 현재가가 됩니다</small></div>
+      <div class="tape-list">${tape.length?tape.map(t=>`<div class="tape-row"><span>${new Date(t.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}</span><b>${nf.format(t.price)}</b><span>${nf.format(t.quantity)}주</span></div>`).join(''):`<div class="empty compact">아직 체결이 없습니다.</div>`}</div>
     </div>
   </section>`;
 }
@@ -277,44 +262,43 @@ function renderBook(s,ch){
   const asks=state.depth.filter(d=>d.side==='ASK').sort((a,b)=>b.price-a.price).slice(-5);
   const bids=state.depth.filter(d=>d.side==='BID').sort((a,b)=>b.price-a.price).slice(0,5);
   const mx=Math.max(1,...[...asks,...bids].map(d=>Number(d.quantity)||0));
-  return `<section class="panel book">
-    <div class="panel-title"><b>주요 호가</b><small>상·하위 5단계</small></div>
+  return `<div class="trade-pane book-pane">
     <div class="depth">
       ${asks.map(d=>`<div class="drow ask"><i style="width:${Math.min(100,d.quantity/mx*100)}%"></i><b>${nf.format(d.price)}</b><span>${nf.format(d.quantity)}</span></div>`).join('')}
       <div class="mid"><b>${nf.format(s.last_price)}</b><span class="${ch>=0?'up':'down'}">${pct(ch)}</span></div>
       ${bids.map(d=>`<div class="drow bid"><i style="width:${Math.min(100,d.quantity/mx*100)}%"></i><b>${nf.format(d.price)}</b><span>${nf.format(d.quantity)}</span></div>`).join('')}
     </div>
-  </section>`;
+    <div class="book-note">매도호가 · 현재가 · 매수호가 순서로 표시됩니다.</div>
+  </div>`;
 }
 
 function renderOrder(s){
-  return `<section class="panel order">
-    <div class="panel-title"><b>주문</b><small id="globalMsg"></small></div>
+  return `<div class="trade-pane order-pane">
     <div class="order-body">
-      <div class="tabs2">
-        <button class="buy ${state.side==='BUY'?'on':''}" data-side="BUY">매수</button>
-        <button class="sell ${state.side==='SELL'?'on':''}" data-side="SELL">매도</button>
-      </div>
+      <div class="tabs2"><button class="buy ${state.side==='BUY'?'on':''}" data-side="BUY">매수</button><button class="sell ${state.side==='SELL'?'on':''}" data-side="SELL">매도</button></div>
       <div class="order-grid">
         <label>주문 방식<select id="otype"><option value="LIMIT" ${state.type==='LIMIT'?'selected':''}>지정가</option><option value="MARKET" ${state.type==='MARKET'?'selected':''}>시장가</option></select></label>
         <label>수량<input id="qty" type="number" min="1" value="1"></label>
         <label id="priceWrap" class="span2">가격<input id="price" type="number" min="1" value="${Math.round(s.last_price)}"></label>
       </div>
-      <details class="advanced">
-        <summary>고급 체결 조건</summary>
-        <label>체결 조건<select id="tif"><option value="DAY" ${state.tif==='DAY'?'selected':''}>DAY · 장 마감까지</option><option value="IOC" ${state.tif==='IOC'?'selected':''}>IOC · 즉시 체결 후 취소</option><option value="FOK" ${state.tif==='FOK'?'selected':''}>FOK · 전량 즉시 체결</option></select></label>
-      </details>
+      <details class="advanced"><summary>고급 체결 조건</summary><label>체결 조건<select id="tif"><option value="DAY" ${state.tif==='DAY'?'selected':''}>DAY · 장 마감까지</option><option value="IOC" ${state.tif==='IOC'?'selected':''}>IOC · 즉시 체결 후 취소</option><option value="FOK" ${state.tif==='FOK'?'selected':''}>FOK · 전량 즉시 체결</option></select></label></details>
       <button id="submitOrder" class="submit ${state.side==='BUY'?'buy':'sell'}">${state.side==='BUY'?'매수':'매도'} 주문</button>
-      <div class="msg" id="orderMsg">가격은 실제 체결이 발생할 때만 움직입니다.</div>
+      <div class="msg" id="orderMsg">주문이 실제 호가와 체결되면 현재가에 반영됩니다.</div>
     </div>
+  </div>`;
+}
+
+function renderTradeCard(s,ch){
+  return `<section class="panel trade-card">
+    <div class="trade-tabs"><button data-trade-tab="book" class="${state.tradeTab==='book'?'on':''}">호가</button><button data-trade-tab="order" class="${state.tradeTab==='order'?'on':''}">주문</button></div>
+    ${state.tradeTab==='order'?renderOrder(s):renderBook(s,ch)}
   </section>`;
 }
 
 function renderMarket(s,ch){
-  return `<main class="market-workspace">
-    ${renderWatch(s)}
+  return `<main class="market-workspace simple-market">
     ${renderChartPanel(s,ch)}
-    <aside class="trade-stack">${renderBook(s,ch)}${renderOrder(s)}</aside>
+    ${renderTradeCard(s,ch)}
   </main>`;
 }
 
@@ -353,16 +337,17 @@ function renderOrders(){
 }
 
 function renderNews(){
-  return `<main class="page-view"><section class="panel page-panel">
-    <div class="page-title"><div><small>MARKET NEWS</small><h1>시장 뉴스</h1></div><span>모든 접속자에게 같은 뉴스가 공개됩니다</span></div>
-    <div class="newslist">${state.news.length?state.news.map(n=>{
-      const sev=NEWS_SEV[n.severity]||n.severity||'일반';
-      const mood=Number(n.sentiment)>=0?'호재':'악재';
-      const sevClass=n.severity==='EXTRA'?'extra':n.severity==='BREAKING'?'breaking':'';
-      return `<article class="newsitem">
-        <div class="newsmeta"><span class="newsbadge ${sevClass}">${escapeHtml(sev)}</span><span>${escapeHtml(n.ticker||n.sector||'시장')}</span><span class="${Number(n.sentiment)>=0?'up':'down'}">${mood}</span><time>${n.created_at?new Date(n.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></div>
-        <h3>${escapeHtml(n.headline)}</h3><p>${escapeHtml(n.body)}</p>
-      </article>`;
+  const lead=state.news.find(n=>n.severity==='EXTRA')||state.news.find(n=>n.severity==='BREAKING')||state.news[0];
+  const rest=lead?state.news.filter(n=>n.id!==lead.id):state.news;
+  return `<main class="page-view"><section class="panel page-panel newsroom">
+    <div class="page-title newsroom-title"><div><small>KX MARKET NEWS · LIVE</small><h1>시장 뉴스</h1></div><span>가격·뉴스·발표 시각은 모든 접속자에게 동일합니다</span></div>
+    ${lead?`<article class="lead-news ${lead.severity==='EXTRA'?'extra':lead.severity==='BREAKING'?'breaking':''}">
+      <div class="newsmeta"><span class="newsbadge ${lead.severity==='EXTRA'?'extra':lead.severity==='BREAKING'?'breaking':''}">${NEWS_SEV[lead.severity]||'일반'}</span><span>${escapeHtml(lead.ticker||lead.sector||'시장')}</span><time>${lead.created_at?new Date(lead.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></div>
+      <h2>${escapeHtml(lead.headline)}</h2><p>${escapeHtml(lead.body)}</p>
+    </article>`:''}
+    <div class="newslist">${rest.length?rest.map(n=>{
+      const sev=NEWS_SEV[n.severity]||n.severity||'일반';const mood=Number(n.sentiment)>=0?'매수 우위':'매도 우위';const sevClass=n.severity==='EXTRA'?'extra':n.severity==='BREAKING'?'breaking':'';
+      return `<article class="newsitem"><div class="newsmeta"><span class="newsbadge ${sevClass}">${escapeHtml(sev)}</span><span>${escapeHtml(n.ticker||n.sector||'시장')}</span><span class="${Number(n.sentiment)>=0?'up':'down'}">${mood}</span><time>${n.created_at?new Date(n.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></div><h3>${escapeHtml(n.headline)}</h3><p>${escapeHtml(n.body)}</p></article>`;
     }).join(''):`<div class="empty">아직 발표된 뉴스가 없습니다.</div>`}</div>
   </section></main>`;
 }
@@ -374,6 +359,27 @@ function renderRanking(){
       <strong>${i+1}</strong><span><b>${escapeHtml(r.nickname)}</b><small>실현손익 ${won(r.realized_pnl)}</small></span><b>${won(r.total_assets)}</b>
     </div>`).join(''):`<div class="empty">아직 랭킹에 등록된 플레이어가 없습니다.</div>`}</div>
   </section></main>`;
+}
+
+function openTutorial(){
+  document.getElementById('kxTutorial')?.remove();
+  const el=document.createElement('div');el.id='kxTutorial';el.className='tutorial-backdrop';
+  el.innerHTML=`<section class="tutorial-card" role="dialog" aria-modal="true" aria-label="KX EXCHANGE 튜토리얼">
+    <button class="tutorial-close" aria-label="닫기">×</button>
+    <div class="tutorial-kicker">KX EXCHANGE GUIDE</div><h2>처음이라면 이것만 알면 됩니다</h2><p class="tutorial-intro">실제 주식의 핵심 흐름을 게임에 맞게 단순화했습니다. 가격은 모든 유저에게 동일하며, 실제 체결이 발생했을 때만 움직입니다.</p>
+    <ol class="tutorial-steps">
+      <li><b>1. 종목 선택</b><span>시장 화면 위의 종목 선택창에서 거래할 회사를 고릅니다.</span></li>
+      <li><b>2. 차트 확인</b><span>캔들은 실제 체결을 모아 만든 1분봉입니다. 뉴스 직후 거래량과 방향을 함께 보세요.</span></li>
+      <li><b>3. 호가 확인</b><span>호가 탭에서 현재 매도·매수 대기 가격과 수량을 확인합니다.</span></li>
+      <li><b>4. 주문 넣기</b><span>주문 탭에서 시장가 또는 지정가를 선택합니다. 조건이 맞으면 체결되고, 안 맞으면 미체결로 남습니다.</span></li>
+      <li><b>5. 뉴스 대응</b><span>속보와 호외는 모든 유저에게 같은 시각에 공개됩니다. 뉴스는 가격을 강제로 바꾸지 않고 매수·매도 주문 흐름에 영향을 줍니다.</span></li>
+      <li><b>6. 내 자산 확인</b><span>내 자산에서 보유 주식과 손익을, 주문 내역에서 미체결 주문을 관리합니다.</span></li>
+    </ol>
+    <div class="tutorial-tip"><b>핵심</b><span>주가가 오른다고 무조건 사는 것이 아니라, 뉴스 → 호가 → 체결 흐름을 보고 판단하는 게임입니다.</span></div>
+    <button class="tutorial-start">확인하고 시작하기</button>
+  </section>`;
+  document.body.appendChild(el);
+  const close=()=>el.remove();el.querySelector('.tutorial-close').onclick=close;el.querySelector('.tutorial-start').onclick=close;el.onclick=e=>{if(e.target===el)close()};
 }
 
 function renderTerminal(){
@@ -391,7 +397,7 @@ function renderTerminal(){
       ${topNav()}
       <div class="market-status"><b>DAY ${state.clock?.game_day||1}</b><span>${gameTime(state.clock?.game_minute||0)}</span><em>${SESS[state.clock?.session]||'-'}</em></div>
       <div class="asset"><small>총자산</small><b>${won(totalAssets())}</b></div>
-      <button class="logout" id="logout">로그아웃</button>
+      <button class="tutorial-btn" id="tutorialBtn">? 튜토리얼</button><button class="logout" id="logout">로그아웃</button>
     </header>
     ${content}
     <nav class="mobile-nav">
@@ -408,6 +414,7 @@ function renderTerminal(){
 
 function bind(){
   document.getElementById('logout').onclick=logout;
+  const tb=document.getElementById('tutorialBtn');if(tb)tb.onclick=openTutorial;
 
   document.querySelectorAll('[data-main-tab]').forEach(b=>b.onclick=async()=>{
     const next=b.dataset.mainTab;
@@ -418,11 +425,9 @@ function bind(){
     renderTerminal();
   });
 
-  document.querySelectorAll('[data-ticker]').forEach(b=>b.onclick=async()=>{
-    state.ticker=b.dataset.ticker;
-    await loadPublicSnapshot(false,false);
-    renderTerminal();
-  });
+  document.querySelectorAll('[data-ticker]').forEach(b=>b.onclick=async()=>{state.ticker=b.dataset.ticker;await loadPublicSnapshot(false,false);renderTerminal();});
+  const ss=document.getElementById('stockSelect');if(ss)ss.onchange=async()=>{state.ticker=ss.value;await loadPublicSnapshot(false,false);renderTerminal();};
+  document.querySelectorAll('[data-trade-tab]').forEach(b=>b.onclick=()=>{state.tradeTab=b.dataset.tradeTab;renderTerminal();});
 
   document.querySelectorAll('[data-side]').forEach(b=>b.onclick=()=>{
     state.side=b.dataset.side;
@@ -498,7 +503,13 @@ async function start(){
   }
   try{await rpc('kx_join_exchange',{})}catch(e){console.warn('KX join marker skipped:',e.message)}
   await sync(true,true,true);
-  setInterval(()=>sync(true,false,false),15000);
+  const scheduleSharedSync=()=>{
+    clearTimeout(marketSyncTimer);
+    const now=Date.now();
+    const delay=Math.max(350,5000-(now%5000)+120);
+    marketSyncTimer=setTimeout(async()=>{await sync(true,false,false);scheduleSharedSync();},delay);
+  };
+  scheduleSharedSync();
   setInterval(()=>ensureFreshBuild(),60000);
   addEventListener('resize',()=>{if(document.getElementById('chart'))drawChart()});
 }
