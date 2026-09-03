@@ -99,6 +99,49 @@ const SESS={PREOPEN:'장전',REGULAR:'정규장',CLOSING:'장마감',AFTERHOURS:
 const REGIME={BULL:'강세',NEUTRAL:'중립',BEAR:'약세',STRESS:'불안'};
 const NEWS_SEV={NORMAL:'일반',BREAKING:'속보',EXTRA:'호외'};
 const ORDER_STATUS={OPEN:'미체결',PARTIAL:'부분체결',FILLED:'체결완료',CANCELED:'취소',REJECTED:'거절'};
+const GUIDE_MODE_KEY='kx_guidance_mode_v2';
+const TUTORIAL_SEEN_KEY='kx_tutorial_seen_v3';
+const BASE_ASSET_PREFIX='kx_baseline_assets_v1';
+const GUIDE_MODES={
+  BEGINNER:{label:'초보 지원',short:'초보',desc:'이동평균선·주문 설명·뉴스 해석 보조를 모두 표시합니다.'},
+  STANDARD:{label:'표준',short:'표준',desc:'핵심 보조선과 짧은 설명만 표시합니다.'},
+  REALISTIC:{label:'실전형',short:'실전',desc:'보조선을 최소화하고 뉴스·호가·체결 정보 중심으로 봅니다.'}
+};
+function guidanceMode(){const v=localStorage.getItem(GUIDE_MODE_KEY)||'BEGINNER';return GUIDE_MODES[v]?v:'BEGINNER'}
+function guidanceInfo(){return GUIDE_MODES[guidanceMode()]||GUIDE_MODES.BEGINNER}
+function setGuidanceMode(v){if(!GUIDE_MODES[v])return;localStorage.setItem(GUIDE_MODE_KEY,v)}
+function scopedKey(prefix){return `${prefix}_${session?.user?.id||'guest'}`}
+function baselineAssets(){
+  const key=scopedKey(BASE_ASSET_PREFIX),current=Number(totalAssets())||0;
+  let base=Number(localStorage.getItem(key)||0);
+  if(base<=0&&current>0){base=current;localStorage.setItem(key,String(base))}
+  return base||current||1;
+}
+function performanceSummary(){
+  const base=baselineAssets(),now=Number(totalAssets())||0,ret=((now-base)/Math.max(1,base))*100;
+  let tier={code:'SEED',label:'시드 투자자',next:'수익률 +3%'};
+  if(ret>=30)tier={code:'MASTER',label:'포트폴리오 마스터',next:'집중도와 부채도 함께 관리'};
+  else if(ret>=15)tier={code:'STRATEGIST',label:'전략가',next:'수익률 +30%'};
+  else if(ret>=7)tier={code:'TRADER',label:'트레이더',next:'수익률 +15%'};
+  else if(ret>=3)tier={code:'ANALYST',label:'애널리스트',next:'수익률 +7%'};
+  else if(ret>=0)tier={code:'SCOUT',label:'시장 탐색자',next:'수익률 +3%'};
+  else tier={code:'RECOVERY',label:'회복 구간',next:'원금 회복'};
+  return {base,now,ret,tier};
+}
+function portfolioRiskSummary(){
+  const rows=(state.positions||[]).filter(p=>Number(p.quantity)>0).map(p=>{const st=state.stocks.find(s=>s.ticker===p.ticker);return {p,st,value:Number(p.quantity)*(Number(st?.last_price)||0)}}).filter(x=>x.value>0);
+  const invested=rows.reduce((a,x)=>a+x.value,0),largest=rows.reduce((m,x)=>x.value>m.value?x:m,{value:0,st:null});
+  const concentration=invested>0?largest.value/invested*100:0;
+  const debt=bankDebt(),assets=Math.max(1,Number(totalAssets())||1),debtRatio=debt/assets*100;
+  let label='낮음';if(concentration>=70||debtRatio>=35)label='높음';else if(concentration>=45||debtRatio>=15)label='보통';
+  return {invested,concentration,debt,debtRatio,label,largestName:largest.st?.name||'-'};
+}
+function renderMarketCoach(s){
+  if(guidanceMode()!=='BEGINNER')return '';
+  const regime=state.clock?.market_regime||'NEUTRAL',latest=state.news.find(n=>n.ticker===s.ticker)||state.news[0];
+  const copy=regime==='BULL'?'강세장에서도 급등 추격은 가격 위험이 커질 수 있습니다. 호가와 거래량을 같이 확인하세요.':regime==='BEAR'?'약세장에서는 현금 비중과 손실 한도를 먼저 확인하는 연습이 도움이 됩니다.':regime==='STRESS'?'변동성이 큰 구간입니다. 시장가 주문은 예상 체결가와 차이가 커질 수 있습니다.':'중립장입니다. 한 방향을 단정하기보다 뉴스·호가·거래량을 함께 비교해 보세요.';
+  return `<div class="market-coach"><div><small>BEGINNER COACH</small><b>${REGIME[regime]||'중립'}장 읽기</b></div><p>${copy}</p>${latest?`<span>최근 뉴스: ${escapeHtml(latest.headline)}</span>`:''}</div>`;
+}
 const META_KEY='kx_player_meta_v1';
 function defaultMeta(){return {orders:0,limitOrders:0,marketOrders:0,filledOrders:0,newsViewed:false,profitableSells:0};}
 function loadMeta(){
@@ -108,25 +151,27 @@ let playerMeta=loadMeta();
 function saveMeta(){localStorage.setItem(META_KEY,JSON.stringify(playerMeta||defaultMeta()))}
 function markNewsViewed(){if(!playerMeta.newsViewed){playerMeta.newsViewed=true;saveMeta();}}
 function missionList(){
-  const holdingCount=(state.positions||[]).filter(p=>Number(p.quantity)>0).length;
+  const held=(state.positions||[]).filter(p=>Number(p.quantity)>0);
+  const areas=new Set(held.map(p=>marketArea(state.stocks.find(s=>s.ticker===p.ticker))));
+  const total=Math.max(1,Number(totalAssets())||1),cash=Number(state.account?.cash||0),cashRatio=cash/total;
   return [
-    {id:'firstFill',name:'첫 체결',done:playerMeta.filledOrders>=1,progress:`${Math.min(playerMeta.filledOrders,1)}/1`,desc:'체결을 한 번만 경험해도 달성됩니다.'},
-    {id:'limitStrategist',name:'지정가 전략가',done:playerMeta.limitOrders>=3,progress:`${Math.min(playerMeta.limitOrders,3)}/3`,desc:'지정가 주문 3회로 가격 통제 연습.'},
-    {id:'newsTrader',name:'뉴스 기반 투자',done:playerMeta.newsViewed&&playerMeta.filledOrders>=1,progress:`${playerMeta.newsViewed?1:0}/1 + ${Math.min(playerMeta.filledOrders,1)}/1`,desc:'시장 뉴스를 본 뒤 체결 1회를 경험하세요.'},
-    {id:'diversified',name:'분산 투자',done:holdingCount>=3,progress:`${Math.min(holdingCount,3)}/3`,desc:'서로 다른 3종목 이상 보유 시 달성됩니다.'}
+    {id:'firstFill',name:'첫 체결',done:playerMeta.filledOrders>=1,progress:`${Math.min(playerMeta.filledOrders,1)}/1`,desc:'실제 체결을 한 번 경험해 보세요.'},
+    {id:'limitStrategist',name:'가격을 정하는 사람',done:playerMeta.limitOrders>=3,progress:`${Math.min(playerMeta.limitOrders,3)}/3`,desc:'지정가 주문 3회로 가격 우선 주문을 익힙니다.'},
+    {id:'newsTrader',name:'뉴스 읽고 거래하기',done:playerMeta.newsViewed&&playerMeta.filledOrders>=1,progress:`${playerMeta.newsViewed?1:0}/1 + ${Math.min(playerMeta.filledOrders,1)}/1`,desc:'뉴스를 확인하고 체결까지 경험하세요.'},
+    {id:'diversified',name:'분산의 첫걸음',done:held.length>=3,progress:`${Math.min(held.length,3)}/3`,desc:'서로 다른 종목 3개 이상을 보유합니다.'},
+    {id:'global',name:'두 시장 경험',done:areas.has('국내')&&areas.has('해외'),progress:`${areas.has('국내')?1:0}+${areas.has('해외')?1:0}/2`,desc:'국내와 해외 종목을 각각 한 종목 이상 보유합니다.'},
+    {id:'cash',name:'현금도 포지션',done:playerMeta.filledOrders>=3&&cashRatio>=.20,progress:`현금 ${Math.round(cashRatio*100)}%`,desc:'3회 이상 체결 후 총자산의 20% 이상을 현금으로 유지합니다.'}
   ];
 }
-function traderTier(){
-  const assets=Number(totalAssets())||0;
-  if(assets>=50000000)return {label:'마켓 메이커',hint:'대형 자산가 수준의 운용자'};
-  if(assets>=20000000)return {label:'펀드 매니저',hint:'자산 배분이 익숙한 상급 투자자'};
-  if(assets>=7000000)return {label:'애널리스트',hint:'뉴스와 흐름을 함께 보는 단계'};
-  if(assets>=2500000)return {label:'리서처',hint:'기초 운용을 익히는 단계'};
-  return {label:'인턴 트레이더',hint:'작은 실전으로 감각을 익히는 단계'};
-}
 function renderLiteGamePanel(){
-  const missions=missionList(),done=missions.filter(m=>m.done).length,tier=traderTier();
-  return `<section class="lite-game-panel"><div class="lite-head"><div><small>TRADER PROFILE</small><b>${tier.label}</b></div><span>배지 ${done} / ${missions.length}</span></div><p class="lite-copy">완전한 아케이드 게임 대신, 현실형 투자 화면에 <b>가벼운 목표 시스템</b>만 더했습니다. 기록은 이 브라우저에 저장됩니다.</p><div class="lite-grid"><article><small>누적 주문</small><b>${nf.format(playerMeta.orders)}</b><span>시장가 ${nf.format(playerMeta.marketOrders)} · 지정가 ${nf.format(playerMeta.limitOrders)}</span></article><article><small>체결 경험</small><b>${nf.format(playerMeta.filledOrders)}</b><span>${tier.hint}</span></article><article><small>수익 실현 매도</small><b>${nf.format(playerMeta.profitableSells)}</b><span>이익으로 끝낸 매도 주문 수</span></article></div><div class="mission-list">${missions.map(m=>`<div class="mission ${m.done?'done':''}"><b>${m.name}</b><span>${m.desc}</span><em>${m.done?'완료':'진행중'} · ${m.progress}</em></div>`).join('')}</div></section>`;
+  const missions=missionList(),done=missions.filter(m=>m.done).length,perf=performanceSummary(),risk=portfolioRiskSummary();
+  return `<section class="lite-game-panel">
+    <div class="lite-head"><div><small>KX PERFORMANCE REPORT</small><b>${perf.tier.label} <em>${perf.tier.code}</em></b></div><span>도전 ${done} / ${missions.length}</span></div>
+    <p class="lite-copy">수익률 하나만 보는 대신 <b>분산·현금·부채·주문 방식</b>까지 함께 평가하는 현실형 성취 시스템입니다.</p>
+    <div class="performance-strip"><div><small>시작 기준자산</small><b>${won(perf.base)}</b></div><div><small>현재 총자산</small><b>${won(perf.now)}</b></div><div><small>기준 대비</small><b class="${perf.ret>=0?'up':'down'}">${pct(perf.ret)}</b></div><div><small>포트폴리오 위험</small><b>${risk.label}</b></div></div>
+    <div class="risk-insight"><span>최대 종목 집중도 <b>${risk.concentration.toFixed(0)}%</b>${risk.largestName!=='-'?` · ${escapeHtml(risk.largestName)}`:''}</span><span>부채비율 <b>${risk.debtRatio.toFixed(1)}%</b></span><small>다음 기준: ${perf.tier.next}</small></div>
+    <div class="mission-list">${missions.map(m=>`<div class="mission ${m.done?'done':''}"><b>${m.name}</b><span>${m.desc}</span><em>${m.done?'완료':'진행중'} · ${m.progress}</em></div>`).join('')}</div>
+  </section>`;
 }
 function recordOrderMeta(body,order,s){
   if(!body||!order)return;
@@ -286,7 +331,7 @@ function localPriceText(s){
 function stockMarketBadge(s){return `<span class="market-badge ${marketArea(s)==='해외'?'foreign':'domestic'}">${marketArea(s)} · ${escapeHtml(marketCountry(s))}</span>`}
 
 function topNav(){
-  const items=[['market','시장'],['portfolio','내 자산'],['orders','주문 내역'],['news','뉴스'],['bank','은행'],['ranking','랭킹']];
+  const items=[['market','시장'],['portfolio','내 자산'],['orders','주문 내역'],['news','뉴스'],['learn','투자 기초'],['bank','은행'],['ranking','랭킹']];
   return `<nav class="main-nav">${items.map(([k,label])=>`<button data-main-tab="${k}" class="${state.tab===k?'on':''}">${label}</button>`).join('')}</nav>`;
 }
 
@@ -307,6 +352,13 @@ function renderChartPanel(s,ch){
   const keyNews=state.news.find(n=>(n.ticker===s.ticker||(!n.ticker&&n.sector===s.sector))&&n.severity!=='NORMAL');
   const tape=state.trades.slice(0,4);
   const latestNews=state.news.slice(0,3);
+  const gm=guidanceMode();
+  const maLegend=gm==='REALISTIC'
+    ?`<div class="ma-legend muted"><span>보조선 숨김</span></div>`
+    :`<div class="ma-legend"><span class="ma5">MA5</span><span class="ma20">MA20</span><span class="ma60">MA60</span></div>`;
+  const chartHelp=gm==='BEGINNER'
+    ?`<div class="chart-guide"><b>차트 선 읽는 법</b><span><i class="dot ma5"></i>노랑 MA5 = 최근 5봉 평균 · 아주 짧은 흐름</span><span><i class="dot ma20"></i>보라 MA20 = 최근 20봉 평균 · 중기 흐름</span><span><i class="dot ma60"></i>초록 MA60 = 최근 60봉 평균 · 더 긴 흐름</span><p>이동평균선은 미래를 맞히는 선이 아니라 <strong>지금까지의 평균 가격</strong>입니다. 현재가가 선 위에 있다고 반드시 더 오른다는 뜻은 아닙니다.</p></div>`
+    :gm==='STANDARD'?`<div class="chart-guide compact"><b>MA5 / MA20 / MA60</b><p>각각 최근 5·20·60봉의 평균 가격입니다. 미래 예측선이 아니라 과거 흐름을 정리한 보조지표입니다.</p></div>`:'';
   return `<section class="panel chart-panel balanced-chart">
     <div class="stockhead balanced-head">
       <div>
@@ -319,15 +371,17 @@ function renderChartPanel(s,ch){
     <div class="ohlc balanced-ohlc">
       <span>시가 <b>${nf.format(s.open_price)}</b></span><span>고가 <b>${nf.format(s.high_price)}</b></span><span>저가 <b>${nf.format(s.low_price)}</b></span><span>전일 <b>${nf.format(s.prev_close)}</b></span><span>거래량 <b>${nf.format(s.volume)}</b></span>
     </div>
+    ${renderMarketCoach(s)}
     ${latestNews.length?`<div class="news-wire"><span class="wire-live">LIVE</span><div class="wire-track">${latestNews.map(n=>`<button data-main-tab="news"><b>${n.severity==='EXTRA'?'호외':n.severity==='BREAKING'?'속보':'뉴스'}</b><span>${escapeHtml(n.headline)}</span><time>${n.created_at?new Date(n.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></button>`).join('')}</div></div>`:''}
     ${keyNews?`<button class="headline-strip" data-main-tab="news"><span>${keyNews.severity==='EXTRA'?'호외':'속보'}</span><b>${escapeHtml(keyNews.headline)}</b><small>기사 보기</small></button>`:''}
     <div class="chart-toolbar real-chart-toolbar">
       <div class="chart-periods" aria-label="차트 주기">${[['1M','1분'],['5M','5분'],['15M','15분']].map(([k,l])=>`<button data-chart-period="${k}" class="${state.chartPeriod===k?'on':''}">${l}</button>`).join('')}</div>
-      <div class="ma-legend"><span class="ma5">MA5</span><span class="ma20">MA20</span><span class="ma60">MA60</span></div>
-      <small>캔들 · 이동평균 · 거래량</small>
+      ${maLegend}
+      <small>현재까지의 체결만 표시 · 미래 가격은 표시하지 않음</small>
     </div>
-    <div class="chart-guide"><b>선 읽는 법</b><span><i class="dot ma5"></i>노랑 MA5 = 최근 5봉 평균</span><span><i class="dot ma20"></i>보라 MA20 = 최근 20봉 평균(가장 많이 보는 중기 흐름)</span><span><i class="dot ma60"></i>초록 MA60 = 최근 60봉 평균</span><p>즉, 질문한 <strong>보라색 선</strong>은 <strong>20봉 이동평균선</strong>입니다. 가격이 이 선 위에 있으면 최근 20봉 평균보다 강한 흐름, 아래면 상대적으로 약한 흐름으로 해석할 수 있습니다.</p></div>
+    ${chartHelp}
     <div class="chartbox balanced-chartbox real-chartbox"><canvas id="chart"></canvas></div>
+    ${marketArea(s)==='해외'?`<div class="fx-learning"><div><small>환율 체크</small><b>1 ${escapeHtml(localCurrency(s))} ≈ ${nf.format(Number(s.fx_to_krw)||1)}원</b></div><p>해외주식의 원화 수익은 <strong>현지 주가 변화 + 환율 변화</strong>가 함께 영향을 줍니다. 주가가 올라도 원화가 강해지면 환산 수익이 줄 수 있습니다.</p></div>`:''}
     <div class="tape compact-tape balanced-tape">
       <div class="tape-head"><b>최근 체결</b><small>실제 체결가가 현재가에 반영됩니다</small></div>
       <div class="tape-list">${tape.length?tape.map(t=>`<div class="tape-row"><span>${new Date(t.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}</span><b>${nf.format(t.price)}</b><span>${nf.format(t.quantity)}주</span></div>`).join(''):`<div class="empty compact">아직 체결이 없습니다.</div>`}</div>
@@ -390,7 +444,7 @@ function renderOrder(s){
         <label id="priceWrap" class="span2">지정 가격<input id="price" type="number" min="1" value="${Math.round(Number(price)||Number(s.last_price)||1)}"></label>
       </div>
       <div class="order-help" id="orderHelp">${state.type==='MARKET'?'시장가: 현재 가장 유리한 호가부터 즉시 체결됩니다. 수량이 크면 여러 가격에 나뉘어 체결될 수 있습니다.':'지정가: 내가 정한 가격 이하(매수) 또는 이상(매도)에서만 체결됩니다.'}</div>
-      <div class="order-compare"><div><b>시장가</b><span>속도 우선</span><small>지금 바로 사고팔고 싶을 때. 다만 예상보다 비싸게 사거나 싸게 팔릴 수 있습니다.</small></div><div><b>지정가</b><span>가격 우선</span><small>원하는 가격에만 거래하고 싶을 때. 대신 체결이 안 될 수 있습니다.</small></div></div>
+      ${guidanceMode()==='REALISTIC'?'':`<div class="order-compare"><div><b>시장가</b><span>속도 우선</span><small>지금 바로 사고팔고 싶을 때. 다만 예상보다 비싸게 사거나 싸게 팔릴 수 있습니다.</small></div><div><b>지정가</b><span>가격 우선</span><small>원하는 가격에만 거래하고 싶을 때. 대신 체결이 안 될 수 있습니다.</small></div></div>`}
       <details class="advanced"><summary>고급 체결 조건</summary><label>체결 조건<select id="tif"><option value="DAY" ${state.tif==='DAY'?'selected':''}>DAY · 장 마감까지</option><option value="IOC" ${state.tif==='IOC'?'selected':''}>IOC · 가능한 만큼 즉시 체결 후 취소</option><option value="FOK" ${state.tif==='FOK'?'selected':''}>FOK · 전량 즉시 체결되지 않으면 취소</option></select></label></details>
       <button id="submitOrder" class="submit ${state.side==='BUY'?'buy':'sell'}">${state.side==='BUY'?'매수':'매도'} 주문 확인</button>
       <div class="msg" id="orderMsg">수량과 가격을 확인한 뒤 최종 확인창에서 주문합니다.</div>
@@ -448,15 +502,20 @@ function renderOrders(){
 function renderNews(){
   const lead=state.news.find(n=>n.severity==='EXTRA')||state.news.find(n=>n.severity==='BREAKING')||state.news[0];
   const rest=lead?state.news.filter(n=>n.id!==lead.id):state.news;
+  const gm=guidanceMode();
+  const interpretation=gm==='BEGINNER'?`<div class="news-learning"><b>뉴스를 이렇게 읽어보세요</b><span>① 어떤 기업·산업 이야기인지 → ② 실제 실적/수요/비용에 어떤 영향을 주는지 → ③ 이미 가격에 반영됐는지 순서로 봅니다. <strong>좋은 뉴스 = 무조건 매수</strong>는 아닙니다.</span></div>`:gm==='STANDARD'?`<div class="news-learning compact"><b>뉴스는 방향 신호가 아니라 정보</b><span>헤드라인보다 실적·수요·비용 변화와 이미 반영된 기대를 함께 보세요.</span></div>`:'';
   return `<main class="page-view"><section class="panel page-panel newsroom">
     <div class="page-title newsroom-title"><div><small>KX MARKET NEWS · LIVE</small><h1>시장 뉴스</h1></div><span>가격·뉴스·발표 시각은 모든 접속자에게 동일합니다</span></div>
+    ${interpretation}
     ${lead?`<article class="lead-news ${lead.severity==='EXTRA'?'extra':lead.severity==='BREAKING'?'breaking':''}">
       <div class="newsmeta"><span class="newsbadge ${lead.severity==='EXTRA'?'extra':lead.severity==='BREAKING'?'breaking':''}">${NEWS_SEV[lead.severity]||'일반'}</span><span>${escapeHtml(lead.ticker||lead.sector||'시장')}</span><time>${lead.created_at?new Date(lead.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></div>
       <h2>${escapeHtml(lead.headline)}</h2><p>${escapeHtml(lead.body)}</p>
     </article>`:''}
     <div class="newslist">${rest.length?rest.map(n=>{
-      const sev=NEWS_SEV[n.severity]||n.severity||'일반';const mood=Number(n.sentiment)>=0?'매수 우위':'매도 우위';const sevClass=n.severity==='EXTRA'?'extra':n.severity==='BREAKING'?'breaking':'';
-      return `<article class="newsitem"><div class="newsmeta"><span class="newsbadge ${sevClass}">${escapeHtml(sev)}</span><span>${escapeHtml(n.ticker||n.sector||'시장')}</span><span class="${Number(n.sentiment)>=0?'up':'down'}">${mood}</span><time>${n.created_at?new Date(n.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></div><h3>${escapeHtml(n.headline)}</h3><p>${escapeHtml(n.body)}</p></article>`;
+      const sev=NEWS_SEV[n.severity]||n.severity||'일반';const sevClass=n.severity==='EXTRA'?'extra':n.severity==='BREAKING'?'breaking':'';
+      const mood=Number(n.sentiment)>=0?'긍정 압력':'부정 압력';
+      const moodHtml=gm==='REALISTIC'?'':`<span class="${Number(n.sentiment)>=0?'up':'down'}">${mood}</span>`;
+      return `<article class="newsitem"><div class="newsmeta"><span class="newsbadge ${sevClass}">${escapeHtml(sev)}</span><span>${escapeHtml(n.ticker||n.sector||'시장')}</span>${moodHtml}<time>${n.created_at?new Date(n.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></div><h3>${escapeHtml(n.headline)}</h3><p>${escapeHtml(n.body)}</p></article>`;
     }).join(''):`<div class="empty">아직 발표된 뉴스가 없습니다.</div>`}</div>
   </section></main>`;
 }
@@ -489,34 +548,86 @@ function renderRanking(){
   </section></main>`;
 }
 
-function openTutorial(){
-  document.getElementById('kxTutorial')?.remove();
-  const el=document.createElement('div');el.id='kxTutorial';el.className='tutorial-backdrop';
-  el.innerHTML=`<section class="tutorial-card tutorial-card-wide" role="dialog" aria-modal="true" aria-label="KX EXCHANGE 튜토리얼">
-    <button class="tutorial-close" aria-label="닫기">×</button>
-    <div class="tutorial-kicker">KX EXCHANGE GUIDE</div><h2>처음 거래할 때 보는 안내</h2><p class="tutorial-intro">가격·뉴스·시장 시간은 모든 플레이어가 같은 공용 시장을 봅니다. 아래 흐름만 이해하면 바로 거래할 수 있습니다.</p>
-    <div class="tutorial-basics">
-      <article><b>시장가 주문</b><p><strong>가격을 정하지 않고 지금 시장에서 가장 유리한 호가부터 즉시 체결</strong>시키는 주문입니다. 빨리 사고팔 수 있지만 주문 수량이 크면 여러 호가에 걸쳐 체결되어 예상보다 비싸게 사거나 싸게 팔 수 있습니다.</p></article>
-      <article><b>지정가 주문</b><p><strong>내가 원하는 가격을 직접 정하는 주문</strong>입니다. 매수는 지정한 가격 이하, 매도는 지정한 가격 이상에서만 체결됩니다. 가격이 오지 않으면 미체결로 남을 수 있습니다.</p></article>
-    </div>
-    <ol class="tutorial-steps">
-      <li><b>1. 종목 고르기</b><span>전체·국내·해외 탭으로 시장을 나눠 볼 수 있습니다. 해외 종목은 현지 통화 가격도 함께 보여주지만, 게임에서는 이해하기 쉽게 공용 환율을 적용한 원화 환산 가격으로 주문됩니다.</span></li>
-      <li><b>2. 차트 보기</b><span>캔들은 1분 동안의 시가·고가·저가·종가를 나타냅니다. 빨강/파랑 봉과 최근 체결 흐름을 함께 봅니다.</span></li>
-      <li><b>3. 호가 보기</b><span>매도호가는 팔려는 가격, 매수호가는 사려는 가격입니다. 가장 가까운 호가부터 실제 주문이 체결됩니다.</span></li>
-      <li><b>4. 주문하기</b><span>시장가 또는 지정가, 수량을 정하고 주문 확인 버튼을 누르면 예상 금액을 한 번 더 확인한 뒤 최종 주문합니다.</span></li>
-      <li><b>5. 체결 조건</b><span>DAY는 장 마감까지 유지, IOC는 가능한 만큼 즉시 체결 후 나머지 취소, FOK는 전량 즉시 체결되지 않으면 전부 취소입니다.</span></li>
-      <li><b>6. 뉴스 보기</b><span>속보·호외는 모든 플레이어에게 같은 뉴스 ID와 발표시각으로 공개됩니다. 뉴스는 매수·매도 주문 흐름에 영향을 줍니다.</span></li>
-      <li><b>7. 자산 관리</b><span>내 자산에서 평균단가와 평가손익을 확인하고 주문 내역에서 미체결 주문을 취소할 수 있습니다.</span></li>
-      <li><b>8. 손실이 나는 이유</b><span>약세장·불안장, 악재, 고평가 되돌림, 거래비용 때문에 주가는 실제로 하락할 수 있습니다. 고점 추격이나 대출 투자에는 손실 위험이 있습니다.</span></li>
-      <li><b>9. 은행 이용</b><span>예금·적금은 현금이 묶이고 이자를 받습니다. 대출은 현금을 늘리지만 부채가 총자산에서 차감되고 매 DAY 이자와 원금 상환이 발생합니다.</span></li>
-      <li><b>10. 핵심 원칙</b><span>가격은 브라우저마다 랜덤으로 움직이지 않습니다. 공용 시장에서 발생한 체결과 뉴스가 모든 플레이어에게 같은 현재가와 같은 시각으로 반영됩니다.</span></li>
-    </ol>
-    <div class="tutorial-tip"><b>처음이라면</b><span>종목 선택 → 뉴스 확인 → 호가 확인 → 소량 주문 → 체결 결과 확인 순서로 연습해 보세요.</span></div>
-    <button class="tutorial-start">확인하고 시작하기</button>
-  </section>`;
-  document.body.appendChild(el);
-  const close=()=>el.remove();el.querySelector('.tutorial-close').onclick=close;el.querySelector('.tutorial-start').onclick=close;el.onclick=e=>{if(e.target===el)close()};
+function renderInvestmentGuide(){
+  return `<main class="page-view learn-page"><section class="panel page-panel learn-panel">
+    <div class="page-title learn-title"><div><small>INVESTMENT BASICS · 2026.09</small><h1>투자 기초</h1></div><span>주가 방향보다 먼저 알아두면 좋은 계좌·상품·손실 구조</span></div>
+
+    <div class="learn-alert"><b>가장 먼저: 투자금은 원금보장 상품이 아닙니다</b><p>주식·ETF·펀드는 가격이 떨어지면 평가금액이 투자원금보다 작아질 수 있습니다. 팔기 전에는 평가손실, 팔면 손실이 확정됩니다. 기업 부도·상장폐지처럼 극단적인 경우에는 투자금의 대부분을 잃을 수도 있습니다. 예금·적금과 같은 원금보장 상품과 구분해서 보세요.</p></div>
+
+    <section class="learn-section">
+      <div class="learn-section-head"><small>01 · MARKET</small><h2>국내 주식과 해외 주식은 뭐가 다른가요?</h2></div>
+      <div class="learn-compare two">
+        <article><span class="learn-tag domestic">국내 주식</span><h3>원화로 한국 거래소 종목에 투자</h3><ul><li>원화로 거래하므로 직접적인 환전 과정이 없습니다.</li><li>한국 장 운영시간과 국내 공시·뉴스의 영향을 크게 받습니다.</li><li>종목·투자자 유형에 따라 세금 규칙이 달라질 수 있습니다.</li></ul></article>
+        <article><span class="learn-tag foreign">해외 주식</span><h3>해외 기업 + 환율까지 함께 움직임</h3><ul><li>주가가 올라도 원화 환산 시 환율 때문에 수익이 줄 수 있고, 반대도 가능합니다.</li><li>국가별 거래시간·휴장일·배당 원천징수·매매차익 과세 규칙이 다릅니다.</li><li>이 게임은 해외 종목을 이해하기 쉽게 원화 환산 가격으로 보여줍니다.</li></ul></article>
+      </div>
+      <div class="learn-example"><b>예시</b><span>미국 주식이 달러 기준 +5% 올라도 같은 기간 원/달러 환율이 크게 내려가면 원화 기준 수익률은 +5%보다 작아질 수 있습니다.</span></div>
+    </section>
+
+    <section class="learn-section">
+      <div class="learn-section-head"><small>02 · ACCOUNT</small><h2>같은 투자라도 어느 계좌에 넣느냐가 다릅니다</h2></div>
+      <div class="account-cards">
+        <article><div class="account-head"><span>일반계좌</span><b>자유도 우선</b></div><p>국내·해외 주식 등 다양한 상품을 직접 거래하기 가장 단순한 계좌입니다. 대신 ISA나 연금계좌 같은 별도 세제혜택은 없습니다.</p><dl><div><dt>잘 맞는 경우</dt><dd>자유로운 매매·해외 개별주식</dd></div><div><dt>주의</dt><dd>상품별 세금과 환율을 따로 확인</dd></div></dl></article>
+        <article><div class="account-head"><span>중개형 ISA</span><b>절세 + 국내상장 상품</b></div><p>국내상장주식·ETF·펀드 등을 한 계좌에서 운용하며 손익통산과 세제혜택을 받을 수 있는 계좌입니다. 해외 거래소의 개별주식을 직접 사는 용도는 아닙니다.</p><dl><div><dt>2026.09 현행</dt><dd>연 2,000만원 · 총 1억원 · 의무 3년</dd></div><div><dt>세제</dt><dd>일반형 순이익 200만원, 서민·농어민형 400만원까지 비과세, 초과분 9.9% 분리과세</dd></div></dl></article>
+        <article><div class="account-head"><span>연금저축</span><b>노후 + 세액공제</b></div><p>장기 노후자금 계좌입니다. 개별주식을 직접 고르는 계좌라기보다 펀드·ETF 중심으로 운용합니다. 세액공제를 받는 대신 연금 목적에 맞는 장기 운용이 중요합니다.</p><dl><div><dt>세액공제 대상 한도</dt><dd>연금저축 납입액 중 연 600만원까지</dd></div><div><dt>주의</dt><dd>중도해지·연금 외 수령 시 세금상 불이익 가능</dd></div></dl></article>
+        <article><div class="account-head"><span>IRP</span><b>노후 + 더 엄격한 운용</b></div><p>개인형퇴직연금 계좌입니다. 연금저축과 합산해 세액공제 대상 납입한도를 넓힐 수 있지만, 위험자산 비중과 중도인출 조건이 더 엄격합니다.</p><dl><div><dt>세액공제 대상 한도</dt><dd>연금저축 포함 합산 연 900만원까지</dd></div><div><dt>투자 제한</dt><dd>주식형 등 위험자산은 통상 적립금의 최대 70%</dd></div></dl></article>
+      </div>
+      <p class="learn-law-note">※ 세법·계좌 규정은 개정될 수 있습니다. 게임에서는 학습을 위해 핵심 구조만 보여주며 실제 투자 전에는 금융회사·국세청의 최신 안내를 확인해야 합니다.</p>
+    </section>
+
+    <section class="learn-section">
+      <div class="learn-section-head"><small>03 · PRODUCT</small><h2>ETF와 펀드는 무엇인가요?</h2></div>
+      <div class="learn-compare two">
+        <article><span class="learn-tag etf">ETF</span><h3>여러 자산을 한 바구니에 담아 주식처럼 거래</h3><p>ETF는 상장지수펀드입니다. 여러 종목이나 채권 등을 묶은 펀드인데 거래소에 상장돼 있어서 장중에 주식처럼 가격을 보며 사고팔 수 있습니다.</p><div class="mini-row"><span>장점</span><b>분산투자 · 실시간 거래 · 비교적 낮은 비용 구조</b></div><div class="mini-row"><span>위험</span><b>지수·편입자산이 떨어지면 ETF 가격도 하락</b></div></article>
+        <article><span class="learn-tag fund">일반 펀드</span><h3>여러 사람의 돈을 모아 전문적으로 운용</h3><p>투자자의 돈을 모아 주식·채권 등에 나눠 투자하는 집합투자상품입니다. ETF와 달리 일반적인 공모펀드는 주식처럼 장중 실시간 가격으로 매매하는 구조가 아닙니다.</p><div class="mini-row"><span>장점</span><b>전문 운용 · 소액 분산투자</b></div><div class="mini-row"><span>주의</span><b>보수·수수료와 환매 조건, 투자대상을 확인</b></div></article>
+      </div>
+      <div class="learn-example"><b>한 줄 정리</b><span><strong>개별주식</strong>은 한 회사를 직접 고르는 것, <strong>ETF</strong>는 여러 자산 바구니를 주식처럼 거래하는 것, <strong>펀드</strong>는 투자금을 모아 정해진 전략으로 운용하는 상품입니다.</span></div>
+    </section>
+
+    <section class="learn-section">
+      <div class="learn-section-head"><small>04 · RISK</small><h2>“원금이 없어져요?”에 대한 답</h2></div>
+      <div class="risk-scale"><div><span>예금·적금</span><b>원금보장 여부를 상품 조건에서 확인</b><em>상대적으로 낮은 변동성</em></div><div><span>채권·채권형 펀드</span><b>금리·신용위험으로 가격 변동 가능</b><em>손실 가능</em></div><div><span>ETF·펀드</span><b>편입자산에 따라 위험이 크게 달라짐</b><em>원금 손실 가능</em></div><div><span>개별주식</span><b>기업가치·시장 충격에 직접 노출</b><em>큰 손실 가능</em></div></div>
+      <div class="learn-rule-grid"><article><b>평가손실</b><span>100만원에 산 자산이 80만원이 되면 자산 화면에는 -20만원이 표시됩니다. 아직 팔지 않았어도 내 자산가치는 줄어든 상태입니다.</span></article><article><b>확정손실</b><span>80만원에 팔면 -20만원 손실이 확정됩니다. 이후 가격이 다시 올라도 이미 매도했기 때문에 회복되지 않습니다.</span></article><article><b>분산투자</b><span>한 종목에 전액을 넣는 것보다 서로 다른 종목·자산으로 나누면 특정 기업 충격의 영향을 줄이는 데 도움이 됩니다.</span></article><article><b>대출투자</b><span>손실이 나도 빌린 돈과 이자는 갚아야 하므로 손실 폭이 커질 수 있습니다. 게임의 신용대출도 같은 위험을 반영합니다.</span></article></div>
+    </section>
+
+    <div class="learn-bottom"><b>게임에서 이렇게 연습해보세요</b><span>① 투자 기초 확인 → ② 뉴스 확인 → ③ 국내/해외 종목 비교 → ④ 소량 지정가 주문 → ⑤ 평가손익 확인 → ⑥ 여러 종목으로 분산</span></div>
+  </section></main>`;
 }
+
+function tutorialSlides(){
+  return [
+    {kicker:'01 · START',title:'주식이 오르내리는 것만 보는 게임이 아닙니다',body:`<div class="guide-hero"><b>목표</b><span>공용 시장에서 현금·주식·예금·대출을 관리하며 <strong>총자산과 위험을 함께 관리</strong>하는 것이 목표입니다.</span></div><div class="guide-points"><article><b>모두 같은 시장</b><span>가격·뉴스·시장 시간은 모든 플레이어가 같은 데이터를 봅니다.</span></article><article><b>미래는 안 보임</b><span>차트는 지금까지 발생한 체결만 보여줍니다. 다음 가격은 미리 표시하지 않습니다.</span></article><article><b>수익률만이 전부는 아님</b><span>현금 비중, 집중도, 부채, 주문 습관도 성취 시스템에 반영됩니다.</span></article></div>`},
+    {kicker:'02 · CHART',title:'차트는 미래 예언이 아니라 과거를 정리한 기록입니다',body:`<div class="guide-visual-row"><div class="candle-demo"><i class="wick"></i><i class="body"></i></div><div><b>캔들 한 개</b><span>시가·고가·저가·종가를 한 번에 보여줍니다. 몸통과 꼬리로 그 구간의 움직임을 읽습니다.</span></div></div><div class="guide-points"><article><b>MA5</b><span>최근 5봉 평균. 아주 짧은 흐름.</span></article><article><b>MA20</b><span>보라색 선. 최근 20봉 평균. 중기 흐름.</span></article><article><b>MA60</b><span>더 긴 흐름을 보는 평균선.</span></article><article><b>거래량</b><span>가격이 움직일 때 실제 거래가 얼마나 붙었는지 보는 보조 정보.</span></article></div><div class="guide-warning">이동평균선 위에 있다고 반드시 오르고, 아래라고 반드시 떨어지는 것은 아닙니다.</div>`},
+    {kicker:'03 · ORDER',title:'시장가와 지정가는 “속도”와 “가격” 중 무엇을 우선하느냐의 차이',body:`<div class="guide-order-compare"><article><span>시장가</span><b>지금 바로 체결 우선</b><p>현재 가장 유리한 호가부터 바로 거래합니다. 빠르지만 수량이 크거나 변동성이 크면 예상보다 비싸게 사거나 싸게 팔릴 수 있습니다.</p><em>예: 현재 10,000원 부근 → 가능한 가격부터 즉시 매수</em></article><article><span>지정가</span><b>내가 정한 가격 우선</b><p>매수는 정한 가격 이하, 매도는 정한 가격 이상에서만 체결됩니다. 원하는 가격을 지킬 수 있지만 거래가 안 될 수도 있습니다.</p><em>예: 9,800원 이하에서만 사고 싶다</em></article></div><div class="guide-warning">처음에는 소량 지정가 주문으로 호가와 체결 구조를 익히는 것을 권장합니다.</div>`},
+    {kicker:'04 · GLOBAL',title:'해외주식은 주가만 보는 것이 아니라 환율도 같이 봅니다',body:`<div class="guide-equation"><span>원화 기준 해외주식 가치</span><b>현지 주가 × 환율</b></div><div class="guide-points"><article><b>주가 상승 + 환율 상승</b><span>원화 기준 수익이 더 커질 수 있습니다.</span></article><article><b>주가 상승 + 환율 하락</b><span>현지 주가는 올라도 원화 수익은 줄 수 있습니다.</span></article><article><b>거래시간</b><span>국가마다 장 운영시간과 휴장일이 다릅니다.</span></article><article><b>이 게임의 표시</b><span>현지 통화 가격과 원화 환산 가격을 함께 보여줍니다.</span></article></div>`},
+    {kicker:'05 · NEWS & RISK',title:'뉴스는 “정답 버튼”이 아니라 판단 재료입니다',body:`<div class="guide-points"><article><b>1. 대상 확인</b><span>기업 뉴스인지, 산업 전체인지, 시장 전체인지 구분합니다.</span></article><article><b>2. 실제 영향</b><span>매출·비용·수요·금리·환율에 어떤 영향을 줄지 생각합니다.</span></article><article><b>3. 이미 반영됐나?</b><span>좋은 뉴스가 나와도 기대가 미리 가격에 반영됐다면 바로 오르지 않을 수 있습니다.</span></article><article><b>4. 한 종목 몰빵 주의</b><span>좋아 보이는 뉴스 하나만 보고 자산 대부분을 한 종목에 넣으면 충격을 크게 받습니다.</span></article></div><div class="guide-warning">뉴스의 ‘긍정/부정 압력’ 표시는 초보자용 해석 보조일 뿐, 매수·매도 추천이 아닙니다.</div>`},
+    {kicker:'06 · ACCOUNT',title:'현금·주식·은행·부채를 한 장의 자산표처럼 봅니다',body:`<div class="guide-points"><article><b>평가손익</b><span>아직 팔지 않았어도 현재 가격 기준으로 자산가치가 얼마나 변했는지 보여줍니다.</span></article><article><b>현금 비중</b><span>현금은 수익이 없을 수 있지만 급락 시 선택권을 남겨주는 자산입니다.</span></article><article><b>예금·적금</b><span>변동성은 낮지만 자금이 일정 기간 묶입니다.</span></article><article><b>대출</b><span>현금은 늘지만 부채와 이자가 생깁니다. 투자 손실과 이자가 동시에 발생할 수 있습니다.</span></article></div><div class="guide-action-note">상단의 <b>투자 기초</b> 메뉴에는 일반계좌·ISA·연금저축·IRP·ETF·펀드 설명도 따로 정리되어 있습니다.</div>`},
+    {kicker:'07 · PLAY STYLE',title:'내가 볼 정보량을 선택하세요',body:`<div class="guide-mode-grid">${Object.entries(GUIDE_MODES).map(([k,v])=>`<button type="button" data-guide-mode="${k}" class="${guidanceMode()===k?'on':''}"><b>${v.label}</b><span>${v.desc}</span>${k==='BEGINNER'?'<em>추천 · 처음 주식 게임을 하는 경우</em>':k==='STANDARD'?'<em>설명은 줄이고 핵심 보조만</em>':'<em>보조지표 없이 스스로 판단</em>'}</button>`).join('')}</div><div class="guide-warning">이 설정은 시장 가격을 바꾸지 않습니다. 같은 공용 시장을 보되 <strong>화면에 표시되는 도움 정보의 양만</strong> 달라집니다.</div>`}
+  ];
+}
+function openTutorial(startIndex=0){
+  document.getElementById('kxTutorial')?.remove();
+  const slides=tutorialSlides();let index=Math.max(0,Math.min(slides.length-1,Number(startIndex)||0));
+  const el=document.createElement('div');el.id='kxTutorial';el.className='tutorial-backdrop';
+  const draw=()=>{
+    const slide=slides[index];
+    el.innerHTML=`<section class="tutorial-card tutorial-wizard" role="dialog" aria-modal="true" aria-label="KX EXCHANGE 튜토리얼">
+      <button class="tutorial-close" aria-label="닫기">×</button>
+      <div class="tutorial-progress"><span>${index+1} / ${slides.length}</span><div>${slides.map((_,i)=>`<i class="${i===index?'on':i<index?'done':''}"></i>`).join('')}</div></div>
+      <div class="tutorial-kicker">${slide.kicker}</div><h2>${slide.title}</h2>
+      <div class="tutorial-slide-body">${slide.body}</div>
+      <div class="tutorial-actions"><button type="button" class="tutorial-secondary" data-tutorial-prev ${index===0?'disabled':''}>이전</button>${index===slides.length-1?'<button type="button" class="tutorial-secondary" data-open-basics>투자 기초 열기</button>':''}<button type="button" class="tutorial-start" data-tutorial-next>${index===slides.length-1?'설정 저장하고 시작':'다음'}</button></div>
+    </section>`;
+    el.querySelector('.tutorial-close').onclick=close;
+    const prev=el.querySelector('[data-tutorial-prev]');if(prev)prev.onclick=()=>{index=Math.max(0,index-1);draw()};
+    const next=el.querySelector('[data-tutorial-next]');if(next)next.onclick=()=>{if(index<slides.length-1){index++;draw()}else close()};
+    el.querySelectorAll('[data-guide-mode]').forEach(b=>b.onclick=()=>{setGuidanceMode(b.dataset.guideMode);draw()});
+    const basics=el.querySelector('[data-open-basics]');if(basics)basics.onclick=()=>{localStorage.setItem(TUTORIAL_SEEN_KEY,'1');el.remove();state.tab='learn';renderTerminal()};
+  };
+  const close=()=>{localStorage.setItem(TUTORIAL_SEEN_KEY,'1');el.remove();renderTerminal()};
+  document.body.appendChild(el);draw();
+  el.onclick=e=>{if(e.target===el)close()};
+}
+function openGuideSettings(){openTutorial(tutorialSlides().length-1)}
 
 function renderTerminal(){
   const s=selected();if(!s)return;
@@ -525,6 +636,7 @@ function renderTerminal(){
     :state.tab==='portfolio'?renderPortfolio()
     :state.tab==='orders'?renderOrders()
     :state.tab==='news'?renderNews()
+    :state.tab==='learn'?renderInvestmentGuide()
     :state.tab==='bank'?renderBank()
     :renderRanking();
 
@@ -534,7 +646,7 @@ function renderTerminal(){
       ${topNav()}
       <div class="market-status"><b>DAY ${state.clock?.game_day||1}</b><span>${gameTime(state.clock?.game_minute||0)}</span><em>${SESS[state.clock?.session]||'-'}</em><i class="market-regime ${(state.clock?.market_regime||'NEUTRAL').toLowerCase()}">${REGIME[state.clock?.market_regime||'NEUTRAL']||'중립'}장</i></div>
       <div class="header-money"><div class="asset cash"><small>보유 현금</small><b>${won(state.account?.cash)}</b></div><div class="asset"><small>총자산</small><b>${won(totalAssets())}</b></div></div>
-      <button class="tutorial-btn" id="tutorialBtn">? 튜토리얼</button><button class="logout" id="logout">로그아웃</button>
+      <button class="guide-mode-btn" id="guideModeBtn" title="화면 도움 정보 설정">지원: ${guidanceInfo().short}</button><button class="tutorial-btn" id="tutorialBtn">? 튜토리얼</button><button class="logout" id="logout">로그아웃</button>
     </header>
     <div class="mobile-account-bar"><span>보유 현금 <b>${won(state.account?.cash)}</b></span><span>총자산 <b>${won(totalAssets())}</b></span></div>
     ${content}
@@ -543,12 +655,14 @@ function renderTerminal(){
       <button data-main-tab="portfolio" class="${state.tab==='portfolio'?'on':''}">자산</button>
       <button data-main-tab="orders" class="${state.tab==='orders'?'on':''}">주문</button>
       <button data-main-tab="news" class="${state.tab==='news'?'on':''}">뉴스</button>
+      <button data-main-tab="learn" class="${state.tab==='learn'?'on':''}">기초</button>
       <button data-main-tab="bank" class="${state.tab==='bank'?'on':''}">은행</button>
       <button data-main-tab="ranking" class="${state.tab==='ranking'?'on':''}">랭킹</button>
     </nav>
   </div>`;
   bind();
   if(state.tab==='market')drawChart();
+  if(!localStorage.getItem(TUTORIAL_SEEN_KEY)&&!document.getElementById('kxTutorial'))setTimeout(()=>{if(!document.getElementById('kxTutorial'))openTutorial(0)},180);
 }
 
 function rememberOrderInputs(){
@@ -589,6 +703,7 @@ function showOrderConfirm(body){
     <div class="confirm-stock"><span>${escapeHtml(s.name)} <small>${s.ticker}</small></span><b>${nf.format(s.last_price)}원</b></div>
     ${(()=>{const m=positionMetrics(s,body.p_quantity,est.avg);return `<dl class="confirm-grid"><div><dt>주문 방식</dt><dd>${body.p_order_type==='MARKET'?'시장가':'지정가'}</dd></div><div><dt>수량</dt><dd>${nf.format(body.p_quantity)}주</dd></div>${body.p_order_type==='LIMIT'?`<div><dt>지정 가격</dt><dd>${nf.format(body.p_limit_price)}원</dd></div>`:`<div><dt>예상 평균가</dt><dd>약 ${nf.format(est.avg)}원</dd></div>`}${!buy?`<div><dt>보유 수량</dt><dd>${nf.format(m.held)}주</dd></div><div><dt>평균 매입가</dt><dd>${nf.format(m.avg)}원</dd></div><div><dt>예상 실현손익</dt><dd class="${m.realizedPnl>=0?'up':'down'}">${m.realizedPnl>=0?'+':''}${won(m.realizedPnl)} (${pct(m.realizedReturn)})</dd></div><div><dt>체결 후 예상 보유</dt><dd>${nf.format(m.remaining)}주</dd></div>`:''}<div class="wide"><dt>${buy?'예상 출금액':'예상 거래금액'}</dt><dd class="confirm-amount">약 ${won(est.amount)}</dd></div></dl>`})()}
     <p class="confirm-note">${escapeHtml(est.note)}${body.p_order_type==='MARKET'?'입니다. 시장가 주문은 주문 순간 호가 변화와 여러 가격대 체결 때문에 실제 금액이 달라질 수 있습니다.':''}</p>
+    <div class="confirm-risk"><b>원금손실 가능</b><span>주식은 예금이 아닙니다. 매수 후 가격이 하락하면 투자원금보다 평가금액이 작아질 수 있습니다.</span></div>
     <div class="confirm-actions"><button id="cancelConfirm">돌아가기</button><button id="finalConfirm" class="${buy?'buy':'sell'}">${buy?'매수':'매도'} 최종 주문</button></div>
   </section>`;
   document.body.appendChild(el);
@@ -612,7 +727,8 @@ async function executePendingOrder(){
 
 function bind(){
   document.getElementById('logout').onclick=logout;
-  const tb=document.getElementById('tutorialBtn');if(tb)tb.onclick=openTutorial;
+  const tb=document.getElementById('tutorialBtn');if(tb)tb.onclick=()=>openTutorial(0);
+  const gb=document.getElementById('guideModeBtn');if(gb)gb.onclick=openGuideSettings;
 
   document.querySelectorAll('[data-main-tab]').forEach(b=>b.onclick=async()=>{
     rememberOrderInputs();
@@ -756,7 +872,7 @@ function drawChart(){
   const prevClose=Number(selected()?.prev_close||0);if(prevClose>=lo&&prevClose<=hi){ctx.save();ctx.setLineDash([4,4]);ctx.strokeStyle='#536175';ctx.beginPath();ctx.moveTo(L,y(prevClose));ctx.lineTo(L+plotW,y(prevClose));ctx.stroke();ctx.restore()}
   rows.forEach((x,i)=>{const xx=L+i*step+step/2,op=Number(x.open),cl=Number(x.close),hg=Number(x.high),lw=Number(x.low),up=cl>=op;ctx.strokeStyle=ctx.fillStyle=up?'#e66b70':'#668de8';ctx.globalAlpha=x.synthetic?.35:1;ctx.beginPath();ctx.moveTo(xx,y(hg));ctx.lineTo(xx,y(lw));ctx.stroke();const yy=Math.min(y(op),y(cl)),hh=Math.max(1.5,Math.abs(y(op)-y(cl)));ctx.fillRect(xx-bw/2,yy,bw,hh);ctx.globalAlpha=1});
   const drawMA=(vals,color,width=1.35)=>{ctx.save();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();let started=false;vals.forEach((v,i)=>{if(v==null||v<lo*.8||v>hi*1.2)return;const xx=L+i*step+step/2,yy=y(v);if(!started){ctx.moveTo(xx,yy);started=true}else ctx.lineTo(xx,yy)});if(started)ctx.stroke();ctx.restore()};
-  drawMA(ma5,'#e7bf59',1.5);drawMA(ma20,'#a776dc',1.35);drawMA(ma60,'#59aa78',1.35);
+  if(guidanceMode()!=='REALISTIC'){drawMA(ma5,'#e7bf59',1.5);drawMA(ma20,'#a776dc',1.35);drawMA(ma60,'#59aa78',1.35);}
   const currentY=y(last);if(currentY>=T&&currentY<=priceBottom){ctx.save();ctx.setLineDash([3,3]);ctx.strokeStyle='#d7dde7';ctx.globalAlpha=.75;ctx.beginPath();ctx.moveTo(L,currentY);ctx.lineTo(L+plotW,currentY);ctx.stroke();ctx.restore();const label=nf.format(Math.round(last));ctx.font=`bold ${W<560?9:10}px sans-serif`;const tw=ctx.measureText(label).width+10;ctx.fillStyle='#182330';ctx.fillRect(L+plotW+3,currentY-10,Math.min(R-5,tw),20);ctx.strokeStyle=Number(selected()?.last_price)>=Number(selected()?.prev_close)?'#b95157':'#4f72bd';ctx.strokeRect(L+plotW+3,currentY-10,Math.min(R-5,tw),20);ctx.fillStyle='#eef3f8';ctx.fillText(label,L+plotW+8,currentY+3)}
   const maxVol=Math.max(1,...rows.map(x=>Number(x.volume)||0));ctx.strokeStyle='#1c2631';ctx.beginPath();ctx.moveTo(L,volTop);ctx.lineTo(L+plotW,volTop);ctx.stroke();
   rows.forEach((x,i)=>{const xx=L+i*step+step/2,vh=(Number(x.volume)||0)/maxVol*(volH-10),up=Number(x.close)>=Number(x.open);ctx.fillStyle=up?'rgba(230,107,112,.60)':'rgba(102,141,232,.60)';ctx.fillRect(xx-bw/2,volTop+volH-vh,bw,Math.max(1,vh))});
