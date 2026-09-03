@@ -8,6 +8,19 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+    headers:
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+      - path: /config.js
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+      - path: /app.js
+        name: Cache-Control
+        value: no-cache, must-revalidate
+      - path: /styles.css
+        name: Cache-Control
+        value: no-cache, must-revalidate
     envVars:
       - key: NEXT_PUBLIC_SUPABASE_URL
         sync: false
