@@ -1,0 +1,2 @@
+중요: GitHub 저장소의 기존 파일을 남긴 채 ZIP을 추가하지 말고, 저장소 루트의 기존 앱 파일을 정리한 뒤 이 ZIP의 파일을 루트에 넣는 것을 권장합니다.
+특히 package.json, server.js, game.js, index.js, render.yaml은 이번 버전으로 반드시 교체되어야 합니다.

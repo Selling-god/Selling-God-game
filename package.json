@@ -1,25 +1,10 @@
 {
-  "name": "kx-exchange-stock-game",
-  "version": "1.1.1",
+  "name": "kx-exchange-render-safe",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "node scripts/prepare-static.cjs && next build",
+    "build": "node scripts/build.js",
     "start": "node server.js"
   },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.57.4",
-    "next": "^15.5.2",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1"
-  },
-  "devDependencies": {
-    "@types/node": "^22.17.2",
-    "@types/react": "^19.1.10",
-    "@types/react-dom": "^19.1.7",
-    "typescript": "^5.9.2"
-  },
-  "engines": {
-    "node": ">=20.9.0"
-  }
+  "engines": { "node": ">=18" }
 }
