@@ -1,0 +1,24 @@
+export type Stock = {
+  ticker: string;
+  name: string;
+  sector: string;
+  prev_close: number;
+  open_price: number;
+  high_price: number;
+  low_price: number;
+  last_price: number;
+  fair_value: number;
+  upper_limit: number;
+  lower_limit: number;
+  volume: number;
+  description: string;
+};
+export type Candle = { ticker: string; candle_no: number; open: number; high: number; low: number; close: number; volume: number };
+export type News = { id:number; ticker:string|null; sector:string|null; severity:'NORMAL'|'BREAKING'|'EXTRA'; sentiment:number; headline:string; body:string; published_tick:number; created_at:string };
+export type Depth = { side:'BID'|'ASK'; price:number; quantity:number; source:string };
+export type Position = { ticker:string; quantity:number; avg_price:number };
+export type Account = { cash:number; realized_pnl:number };
+export type Order = { id:string; ticker:string; side:'BUY'|'SELL'; order_type:'LIMIT'|'MARKET'; tif:'DAY'|'IOC'|'FOK'; limit_price:number|null; quantity:number; remaining:number; filled:number; avg_fill_price:number; status:string; created_at:string };
+export type Trade = { id:number; ticker:string; price:number; quantity:number; source:string; created_at:string };
+export type Clock = { tick_no:number; game_day:number; session:'PREOPEN'|'REGULAR'|'CLOSING'|'AFTERHOURS'; game_minute:number; index_value:number };
+export type Ranking = { user_id:string; nickname:string; total_assets:number; unrealized_pnl:number; realized_pnl:number };
