@@ -1,34 +1,42 @@
-KX EXCHANGE - RENDER DEPLOY PATCH ONLY
-======================================
+KX EXCHANGE - RENDER STATIC SITE FIX PATCH
+==========================================
 
 이 ZIP은 전체 프로젝트가 아닙니다.
-기존 KX EXCHANGE 프로젝트에 아래 파일만 덮어쓰기 위한 패치입니다.
+기존 KX EXCHANGE 프로젝트 위에 아래 파일만 덮어쓰는 패치입니다.
 
-덮어쓸 파일:
+교체 파일
 - package.json
-- server.js
+- package-lock.json
 - render.yaml
 - scripts/build.js
 
-중요:
-1. ZIP의 파일을 GitHub 저장소 최상위 기준으로 그대로 덮어쓰세요.
-2. public/index.html 등 기존 주식 게임 파일은 삭제하지 마세요.
-3. Render Settings:
-   Root Directory: 빈칸
-   Build Command: npm run build
-   Start Command: npm start
-   Health Check Path: /healthz
-4. Clear build cache & deploy를 실행하세요.
+중요: 현재 Render 서비스는 Web Service가 아니라 Static Site입니다.
+따라서 server.js / Start Command / Health Check는 사용하지 않습니다.
 
-정상 배포 로그에는 아래가 보여야 합니다:
-[KX PATCH] ZERO-NEXT deploy build starting
-[KX PATCH] build complete:
+Render Dashboard > Settings 에서 정확히 다음처럼 설정하세요.
 
-반대로 아래가 계속 나오면 이 패치 파일이 있는 저장소/브랜치를 Render가 보고 있지 않은 것입니다:
-Next.js 15.x
-next build
-Collecting page data
-nextjs.org/docs/messages/no-cache
+Build Command
+npm run build
 
-배포 후 확인:
-/healthz -> KX_EXCHANGE_OK
+Publish Directory
+out
+
+Root Directory
+비워두기
+
+그 뒤 Manual Deploy > Clear build cache & deploy를 실행하세요.
+
+정상 빌드 로그
+[KX STATIC FIX] build starting
+[KX STATIC FIX] READY
+[KX STATIC FIX] out/index.html: true
+
+이번 build.js는 안전장치로 out뿐 아니라 public/dist/build/site와 저장소 루트에도
+KX EXCHANGE 정적 파일을 준비합니다. 하지만 Render의 정식 Publish Directory는 out으로 설정하세요.
+
+정상 화면 버전 표식
+KX-STATIC-RENDER-FIX-2026.09.03-G
+
+주의
+- 기존 public/index.html, public/app.js, public/styles.css는 삭제하지 마세요.
+- 이 패치는 게임 본체 파일을 포함하지 않습니다.
