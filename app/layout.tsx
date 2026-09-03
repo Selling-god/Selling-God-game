@@ -1,4 +1,5 @@
 import './globals.css';
+import CacheReset from './cache-reset';
 
 export const metadata = {
   title: 'KX Exchange — Stock Market Simulator',
@@ -8,7 +9,10 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body>
+        <CacheReset />
+        {children}
+      </body>
     </html>
   );
 }
