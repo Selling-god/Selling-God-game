@@ -1,42 +1,33 @@
-KX EXCHANGE - RENDER STATIC SITE FIX PATCH
-==========================================
+KX EXCHANGE - Static root recovery patch
 
-이 ZIP은 전체 프로젝트가 아닙니다.
-기존 KX EXCHANGE 프로젝트 위에 아래 파일만 덮어쓰는 패치입니다.
+이 패치는 배포 구조만 복구합니다.
+게임 로직(public/app.js), 디자인(public/styles.css), Supabase SQL은 수정하지 않습니다.
 
-교체 파일
+교체 파일:
 - package.json
-- package-lock.json
-- render.yaml
+- public/index.html
 - scripts/build.js
+- render.yaml
 
-중요: 현재 Render 서비스는 Web Service가 아니라 Static Site입니다.
-따라서 server.js / Start Command / Health Check는 사용하지 않습니다.
+Render 기존 Static Site 설정:
+- Root Directory: 빈칸
+- Build Command: npm run build
+- Publish Directory: out
 
-Render Dashboard > Settings 에서 정확히 다음처럼 설정하세요.
+적용:
+1. 위 4개 파일만 같은 경로에 덮어쓰기
+2. GitHub commit/push
+3. Render Auto Deploy 또는 Deploy latest commit 사용
+4. Clear build cache는 누르지 않아도 됨
 
-Build Command
-npm run build
+정상 빌드 로그:
+[KX STATIC RECOVERY] out/index.html=true
+[KX STATIC RECOVERY] out/404.html=true
 
-Publish Directory
-out
+배포 후 확인:
+/ kx-health.txt 가 아니라 정확히 /kx-health.txt 로 접속
+KX_EXCHANGE_OK <buildId> 가 나오면 정적 배포가 정상입니다.
 
-Root Directory
-비워두기
-
-그 뒤 Manual Deploy > Clear build cache & deploy를 실행하세요.
-
-정상 빌드 로그
-[KX STATIC FIX] build starting
-[KX STATIC FIX] READY
-[KX STATIC FIX] out/index.html: true
-
-이번 build.js는 안전장치로 out뿐 아니라 public/dist/build/site와 저장소 루트에도
-KX EXCHANGE 정적 파일을 준비합니다. 하지만 Render의 정식 Publish Directory는 out으로 설정하세요.
-
-정상 화면 버전 표식
-KX-STATIC-RENDER-FIX-2026.09.03-G
-
-주의
-- 기존 public/index.html, public/app.js, public/styles.css는 삭제하지 마세요.
-- 이 패치는 게임 본체 파일을 포함하지 않습니다.
+참고:
+이 패치는 이전에 넣었던 hashed filename(app.<hash>.js) / version.json 자동 location.replace 구조를 제거하고,
+안정적인 고정 파일명 + 내용 hash query string 방식으로 되돌립니다.

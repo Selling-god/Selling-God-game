@@ -12,6 +12,12 @@ services:
       - path: /index.html
         name: Cache-Control
         value: no-cache, no-store, must-revalidate
+      - path: /404.html
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+      - path: /version.json
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
       - path: /config.js
         name: Cache-Control
         value: no-cache, no-store, must-revalidate
