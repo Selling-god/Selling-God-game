@@ -4,65 +4,53 @@ const crypto = require('crypto');
 
 const root = path.resolve(__dirname, '..');
 const publicDir = path.join(root, 'public');
+const outDir = path.join(root, 'out');
 const required = ['index.html', 'app.js', 'styles.css'];
 
-console.log('[KX IMMUTABLE ASSET BUILD] starting');
-for (const file of required) {
-  if (!fs.existsSync(path.join(publicDir, file))) {
-    console.error(`[KX IMMUTABLE ASSET BUILD] missing public/${file}`);
+console.log('[KX STATIC RECOVERY] build starting');
+for (const name of required) {
+  const file = path.join(publicDir, name);
+  if (!fs.existsSync(file)) {
+    console.error(`[KX STATIC RECOVERY] missing public/${name}`);
     process.exit(1);
   }
 }
 
-const envPayload = JSON.stringify({
+const env = {
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',
   supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''
-});
+};
 
-const fingerprint = crypto.createHash('sha256')
-  .update(fs.readFileSync(path.join(publicDir, 'index.html')))
+const hash = crypto.createHash('sha256')
   .update(fs.readFileSync(path.join(publicDir, 'app.js')))
   .update(fs.readFileSync(path.join(publicDir, 'styles.css')))
-  .update(envPayload)
-  .digest('hex').slice(0, 14);
+  .update(JSON.stringify(env))
+  .update(String(process.env.RENDER_GIT_COMMIT || ''))
+  .digest('hex')
+  .slice(0, 12);
 
-const configSource = `window.__KX_CONFIG__=${JSON.stringify({
-  ...JSON.parse(envPayload),
-  buildId: fingerprint
-})};\n`;
-fs.writeFileSync(path.join(publicDir, 'config.js'), configSource);
-
-function copyDir(src, dest) {
-  fs.rmSync(dest, {recursive:true, force:true});
-  fs.mkdirSync(dest, {recursive:true});
-  for (const name of fs.readdirSync(src)) {
-    fs.cpSync(path.join(src,name), path.join(dest,name), {recursive:true});
-  }
+fs.rmSync(outDir, { recursive: true, force: true });
+fs.mkdirSync(outDir, { recursive: true });
+for (const name of fs.readdirSync(publicDir)) {
+  fs.cpSync(path.join(publicDir, name), path.join(outDir, name), { recursive: true });
 }
 
-function prepareOutput(dest) {
-  copyDir(publicDir, dest);
-  const appName=`app.${fingerprint}.js`;
-  const cssName=`styles.${fingerprint}.css`;
-  const cfgName=`config.${fingerprint}.js`;
-  fs.copyFileSync(path.join(publicDir,'app.js'), path.join(dest,appName));
-  fs.copyFileSync(path.join(publicDir,'styles.css'), path.join(dest,cssName));
-  fs.writeFileSync(path.join(dest,cfgName), configSource);
-  fs.writeFileSync(path.join(dest,'version.json'), JSON.stringify({buildId:fingerprint, generatedAt:new Date().toISOString()}));
+const config = `window.__KX_CONFIG__=${JSON.stringify({ ...env, buildId: hash })};\n`;
+fs.writeFileSync(path.join(outDir, 'config.js'), config);
 
-  const indexPath=path.join(dest,'index.html');
-  let html=fs.readFileSync(indexPath,'utf8');
-  html=html
-    .replace(/(?:\/)?styles(?:\.[a-f0-9]{8,})?\.css(?:\?v=[^"']*)?/g, `/${cssName}`)
-    .replace(/(?:\/)?config(?:\.[a-f0-9]{8,})?\.js(?:\?v=[^"']*)?/g, `/${cfgName}`)
-    .replace(/(?:\/)?app(?:\.[a-f0-9]{8,})?\.js(?:\?v=[^"']*)?/g, `/${appName}`);
-  if (!/http-equiv=["']Cache-Control/i.test(html)) {
-    html=html.replace(/<head([^>]*)>/i, `<head$1>\n<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">\n<meta http-equiv="Pragma" content="no-cache">\n<meta http-equiv="Expires" content="0">`);
-  }
-  fs.writeFileSync(indexPath, html);
-  fs.writeFileSync(path.join(dest,'_redirects'),'/* /index.html 200\n');
-}
+const indexPath = path.join(outDir, 'index.html');
+let html = fs.readFileSync(indexPath, 'utf8');
+html = html.replaceAll('__KX_ASSET_VERSION__', hash);
+fs.writeFileSync(indexPath, html);
 
-for (const dir of ['out','dist','build','site']) prepareOutput(path.join(root,dir));
-console.log(`[KX IMMUTABLE ASSET BUILD] buildId=${fingerprint}`);
-console.log('[KX IMMUTABLE ASSET BUILD] out/index.html ready');
+// Render Static Site SPA/root fallback.
+fs.writeFileSync(path.join(outDir, '_redirects'), '/* /index.html 200\n');
+fs.copyFileSync(indexPath, path.join(outDir, '404.html'));
+fs.writeFileSync(path.join(outDir, 'version.json'), JSON.stringify({ buildId: hash, app: 'KX EXCHANGE' }));
+fs.writeFileSync(path.join(outDir, 'kx-health.txt'), `KX_EXCHANGE_OK ${hash}\n`);
+
+const ok = fs.existsSync(indexPath) && fs.statSync(indexPath).size > 100;
+console.log(`[KX STATIC RECOVERY] buildId=${hash}`);
+console.log(`[KX STATIC RECOVERY] out/index.html=${ok}`);
+console.log(`[KX STATIC RECOVERY] out/404.html=${fs.existsSync(path.join(outDir, '404.html'))}`);
+if (!ok) process.exit(1);
