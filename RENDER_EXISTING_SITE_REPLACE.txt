@@ -1,0 +1,30 @@
+[KX EXCHANGE - 기존 Render 사이트 완전 교체 방법]
+
+중요:
+이 ZIP은 폴더 안에 또 프로젝트가 들어있는 구조가 아닙니다.
+압축을 풀면 package.json / app / lib / supabase / render.yaml 이 바로 보여야 정상입니다.
+
+1. 기존 selling-god-game GitHub 저장소를 엽니다.
+2. 기존 게임의 소스 파일을 그대로 남겨두지 마세요.
+   - 기존 index.html, game.js, css, 예전 app/src/public 등 기존 게임 실행 파일은 제거합니다.
+3. 이 ZIP 안의 파일/폴더를 저장소 '최상위(root)'에 업로드합니다.
+   - package.json이 GitHub 저장소 첫 화면에 보여야 합니다.
+   - app 폴더도 같은 최상위에 있어야 합니다.
+4. Supabase SQL Editor에서 supabase/001_schema.sql을 전체 실행합니다.
+5. Render > selling-god-game 서비스 > Environment에 아래 3개를 등록합니다.
+   NEXT_PUBLIC_SUPABASE_URL
+   NEXT_PUBLIC_SUPABASE_ANON_KEY
+   SUPABASE_SERVICE_ROLE_KEY
+6. Render > Settings에서 다음을 확인합니다.
+   Root Directory: 비워두기
+   Build Command: npm install && npm run build
+   Start Command: npm run start -- -p $PORT
+7. Manual Deploy > Clear build cache & deploy 를 실행합니다.
+
+정상 배포 확인:
+- 첫 화면에 KX EXCHANGE 로그인 화면이 나옵니다.
+- 로그인 화면에 "STOCK BUILD · 2026.09.03" 배지가 보입니다.
+- /api/version 접속 시 app=KX EXCHANGE 응답이 나옵니다.
+
+만약 예전 전당포 화면이 계속 보이면 코드 문제가 아니라 Render가 아직 예전 커밋/예전 Root Directory를 배포 중인 것입니다.
+그때는 Render의 Repository/Branch/Root Directory와 가장 최근 Deploy Commit을 확인하세요.
