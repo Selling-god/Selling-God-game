@@ -1,0 +1,28 @@
+KX EXCHANGE - Render Not Found fix
+
+이 배포본은 기존 Render 서비스의 Start Command가 `node server.js`로 남아 있어도 실행되도록
+루트에 호환용 server.js를 포함합니다.
+
+권장 Render 설정:
+- Root Directory: 비워두기
+- Build Command: npm install && npm run build
+- Start Command: npm start
+  (기존 설정이 node server.js여도 이 배포본에서는 작동합니다.)
+- Node version: 20 이상
+
+환경변수:
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+
+적용 순서:
+1. GitHub 저장소 루트의 기존 게임 파일을 제거하거나 새 배포본 내용으로 완전히 교체
+2. 이 ZIP 안의 파일들을 저장소 최상위에 올림
+3. Render Settings의 Root Directory를 비움
+4. Build Command를 npm install && npm run build 로 설정
+5. Start Command를 npm start 로 설정
+6. Clear build cache & deploy 실행
+
+정상 실행 확인:
+- / 접속 시 KX EXCHANGE 로그인 화면
+- /api/version 접속 시 새 주식 게임 버전 응답
