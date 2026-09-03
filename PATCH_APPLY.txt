@@ -1,0 +1,34 @@
+KX EXCHANGE - RENDER DEPLOY PATCH ONLY
+======================================
+
+이 ZIP은 전체 프로젝트가 아닙니다.
+기존 KX EXCHANGE 프로젝트에 아래 파일만 덮어쓰기 위한 패치입니다.
+
+덮어쓸 파일:
+- package.json
+- server.js
+- render.yaml
+- scripts/build.js
+
+중요:
+1. ZIP의 파일을 GitHub 저장소 최상위 기준으로 그대로 덮어쓰세요.
+2. public/index.html 등 기존 주식 게임 파일은 삭제하지 마세요.
+3. Render Settings:
+   Root Directory: 빈칸
+   Build Command: npm run build
+   Start Command: npm start
+   Health Check Path: /healthz
+4. Clear build cache & deploy를 실행하세요.
+
+정상 배포 로그에는 아래가 보여야 합니다:
+[KX PATCH] ZERO-NEXT deploy build starting
+[KX PATCH] build complete:
+
+반대로 아래가 계속 나오면 이 패치 파일이 있는 저장소/브랜치를 Render가 보고 있지 않은 것입니다:
+Next.js 15.x
+next build
+Collecting page data
+nextjs.org/docs/messages/no-cache
+
+배포 후 확인:
+/healthz -> KX_EXCHANGE_OK

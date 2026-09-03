@@ -1,10 +1,12 @@
 {
   "name": "kx-exchange-render-safe",
-  "version": "2.0.0",
+  "version": "2.0.1-deploy-patch",
   "private": true,
   "scripts": {
     "build": "node scripts/build.js",
     "start": "node server.js"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  }
 }
