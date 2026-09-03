@@ -15,6 +15,7 @@ let state={
   stocks:[],ticker:'A101',candles:[],depth:[],news:[],clock:null,
   account:null,positions:[],orders:[],trades:[],ranking:[],
   bankDeposits:[],bankLoans:[],bankMeta:{},chartRanges:{},
+  game:{events:[],predictions:[],shorts:[],ipos:[],subscriptions:[],dividends:[],short_adjustments:[],prediction_stats:{total:0,correct:0}},gameAvailable:true,gameError:'',
   side:'BUY',type:'LIMIT',tif:'DAY',tab:'market',tradeTab:'book',
   orderQty:1,orderPrice:null,pendingOrder:null,chartPeriod:'1M',marketFilter:'ALL'
 };
@@ -100,16 +101,11 @@ const REGIME={BULL:'강세',NEUTRAL:'중립',BEAR:'약세',STRESS:'불안'};
 const NEWS_SEV={NORMAL:'일반',BREAKING:'속보',EXTRA:'호외'};
 const ORDER_STATUS={OPEN:'미체결',PARTIAL:'부분체결',FILLED:'체결완료',CANCELED:'취소',REJECTED:'거절'};
 const GUIDE_MODE_KEY='kx_guidance_mode_v2';
-const TUTORIAL_SEEN_KEY='kx_tutorial_seen_v3';
 const BASE_ASSET_PREFIX='kx_baseline_assets_v1';
-const GUIDE_MODES={
-  BEGINNER:{label:'초보 지원',short:'초보',desc:'이동평균선·주문 설명·뉴스 해석 보조를 모두 표시합니다.'},
-  STANDARD:{label:'표준',short:'표준',desc:'핵심 보조선과 짧은 설명만 표시합니다.'},
-  REALISTIC:{label:'실전형',short:'실전',desc:'보조선을 최소화하고 뉴스·호가·체결 정보 중심으로 봅니다.'}
-};
-function guidanceMode(){const v=localStorage.getItem(GUIDE_MODE_KEY)||'BEGINNER';return GUIDE_MODES[v]?v:'BEGINNER'}
-function guidanceInfo(){return GUIDE_MODES[guidanceMode()]||GUIDE_MODES.BEGINNER}
-function setGuidanceMode(v){if(!GUIDE_MODES[v])return;localStorage.setItem(GUIDE_MODE_KEY,v)}
+const GUIDE_MODES={STANDARD:{label:'표준',short:'표준',desc:'핵심 보조선과 짧은 설명을 표시합니다.'}};
+function guidanceMode(){return 'STANDARD'}
+function guidanceInfo(){return GUIDE_MODES.STANDARD}
+function setGuidanceMode(){localStorage.setItem(GUIDE_MODE_KEY,'STANDARD')}
 function scopedKey(prefix){return `${prefix}_${session?.user?.id||'guest'}`}
 function baselineAssets(){
   const key=scopedKey(BASE_ASSET_PREFIX),current=Number(totalAssets())||0;
@@ -142,41 +138,15 @@ function renderMarketCoach(s){
   const copy=regime==='BULL'?'강세장에서도 급등 추격은 가격 위험이 커질 수 있습니다. 호가와 거래량을 같이 확인하세요.':regime==='BEAR'?'약세장에서는 현금 비중과 손실 한도를 먼저 확인하는 연습이 도움이 됩니다.':regime==='STRESS'?'변동성이 큰 구간입니다. 시장가 주문은 예상 체결가와 차이가 커질 수 있습니다.':'중립장입니다. 한 방향을 단정하기보다 뉴스·호가·거래량을 함께 비교해 보세요.';
   return `<div class="market-coach"><div><small>BEGINNER COACH</small><b>${REGIME[regime]||'중립'}장 읽기</b></div><p>${copy}</p>${latest?`<span>최근 뉴스: ${escapeHtml(latest.headline)}</span>`:''}</div>`;
 }
-const META_KEY='kx_player_meta_v1';
+const META_KEY='kx_player_meta_v3';
 function defaultMeta(){return {orders:0,limitOrders:0,marketOrders:0,filledOrders:0,newsViewed:false,profitableSells:0};}
-function loadMeta(){
-  try{return {...defaultMeta(),...(JSON.parse(localStorage.getItem(META_KEY)||'{}')||{})}}catch{return defaultMeta()}
-}
+function loadMeta(){try{return {...defaultMeta(),...(JSON.parse(localStorage.getItem(META_KEY)||'{}')||{})}}catch{return defaultMeta()}}
 let playerMeta=loadMeta();
 function saveMeta(){localStorage.setItem(META_KEY,JSON.stringify(playerMeta||defaultMeta()))}
-function markNewsViewed(){if(!playerMeta.newsViewed){playerMeta.newsViewed=true;saveMeta();}}
-function missionList(){
-  const held=(state.positions||[]).filter(p=>Number(p.quantity)>0);
-  const areas=new Set(held.map(p=>marketArea(state.stocks.find(s=>s.ticker===p.ticker))));
-  const total=Math.max(1,Number(totalAssets())||1),cash=Number(state.account?.cash||0),cashRatio=cash/total;
-  return [
-    {id:'firstFill',name:'첫 체결',done:playerMeta.filledOrders>=1,progress:`${Math.min(playerMeta.filledOrders,1)}/1`,desc:'실제 체결을 한 번 경험해 보세요.'},
-    {id:'limitStrategist',name:'가격을 정하는 사람',done:playerMeta.limitOrders>=3,progress:`${Math.min(playerMeta.limitOrders,3)}/3`,desc:'지정가 주문 3회로 가격 우선 주문을 익힙니다.'},
-    {id:'newsTrader',name:'뉴스 읽고 거래하기',done:playerMeta.newsViewed&&playerMeta.filledOrders>=1,progress:`${playerMeta.newsViewed?1:0}/1 + ${Math.min(playerMeta.filledOrders,1)}/1`,desc:'뉴스를 확인하고 체결까지 경험하세요.'},
-    {id:'diversified',name:'분산의 첫걸음',done:held.length>=3,progress:`${Math.min(held.length,3)}/3`,desc:'서로 다른 종목 3개 이상을 보유합니다.'},
-    {id:'global',name:'두 시장 경험',done:areas.has('국내')&&areas.has('해외'),progress:`${areas.has('국내')?1:0}+${areas.has('해외')?1:0}/2`,desc:'국내와 해외 종목을 각각 한 종목 이상 보유합니다.'},
-    {id:'cash',name:'현금도 포지션',done:playerMeta.filledOrders>=3&&cashRatio>=.20,progress:`현금 ${Math.round(cashRatio*100)}%`,desc:'3회 이상 체결 후 총자산의 20% 이상을 현금으로 유지합니다.'}
-  ];
-}
-function renderLiteGamePanel(){
-  const missions=missionList(),done=missions.filter(m=>m.done).length,perf=performanceSummary(),risk=portfolioRiskSummary();
-  return `<section class="lite-game-panel">
-    <div class="lite-head"><div><small>KX PERFORMANCE REPORT</small><b>${perf.tier.label} <em>${perf.tier.code}</em></b></div><span>도전 ${done} / ${missions.length}</span></div>
-    <p class="lite-copy">수익률 하나만 보는 대신 <b>분산·현금·부채·주문 방식</b>까지 함께 평가하는 현실형 성취 시스템입니다.</p>
-    <div class="performance-strip"><div><small>시작 기준자산</small><b>${won(perf.base)}</b></div><div><small>현재 총자산</small><b>${won(perf.now)}</b></div><div><small>기준 대비</small><b class="${perf.ret>=0?'up':'down'}">${pct(perf.ret)}</b></div><div><small>포트폴리오 위험</small><b>${risk.label}</b></div></div>
-    <div class="risk-insight"><span>최대 종목 집중도 <b>${risk.concentration.toFixed(0)}%</b>${risk.largestName!=='-'?` · ${escapeHtml(risk.largestName)}`:''}</span><span>부채비율 <b>${risk.debtRatio.toFixed(1)}%</b></span><small>다음 기준: ${perf.tier.next}</small></div>
-    <div class="mission-list">${missions.map(m=>`<div class="mission ${m.done?'done':''}"><b>${m.name}</b><span>${m.desc}</span><em>${m.done?'완료':'진행중'} · ${m.progress}</em></div>`).join('')}</div>
-  </section>`;
-}
+function markNewsViewed(){playerMeta.newsViewed=true;saveMeta()}
 function recordOrderMeta(body,order,s){
   if(!body||!order)return;
-  const ok=['OPEN','PARTIAL','FILLED'].includes(String(order.status||''));
-  if(!ok)return;
+  const ok=['OPEN','PARTIAL','FILLED'].includes(String(order.status||''));if(!ok)return;
   playerMeta.orders=(Number(playerMeta.orders)||0)+1;
   if(body.p_order_type==='LIMIT')playerMeta.limitOrders=(Number(playerMeta.limitOrders)||0)+1;
   if(body.p_order_type==='MARKET')playerMeta.marketOrders=(Number(playerMeta.marketOrders)||0)+1;
@@ -186,6 +156,76 @@ function recordOrderMeta(body,order,s){
     if(positionMetrics(s,body.p_quantity,avgFill).realizedPnl>0)playerMeta.profitableSells=(Number(playerMeta.profitableSells)||0)+1;
   }
   saveMeta();
+}
+function emptyGame(){return {events:[],predictions:[],shorts:[],ipos:[],subscriptions:[],dividends:[],short_adjustments:[],prediction_stats:{total:0,correct:0}}}
+function gameEvents(){return Array.isArray(state.game?.events)?state.game.events:[]}
+function predictionFor(id){return (state.game?.predictions||[]).find(x=>Number(x.event_id)===Number(id))||null}
+function eventTypeLabel(t){return ({EARNINGS:'실적발표',RUMOR:'루머 검증',SECTOR:'업종 이슈',CONTRACT:'수주·계약',MACRO:'거시경제'})[t]||'시장 이벤트'}
+function eventChoiceLabels(e){
+  if(e?.event_type==='EARNINGS')return ['컨센서스 상회','컨센서스 하회'];
+  if(e?.event_type==='RUMOR')return ['사실 가능성 높음','과장·부인 가능성'];
+  if(e?.event_type==='CONTRACT')return ['계약 성사','계약 무산'];
+  if(e?.event_type==='SECTOR'||e?.event_type==='MACRO')return ['긍정 영향','부정 영향'];
+  return ['긍정','부정'];
+}
+function ticksText(tick){
+  const now=Number(state.clock?.tick_no)||0,n=Math.max(0,Number(tick)||0-now);
+  if(n<=0)return '결과 발표 중';
+  const sec=n*5;if(sec<60)return `약 ${sec}초 후`;return `약 ${Math.ceil(sec/60)}분 후`;
+}
+function shortEquity(){
+  return (state.game?.shorts||[]).filter(x=>x.status==='OPEN').reduce((sum,x)=>{
+    const st=state.stocks.find(s=>s.ticker===x.ticker),cur=Number(st?.last_price)||Number(x.entry_price)||0;
+    const eq=(Number(x.margin)||0)+(Number(x.entry_price)-cur)*(Number(x.quantity)||0);
+    return sum+Math.max(0,eq);
+  },0);
+}
+function eventOutcomeClass(e){return e?.outcome==='POSITIVE'?'positive':e?.outcome==='NEGATIVE'?'negative':'neutral'}
+function renderMarketGameStrip(){
+  if(state.gameAvailable===false)return `<section class="market-game-strip unavailable" data-tour="strategy"><div><small>MARKET PLAY</small><b>시장 이벤트 기능 설치 필요</b><span>기존 주식 거래는 정상 사용 가능합니다.</span></div><button data-main-tab="strategy">전략실 보기</button></section>`;
+  const open=gameEvents().filter(e=>e.status==='OPEN').sort((a,b)=>Number(a.reveal_tick)-Number(b.reveal_tick));
+  const next=open[0],stats=state.game?.prediction_stats||{};
+  return `<section class="market-game-strip" data-tour="strategy"><div class="market-game-copy"><small>MARKET PLAY</small><b>${next?escapeHtml(next.title):'새 시장 이벤트 준비 중'}</b><span>${next?`${eventTypeLabel(next.event_type)} · ${ticksText(next.reveal_tick)}`:'실적·루머·배당·IPO가 시장 흐름을 만듭니다.'}</span></div><div class="market-game-stats"><span>진행 이벤트 <b>${open.length}</b></span><span>판단 적중 <b>${Number(stats.correct)||0}/${Number(stats.total)||0}</b></span><span>공매도 <b>${(state.game?.shorts||[]).filter(x=>x.status==='OPEN').length}</b></span></div><button data-main-tab="strategy">전략실 열기</button></section>`;
+}
+function renderStrategyRoom(){
+  const g=state.game||emptyGame();
+  if(state.gameAvailable===false)return `<main class="page-view strategy-page"><section class="panel page-panel strategy-panel"><div class="page-title"><div><small>MARKET PLAY</small><h1>전략실</h1></div><span>실적·루머·공매도·IPO·배당을 한곳에서 관리합니다</span></div><div class="game-install-note"><h2>게임 확장 SQL을 먼저 한 번 실행해 주세요</h2><p>${escapeHtml(state.gameError||'Supabase에 KX 게임 확장 함수가 아직 없습니다.')}</p><span>SQL을 설치하지 않아도 기존 매수·매도·은행 기능은 그대로 작동합니다.</span></div></section></main>`;
+  const events=[...(g.events||[])].sort((a,b)=>a.status===b.status?Number(a.reveal_tick)-Number(b.reveal_tick):(a.status==='OPEN'?-1:1));
+  const open=events.filter(e=>e.status==='OPEN'),resolved=events.filter(e=>e.status==='REVEALED').slice(0,5);
+  const shorts=(g.shorts||[]).filter(x=>x.status==='OPEN');
+  const stats=g.prediction_stats||{total:0,correct:0};
+  const acc=Number(stats.total)>0?Number(stats.correct)/Number(stats.total)*100:0;
+  return `<main class="page-view strategy-page"><section class="panel page-panel strategy-panel">
+    <div class="page-title strategy-title"><div><small>KX MARKET PLAY</small><h1>전략실</h1></div><span>정보를 읽고 판단한 뒤 실제 거래 결과로 승부합니다</span></div>
+    <div class="strategy-summary"><article><small>진행 중 이벤트</small><b>${open.length}</b><span>실적·루머·계약·업종 이슈</span></article><article><small>내 판단 기록</small><b>${Number(stats.total)||0}회</b><span>${Number(stats.total)?`적중률 ${acc.toFixed(0)}%`:'결과 예측을 남겨보세요'}</span></article><article><small>공매도 포지션</small><b>${shorts.length}</b><span>하락장에서도 전략 선택 가능</span></article><article><small>공매도 평가액</small><b>${won(shortEquity())}</b><span>담보 + 현재 평가손익</span></article></div>
+    <section class="strategy-section event-board"><div class="strategy-section-head"><div><small>01 · EVENT DESK</small><h2>예고된 시장 이벤트</h2></div><span>결과가 나오기 전에는 정답을 보여주지 않습니다</span></div>
+      <div class="event-card-grid">${open.length?open.map(e=>renderEventCard(e,false)).join(''):`<div class="strategy-empty">다음 이벤트를 준비 중입니다. 시장 동기화 후 자동으로 새 이벤트가 생성됩니다.</div>`}</div>
+      ${resolved.length?`<details class="resolved-events"><summary>최근 결과 ${resolved.length}개 보기</summary><div class="event-card-grid resolved">${resolved.map(e=>renderEventCard(e,true)).join('')}</div></details>`:''}
+    </section>
+    <section class="strategy-section"><div class="strategy-section-head"><div><small>02 · SHORT DESK</small><h2>간이 공매도</h2></div><span>주가가 하락하면 이익, 상승하면 손실 · 담보 50%</span></div>${renderShortDesk()}</section>
+    <section class="strategy-section split"><div class="strategy-sub"><div class="strategy-section-head"><div><small>03 · IPO</small><h2>신규상장 청약</h2></div><span>상장 전 가격에 소량 청약</span></div>${renderIpoDesk()}</div><div class="strategy-sub"><div class="strategy-section-head"><div><small>04 · DIVIDEND</small><h2>배당 캘린더</h2></div><span>기준일 보유 수량에 따라 현금 지급</span></div>${renderDividendDesk()}</div></section>
+    <div class="strategy-footnote"><b>게임의 핵심</b><span>정답 맞히기 포인트나 레벨을 올리는 구조가 아닙니다. 이벤트 전에 직접 판단하고 주식을 사거나 팔거나 공매도한 뒤, 실제 자산 변화로 결과를 확인하는 방식입니다.</span></div>
+  </section></main>`;
+}
+function renderEventCard(e,resolved=false){
+  const pred=predictionFor(e.id),labels=eventChoiceLabels(e),ticker=e.ticker?`${escapeHtml(e.ticker)} · `:'';
+  const predResult=resolved&&pred?(pred.choice===e.outcome?'적중':'빗나감'):'';
+  return `<article class="market-event-card ${resolved?'resolved':''} ${resolved?eventOutcomeClass(e):''}"><div class="event-card-top"><span>${eventTypeLabel(e.event_type)}</span><time>${resolved?'결과 발표 완료':ticksText(e.reveal_tick)}</time></div><h3>${escapeHtml(e.title)}</h3><p>${escapeHtml(e.teaser||'')}</p>${e.consensus_text?`<div class="event-consensus"><small>시장 예상</small><b>${escapeHtml(e.consensus_text)}</b></div>`:''}${resolved?`<div class="event-result"><small>실제 결과</small><b>${escapeHtml(e.result_text||'결과 공개')}</b><span class="${e.outcome==='POSITIVE'?'up':'down'}">초기 시장 충격 ${Number(e.impact_pct)>0?'+':''}${(Number(e.impact_pct)*100).toFixed(1)}%</span></div>`:`<div class="event-predict"><small>${ticker}내 판단을 기록합니다 · 거래는 시장 화면에서 직접</small><div><button data-event-predict="${e.id}" data-choice="POSITIVE" class="${pred?.choice==='POSITIVE'?'on':''}">${labels[0]}</button><button data-event-predict="${e.id}" data-choice="NEGATIVE" class="${pred?.choice==='NEGATIVE'?'on':''}">${labels[1]}</button></div></div>`}${resolved&&pred?`<div class="prediction-result ${predResult==='적중'?'hit':'miss'}">내 예상: ${pred.choice==='POSITIVE'?labels[0]:labels[1]} · <b>${predResult}</b></div>`:''}</article>`;
+}
+function renderShortDesk(){
+  const open=(state.game?.shorts||[]).filter(x=>x.status==='OPEN');
+  const opts=state.stocks.filter(stockVisible).map(s=>`<option value="${s.ticker}">${escapeHtml(s.name)} · ${s.ticker} · ${nf.format(s.last_price)}원</option>`).join('');
+  return `<div class="short-desk"><div class="short-order"><label>공매도할 종목<select id="shortTicker">${opts}</select></label><label>수량<input id="shortQty" type="number" min="1" max="100" value="1"></label><div class="short-rule"><b>간이 규칙</b><span>현재가 기준 거래금액의 50%를 담보로 맡깁니다.</span><span>가격이 오르면 손실이 커지며 담보가 모두 소진되면 자동 청산됩니다.</span></div><button id="openShort">공매도 포지션 열기</button><p id="shortMsg"></p></div><div class="short-positions">${open.length?open.map(x=>{const st=state.stocks.find(s=>s.ticker===x.ticker),cur=Number(st?.last_price)||Number(x.entry_price),pnl=(Number(x.entry_price)-cur)*Number(x.quantity);return `<article><div><small>${escapeHtml(st?.name||x.ticker)}</small><b>${nf.format(x.quantity)}주 공매도</b></div><dl><span>진입가 <b>${nf.format(x.entry_price)}</b></span><span>현재가 <b>${nf.format(cur)}</b></span><span>평가손익 <b class="${pnl>=0?'up':'down'}">${pnl>=0?'+':''}${won(pnl)}</b></span><span>담보 <b>${won(x.margin)}</b></span></dl><button data-short-close="${x.id}">포지션 청산</button></article>`}).join(''):`<div class="strategy-empty compact">열려 있는 공매도 포지션이 없습니다.</div>`}</div></div>`;
+}
+function renderIpoDesk(){
+  const ipos=state.game?.ipos||[],subs=state.game?.subscriptions||[];
+  if(!ipos.length)return `<div class="strategy-empty compact">현재 청약 가능한 신규상장이 없습니다.</div>`;
+  return `<div class="ipo-list">${ipos.map(i=>{const sub=subs.find(s=>s.ticker===i.ticker),now=Number(state.clock?.tick_no)||0,open=now<Number(i.subscription_deadline_tick)&&i.status==='OPEN';return `<article class="ipo-card"><div><span>${escapeHtml(i.sector||'신규상장')}</span><time>${now<Number(i.listing_tick)?ticksText(i.listing_tick):'상장 완료'}</time></div><h3>${escapeHtml(i.name)}</h3><dl><span>공모가 <b>${won(i.offer_price)}</b></span><span>예상 배정률 <b>${Math.round(Number(i.allocation_ratio||1)*100)}%</b></span><span>최대 청약 <b>${nf.format(i.max_qty)}주</b></span></dl>${sub?`<div class="ipo-sub-state"><b>${nf.format(sub.requested_qty)}주 청약</b><span>${sub.status==='SUBSCRIBED'?'배정 대기':sub.status==='ALLOCATED'?`${nf.format(sub.allocated_qty)}주 배정 완료`:'청약 취소'}</span></div>`:open?`<div class="ipo-actions"><input id="ipoQty_${i.ticker}" type="number" min="1" max="${i.max_qty}" value="1"><button data-ipo-subscribe="${i.ticker}">청약</button></div>`:`<div class="ipo-sub-state"><b>청약 마감</b><span>상장 결과를 기다리는 중</span></div>`}</article>`}).join('')}</div>`;
+}
+function renderDividendDesk(){
+  const rows=state.game?.dividends||[];
+  if(!rows.length)return `<div class="strategy-empty compact">예정된 배당 일정이 없습니다.</div>`;
+  return `<div class="dividend-list">${rows.map(d=>{const st=state.stocks.find(s=>s.ticker===d.ticker);return `<article><div><small>${escapeHtml(st?.name||d.ticker)}</small><b>주당 ${won(d.per_share)}</b></div><span>기준일 ${ticksText(d.record_tick)}</span><span>지급 ${ticksText(d.pay_tick)}</span>${d.my_qty?`<em>내 기준수량 ${nf.format(d.my_qty)}주 · 예상 ${won(Number(d.my_qty)*Number(d.per_share))}</em>`:''}</article>`}).join('')}</div>`;
 }
 let syncBusy=false,syncRound=0,marketSyncTimer=null;
 
@@ -277,6 +317,19 @@ async function loadPrivateSnapshot(){
   state.bankLoans=d?.bank_loans||[];
   state.bankMeta=d?.bank_meta||{};
 }
+async function loadGameLayer(runSync=false,force=false){
+  if(state.gameAvailable===false&&!force)return;
+  try{
+    const d=runSync?await rpc('kx_game_sync',{}):await rpc('kx_game_snapshot',{});
+    state.game=d&&typeof d==='object'?{...emptyGame(),...d}:emptyGame();
+    state.gameAvailable=true;state.gameError='';
+  }catch(e){
+    const raw=String(e?.message||'');
+    if(e?.status===404||raw.includes('kx_game_')||raw.includes('Could not find the function')){
+      state.gameAvailable=false;state.gameError='Supabase에서 KX 게임 확장 SQL을 아직 찾을 수 없습니다.';
+    }else{console.warn('game layer:',e);state.gameError=raw;}
+  }
+}
 async function sync(advance=false,full=false,forcePrivate=false){
   if(syncBusy)return;
   syncBusy=true;
@@ -285,6 +338,7 @@ async function sync(advance=false,full=false,forcePrivate=false){
     const includeAux=full||syncRound%4===0;
     await loadPublicSnapshot(includeAux,advance);
     if(full||forcePrivate||syncRound%2===0)await loadPrivateSnapshot();
+    if(full||syncRound%2===0)await loadGameLayer(advance||full,full);
     renderTerminal();
   }catch(e){
     console.error(e);
@@ -302,7 +356,7 @@ function stockAssets(){
 }
 function bankAssets(){return state.bankDeposits.filter(x=>['ACTIVE','MATURED'].includes(x.status)).reduce((a,x)=>a+Number(x.balance||0),0)}
 function bankDebt(){return state.bankLoans.filter(x=>x.status==='ACTIVE').reduce((a,x)=>a+Number(x.outstanding||0)+Number(x.accrued_interest||0),0)}
-function totalAssets(){return Number(state.account?.cash||0)+stockAssets()+bankAssets()-bankDebt()}
+function totalAssets(){return Number(state.account?.cash||0)+stockAssets()+bankAssets()+shortEquity()-bankDebt()}
 function changeOf(stock){return ((Number(stock.last_price)-Number(stock.prev_close))/Math.max(1,Number(stock.prev_close)))*100}
 function positionFor(ticker){return state.positions.find(p=>p.ticker===ticker)||null}
 function positionMetrics(s,qty=0,exitPrice=null){
@@ -329,14 +383,15 @@ function localPriceText(s){
   return `${v.toFixed(2)} ${cur}`;
 }
 function stockMarketBadge(s){return `<span class="market-badge ${marketArea(s)==='해외'?'foreign':'domestic'}">${marketArea(s)} · ${escapeHtml(marketCountry(s))}</span>`}
+function stockVisible(s){return !s?.listing_tick||Number(state.clock?.tick_no||0)>=Number(s.listing_tick)}
 
 function topNav(){
-  const items=[['market','시장'],['portfolio','내 자산'],['orders','주문 내역'],['news','뉴스'],['learn','투자 기초'],['bank','은행'],['ranking','랭킹']];
+  const items=[['market','시장'],['portfolio','내 자산'],['orders','주문 내역'],['news','뉴스'],['strategy','전략실'],['learn','투자 기초'],['bank','은행'],['ranking','랭킹']];
   return `<nav class="main-nav">${items.map(([k,label])=>`<button data-main-tab="${k}" class="${state.tab===k?'on':''}">${label}</button>`).join('')}</nav>`;
 }
 
 function renderStockPicker(s){
-  const filtered=state.stocks.filter(x=>state.marketFilter==='ALL'||marketArea(x)===state.marketFilter);
+  const filtered=state.stocks.filter(stockVisible).filter(x=>state.marketFilter==='ALL'||marketArea(x)===state.marketFilter);
   const pool=filtered.length?filtered:state.stocks;
   const sorted=[...pool].sort((a,b)=>Math.abs(changeOf(b))-Math.abs(changeOf(a)));
   const watch=[...(pool.some(x=>x.ticker===s.ticker)?[s]:[]),...sorted.filter(x=>x.ticker!==s.ticker)].slice(0,10);
@@ -386,7 +441,7 @@ function renderChartPanel(s,ch){
       <div class="tape-head"><b>최근 체결</b><small>실제 체결가가 현재가에 반영됩니다</small></div>
       <div class="tape-list">${tape.length?tape.map(t=>`<div class="tape-row"><span>${new Date(t.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}</span><b>${nf.format(t.price)}</b><span>${nf.format(t.quantity)}주</span></div>`).join(''):`<div class="empty compact">아직 체결이 없습니다.</div>`}</div>
     </div>
-    ${renderLiteGamePanel()}
+    ${renderMarketGameStrip()}
   </section>`;
 }
 
@@ -474,6 +529,7 @@ function renderPortfolio(){
     <div class="summary asset-summary">
       <div><small>주문 가능 현금</small><b>${won(state.account?.cash)}</b></div>
       <div><small>주식 평가액</small><b>${won(holdings)}</b></div>
+      <div><small>공매도 평가액</small><b>${won(shortEquity())}</b></div>
       <div><small>예금·적금</small><b>${won(deposits)}</b></div>
       <div><small>대출 잔액</small><b class="${loans>0?'down':''}">${won(loans)}</b></div>
       <div><small>총자산</small><b>${won(totalAssets())}</b></div>
@@ -540,9 +596,11 @@ function renderBank(){
 }
 
 function renderRanking(){
+  const adj=new Map((state.game?.short_adjustments||[]).map(x=>[String(x.user_id),Number(x.equity)||0]));
+  const rows=state.ranking.map(r=>({...r,total_assets:Number(r.total_assets||0)+(adj.get(String(r.user_id))||0)})).sort((a,b)=>Number(b.total_assets)-Number(a.total_assets));
   return `<main class="page-view narrow-view"><section class="panel page-panel">
-    <div class="page-title"><div><small>RANKING</small><h1>총자산 랭킹</h1></div><span>실제로 KX EXCHANGE에 참여한 계정만 표시</span></div>
-    <div class="ranklist">${state.ranking.length?state.ranking.map((r,i)=>`<div class="rankrow">
+    <div class="page-title"><div><small>RANKING</small><h1>총자산 랭킹</h1></div><span>공매도 담보·평가손익도 현재 가치로 반영</span></div>
+    <div class="ranklist">${rows.length?rows.map((r,i)=>`<div class="rankrow">
       <strong>${i+1}</strong><span><b>${escapeHtml(r.nickname)}</b><small>실현손익 ${won(r.realized_pnl)}</small></span><b>${won(r.total_assets)}</b>
     </div>`).join(''):`<div class="empty">아직 랭킹에 등록된 플레이어가 없습니다.</div>`}</div>
   </section></main>`;
@@ -593,42 +651,62 @@ function renderInvestmentGuide(){
   </section></main>`;
 }
 
-function tutorialSlides(){
+function tutorialSteps(){
   return [
-    {kicker:'01 · START',title:'주식이 오르내리는 것만 보는 게임이 아닙니다',body:`<div class="guide-hero"><b>목표</b><span>공용 시장에서 현금·주식·예금·대출을 관리하며 <strong>총자산과 위험을 함께 관리</strong>하는 것이 목표입니다.</span></div><div class="guide-points"><article><b>모두 같은 시장</b><span>가격·뉴스·시장 시간은 모든 플레이어가 같은 데이터를 봅니다.</span></article><article><b>미래는 안 보임</b><span>차트는 지금까지 발생한 체결만 보여줍니다. 다음 가격은 미리 표시하지 않습니다.</span></article><article><b>수익률만이 전부는 아님</b><span>현금 비중, 집중도, 부채, 주문 습관도 성취 시스템에 반영됩니다.</span></article></div>`},
-    {kicker:'02 · CHART',title:'차트는 미래 예언이 아니라 과거를 정리한 기록입니다',body:`<div class="guide-visual-row"><div class="candle-demo"><i class="wick"></i><i class="body"></i></div><div><b>캔들 한 개</b><span>시가·고가·저가·종가를 한 번에 보여줍니다. 몸통과 꼬리로 그 구간의 움직임을 읽습니다.</span></div></div><div class="guide-points"><article><b>MA5</b><span>최근 5봉 평균. 아주 짧은 흐름.</span></article><article><b>MA20</b><span>보라색 선. 최근 20봉 평균. 중기 흐름.</span></article><article><b>MA60</b><span>더 긴 흐름을 보는 평균선.</span></article><article><b>거래량</b><span>가격이 움직일 때 실제 거래가 얼마나 붙었는지 보는 보조 정보.</span></article></div><div class="guide-warning">이동평균선 위에 있다고 반드시 오르고, 아래라고 반드시 떨어지는 것은 아닙니다.</div>`},
-    {kicker:'03 · ORDER',title:'시장가와 지정가는 “속도”와 “가격” 중 무엇을 우선하느냐의 차이',body:`<div class="guide-order-compare"><article><span>시장가</span><b>지금 바로 체결 우선</b><p>현재 가장 유리한 호가부터 바로 거래합니다. 빠르지만 수량이 크거나 변동성이 크면 예상보다 비싸게 사거나 싸게 팔릴 수 있습니다.</p><em>예: 현재 10,000원 부근 → 가능한 가격부터 즉시 매수</em></article><article><span>지정가</span><b>내가 정한 가격 우선</b><p>매수는 정한 가격 이하, 매도는 정한 가격 이상에서만 체결됩니다. 원하는 가격을 지킬 수 있지만 거래가 안 될 수도 있습니다.</p><em>예: 9,800원 이하에서만 사고 싶다</em></article></div><div class="guide-warning">처음에는 소량 지정가 주문으로 호가와 체결 구조를 익히는 것을 권장합니다.</div>`},
-    {kicker:'04 · GLOBAL',title:'해외주식은 주가만 보는 것이 아니라 환율도 같이 봅니다',body:`<div class="guide-equation"><span>원화 기준 해외주식 가치</span><b>현지 주가 × 환율</b></div><div class="guide-points"><article><b>주가 상승 + 환율 상승</b><span>원화 기준 수익이 더 커질 수 있습니다.</span></article><article><b>주가 상승 + 환율 하락</b><span>현지 주가는 올라도 원화 수익은 줄 수 있습니다.</span></article><article><b>거래시간</b><span>국가마다 장 운영시간과 휴장일이 다릅니다.</span></article><article><b>이 게임의 표시</b><span>현지 통화 가격과 원화 환산 가격을 함께 보여줍니다.</span></article></div>`},
-    {kicker:'05 · NEWS & RISK',title:'뉴스는 “정답 버튼”이 아니라 판단 재료입니다',body:`<div class="guide-points"><article><b>1. 대상 확인</b><span>기업 뉴스인지, 산업 전체인지, 시장 전체인지 구분합니다.</span></article><article><b>2. 실제 영향</b><span>매출·비용·수요·금리·환율에 어떤 영향을 줄지 생각합니다.</span></article><article><b>3. 이미 반영됐나?</b><span>좋은 뉴스가 나와도 기대가 미리 가격에 반영됐다면 바로 오르지 않을 수 있습니다.</span></article><article><b>4. 한 종목 몰빵 주의</b><span>좋아 보이는 뉴스 하나만 보고 자산 대부분을 한 종목에 넣으면 충격을 크게 받습니다.</span></article></div><div class="guide-warning">뉴스의 ‘긍정/부정 압력’ 표시는 초보자용 해석 보조일 뿐, 매수·매도 추천이 아닙니다.</div>`},
-    {kicker:'06 · ACCOUNT',title:'현금·주식·은행·부채를 한 장의 자산표처럼 봅니다',body:`<div class="guide-points"><article><b>평가손익</b><span>아직 팔지 않았어도 현재 가격 기준으로 자산가치가 얼마나 변했는지 보여줍니다.</span></article><article><b>현금 비중</b><span>현금은 수익이 없을 수 있지만 급락 시 선택권을 남겨주는 자산입니다.</span></article><article><b>예금·적금</b><span>변동성은 낮지만 자금이 일정 기간 묶입니다.</span></article><article><b>대출</b><span>현금은 늘지만 부채와 이자가 생깁니다. 투자 손실과 이자가 동시에 발생할 수 있습니다.</span></article></div><div class="guide-action-note">상단의 <b>투자 기초</b> 메뉴에는 일반계좌·ISA·연금저축·IRP·ETF·펀드 설명도 따로 정리되어 있습니다.</div>`},
-    {kicker:'07 · PLAY STYLE',title:'내가 볼 정보량을 선택하세요',body:`<div class="guide-mode-grid">${Object.entries(GUIDE_MODES).map(([k,v])=>`<button type="button" data-guide-mode="${k}" class="${guidanceMode()===k?'on':''}"><b>${v.label}</b><span>${v.desc}</span>${k==='BEGINNER'?'<em>추천 · 처음 주식 게임을 하는 경우</em>':k==='STANDARD'?'<em>설명은 줄이고 핵심 보조만</em>':'<em>보조지표 없이 스스로 판단</em>'}</button>`).join('')}</div><div class="guide-warning">이 설정은 시장 가격을 바꾸지 않습니다. 같은 공용 시장을 보되 <strong>화면에 표시되는 도움 정보의 양만</strong> 달라집니다.</div>`}
+    {selector:'.watchlist-panel',kicker:'01 · 종목 선택',title:'먼저 어떤 종목을 볼지 고릅니다',text:'전체·국내·해외 필터와 종목 바로가기를 이용합니다. 종목을 바꾸면 가운데 차트와 오른쪽 호가·주문창이 그 종목 기준으로 바뀝니다.'},
+    {selector:'.chartbox',kicker:'02 · 차트',title:'가격이 어떻게 움직였는지 확인합니다',text:'캔들은 시가·고가·저가·종가를 보여줍니다. 노랑 MA5, 보라 MA20, 초록 MA60은 최근 가격의 평균선이며 미래 가격을 보장하는 선이 아닙니다.'},
+    {selector:'.trade-card',kicker:'03 · 호가와 주문',title:'호가를 보고 시장가·지정가를 선택합니다',text:'시장가는 빠른 체결을, 지정가는 원하는 가격을 우선합니다. 호가 탭에서 실제 매수·매도 대기 가격을 보고 주문 탭에서 수량과 가격을 정하세요.'},
+    {selector:'[data-main-tab="news"]',kicker:'04 · 뉴스',title:'뉴스는 가격 변동의 재료입니다',text:'좋은 뉴스라고 무조건 오르는 것은 아닙니다. 어떤 기업·산업에 영향을 주는지, 이미 가격에 반영됐는지 함께 판단하세요.'},
+    {selector:'[data-main-tab="portfolio"]',kicker:'05 · 내 자산',title:'수익률뿐 아니라 포트폴리오 전체를 봅니다',text:'보유 현금, 주식 평가액, 평균 매입가, 평가손익을 확인할 수 있습니다. 한 종목에 너무 몰려 있지는 않은지도 함께 보세요.'},
+    {selector:'[data-tour="strategy"]',kicker:'06 · 시장 플레이',title:'이벤트가 생기면 직접 판단하고 거래합니다',text:'실적 발표, 루머 검증, 대형 계약, 배당, IPO가 시간에 따라 등장합니다. 결과가 공개되기 전에 판단을 남기고 실제 매수·매도 또는 공매도로 대응해 보세요.'},
+    {selector:'[data-main-tab="ranking"]',kicker:'07 · 경쟁',title:'결국 승부는 내 자산 결과로 확인합니다',text:'별도 레벨이나 미션 점수는 없습니다. 같은 공용 시장에서 어떤 정보를 믿고 어떤 전략을 선택했는지에 따라 총자산 결과가 달라집니다.'}
   ];
 }
-function openTutorial(startIndex=0){
+function closeTutorial(){
   document.getElementById('kxTutorial')?.remove();
-  const slides=tutorialSlides();let index=Math.max(0,Math.min(slides.length-1,Number(startIndex)||0));
-  const el=document.createElement('div');el.id='kxTutorial';el.className='tutorial-backdrop';
-  const draw=()=>{
-    const slide=slides[index];
-    el.innerHTML=`<section class="tutorial-card tutorial-wizard" role="dialog" aria-modal="true" aria-label="KX EXCHANGE 튜토리얼">
-      <button class="tutorial-close" aria-label="닫기">×</button>
-      <div class="tutorial-progress"><span>${index+1} / ${slides.length}</span><div>${slides.map((_,i)=>`<i class="${i===index?'on':i<index?'done':''}"></i>`).join('')}</div></div>
-      <div class="tutorial-kicker">${slide.kicker}</div><h2>${slide.title}</h2>
-      <div class="tutorial-slide-body">${slide.body}</div>
-      <div class="tutorial-actions"><button type="button" class="tutorial-secondary" data-tutorial-prev ${index===0?'disabled':''}>이전</button>${index===slides.length-1?'<button type="button" class="tutorial-secondary" data-open-basics>투자 기초 열기</button>':''}<button type="button" class="tutorial-start" data-tutorial-next>${index===slides.length-1?'설정 저장하고 시작':'다음'}</button></div>
-    </section>`;
-    el.querySelector('.tutorial-close').onclick=close;
-    const prev=el.querySelector('[data-tutorial-prev]');if(prev)prev.onclick=()=>{index=Math.max(0,index-1);draw()};
-    const next=el.querySelector('[data-tutorial-next]');if(next)next.onclick=()=>{if(index<slides.length-1){index++;draw()}else close()};
-    el.querySelectorAll('[data-guide-mode]').forEach(b=>b.onclick=()=>{setGuidanceMode(b.dataset.guideMode);draw()});
-    const basics=el.querySelector('[data-open-basics]');if(basics)basics.onclick=()=>{localStorage.setItem(TUTORIAL_SEEN_KEY,'1');el.remove();state.tab='learn';renderTerminal()};
-  };
-  const close=()=>{localStorage.setItem(TUTORIAL_SEEN_KEY,'1');el.remove();renderTerminal()};
-  document.body.appendChild(el);draw();
-  el.onclick=e=>{if(e.target===el)close()};
+  document.body.classList.remove('tutorial-active');
+  window.removeEventListener('resize',window.__kxTourResize||(()=>{}));
+  window.removeEventListener('scroll',window.__kxTourResize||(()=>{}),true);
+  window.__kxTourResize=null;
 }
-function openGuideSettings(){openTutorial(tutorialSlides().length-1)}
-
+function startGuidedTour(startIndex=0){
+  closeTutorial();
+  const steps=tutorialSteps();let index=Math.max(0,Math.min(steps.length-1,Number(startIndex)||0));
+  const root=document.createElement('div');root.id='kxTutorial';root.className='guided-tour';
+  root.innerHTML=`<div class="tour-focus"></div><section class="tour-bubble" role="dialog" aria-live="polite"><button class="tour-close" aria-label="튜토리얼 닫기">×</button><div class="tour-step"></div><div class="tour-actions"><button data-tour-prev>이전</button><button data-tour-next>다음</button></div></section>`;
+  document.body.appendChild(root);document.body.classList.add('tutorial-active');
+  const focus=root.querySelector('.tour-focus'),bubble=root.querySelector('.tour-bubble'),stepBox=root.querySelector('.tour-step');
+  function visibleTarget(selector){return [...document.querySelectorAll(selector)].find(el=>{const r=el.getBoundingClientRect();return r.width>2&&r.height>2})||document.querySelector(selector)}
+  function place(){
+    const step=steps[index],target=visibleTarget(step.selector);if(!target)return;
+    const r=target.getBoundingClientRect(),pad=7;
+    const left=Math.max(6,r.left-pad),top=Math.max(6,r.top-pad),right=Math.min(innerWidth-6,r.right+pad),bottom=Math.min(innerHeight-6,r.bottom+pad);
+    focus.style.left=`${left}px`;focus.style.top=`${top}px`;focus.style.width=`${Math.max(20,right-left)}px`;focus.style.height=`${Math.max(20,bottom-top)}px`;
+    const bw=Math.min(390,innerWidth-24);bubble.style.width=`${bw}px`;
+    const bh=bubble.offsetHeight||210;let bx=Math.min(Math.max(12,left),innerWidth-bw-12);let by=bottom+14;
+    if(by+bh>innerHeight-12)by=Math.max(12,top-bh-14);
+    if(r.width>innerWidth*.72){bx=Math.max(12,(innerWidth-bw)/2);}
+    bubble.style.left=`${bx}px`;bubble.style.top=`${by}px`;
+  }
+  function draw(){
+    const step=steps[index];
+    stepBox.innerHTML=`<small>${step.kicker} · ${index+1}/${steps.length}</small><h2>${step.title}</h2><p>${step.text}</p>`;
+    root.querySelector('[data-tour-prev]').disabled=index===0;
+    root.querySelector('[data-tour-next]').textContent=index===steps.length-1?'튜토리얼 끝내기':'다음';
+    const target=visibleTarget(step.selector);if(target){target.scrollIntoView({block:'nearest',inline:'nearest'});setTimeout(place,40)}else setTimeout(place,40);
+  }
+  root.querySelector('.tour-close').onclick=closeTutorial;
+  root.querySelector('[data-tour-prev]').onclick=()=>{if(index>0){index--;draw()}};
+  root.querySelector('[data-tour-next]').onclick=()=>{if(index<steps.length-1){index++;draw()}else closeTutorial()};
+  window.__kxTourResize=place;window.addEventListener('resize',place);window.addEventListener('scroll',place,true);
+  draw();
+}
+function openTutorial(startIndex=0){
+  if(state.tab!=='market'){
+    state.tab='market';renderTerminal();setTimeout(()=>startGuidedTour(startIndex),80);return;
+  }
+  startGuidedTour(startIndex);
+}
 function renderTerminal(){
   const s=selected();if(!s)return;
   const ch=changeOf(s);
@@ -636,6 +714,7 @@ function renderTerminal(){
     :state.tab==='portfolio'?renderPortfolio()
     :state.tab==='orders'?renderOrders()
     :state.tab==='news'?renderNews()
+    :state.tab==='strategy'?renderStrategyRoom()
     :state.tab==='learn'?renderInvestmentGuide()
     :state.tab==='bank'?renderBank()
     :renderRanking();
@@ -646,7 +725,7 @@ function renderTerminal(){
       ${topNav()}
       <div class="market-status"><b>DAY ${state.clock?.game_day||1}</b><span>${gameTime(state.clock?.game_minute||0)}</span><em>${SESS[state.clock?.session]||'-'}</em><i class="market-regime ${(state.clock?.market_regime||'NEUTRAL').toLowerCase()}">${REGIME[state.clock?.market_regime||'NEUTRAL']||'중립'}장</i></div>
       <div class="header-money"><div class="asset cash"><small>보유 현금</small><b>${won(state.account?.cash)}</b></div><div class="asset"><small>총자산</small><b>${won(totalAssets())}</b></div></div>
-      <button class="guide-mode-btn" id="guideModeBtn" title="화면 도움 정보 설정">지원: ${guidanceInfo().short}</button><button class="tutorial-btn" id="tutorialBtn">? 튜토리얼</button><button class="logout" id="logout">로그아웃</button>
+      <button class="tutorial-btn" id="tutorialBtn">튜토리얼</button><button class="logout" id="logout">로그아웃</button>
     </header>
     <div class="mobile-account-bar"><span>보유 현금 <b>${won(state.account?.cash)}</b></span><span>총자산 <b>${won(totalAssets())}</b></span></div>
     ${content}
@@ -655,6 +734,7 @@ function renderTerminal(){
       <button data-main-tab="portfolio" class="${state.tab==='portfolio'?'on':''}">자산</button>
       <button data-main-tab="orders" class="${state.tab==='orders'?'on':''}">주문</button>
       <button data-main-tab="news" class="${state.tab==='news'?'on':''}">뉴스</button>
+      <button data-main-tab="strategy" class="${state.tab==='strategy'?'on':''}">전략실</button>
       <button data-main-tab="learn" class="${state.tab==='learn'?'on':''}">기초</button>
       <button data-main-tab="bank" class="${state.tab==='bank'?'on':''}">은행</button>
       <button data-main-tab="ranking" class="${state.tab==='ranking'?'on':''}">랭킹</button>
@@ -662,7 +742,6 @@ function renderTerminal(){
   </div>`;
   bind();
   if(state.tab==='market')drawChart();
-  if(!localStorage.getItem(TUTORIAL_SEEN_KEY)&&!document.getElementById('kxTutorial'))setTimeout(()=>{if(!document.getElementById('kxTutorial'))openTutorial(0)},180);
 }
 
 function rememberOrderInputs(){
@@ -728,7 +807,6 @@ async function executePendingOrder(){
 function bind(){
   document.getElementById('logout').onclick=logout;
   const tb=document.getElementById('tutorialBtn');if(tb)tb.onclick=()=>openTutorial(0);
-  const gb=document.getElementById('guideModeBtn');if(gb)gb.onclick=openGuideSettings;
 
   document.querySelectorAll('[data-main-tab]').forEach(b=>b.onclick=async()=>{
     rememberOrderInputs();
@@ -744,7 +822,7 @@ function bind(){
   document.querySelectorAll('[data-market-filter]').forEach(b=>b.onclick=()=>{
     rememberOrderInputs();
     state.marketFilter=b.dataset.marketFilter||'ALL';
-    const pool=state.stocks.filter(x=>state.marketFilter==='ALL'||marketArea(x)===state.marketFilter);
+    const pool=state.stocks.filter(stockVisible).filter(x=>state.marketFilter==='ALL'||marketArea(x)===state.marketFilter);
     if(pool.length&&!pool.some(x=>x.ticker===state.ticker)){state.ticker=pool[0].ticker;state.orderPrice=null;}
     renderTerminal();
   });
@@ -776,6 +854,20 @@ function bind(){
   if(submit)submit.onclick=placeOrder;
 
   document.querySelectorAll('[data-cancel]').forEach(b=>b.onclick=()=>cancelOrder(b.dataset.cancel));
+
+  document.querySelectorAll('[data-event-predict]').forEach(b=>b.onclick=async()=>{
+    const msg=b.closest('.market-event-card');
+    try{await rpc('kx_game_predict',{p_event_id:Number(b.dataset.eventPredict),p_choice:b.dataset.choice});await loadGameLayer(false,true);renderTerminal()}catch(e){if(msg)msg.setAttribute('data-error',e.message);alert('판단 기록 실패: '+e.message)}
+  });
+  const openShort=document.getElementById('openShort');if(openShort)openShort.onclick=async()=>{
+    const ticker=document.getElementById('shortTicker')?.value,qty=Math.max(1,Math.floor(Number(document.getElementById('shortQty')?.value)||1)),msg=document.getElementById('shortMsg');
+    openShort.disabled=true;try{await rpc('kx_short_open',{p_ticker:ticker,p_quantity:qty});if(msg)msg.textContent='공매도 포지션을 열었습니다.';await loadPrivateSnapshot();await loadGameLayer(false,true);renderTerminal()}catch(e){if(msg)msg.textContent=e.message;openShort.disabled=false}
+  };
+  document.querySelectorAll('[data-short-close]').forEach(b=>b.onclick=async()=>{if(!confirm('현재 가격으로 공매도 포지션을 청산할까요?'))return;try{await rpc('kx_short_close',{p_position_id:Number(b.dataset.shortClose)});await loadPrivateSnapshot();await loadGameLayer(false,true);renderTerminal()}catch(e){alert(e.message)}});
+  document.querySelectorAll('[data-ipo-subscribe]').forEach(b=>b.onclick=async()=>{
+    const ticker=b.dataset.ipoSubscribe,qty=Math.max(1,Math.floor(Number(document.getElementById(`ipoQty_${ticker}`)?.value)||1));
+    b.disabled=true;try{await rpc('kx_ipo_subscribe',{p_ticker:ticker,p_quantity:qty});await loadPrivateSnapshot();await loadGameLayer(false,true);renderTerminal()}catch(e){b.disabled=false;alert('IPO 청약 실패: '+e.message)}
+  });
 
   const bankRun=async(name,body,question)=>{
     const msg=document.getElementById('bankMsg');
