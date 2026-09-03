@@ -224,3 +224,38 @@ body{font-size:var(--kx-font)}
 
 @media(max-width:1279px){.market-filter-tabs{display:flex;padding:6px 8px}.market-filter-tabs button{min-width:62px;padding:0 12px}.foreign-local-price{font-size:8.5px}}
 @media(max-width:767px){.market-filter-tabs{overflow-x:auto;scrollbar-width:none}.market-filter-tabs::-webkit-scrollbar{display:none}.market-filter-tabs button{flex:0 0 auto;height:34px}.market-badge{margin-left:4px}.local-quote{font-size:7.5px!important}.real-chart-toolbar::after{display:none}.order-grid input,.order-grid select,.advanced select{font-size:16px!important;background:#0a0f16!important;color:#f0f4f8!important}}
+
+/* 2026-09-03 stock UX / lite gamification patch */
+.chart-guide{margin:0 12px 10px;padding:10px 12px;border:1px solid #233042;border-radius:10px;background:#0b1118;display:grid;gap:6px}
+.chart-guide b{font-size:12px;color:#f1f5f9}
+.chart-guide span{display:flex;align-items:center;gap:8px;color:#b7c3d4;font-size:11px}
+.chart-guide p{margin:2px 0 0;color:#90a0b5;font-size:10px;line-height:1.55}
+.chart-guide .dot{width:10px;height:10px;border-radius:999px;display:inline-block;flex:0 0 10px}
+.chart-guide .dot.ma5{background:#e7bf59}
+.chart-guide .dot.ma20{background:#a776dc}
+.chart-guide .dot.ma60{background:#59aa78}
+.order-compare{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px}
+.order-compare>div{padding:10px;border:1px solid #202c39;border-radius:9px;background:#0a0f16;display:grid;gap:4px}
+.order-compare b{font-size:12px;color:#eef2f8}
+.order-compare span{font-size:10px;font-weight:800;color:#f0c66d}
+.order-compare small{font-size:10px;line-height:1.45;color:#8d9aae}
+.lite-game-panel{margin:12px;border:1px solid #263142;border-radius:12px;background:linear-gradient(180deg,#0c1219,#091018);padding:12px;display:grid;gap:10px}
+.lite-head{display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+.lite-head small{display:block;color:#7988a0;font-size:10px;letter-spacing:.08em}
+.lite-head b{display:block;color:#f5f7fb;font-size:16px}
+.lite-head span{color:#f0c66d;font-size:11px;font-weight:800}
+.lite-copy{margin:0;color:#97a4b7;font-size:11px;line-height:1.6}
+.lite-copy b{color:#e7edf7}
+.lite-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.lite-grid article{padding:10px;border:1px solid #202b37;border-radius:10px;background:#0a0f15;display:grid;gap:4px}
+.lite-grid small{color:#7f8ea3;font-size:10px}
+.lite-grid b{color:#f3f6fb;font-size:18px}
+.lite-grid span{color:#97a6b8;font-size:10px;line-height:1.5}
+.mission-list{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.mission{padding:10px;border:1px solid #233142;border-radius:10px;background:#0b1118;display:grid;gap:4px}
+.mission.done{border-color:#4e6a3f;background:#0e1510}
+.mission b{color:#eef3f8;font-size:12px}
+.mission span{color:#8f9daf;font-size:10px;line-height:1.5}
+.mission em{font-style:normal;color:#c9d3df;font-size:10px;font-weight:700}
+.mission.done em{color:#b9e58f}
+@media(max-width:1279px){.lite-grid,.mission-list{grid-template-columns:1fr}.order-compare{grid-template-columns:1fr}.chart-guide{margin:0 8px 8px}.lite-game-panel{margin:8px}}

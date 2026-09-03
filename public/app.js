@@ -99,6 +99,49 @@ const SESS={PREOPEN:'장전',REGULAR:'정규장',CLOSING:'장마감',AFTERHOURS:
 const REGIME={BULL:'강세',NEUTRAL:'중립',BEAR:'약세',STRESS:'불안'};
 const NEWS_SEV={NORMAL:'일반',BREAKING:'속보',EXTRA:'호외'};
 const ORDER_STATUS={OPEN:'미체결',PARTIAL:'부분체결',FILLED:'체결완료',CANCELED:'취소',REJECTED:'거절'};
+const META_KEY='kx_player_meta_v1';
+function defaultMeta(){return {orders:0,limitOrders:0,marketOrders:0,filledOrders:0,newsViewed:false,profitableSells:0};}
+function loadMeta(){
+  try{return {...defaultMeta(),...(JSON.parse(localStorage.getItem(META_KEY)||'{}')||{})}}catch{return defaultMeta()}
+}
+let playerMeta=loadMeta();
+function saveMeta(){localStorage.setItem(META_KEY,JSON.stringify(playerMeta||defaultMeta()))}
+function markNewsViewed(){if(!playerMeta.newsViewed){playerMeta.newsViewed=true;saveMeta();}}
+function missionList(){
+  const holdingCount=(state.positions||[]).filter(p=>Number(p.quantity)>0).length;
+  return [
+    {id:'firstFill',name:'첫 체결',done:playerMeta.filledOrders>=1,progress:`${Math.min(playerMeta.filledOrders,1)}/1`,desc:'체결을 한 번만 경험해도 달성됩니다.'},
+    {id:'limitStrategist',name:'지정가 전략가',done:playerMeta.limitOrders>=3,progress:`${Math.min(playerMeta.limitOrders,3)}/3`,desc:'지정가 주문 3회로 가격 통제 연습.'},
+    {id:'newsTrader',name:'뉴스 기반 투자',done:playerMeta.newsViewed&&playerMeta.filledOrders>=1,progress:`${playerMeta.newsViewed?1:0}/1 + ${Math.min(playerMeta.filledOrders,1)}/1`,desc:'시장 뉴스를 본 뒤 체결 1회를 경험하세요.'},
+    {id:'diversified',name:'분산 투자',done:holdingCount>=3,progress:`${Math.min(holdingCount,3)}/3`,desc:'서로 다른 3종목 이상 보유 시 달성됩니다.'}
+  ];
+}
+function traderTier(){
+  const assets=Number(totalAssets())||0;
+  if(assets>=50000000)return {label:'마켓 메이커',hint:'대형 자산가 수준의 운용자'};
+  if(assets>=20000000)return {label:'펀드 매니저',hint:'자산 배분이 익숙한 상급 투자자'};
+  if(assets>=7000000)return {label:'애널리스트',hint:'뉴스와 흐름을 함께 보는 단계'};
+  if(assets>=2500000)return {label:'리서처',hint:'기초 운용을 익히는 단계'};
+  return {label:'인턴 트레이더',hint:'작은 실전으로 감각을 익히는 단계'};
+}
+function renderLiteGamePanel(){
+  const missions=missionList(),done=missions.filter(m=>m.done).length,tier=traderTier();
+  return `<section class="lite-game-panel"><div class="lite-head"><div><small>TRADER PROFILE</small><b>${tier.label}</b></div><span>배지 ${done} / ${missions.length}</span></div><p class="lite-copy">완전한 아케이드 게임 대신, 현실형 투자 화면에 <b>가벼운 목표 시스템</b>만 더했습니다. 기록은 이 브라우저에 저장됩니다.</p><div class="lite-grid"><article><small>누적 주문</small><b>${nf.format(playerMeta.orders)}</b><span>시장가 ${nf.format(playerMeta.marketOrders)} · 지정가 ${nf.format(playerMeta.limitOrders)}</span></article><article><small>체결 경험</small><b>${nf.format(playerMeta.filledOrders)}</b><span>${tier.hint}</span></article><article><small>수익 실현 매도</small><b>${nf.format(playerMeta.profitableSells)}</b><span>이익으로 끝낸 매도 주문 수</span></article></div><div class="mission-list">${missions.map(m=>`<div class="mission ${m.done?'done':''}"><b>${m.name}</b><span>${m.desc}</span><em>${m.done?'완료':'진행중'} · ${m.progress}</em></div>`).join('')}</div></section>`;
+}
+function recordOrderMeta(body,order,s){
+  if(!body||!order)return;
+  const ok=['OPEN','PARTIAL','FILLED'].includes(String(order.status||''));
+  if(!ok)return;
+  playerMeta.orders=(Number(playerMeta.orders)||0)+1;
+  if(body.p_order_type==='LIMIT')playerMeta.limitOrders=(Number(playerMeta.limitOrders)||0)+1;
+  if(body.p_order_type==='MARKET')playerMeta.marketOrders=(Number(playerMeta.marketOrders)||0)+1;
+  if(['PARTIAL','FILLED'].includes(String(order.status||'')))playerMeta.filledOrders=(Number(playerMeta.filledOrders)||0)+1;
+  if(body.p_side==='SELL'&&s&&['PARTIAL','FILLED'].includes(String(order.status||''))){
+    const avgFill=Number(order.avg_fill_price)||Number(s.last_price)||0;
+    if(positionMetrics(s,body.p_quantity,avgFill).realizedPnl>0)playerMeta.profitableSells=(Number(playerMeta.profitableSells)||0)+1;
+  }
+  saveMeta();
+}
 let syncBusy=false,syncRound=0,marketSyncTimer=null;
 
 function save(){localStorage.setItem(LS,JSON.stringify(session||{}))}
@@ -283,11 +326,13 @@ function renderChartPanel(s,ch){
       <div class="ma-legend"><span class="ma5">MA5</span><span class="ma20">MA20</span><span class="ma60">MA60</span></div>
       <small>캔들 · 이동평균 · 거래량</small>
     </div>
+    <div class="chart-guide"><b>선 읽는 법</b><span><i class="dot ma5"></i>노랑 MA5 = 최근 5봉 평균</span><span><i class="dot ma20"></i>보라 MA20 = 최근 20봉 평균(가장 많이 보는 중기 흐름)</span><span><i class="dot ma60"></i>초록 MA60 = 최근 60봉 평균</span><p>즉, 질문한 <strong>보라색 선</strong>은 <strong>20봉 이동평균선</strong>입니다. 가격이 이 선 위에 있으면 최근 20봉 평균보다 강한 흐름, 아래면 상대적으로 약한 흐름으로 해석할 수 있습니다.</p></div>
     <div class="chartbox balanced-chartbox real-chartbox"><canvas id="chart"></canvas></div>
     <div class="tape compact-tape balanced-tape">
       <div class="tape-head"><b>최근 체결</b><small>실제 체결가가 현재가에 반영됩니다</small></div>
       <div class="tape-list">${tape.length?tape.map(t=>`<div class="tape-row"><span>${new Date(t.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}</span><b>${nf.format(t.price)}</b><span>${nf.format(t.quantity)}주</span></div>`).join(''):`<div class="empty compact">아직 체결이 없습니다.</div>`}</div>
     </div>
+    ${renderLiteGamePanel()}
   </section>`;
 }
 
@@ -345,6 +390,7 @@ function renderOrder(s){
         <label id="priceWrap" class="span2">지정 가격<input id="price" type="number" min="1" value="${Math.round(Number(price)||Number(s.last_price)||1)}"></label>
       </div>
       <div class="order-help" id="orderHelp">${state.type==='MARKET'?'시장가: 현재 가장 유리한 호가부터 즉시 체결됩니다. 수량이 크면 여러 가격에 나뉘어 체결될 수 있습니다.':'지정가: 내가 정한 가격 이하(매수) 또는 이상(매도)에서만 체결됩니다.'}</div>
+      <div class="order-compare"><div><b>시장가</b><span>속도 우선</span><small>지금 바로 사고팔고 싶을 때. 다만 예상보다 비싸게 사거나 싸게 팔릴 수 있습니다.</small></div><div><b>지정가</b><span>가격 우선</span><small>원하는 가격에만 거래하고 싶을 때. 대신 체결이 안 될 수 있습니다.</small></div></div>
       <details class="advanced"><summary>고급 체결 조건</summary><label>체결 조건<select id="tif"><option value="DAY" ${state.tif==='DAY'?'selected':''}>DAY · 장 마감까지</option><option value="IOC" ${state.tif==='IOC'?'selected':''}>IOC · 가능한 만큼 즉시 체결 후 취소</option><option value="FOK" ${state.tif==='FOK'?'selected':''}>FOK · 전량 즉시 체결되지 않으면 취소</option></select></label></details>
       <button id="submitOrder" class="submit ${state.side==='BUY'?'buy':'sell'}">${state.side==='BUY'?'매수':'매도'} 주문 확인</button>
       <div class="msg" id="orderMsg">수량과 가격을 확인한 뒤 최종 확인창에서 주문합니다.</div>
@@ -556,6 +602,8 @@ async function executePendingOrder(){
   const msg=document.getElementById('orderMsg');
   try{
     const d=await rpc('kx_place_order',body);const o=Array.isArray(d)?d[0]:d;
+    const s=selected();
+    recordOrderMeta(body,o,s);
     closeOrderConfirm();
     if(msg)msg.textContent=o?.status==='FILLED'?`전량 체결 · 평균 ${won(o.avg_fill_price)}`:`주문 접수 · ${ORDER_STATUS[o?.status]||o?.status||''}`;
     await sync(false,false,true);
@@ -570,6 +618,7 @@ function bind(){
     rememberOrderInputs();
     const next=b.dataset.mainTab;
     state.tab=next;
+    if(next==='news')markNewsViewed();
     if(next==='news'||next==='ranking'){
       try{await loadPublicSnapshot(true,false)}catch(e){console.error(e)}
     }
