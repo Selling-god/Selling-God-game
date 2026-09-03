@@ -199,3 +199,28 @@ body{font-size:var(--kx-font)}
 @media(max-width:430px){
   .market-status em{display:none}.mobile-account-bar{top:58px}.balanced-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.balanced-head h1{font-size:20px}.balanced-head p{display:none}.balanced-head .quote b{font-size:24px}.real-chartbox{height:350px;min-height:350px}.sell-position-grid{grid-template-columns:1fr}.buy-funds-card{grid-template-columns:1fr}.order-grid{grid-template-columns:1fr}.order-grid .span2{grid-column:auto}.confirm-grid{grid-template-columns:1fr}.confirm-grid>div.wide{grid-column:auto}.watch-row{min-width:138px}.wire-track button time{display:none}
 }
+
+/* v012 - realistic chart polish, market groups, dark trading controls */
+.market-filter-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:8px;border-bottom:1px solid var(--line)}
+.market-filter-tabs button{height:32px;border:1px solid #283545;border-radius:7px;background:#0b1118;color:#8492a4;font-size:10px;font-weight:850}
+.market-filter-tabs button.on{border-color:#756238;background:#211b10;color:#f0cf78}
+.market-badge{display:inline-flex;align-items:center;margin-left:6px;padding:2px 6px;border:1px solid #304053;border-radius:999px;font-size:8px;font-weight:800;vertical-align:1px}
+.market-badge.domestic{color:#9fb5d6;background:#111a26}.market-badge.foreign{color:#e0c579;background:#1b170f;border-color:#5d4c2c}
+.local-quote{grid-column:1/-1;color:#7d8b9d;font-size:8px!important;text-align:right;margin-top:-2px}
+.foreign-local-price{display:block;margin-top:4px;color:#8f9daf;font-size:9px;font-weight:650}
+
+/* Keep trading controls visually inside the dark terminal. Native select menus can still use the OS popup when opened. */
+.order-grid input,.order-grid select,.advanced select,.bank-product input,.bank-product select,.stock-search-select select,
+.auth-card input{width:100%;border:1px solid #334153!important;background:#0a0f16!important;color:#eef3f8!important;box-shadow:none!important;outline:none;color-scheme:dark}
+.order-grid input,.order-grid select,.advanced select{height:42px;padding:0 10px;border-radius:7px}
+.order-grid input:focus,.order-grid select:focus,.advanced select:focus,.bank-product input:focus,.bank-product select:focus{border-color:#6c7f9a!important;background:#0d141d!important}
+.order-grid select option,.advanced select option,.bank-product select option,.stock-search-select select option{background:#0d141d;color:#eef3f8}
+.order-pane input[type=number]::-webkit-inner-spin-button,.order-pane input[type=number]::-webkit-outer-spin-button{opacity:.45}
+
+.real-chartbox{background:#090e14;border-top:1px solid #18212c}
+.real-chart-toolbar{background:#0d131b}
+.real-chart-toolbar::after{content:'실제 체결 기반';margin-left:auto;color:#5f6d80;font-size:9px;font-weight:700}
+.chart-periods button{transition:background .12s ease,border-color .12s ease,color .12s ease}
+
+@media(max-width:1279px){.market-filter-tabs{display:flex;padding:6px 8px}.market-filter-tabs button{min-width:62px;padding:0 12px}.foreign-local-price{font-size:8.5px}}
+@media(max-width:767px){.market-filter-tabs{overflow-x:auto;scrollbar-width:none}.market-filter-tabs::-webkit-scrollbar{display:none}.market-filter-tabs button{flex:0 0 auto;height:34px}.market-badge{margin-left:4px}.local-quote{font-size:7.5px!important}.real-chart-toolbar::after{display:none}.order-grid input,.order-grid select,.advanced select{font-size:16px!important;background:#0a0f16!important;color:#f0f4f8!important}}

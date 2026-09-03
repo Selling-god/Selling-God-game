@@ -16,7 +16,7 @@ let state={
   account:null,positions:[],orders:[],trades:[],ranking:[],
   bankDeposits:[],bankLoans:[],bankMeta:{},chartRanges:{},
   side:'BUY',type:'LIMIT',tif:'DAY',tab:'market',tradeTab:'book',
-  orderQty:1,orderPrice:null,pendingOrder:null,chartPeriod:'1M'
+  orderQty:1,orderPrice:null,pendingOrder:null,chartPeriod:'1M',marketFilter:'ALL'
 };
 
 const headers=(auth=true)=>{
@@ -228,18 +228,35 @@ function positionMetrics(s,qty=0,exitPrice=null){
   return {held,avg,cur,evalPnl,evalReturn,sellQty,realizedPnl,realizedReturn,remaining:Math.max(0,held-sellQty)};
 }
 
+function marketArea(s){return s?.market_area||'국내'}
+function marketCountry(s){return s?.market_country||'한국'}
+function localCurrency(s){return s?.local_currency||'KRW'}
+function localPriceValue(s){const fx=Math.max(.000001,Number(s?.fx_to_krw)||1);return (Number(s?.last_price)||0)/fx}
+function localPriceText(s){
+  const cur=localCurrency(s),v=localPriceValue(s);
+  if(cur==='KRW')return `${nf.format(Math.round(v))}원`;
+  if(cur==='USD')return `$${v.toFixed(2)}`;
+  if(cur==='EUR')return `€${v.toFixed(2)}`;
+  if(cur==='JPY')return `¥${nf.format(Math.round(v))}`;
+  return `${v.toFixed(2)} ${cur}`;
+}
+function stockMarketBadge(s){return `<span class="market-badge ${marketArea(s)==='해외'?'foreign':'domestic'}">${marketArea(s)} · ${escapeHtml(marketCountry(s))}</span>`}
+
 function topNav(){
   const items=[['market','시장'],['portfolio','내 자산'],['orders','주문 내역'],['news','뉴스'],['bank','은행'],['ranking','랭킹']];
   return `<nav class="main-nav">${items.map(([k,label])=>`<button data-main-tab="${k}" class="${state.tab===k?'on':''}">${label}</button>`).join('')}</nav>`;
 }
 
 function renderStockPicker(s){
-  const sorted=[...state.stocks].sort((a,b)=>Math.abs(changeOf(b))-Math.abs(changeOf(a)));
-  const watch=[s,...sorted.filter(x=>x.ticker!==s.ticker)].slice(0,8);
+  const filtered=state.stocks.filter(x=>state.marketFilter==='ALL'||marketArea(x)===state.marketFilter);
+  const pool=filtered.length?filtered:state.stocks;
+  const sorted=[...pool].sort((a,b)=>Math.abs(changeOf(b))-Math.abs(changeOf(a)));
+  const watch=[...(pool.some(x=>x.ticker===s.ticker)?[s]:[]),...sorted.filter(x=>x.ticker!==s.ticker)].slice(0,10);
   return `<aside class="watchlist-panel">
-    <div class="watchlist-head"><div><small>WATCHLIST</small><b>관심 종목</b></div><span>${state.stocks.length} 종목</span></div>
-    <label class="stock-search-select"><span>종목 바로가기</span><select id="stockSelect">${state.stocks.map(x=>`<option value="${x.ticker}" ${x.ticker===s.ticker?'selected':''}>${escapeHtml(x.name)} · ${x.ticker}</option>`).join('')}</select></label>
-    <div class="watchlist-list">${watch.map(x=>{const c=changeOf(x);return `<button data-ticker="${x.ticker}" class="watch-row ${x.ticker===s.ticker?'on':''}"><span><b>${escapeHtml(x.name)}</b><small>${x.ticker} · ${escapeHtml(x.sector)}</small></span><strong>${nf.format(x.last_price)}</strong><em class="${c>=0?'up':'down'}">${pct(c)}</em></button>`}).join('')}</div>
+    <div class="watchlist-head"><div><small>WATCHLIST</small><b>종목 찾기</b></div><span>${pool.length} / ${state.stocks.length}</span></div>
+    <div class="market-filter-tabs"><button data-market-filter="ALL" class="${state.marketFilter==='ALL'?'on':''}">전체</button><button data-market-filter="국내" class="${state.marketFilter==='국내'?'on':''}">국내</button><button data-market-filter="해외" class="${state.marketFilter==='해외'?'on':''}">해외</button></div>
+    <label class="stock-search-select"><span>종목 바로가기</span><select id="stockSelect">${pool.map(x=>`<option value="${x.ticker}" ${x.ticker===s.ticker?'selected':''}>${marketArea(x)==='해외'?'[해외] ':'[국내] '}${escapeHtml(x.name)} · ${x.ticker}</option>`).join('')}</select></label>
+    <div class="watchlist-list">${watch.map(x=>{const c=changeOf(x);return `<button data-ticker="${x.ticker}" class="watch-row ${x.ticker===s.ticker?'on':''}"><span><b>${escapeHtml(x.name)}</b><small>${marketArea(x)} · ${escapeHtml(x.sector)}</small></span><strong>${nf.format(x.last_price)}</strong><em class="${c>=0?'up':'down'}">${pct(c)}</em>${marketArea(x)==='해외'?`<small class="local-quote">${localPriceText(x)}</small>`:''}</button>`}).join('')}</div>
   </aside>`;
 }
 
@@ -250,11 +267,11 @@ function renderChartPanel(s,ch){
   return `<section class="panel chart-panel balanced-chart">
     <div class="stockhead balanced-head">
       <div>
-        <div class="stock-code">${s.ticker} · ${escapeHtml(s.sector)}</div>
+        <div class="stock-code">${s.ticker} · ${escapeHtml(s.sector)} ${stockMarketBadge(s)}</div>
         <h1>${escapeHtml(s.name)}</h1>
         <p>${escapeHtml(s.description)}</p>
       </div>
-      <div class="quote"><b>${nf.format(s.last_price)}</b><strong class="${ch>=0?'up':'down'}">${pct(ch)}</strong></div>
+      <div class="quote"><b>${nf.format(s.last_price)}원</b><strong class="${ch>=0?'up':'down'}">${pct(ch)}</strong>${marketArea(s)==='해외'?`<small class="foreign-local-price">현지 ${localPriceText(s)} · 원화 환산 거래</small>`:''}</div>
     </div>
     <div class="ohlc balanced-ohlc">
       <span>시가 <b>${nf.format(s.open_price)}</b></span><span>고가 <b>${nf.format(s.high_price)}</b></span><span>저가 <b>${nf.format(s.low_price)}</b></span><span>전일 <b>${nf.format(s.prev_close)}</b></span><span>거래량 <b>${nf.format(s.volume)}</b></span>
@@ -437,7 +454,7 @@ function openTutorial(){
       <article><b>지정가 주문</b><p><strong>내가 원하는 가격을 직접 정하는 주문</strong>입니다. 매수는 지정한 가격 이하, 매도는 지정한 가격 이상에서만 체결됩니다. 가격이 오지 않으면 미체결로 남을 수 있습니다.</p></article>
     </div>
     <ol class="tutorial-steps">
-      <li><b>1. 종목 고르기</b><span>왼쪽 관심 종목 또는 종목 바로가기에서 회사를 선택합니다.</span></li>
+      <li><b>1. 종목 고르기</b><span>전체·국내·해외 탭으로 시장을 나눠 볼 수 있습니다. 해외 종목은 현지 통화 가격도 함께 보여주지만, 게임에서는 이해하기 쉽게 공용 환율을 적용한 원화 환산 가격으로 주문됩니다.</span></li>
       <li><b>2. 차트 보기</b><span>캔들은 1분 동안의 시가·고가·저가·종가를 나타냅니다. 빨강/파랑 봉과 최근 체결 흐름을 함께 봅니다.</span></li>
       <li><b>3. 호가 보기</b><span>매도호가는 팔려는 가격, 매수호가는 사려는 가격입니다. 가장 가까운 호가부터 실제 주문이 체결됩니다.</span></li>
       <li><b>4. 주문하기</b><span>시장가 또는 지정가, 수량을 정하고 주문 확인 버튼을 누르면 예상 금액을 한 번 더 확인한 뒤 최종 주문합니다.</span></li>
@@ -559,6 +576,13 @@ function bind(){
     renderTerminal();
   });
 
+  document.querySelectorAll('[data-market-filter]').forEach(b=>b.onclick=()=>{
+    rememberOrderInputs();
+    state.marketFilter=b.dataset.marketFilter||'ALL';
+    const pool=state.stocks.filter(x=>state.marketFilter==='ALL'||marketArea(x)===state.marketFilter);
+    if(pool.length&&!pool.some(x=>x.ticker===state.ticker)){state.ticker=pool[0].ticker;state.orderPrice=null;}
+    renderTerminal();
+  });
   document.querySelectorAll('[data-ticker]').forEach(b=>b.onclick=async()=>{rememberOrderInputs();state.ticker=b.dataset.ticker;state.orderPrice=null;await loadPublicSnapshot(false,false);renderTerminal();});
   const ss=document.getElementById('stockSelect');if(ss)ss.onchange=async()=>{rememberOrderInputs();state.ticker=ss.value;state.orderPrice=null;await loadPublicSnapshot(false,false);renderTerminal();};
   document.querySelectorAll('[data-trade-tab]').forEach(b=>b.onclick=()=>{rememberOrderInputs();state.tradeTab=b.dataset.tradeTab;renderTerminal();});
@@ -620,27 +644,32 @@ async function cancelOrder(id){
 
 function normalizedCandles(input){
   const src=[...(input||[])].filter(x=>Number.isFinite(Number(x.candle_no))&&Number(x.close)>0).sort((a,b)=>Number(a.candle_no)-Number(b.candle_no));
-  const out=[];
-  for(const row of src){
-    const clean={...row,open:Number(row.open),high:Number(row.high),low:Number(row.low),close:Number(row.close),volume:Math.max(0,Number(row.volume)||0)};
-    if(out.length){
-      const prev=out[out.length-1],gap=Number(clean.candle_no)-Number(prev.candle_no);
-      if(gap>1&&gap<=8){for(let n=1;n<gap;n++){out.push({candle_no:Number(prev.candle_no)+n,open:Number(prev.close),high:Number(prev.close),low:Number(prev.close),close:Number(prev.close),volume:0,synthetic:true,created_at:null})}}
+  if(!src.length)return [];
+  const maxNo=Number(src[src.length-1].candle_no),minKeep=Math.max(Number(src[0].candle_no),maxNo-239);
+  const byNo=new Map(src.filter(x=>Number(x.candle_no)>=minKeep).map(x=>[Number(x.candle_no),x]));
+  const out=[];let prevClose=null,prevTime=null;
+  for(let no=minKeep;no<=maxNo;no++){
+    const row=byNo.get(no);
+    if(row){
+      const clean={...row,candle_no:no,open:Number(row.open),high:Number(row.high),low:Number(row.low),close:Number(row.close),volume:Math.max(0,Number(row.volume)||0)};
+      clean.high=Math.max(clean.high,clean.open,clean.close);clean.low=Math.min(clean.low,clean.open,clean.close);
+      out.push(clean);prevClose=clean.close;prevTime=row.created_at?new Date(row.created_at).getTime():prevTime;
+    }else if(prevClose!=null){
+      prevTime=prevTime?prevTime+60000:null;
+      out.push({candle_no:no,open:prevClose,high:prevClose,low:prevClose,close:prevClose,volume:0,synthetic:true,created_at:prevTime?new Date(prevTime).toISOString():null});
     }
-    clean.high=Math.max(clean.high,clean.open,clean.close);clean.low=Math.min(clean.low,clean.open,clean.close);
-    out.push(clean);
   }
   return out;
 }
 function aggregateCandles(rows,span){
   span=Math.max(1,Number(span)||1);if(span===1)return rows;
-  const groups=[];
-  for(let i=0;i<rows.length;i+=span){
-    const g=rows.slice(i,i+span);if(!g.length)continue;
-    groups.push({candle_no:g[0].candle_no,open:g[0].open,high:Math.max(...g.map(x=>x.high)),low:Math.min(...g.map(x=>x.low)),close:g[g.length-1].close,volume:g.reduce((a,x)=>a+(Number(x.volume)||0),0),created_at:g[0].created_at,synthetic:g.every(x=>x.synthetic)});
+  const buckets=new Map();
+  for(const row of rows){
+    const key=Math.floor(Number(row.candle_no)/span),arr=buckets.get(key)||[];arr.push(row);buckets.set(key,arr);
   }
-  return groups;
+  return [...buckets.entries()].sort((a,b)=>a[0]-b[0]).map(([key,g])=>({candle_no:key*span,open:Number(g[0].open),high:Math.max(...g.map(x=>Number(x.high))),low:Math.min(...g.map(x=>Number(x.low))),close:Number(g[g.length-1].close),volume:g.reduce((a,x)=>a+(Number(x.volume)||0),0),created_at:g[0].created_at,synthetic:g.every(x=>x.synthetic)}));
 }
+
 function smaSeries(rows,n){
   let sum=0;const out=[];
   for(let i=0;i<rows.length;i++){
@@ -652,7 +681,9 @@ function smaSeries(rows,n){
 function chartRange(rows){
   const lows=rows.map(x=>Number(x.low)).filter(x=>x>0),highs=rows.map(x=>Number(x.high)).filter(x=>x>0);
   const actualLo=Math.min(...lows),actualHi=Math.max(...highs);if(!Number.isFinite(actualLo)||!Number.isFinite(actualHi))return {lo:1,hi:2};
-  const last=Number(rows[rows.length-1]?.close)||actualLo,spread=Math.max(actualHi-actualLo,last*.008),pad=spread*.08;
+  const last=Number(rows[rows.length-1]?.close)||actualLo;
+  const spread=Math.max(actualHi-actualLo,last*.006);
+  const pad=Math.max(spread*.10,last*.0018);
   return {lo:Math.max(1,actualLo-pad),hi:actualHi+pad};
 }
 function drawChart(){
@@ -677,7 +708,7 @@ function drawChart(){
   rows.forEach((x,i)=>{const xx=L+i*step+step/2,op=Number(x.open),cl=Number(x.close),hg=Number(x.high),lw=Number(x.low),up=cl>=op;ctx.strokeStyle=ctx.fillStyle=up?'#e66b70':'#668de8';ctx.globalAlpha=x.synthetic?.35:1;ctx.beginPath();ctx.moveTo(xx,y(hg));ctx.lineTo(xx,y(lw));ctx.stroke();const yy=Math.min(y(op),y(cl)),hh=Math.max(1.5,Math.abs(y(op)-y(cl)));ctx.fillRect(xx-bw/2,yy,bw,hh);ctx.globalAlpha=1});
   const drawMA=(vals,color,width=1.35)=>{ctx.save();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();let started=false;vals.forEach((v,i)=>{if(v==null||v<lo*.8||v>hi*1.2)return;const xx=L+i*step+step/2,yy=y(v);if(!started){ctx.moveTo(xx,yy);started=true}else ctx.lineTo(xx,yy)});if(started)ctx.stroke();ctx.restore()};
   drawMA(ma5,'#e7bf59',1.5);drawMA(ma20,'#a776dc',1.35);drawMA(ma60,'#59aa78',1.35);
-  const currentY=y(last);if(currentY>=T&&currentY<=priceBottom){ctx.save();ctx.setLineDash([3,3]);ctx.strokeStyle='#d7dde7';ctx.globalAlpha=.75;ctx.beginPath();ctx.moveTo(L,currentY);ctx.lineTo(L+plotW,currentY);ctx.stroke();ctx.restore();const label=nf.format(Math.round(last));ctx.font=`bold ${W<560?9:10}px sans-serif`;const tw=ctx.measureText(label).width+10;ctx.fillStyle='#d5dde8';ctx.fillRect(L+plotW+3,currentY-9,Math.min(R-5,tw),18);ctx.fillStyle='#10151d';ctx.fillText(label,L+plotW+8,currentY+3)}
+  const currentY=y(last);if(currentY>=T&&currentY<=priceBottom){ctx.save();ctx.setLineDash([3,3]);ctx.strokeStyle='#d7dde7';ctx.globalAlpha=.75;ctx.beginPath();ctx.moveTo(L,currentY);ctx.lineTo(L+plotW,currentY);ctx.stroke();ctx.restore();const label=nf.format(Math.round(last));ctx.font=`bold ${W<560?9:10}px sans-serif`;const tw=ctx.measureText(label).width+10;ctx.fillStyle='#182330';ctx.fillRect(L+plotW+3,currentY-10,Math.min(R-5,tw),20);ctx.strokeStyle=Number(selected()?.last_price)>=Number(selected()?.prev_close)?'#b95157':'#4f72bd';ctx.strokeRect(L+plotW+3,currentY-10,Math.min(R-5,tw),20);ctx.fillStyle='#eef3f8';ctx.fillText(label,L+plotW+8,currentY+3)}
   const maxVol=Math.max(1,...rows.map(x=>Number(x.volume)||0));ctx.strokeStyle='#1c2631';ctx.beginPath();ctx.moveTo(L,volTop);ctx.lineTo(L+plotW,volTop);ctx.stroke();
   rows.forEach((x,i)=>{const xx=L+i*step+step/2,vh=(Number(x.volume)||0)/maxVol*(volH-10),up=Number(x.close)>=Number(x.open);ctx.fillStyle=up?'rgba(230,107,112,.60)':'rgba(102,141,232,.60)';ctx.fillRect(xx-bw/2,volTop+volH-vh,bw,Math.max(1,vh))});
   ctx.fillStyle='#718095';ctx.font=`${W<560?8:9}px sans-serif`;ctx.textAlign='left';ctx.fillText(`거래량 ${nf.format(maxVol)}`,L,volTop+10);
