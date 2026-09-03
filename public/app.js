@@ -5,6 +5,10 @@ const won=n=>`${nf.format(Math.round(Number(n)||0))}원`;
 const pct=n=>`${n>0?'+':''}${Number(n||0).toFixed(2)}%`;
 const app=document.getElementById('app');
 const LS='kx_session_v2';
+const NEWS_SEEN_KEY='kx_news_seen_v2';
+let lastSeenNewsId=Number(localStorage.getItem(NEWS_SEEN_KEY)||0);
+let newsBaselineReady=false;
+let newsFlashTimer=null;
 
 let session=null;
 let state={
@@ -32,6 +36,66 @@ async function req(path,opt={}){
 }
 async function rpc(name,body,auth=true){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(body||{}),auth})}
 function escapeHtml(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+async function ensureFreshBuild(){
+  try{
+    const r=await fetch(`/version.json?t=${Date.now()}`,{cache:'no-store'});
+    if(!r.ok)return true;
+    const remote=await r.json();
+    const local=String(C.buildId||'');
+    if(remote?.buildId && remote.buildId!==local){
+      location.replace(`/?kxv=${encodeURIComponent(remote.buildId)}&t=${Date.now()}`);
+      return false;
+    }
+  }catch(e){console.warn('build freshness check skipped',e)}
+  return true;
+}
+function dismissNewsFlash(){
+  clearTimeout(newsFlashTimer);
+  const el=document.getElementById('kxNewsFlash');
+  if(!el)return;
+  el.classList.remove('show');
+  setTimeout(()=>el.remove(),220);
+}
+function showNewsFlash(n){
+  if(!n||!['BREAKING','EXTRA'].includes(n.severity))return;
+  dismissNewsFlash();
+  const extra=n.severity==='EXTRA';
+  const el=document.createElement('aside');
+  el.id='kxNewsFlash';
+  el.className=`kx-news-flash ${extra?'extra':'breaking'}`;
+  el.innerHTML=`<button class="news-flash-close" aria-label="닫기">×</button>
+    <div class="news-flash-top"><span>${extra?'호외':'속보'}</span><time>${n.created_at?new Date(n.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):'방금'}</time></div>
+    <div class="news-flash-source">KX MARKET NEWS · ${escapeHtml(n.ticker||n.sector||'시장')}</div>
+    <h2>${escapeHtml(n.headline)}</h2>
+    <p>${escapeHtml(n.body)}</p>
+    <small>클릭하면 시장 뉴스에서 자세히 확인합니다.</small>`;
+  document.body.appendChild(el);
+  el.querySelector('.news-flash-close').onclick=e=>{e.stopPropagation();dismissNewsFlash()};
+  el.onclick=()=>{dismissNewsFlash();state.tab='news';renderTerminal()};
+  requestAnimationFrame(()=>el.classList.add('show'));
+  newsFlashTimer=setTimeout(dismissNewsFlash,extra?11000:7500);
+}
+function processIncomingNews(rows){
+  if(!Array.isArray(rows)||!rows.length)return;
+  const ids=rows.map(n=>Number(n.id)||0);
+  const maxId=Math.max(...ids,0);
+  if(!newsBaselineReady){
+    newsBaselineReady=true;
+    if(!lastSeenNewsId)lastSeenNewsId=maxId;
+    else {
+      const unseen=rows.filter(n=>(Number(n.id)||0)>lastSeenNewsId&&['BREAKING','EXTRA'].includes(n.severity)).sort((a,b)=>(Number(a.id)||0)-(Number(b.id)||0));
+      if(unseen.length)showNewsFlash(unseen[unseen.length-1]);
+    }
+    lastSeenNewsId=Math.max(lastSeenNewsId,maxId);
+    localStorage.setItem(NEWS_SEEN_KEY,String(lastSeenNewsId));
+    return;
+  }
+  const unseen=rows.filter(n=>(Number(n.id)||0)>lastSeenNewsId&&['BREAKING','EXTRA'].includes(n.severity)).sort((a,b)=>(Number(a.id)||0)-(Number(b.id)||0));
+  if(unseen.length)showNewsFlash(unseen[unseen.length-1]);
+  lastSeenNewsId=Math.max(lastSeenNewsId,maxId);
+  localStorage.setItem(NEWS_SEEN_KEY,String(lastSeenNewsId));
+}
 function authErrorText(err){
   const p=err?.payload||{};
   const raw=[err?.message,p?.message,p?.msg,p?.error_description,p?.error,p?.error_code,p?.code].filter(Boolean).join(' ').toLowerCase();
@@ -120,7 +184,7 @@ function applyPublicSnapshot(d){
   state.candles=d.candles||[];
   state.depth=d.depth||[];
   state.trades=d.trades||[];
-  if(Array.isArray(d.news))state.news=d.news;
+  if(Array.isArray(d.news)){processIncomingNews(d.news);state.news=d.news;}
   if(Array.isArray(d.ranking))state.ranking=d.ranking;
 }
 async function loadPublicSnapshot(includeAux=false,advance=false){
@@ -435,9 +499,11 @@ async function start(){
   try{await rpc('kx_join_exchange',{})}catch(e){console.warn('KX join marker skipped:',e.message)}
   await sync(true,true,true);
   setInterval(()=>sync(true,false,false),15000);
+  setInterval(()=>ensureFreshBuild(),60000);
   addEventListener('resize',()=>{if(document.getElementById('chart'))drawChart()});
 }
 async function boot(){
+  if(!(await ensureFreshBuild()))return;
   if(!C.supabaseUrl||!C.supabaseAnonKey)return renderDiag();
   try{session=JSON.parse(localStorage.getItem(LS)||'null')}catch{}
   if(session&&await validate())return start();
