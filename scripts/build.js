@@ -2,43 +2,52 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..');
-const src = path.join(root, 'public');
-const out = path.join(root, 'out');
+const publicDir = path.join(root, 'public');
+const required = ['index.html', 'app.js', 'styles.css'];
 
-console.log('[KX PATCH] ZERO-NEXT deploy build starting');
-console.log('[KX PATCH] project root:', root);
+console.log('[KX STATIC FIX] build starting');
+console.log('[KX STATIC FIX] root:', root);
 
-// Remove stale Next.js build/source folders from older deployments.
-// Render checks out a fresh copy on every deploy, so this affects only the build workspace.
-for (const stale of ['.next', 'app', 'pages']) {
-  const target = path.join(root, stale);
-  if (fs.existsSync(target)) {
-    fs.rmSync(target, { recursive: true, force: true });
-    console.log('[KX PATCH] removed stale:', stale);
+for (const file of required) {
+  const full = path.join(publicDir, file);
+  if (!fs.existsSync(full)) {
+    console.error(`[KX STATIC FIX] ERROR: public/${file} is missing.`);
+    console.error('[KX STATIC FIX] Keep the existing KX EXCHANGE public game files and apply this patch on top.');
+    process.exit(1);
   }
-}
-
-if (!fs.existsSync(path.join(src, 'index.html'))) {
-  console.error('[KX PATCH] ERROR: public/index.html is missing.');
-  console.error('[KX PATCH] This patch expects the KX EXCHANGE game files from the previous upload to already exist.');
-  process.exit(1);
-}
-
-fs.rmSync(out, { recursive: true, force: true });
-fs.mkdirSync(out, { recursive: true });
-for (const name of fs.readdirSync(src)) {
-  fs.cpSync(path.join(src, name), path.join(out, name), { recursive: true });
 }
 
 const cfg = {
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',
   supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '',
-  build: 'KX-DEPLOY-PATCH-ONLY-2026.09.03-F'
+  build: 'KX-STATIC-RENDER-FIX-2026.09.03-G'
 };
 
-fs.writeFileSync(path.join(out, 'config.js'), `window.__KX_CONFIG__=${JSON.stringify(cfg)};\n`);
-fs.writeFileSync(path.join(out, '_redirects'), '/* /index.html 200\n');
+// Make public itself deployable too, in case an old Render Publish Directory still points there.
+fs.writeFileSync(path.join(publicDir, 'config.js'), `window.__KX_CONFIG__=${JSON.stringify(cfg)};\n`);
 
-console.log('[KX PATCH] build complete:', out);
-console.log('[KX PATCH] index exists:', fs.existsSync(path.join(out, 'index.html')));
-console.log('[KX PATCH] expected Render log: KX-DEPLOY-PATCH-ONLY-2026.09.03-F');
+function copyDir(src, dest) {
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.mkdirSync(dest, { recursive: true });
+  for (const name of fs.readdirSync(src)) {
+    fs.cpSync(path.join(src, name), path.join(dest, name), { recursive: true });
+  }
+}
+
+// Correct target plus common legacy publish folders.
+for (const dirName of ['out', 'dist', 'build', 'site']) {
+  const dest = path.join(root, dirName);
+  copyDir(publicDir, dest);
+  fs.writeFileSync(path.join(dest, '_redirects'), '/* /index.html 200\n');
+}
+
+// Fallback for Publish Directory "." / repository root.
+for (const file of ['index.html', 'app.js', 'styles.css', 'config.js']) {
+  fs.copyFileSync(path.join(publicDir, file), path.join(root, file));
+}
+
+console.log('[KX STATIC FIX] READY');
+console.log('[KX STATIC FIX] out/index.html:', fs.existsSync(path.join(root, 'out', 'index.html')));
+console.log('[KX STATIC FIX] public/index.html:', fs.existsSync(path.join(root, 'public', 'index.html')));
+console.log('[KX STATIC FIX] root/index.html:', fs.existsSync(path.join(root, 'index.html')));
+console.log('[KX STATIC FIX] build marker:', cfg.build);
