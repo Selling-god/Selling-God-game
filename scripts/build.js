@@ -4,14 +4,13 @@ const crypto = require('crypto');
 
 const root = path.resolve(__dirname, '..');
 const publicDir = path.join(root, 'public');
-const outDir = path.join(root, 'out');
 const required = ['index.html', 'app.js', 'styles.css'];
 
-console.log('[KX STATIC RECOVERY] build starting');
+console.log('[KX MULTIROOT STATIC] build starting');
 for (const name of required) {
-  const file = path.join(publicDir, name);
-  if (!fs.existsSync(file)) {
-    console.error(`[KX STATIC RECOVERY] missing public/${name}`);
+  const p = path.join(publicDir, name);
+  if (!fs.existsSync(p)) {
+    console.error(`[KX MULTIROOT STATIC] missing public/${name}`);
     process.exit(1);
   }
 }
@@ -25,32 +24,65 @@ const hash = crypto.createHash('sha256')
   .update(fs.readFileSync(path.join(publicDir, 'app.js')))
   .update(fs.readFileSync(path.join(publicDir, 'styles.css')))
   .update(JSON.stringify(env))
-  .update(String(process.env.RENDER_GIT_COMMIT || ''))
+  .update(String(process.env.RENDER_GIT_COMMIT || Date.now()))
   .digest('hex')
   .slice(0, 12);
 
-fs.rmSync(outDir, { recursive: true, force: true });
-fs.mkdirSync(outDir, { recursive: true });
-for (const name of fs.readdirSync(publicDir)) {
-  fs.cpSync(path.join(publicDir, name), path.join(outDir, name), { recursive: true });
+const configSource = `window.__KX_CONFIG__=${JSON.stringify({ ...env, buildId: hash })};\n`;
+const sourceIndex = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
+const renderedIndex = sourceIndex
+  .replace(/__KX_ASSET_VERSION__/g, hash)
+  .replace(/([?&]v=)[a-f0-9]{8,}/gi, `$1${hash}`);
+
+function ensureDir(dir) {
+  fs.mkdirSync(dir, { recursive: true });
 }
 
-const config = `window.__KX_CONFIG__=${JSON.stringify({ ...env, buildId: hash })};\n`;
-fs.writeFileSync(path.join(outDir, 'config.js'), config);
+function writeDeployFiles(dest, copyAssets) {
+  ensureDir(dest);
+  if (copyAssets) {
+    for (const name of fs.readdirSync(publicDir)) {
+      if (name === 'index.html' || name === 'config.js') continue;
+      const src = path.join(publicDir, name);
+      const dst = path.join(dest, name);
+      fs.cpSync(src, dst, { recursive: true, force: true });
+    }
+  }
+  fs.writeFileSync(path.join(dest, 'index.html'), renderedIndex);
+  fs.writeFileSync(path.join(dest, 'config.js'), configSource);
+  fs.writeFileSync(path.join(dest, '404.html'), renderedIndex);
+  fs.writeFileSync(path.join(dest, '_redirects'), '/* /index.html 200\n');
+  fs.writeFileSync(path.join(dest, 'kx-health.txt'), `KX_EXCHANGE_OK ${hash}\n`);
+  fs.writeFileSync(path.join(dest, 'kx-build-proof.txt'), `KX_MULTIROOT_STATIC ${hash}\n`);
+}
 
-const indexPath = path.join(outDir, 'index.html');
-let html = fs.readFileSync(indexPath, 'utf8');
-html = html.replaceAll('__KX_ASSET_VERSION__', hash);
-fs.writeFileSync(indexPath, html);
+// 1) If Render Publish Directory is public, keep public directly deployable.
+writeDeployFiles(publicDir, false);
 
-// Render Static Site SPA/root fallback.
-fs.writeFileSync(path.join(outDir, '_redirects'), '/* /index.html 200\n');
-fs.copyFileSync(indexPath, path.join(outDir, '404.html'));
-fs.writeFileSync(path.join(outDir, 'version.json'), JSON.stringify({ buildId: hash, app: 'KX EXCHANGE' }));
-fs.writeFileSync(path.join(outDir, 'kx-health.txt'), `KX_EXCHANGE_OK ${hash}\n`);
+// 2) Cover the common existing Render Publish Directory values.
+for (const name of ['out', 'dist', 'build', 'site']) {
+  const dest = path.join(root, name);
+  fs.rmSync(dest, { recursive: true, force: true });
+  writeDeployFiles(dest, true);
+}
 
-const ok = fs.existsSync(indexPath) && fs.statSync(indexPath).size > 100;
-console.log(`[KX STATIC RECOVERY] buildId=${hash}`);
-console.log(`[KX STATIC RECOVERY] out/index.html=${ok}`);
-console.log(`[KX STATIC RECOVERY] out/404.html=${fs.existsSync(path.join(outDir, '404.html'))}`);
-if (!ok) process.exit(1);
+// 3) If Publish Directory is repository root ("."), make root deployable too.
+for (const name of ['app.js', 'styles.css']) {
+  fs.copyFileSync(path.join(publicDir, name), path.join(root, name));
+}
+fs.writeFileSync(path.join(root, 'index.html'), renderedIndex);
+fs.writeFileSync(path.join(root, 'config.js'), configSource);
+fs.writeFileSync(path.join(root, '404.html'), renderedIndex);
+fs.writeFileSync(path.join(root, '_redirects'), '/* /index.html 200\n');
+fs.writeFileSync(path.join(root, 'kx-health.txt'), `KX_EXCHANGE_OK ${hash}\n`);
+fs.writeFileSync(path.join(root, 'kx-build-proof.txt'), `KX_MULTIROOT_STATIC ${hash}\n`);
+
+const targets = ['.', 'public', 'out', 'dist', 'build', 'site'];
+for (const t of targets) {
+  const dir = t === '.' ? root : path.join(root, t);
+  const ok = fs.existsSync(path.join(dir, 'index.html')) && fs.existsSync(path.join(dir, 'app.js')) && fs.existsSync(path.join(dir, 'styles.css'));
+  console.log(`[KX MULTIROOT STATIC] ${t}: ${ok ? 'READY' : 'MISSING'}`);
+  if (!ok) process.exit(1);
+}
+console.log(`[KX MULTIROOT STATIC] buildId=${hash}`);
+console.log('[KX MULTIROOT STATIC] READY');
