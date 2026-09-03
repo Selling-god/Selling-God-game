@@ -14,6 +14,7 @@ let session=null;
 let state={
   stocks:[],ticker:'A101',candles:[],depth:[],news:[],clock:null,
   account:null,positions:[],orders:[],trades:[],ranking:[],
+  bankDeposits:[],bankLoans:[],bankMeta:{},chartRanges:{},
   side:'BUY',type:'LIMIT',tif:'DAY',tab:'market',tradeTab:'book',
   orderQty:1,orderPrice:null,pendingOrder:null
 };
@@ -95,6 +96,7 @@ function authErrorText(err){
 
 function gameTime(m=0){return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`}
 const SESS={PREOPEN:'장전',REGULAR:'정규장',CLOSING:'장마감',AFTERHOURS:'시간외'};
+const REGIME={BULL:'강세',NEUTRAL:'중립',BEAR:'약세',STRESS:'불안'};
 const NEWS_SEV={NORMAL:'일반',BREAKING:'속보',EXTRA:'호외'};
 const ORDER_STATUS={OPEN:'미체결',PARTIAL:'부분체결',FILLED:'체결완료',CANCELED:'취소',REJECTED:'거절'};
 let syncBusy=false,syncRound=0,marketSyncTimer=null;
@@ -183,6 +185,9 @@ async function loadPrivateSnapshot(){
   state.account=d?.account||{cash:0,realized_pnl:0};
   state.positions=d?.positions||[];
   state.orders=d?.orders||[];
+  state.bankDeposits=d?.bank_deposits||[];
+  state.bankLoans=d?.bank_loans||[];
+  state.bankMeta=d?.bank_meta||{};
 }
 async function sync(advance=false,full=false,forcePrivate=false){
   if(syncBusy)return;
@@ -201,16 +206,19 @@ async function sync(advance=false,full=false,forcePrivate=false){
 }
 
 function selected(){return state.stocks.find(s=>s.ticker===state.ticker)}
-function totalAssets(){
-  return Number(state.account?.cash||0)+state.positions.reduce((sum,p)=>{
+function stockAssets(){
+  return state.positions.reduce((sum,p)=>{
     const current=Number(state.stocks.find(s=>s.ticker===p.ticker)?.last_price)||0;
     return sum+Number(p.quantity)*current;
   },0);
 }
+function bankAssets(){return state.bankDeposits.filter(x=>['ACTIVE','MATURED'].includes(x.status)).reduce((a,x)=>a+Number(x.balance||0),0)}
+function bankDebt(){return state.bankLoans.filter(x=>x.status==='ACTIVE').reduce((a,x)=>a+Number(x.outstanding||0)+Number(x.accrued_interest||0),0)}
+function totalAssets(){return Number(state.account?.cash||0)+stockAssets()+bankAssets()-bankDebt()}
 function changeOf(stock){return ((Number(stock.last_price)-Number(stock.prev_close))/Math.max(1,Number(stock.prev_close)))*100}
 
 function topNav(){
-  const items=[['market','시장'],['portfolio','내 자산'],['orders','주문 내역'],['news','뉴스'],['ranking','랭킹']];
+  const items=[['market','시장'],['portfolio','내 자산'],['orders','주문 내역'],['news','뉴스'],['bank','은행'],['ranking','랭킹']];
   return `<nav class="main-nav">${items.map(([k,label])=>`<button data-main-tab="${k}" class="${state.tab===k?'on':''}">${label}</button>`).join('')}</nav>`;
 }
 
@@ -300,16 +308,15 @@ function renderMarket(s,ch){
 }
 
 function renderPortfolio(){
-  const holdings=state.positions.reduce((sum,p)=>{
-    const cur=Number(state.stocks.find(x=>x.ticker===p.ticker)?.last_price)||0;
-    return sum+Number(p.quantity)*cur;
-  },0);
+  const holdings=stockAssets();
+  const deposits=bankAssets(),loans=bankDebt();
   return `<main class="page-view"><section class="panel page-panel">
     <div class="page-title"><div><small>MY ASSETS</small><h1>내 자산</h1></div><span>평가금액은 현재 체결가 기준</span></div>
-    <div class="summary">
-      <div><small>현금</small><b>${won(state.account?.cash)}</b></div>
+    <div class="summary asset-summary">
+      <div><small>주문 가능 현금</small><b>${won(state.account?.cash)}</b></div>
       <div><small>주식 평가액</small><b>${won(holdings)}</b></div>
-      <div><small>실현손익</small><b class="${Number(state.account?.realized_pnl)>=0?'up':'down'}">${won(state.account?.realized_pnl)}</b></div>
+      <div><small>예금·적금</small><b>${won(deposits)}</b></div>
+      <div><small>대출 잔액</small><b class="${loans>0?'down':''}">${won(loans)}</b></div>
       <div><small>총자산</small><b>${won(totalAssets())}</b></div>
     </div>
     <div class="table">
@@ -349,6 +356,25 @@ function renderNews(){
   </section></main>`;
 }
 
+function renderBank(){
+  const dep=bankAssets(),debt=bankDebt(),cash=Number(state.account?.cash||0),base=Number(state.bankMeta?.base_rate||3.50);
+  const regime=state.clock?.market_regime||state.bankMeta?.market_regime||'NEUTRAL';
+  const depRows=state.bankDeposits.map(x=>`<div class="bank-row"><div><b>${x.product_type==='TERM'?'정기예금':'정기적금'}</b><small>${Number(x.annual_rate).toFixed(2)}% · 만기 DAY ${x.maturity_day}${x.product_type==='SAVINGS'?` · ${nf.format(x.monthly_amount)}원/회`:''}</small></div><div><b>${won(x.balance)}</b><small>${x.status==='MATURED'?'만기 도래':x.status==='ACTIVE'?'운용 중':'종료'}</small></div>${['ACTIVE','MATURED'].includes(x.status)?`<button data-bank-withdraw="${x.id}">${x.status==='MATURED'?'만기 수령':'중도해지'}</button>`:'<span></span>'}</div>`).join('');
+  const loanRows=state.bankLoans.map(x=>`<div class="bank-row loan-row"><div><b>신용대출</b><small>${Number(x.annual_rate).toFixed(2)}% · ${x.term_months}개월 상환 · ${Number(x.missed_count||0)>0?`연체 ${x.missed_count}회`:'정상'}</small></div><div><b>${won(Number(x.outstanding||0)+Number(x.accrued_interest||0))}</b><small>원금 ${won(x.outstanding)} · 이자 ${won(x.accrued_interest)}</small></div>${x.status==='ACTIVE'?`<button data-bank-repay="${x.id}" data-bank-debt="${Number(x.outstanding||0)+Number(x.accrued_interest||0)}">상환</button>`:'<span></span>'}</div>`).join('');
+  return `<main class="page-view bank-page"><section class="panel page-panel">
+    <div class="page-title"><div><small>KX BANK</small><h1>은행</h1></div><span>실제 금융상품 구조를 단순화한 모의 금융 서비스</span></div>
+    <div class="bank-overview"><div><small>주문 가능 현금</small><b>${won(cash)}</b></div><div><small>예금·적금</small><b>${won(dep)}</b></div><div><small>대출 잔액</small><b>${won(debt)}</b></div><div><small>기준금리</small><b>${base.toFixed(2)}%</b></div></div>
+    <div class="bank-notice"><b>금융 시뮬레이션 기준</b><span>시장 DAY 1회를 은행의 1개월로 환산합니다. 예·적금은 연이율을 월 단위로 정산하고, 대출은 매 DAY 원금과 이자를 자동 상환합니다. 현금이 부족하면 연체이자가 발생할 수 있습니다.</span></div>
+    <div class="bank-products">
+      <article class="bank-product"><div class="bank-product-head"><span>목돈 운용</span><h2>정기예금</h2><strong class="product-rate">예상 연 ${(base-0.20).toFixed(2)}~${(base+0.35).toFixed(2)}%</strong><p>한 번에 예치하고 만기까지 보유합니다. 중도해지 시 약정이자의 일부만 인정됩니다.</p></div><label>예치금액<input id="termAmount" type="number" min="100000" step="10000" value="1000000"></label><label>기간<select id="termMonths"><option value="3">3개월</option><option value="6">6개월</option><option value="12">12개월</option></select></label><button id="openTermDeposit">정기예금 가입</button></article>
+      <article class="bank-product"><div class="bank-product-head"><span>매월 적립</span><h2>정기적금</h2><strong class="product-rate">예상 연 ${(base+0.45).toFixed(2)}~${(base+0.70).toFixed(2)}%</strong><p>매 DAY 지정 금액을 자동 납입합니다. 현금 부족 시 해당 회차는 미납 처리됩니다.</p></div><label>월 납입액<input id="savingAmount" type="number" min="50000" step="10000" value="300000"></label><label>기간<select id="savingMonths"><option value="6">6개월</option><option value="12">12개월</option></select></label><button id="openSavings">정기적금 가입</button></article>
+      <article class="bank-product risk"><div class="bank-product-head"><span>레버리지 주의</span><h2>신용대출</h2><strong class="product-rate risk-rate">한도 ${won(state.bankMeta?.available_credit||0)} · 금리는 부채비율에 따라 산정</strong><p>대출금은 현금으로 들어오지만 총자산에서는 부채로 차감됩니다. 투자손실과 대출이자가 동시에 발생할 수 있습니다.</p></div><label>대출금액<input id="loanAmount" type="number" min="100000" step="10000" value="1000000"></label><label>상환기간<select id="loanMonths"><option value="6">6개월</option><option value="12">12개월</option><option value="24">24개월</option></select></label><button id="takeLoan">대출 신청</button></article>
+    </div>
+    <div class="bank-ledger"><section><h2>예금·적금 현황</h2>${depRows||'<div class="empty compact">가입한 예금·적금이 없습니다.</div>'}</section><section><h2>대출 현황</h2>${loanRows||'<div class="empty compact">대출이 없습니다.</div>'}</section></div>
+    <div class="bank-msg" id="bankMsg">예금은 주문 가능 현금에서 빠지고, 대출은 부채로 총자산에서 차감됩니다.</div>
+  </section></main>`;
+}
+
 function renderRanking(){
   return `<main class="page-view narrow-view"><section class="panel page-panel">
     <div class="page-title"><div><small>RANKING</small><h1>총자산 랭킹</h1></div><span>실제로 KX EXCHANGE에 참여한 계정만 표시</span></div>
@@ -376,7 +402,9 @@ function openTutorial(){
       <li><b>5. 체결 조건</b><span>DAY는 장 마감까지 유지, IOC는 가능한 만큼 즉시 체결 후 나머지 취소, FOK는 전량 즉시 체결되지 않으면 전부 취소입니다.</span></li>
       <li><b>6. 뉴스 보기</b><span>속보·호외는 모든 플레이어에게 같은 뉴스 ID와 발표시각으로 공개됩니다. 뉴스는 매수·매도 주문 흐름에 영향을 줍니다.</span></li>
       <li><b>7. 자산 관리</b><span>내 자산에서 평균단가와 평가손익을 확인하고 주문 내역에서 미체결 주문을 취소할 수 있습니다.</span></li>
-      <li><b>8. 핵심 원칙</b><span>가격은 브라우저마다 랜덤으로 움직이지 않습니다. 공용 시장에서 발생한 체결이 모든 플레이어의 같은 현재가가 됩니다.</span></li>
+      <li><b>8. 손실이 나는 이유</b><span>약세장·불안장, 악재, 고평가 되돌림, 거래비용 때문에 주가는 실제로 하락할 수 있습니다. 고점 추격이나 대출 투자에는 손실 위험이 있습니다.</span></li>
+      <li><b>9. 은행 이용</b><span>예금·적금은 현금이 묶이고 이자를 받습니다. 대출은 현금을 늘리지만 부채가 총자산에서 차감되고 매 DAY 이자와 원금 상환이 발생합니다.</span></li>
+      <li><b>10. 핵심 원칙</b><span>가격은 브라우저마다 랜덤으로 움직이지 않습니다. 공용 시장에서 발생한 체결과 뉴스가 모든 플레이어에게 같은 현재가와 같은 시각으로 반영됩니다.</span></li>
     </ol>
     <div class="tutorial-tip"><b>처음이라면</b><span>종목 선택 → 뉴스 확인 → 호가 확인 → 소량 주문 → 체결 결과 확인 순서로 연습해 보세요.</span></div>
     <button class="tutorial-start">확인하고 시작하기</button>
@@ -392,14 +420,15 @@ function renderTerminal(){
     :state.tab==='portfolio'?renderPortfolio()
     :state.tab==='orders'?renderOrders()
     :state.tab==='news'?renderNews()
+    :state.tab==='bank'?renderBank()
     :renderRanking();
 
   app.innerHTML=`<div class="terminal">
     <header class="top">
       <div class="brand"><div class="kxlogo">KX</div><strong>KX EXCHANGE</strong></div>
       ${topNav()}
-      <div class="market-status"><b>DAY ${state.clock?.game_day||1}</b><span>${gameTime(state.clock?.game_minute||0)}</span><em>${SESS[state.clock?.session]||'-'}</em></div>
-      <div class="asset"><small>총자산</small><b>${won(totalAssets())}</b></div>
+      <div class="market-status"><b>DAY ${state.clock?.game_day||1}</b><span>${gameTime(state.clock?.game_minute||0)}</span><em>${SESS[state.clock?.session]||'-'}</em><i class="market-regime ${(state.clock?.market_regime||'NEUTRAL').toLowerCase()}">${REGIME[state.clock?.market_regime||'NEUTRAL']||'중립'}장</i></div>
+      <div class="header-money"><div class="asset cash"><small>보유 현금</small><b>${won(state.account?.cash)}</b></div><div class="asset"><small>총자산</small><b>${won(totalAssets())}</b></div></div>
       <button class="tutorial-btn" id="tutorialBtn">? 튜토리얼</button><button class="logout" id="logout">로그아웃</button>
     </header>
     ${content}
@@ -408,6 +437,7 @@ function renderTerminal(){
       <button data-main-tab="portfolio" class="${state.tab==='portfolio'?'on':''}">자산</button>
       <button data-main-tab="orders" class="${state.tab==='orders'?'on':''}">주문</button>
       <button data-main-tab="news" class="${state.tab==='news'?'on':''}">뉴스</button>
+      <button data-main-tab="bank" class="${state.tab==='bank'?'on':''}">은행</button>
       <button data-main-tab="ranking" class="${state.tab==='ranking'?'on':''}">랭킹</button>
     </nav>
   </div>`;
@@ -512,6 +542,17 @@ function bind(){
   if(submit)submit.onclick=placeOrder;
 
   document.querySelectorAll('[data-cancel]').forEach(b=>b.onclick=()=>cancelOrder(b.dataset.cancel));
+
+  const bankRun=async(name,body,question)=>{
+    const msg=document.getElementById('bankMsg');
+    if(question&&!confirm(question))return;
+    try{const d=await rpc(name,body);if(msg)msg.textContent=d?.message||'처리가 완료되었습니다.';await sync(false,false,true)}catch(e){if(msg)msg.textContent=e.message;else alert(e.message)}
+  };
+  const term=document.getElementById('openTermDeposit');if(term)term.onclick=()=>{const amount=Math.floor(Number(document.getElementById('termAmount').value)||0),months=Number(document.getElementById('termMonths').value)||3;bankRun('kx_bank_open_deposit',{p_amount:amount,p_term_months:months},`${won(amount)}을 ${months}개월 정기예금에 예치할까요?`)};
+  const saving=document.getElementById('openSavings');if(saving)saving.onclick=()=>{const amount=Math.floor(Number(document.getElementById('savingAmount').value)||0),months=Number(document.getElementById('savingMonths').value)||6;bankRun('kx_bank_open_savings',{p_monthly_amount:amount,p_term_months:months},`매 DAY ${won(amount)}씩 ${months}개월 적금을 시작할까요? 첫 회차는 즉시 출금됩니다.`)};
+  const loan=document.getElementById('takeLoan');if(loan)loan.onclick=()=>{const amount=Math.floor(Number(document.getElementById('loanAmount').value)||0),months=Number(document.getElementById('loanMonths').value)||6;bankRun('kx_bank_take_loan',{p_amount:amount,p_term_months:months},`${won(amount)}을 ${months}개월 신용대출로 받을까요? 대출금은 부채로 총자산에서 차감됩니다.`)};
+  document.querySelectorAll('[data-bank-withdraw]').forEach(b=>b.onclick=()=>bankRun('kx_bank_withdraw_deposit',{p_deposit:b.dataset.bankWithdraw},'해당 상품을 해지하고 잔액을 현금으로 받을까요?'));
+  document.querySelectorAll('[data-bank-repay]').forEach(b=>b.onclick=()=>{const debt=Math.ceil(Number(b.dataset.bankDebt)||0);bankRun('kx_bank_repay_loan',{p_loan:b.dataset.bankRepay,p_amount:debt},`${won(debt)} 범위에서 대출을 상환할까요?`)});
 }
 
 async function placeOrder(){
@@ -532,36 +573,41 @@ async function cancelOrder(id){
   catch(e){alert(e.message)}
 }
 
+function normalizedCandles(input){
+  const src=[...(input||[])].filter(x=>Number.isFinite(Number(x.candle_no))&&Number(x.close)>0).sort((a,b)=>Number(a.candle_no)-Number(b.candle_no));
+  const out=[];
+  for(const row of src){
+    if(out.length){
+      const prev=out[out.length-1],gap=Number(row.candle_no)-Number(prev.candle_no);
+      if(gap>1&&gap<=6){for(let n=1;n<gap;n++){out.push({candle_no:Number(prev.candle_no)+n,open:Number(prev.close),high:Number(prev.close),low:Number(prev.close),close:Number(prev.close),volume:0,synthetic:true})}}
+    }
+    out.push(row);
+  }
+  return out;
+}
+function chartRange(rows,ticker){
+  const lows=rows.map(x=>Number(x.low)).filter(x=>x>0),highs=rows.map(x=>Number(x.high)).filter(x=>x>0);
+  const actualLo=Math.min(...lows),actualHi=Math.max(...highs);if(!Number.isFinite(actualLo)||!Number.isFinite(actualHi))return {lo:1,hi:2};
+  const last=Number(rows[rows.length-1]?.close)||actualLo,base=Math.max(1,actualHi-actualLo,last*.004);
+  return {lo:Math.max(1,actualLo-base*.10),hi:actualHi+base*.10};
+}
+
 function drawChart(){
   const c=document.getElementById('chart');if(!c)return;
   const ctx=c.getContext('2d'),r=c.getBoundingClientRect(),dpr=devicePixelRatio||1;
   c.width=Math.max(300,Math.floor(r.width*dpr));c.height=Math.max(240,Math.floor(r.height*dpr));ctx.setTransform(dpr,0,0,dpr,0,0);
-  const W=r.width,H=r.height,rows=state.candles.slice(-60);
-  ctx.clearRect(0,0,W,H);
-  const L=12,R=72,T=22,B=30,plotW=Math.max(100,W-L-R),plotH=Math.max(120,H-T-B);
+  const W=r.width,H=r.height,rows=normalizedCandles(state.candles).slice(-60);ctx.clearRect(0,0,W,H);
+  const L=12,R=78,T=22,B=32,plotW=Math.max(100,W-L-R),plotH=Math.max(120,H-T-B);
   if(rows.length<2){ctx.fillStyle='#8897aa';ctx.font='13px sans-serif';ctx.fillText('체결 데이터가 쌓이면 1분봉 차트가 표시됩니다.',L+10,T+24);return}
-  const nums=[];for(const x of rows){for(const k of ['open','high','low','close']){const v=Number(x[k]);if(Number.isFinite(v)&&v>0)nums.push(v)}}
-  nums.sort((a,b)=>a-b);
-  const q=p=>nums[Math.max(0,Math.min(nums.length-1,Math.floor((nums.length-1)*p)))]||1;
-  const q05=q(.05),q95=q(.95),med=q(.5),typical=Math.max(1,q95-q05,med*.004);
-  let lo=Math.max(1,q05-typical*.55),hi=q95+typical*.55;
-  const last=Number(rows[rows.length-1].close)||med;lo=Math.min(lo,last-typical*.35);hi=Math.max(hi,last+typical*.35);
-  if(hi<=lo){hi=lo+Math.max(1,med*.01)}
-  const y=p=>T+(hi-Math.max(lo,Math.min(hi,p)))/(hi-lo)*plotH;
+  const rg=chartRange(rows,state.ticker),lo=rg.lo,hi=rg.hi,last=Number(rows[rows.length-1].close)||lo;
+  const y=p=>T+(hi-Number(p))/(hi-lo)*plotH;
   ctx.lineWidth=1;ctx.strokeStyle='#202a36';ctx.fillStyle='#7f8da1';ctx.font='11px sans-serif';ctx.textAlign='left';
-  for(let i=0;i<=4;i++){const yy=T+plotH*i/4;ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(L+plotW,yy);ctx.stroke();const pv=hi-(hi-lo)*i/4;ctx.fillText(nf.format(Math.round(pv)),L+plotW+10,yy+4)}
+  for(let i=0;i<=4;i++){const yy=T+plotH*i/4;ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(L+plotW,yy);ctx.stroke();ctx.fillText(nf.format(Math.round(hi-(hi-lo)*i/4)),L+plotW+10,yy+4)}
   const step=plotW/rows.length;
-  rows.forEach((x,i)=>{
-    const xx=L+i*step+step/2,op=Number(x.open),cl=Number(x.close),hg=Number(x.high),lw=Number(x.low),up=cl>=op;
-    ctx.strokeStyle=ctx.fillStyle=up?'#e8666b':'#638be8';
-    ctx.beginPath();ctx.moveTo(xx,y(hg));ctx.lineTo(xx,y(lw));ctx.stroke();
-    const yy=Math.min(y(op),y(cl)),hh=Math.max(2,Math.abs(y(op)-y(cl))),bw=Math.max(3,Math.min(12,step*.58));ctx.fillRect(xx-bw/2,yy,bw,hh);
-    if(hg>hi){ctx.beginPath();ctx.moveTo(xx-3,T+3);ctx.lineTo(xx+3,T+3);ctx.lineTo(xx,T);ctx.fill()}
-    if(lw<lo){ctx.beginPath();ctx.moveTo(xx-3,T+plotH-3);ctx.lineTo(xx+3,T+plotH-3);ctx.lineTo(xx,T+plotH);ctx.fill()}
-  });
-  ctx.fillStyle='#77869a';ctx.font='10px sans-serif';ctx.textAlign='center';
-  const marks=[0,Math.floor(rows.length/3),Math.floor(rows.length*2/3),rows.length-1];
-  for(const idx of [...new Set(marks)]){const x=rows[idx];if(!x)continue;let label='';if(x.created_at)label=new Date(x.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false});else label=String(x.candle_no??'');ctx.fillText(label,L+idx*step+step/2,H-8)}
+  rows.forEach((x,i)=>{const xx=L+i*step+step/2,op=Number(x.open),cl=Number(x.close),hg=Number(x.high),lw=Number(x.low),up=cl>=op;ctx.strokeStyle=ctx.fillStyle=up?'#e8666b':'#638be8';ctx.globalAlpha=x.synthetic?.42:1;ctx.beginPath();ctx.moveTo(xx,y(hg));ctx.lineTo(xx,y(lw));ctx.stroke();const yy=Math.min(y(op),y(cl)),hh=Math.max(2,Math.abs(y(op)-y(cl))),bw=Math.max(3,Math.min(12,step*.58));ctx.fillRect(xx-bw/2,yy,bw,hh);ctx.globalAlpha=1});
+  const prevClose=Number(selected()?.prev_close||0);if(prevClose>=lo&&prevClose<=hi){ctx.save();ctx.setLineDash([4,4]);ctx.strokeStyle='#59677a';ctx.beginPath();ctx.moveTo(L,y(prevClose));ctx.lineTo(L+plotW,y(prevClose));ctx.stroke();ctx.restore()}
+  ctx.fillStyle='#77869a';ctx.font='10px sans-serif';ctx.textAlign='center';const marks=[0,Math.floor(rows.length/3),Math.floor(rows.length*2/3),rows.length-1];
+  for(const idx of [...new Set(marks)]){const x=rows[idx];if(!x)continue;let label=x.created_at?new Date(x.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}):`#${x.candle_no}`;ctx.fillText(label,L+idx*step+step/2,H-8)}
   ctx.textAlign='left';ctx.fillStyle='#9aa7b8';ctx.font='11px sans-serif';ctx.fillText(`현재 ${nf.format(Math.round(last))}`,L+8,T+14);
 }
 
