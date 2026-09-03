@@ -1,10 +1,10 @@
 {
   "name": "kx-exchange-stock-game",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/prepare-static.cjs && next build",
     "start": "node server.js"
   },
   "dependencies": {

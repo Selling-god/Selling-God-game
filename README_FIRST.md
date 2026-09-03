@@ -42,6 +42,6 @@ ZIP 내부 파일을 GitHub 저장소 최상단에 올리세요.
 ## 정상 확인
 메인 주소에 접속하면 아래 문구가 보여야 합니다.
 `KX EXCHANGE`
-`STOCK BUILD · UNIVERSAL RENDER 2026.09.03-C`
+`STOCK BUILD · RENDER CLEAN BUILD 2026.09.03-D`
 
 이 버전은 더 이상 `/api/market/tick`을 사용하지 않습니다. 로그인한 플레이어들이 Supabase RPC를 호출하며, DB advisory lock 때문에 동시에 여러 플레이어가 접속해도 하나의 공용 시장만 진행됩니다.

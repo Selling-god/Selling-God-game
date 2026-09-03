@@ -24,7 +24,7 @@
 정상 배포 확인:
 - 첫 화면에 KX EXCHANGE 로그인 화면이 나옵니다.
 - 로그인 화면에 "STOCK BUILD · 2026.09.03" 배지가 보입니다.
-- /api/version 접속 시 app=KX EXCHANGE 응답이 나옵니다.
+- 메인 화면에서 STOCK BUILD · RENDER CLEAN BUILD 2026.09.03-D 문구가 보이면 새 빌드입니다.
 
 만약 예전 전당포 화면이 계속 보이면 코드 문제가 아니라 Render가 아직 예전 커밋/예전 Root Directory를 배포 중인 것입니다.
 그때는 Render의 Repository/Branch/Root Directory와 가장 최근 Deploy Commit을 확인하세요.
