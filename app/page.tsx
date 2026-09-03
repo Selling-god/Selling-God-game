@@ -52,7 +52,7 @@ function AuthBox({ onDone }:{onDone:()=>void}) {
     }catch(err){setMsg(err instanceof Error?err.message:'로그인 오류');}finally{setBusy(false);}
   }
   return <div className="auth-shell"><form className="auth-card" onSubmit={submit}>
-    <div className="brand-mark">KX</div><h1>KX EXCHANGE</h1><p>실제 거래소 구조 기반 멀티플레이 주식 시뮬레이터</p>
+    <div className="brand-mark">KX</div><h1>KX EXCHANGE</h1><p>실제 거래소 구조 기반 멀티플레이 주식 시뮬레이터</p><div className="build-badge">STOCK BUILD · 2026.09.03</div>
     <div className="auth-tabs"><button type="button" className={mode==='login'?'on':''} onClick={()=>setMode('login')}>로그인</button><button type="button" className={mode==='signup'?'on':''} onClick={()=>setMode('signup')}>회원가입</button></div>
     {mode==='signup'&&<label>닉네임<input value={nickname} onChange={e=>setNickname(e.target.value)} maxLength={18} required /></label>}
     <label>이메일<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required /></label>
