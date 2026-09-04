@@ -337,3 +337,210 @@ body.tutorial-active{overflow:hidden}
   .market-game-strip{margin:7px 8px 8px;grid-template-columns:minmax(0,1fr) auto;gap:7px;padding:9px}.market-game-stats{grid-column:1/-1;order:3;display:grid;grid-template-columns:repeat(3,1fr)}.market-game-stats span{min-width:0}.market-game-strip>button{height:34px;padding:0 8px;font-size:9px}.market-game-copy b{font-size:11px}
   .strategy-summary{grid-template-columns:1fr 1fr;padding:8px}.strategy-summary article{padding:9px}.strategy-summary b{font-size:17px}.strategy-section,.strategy-sub{margin:8px;padding:10px}.strategy-section.split{display:block;margin:0}.strategy-sub{margin:8px}.strategy-section-head{align-items:flex-start}.strategy-section-head>span{max-width:145px}.event-card-grid{grid-template-columns:1fr}.market-event-card>p{min-height:0}.short-desk{grid-template-columns:1fr}.short-positions{grid-template-columns:1fr}.ipo-card dl{grid-template-columns:1fr 1fr}.strategy-footnote{margin:8px}.strategy-title>span{display:none}
 }
+
+
+/* =========================================================
+   KX CORPORATE · company management expansion
+   ========================================================= */
+.company-page{align-items:start}
+.company-shell{width:min(1420px,100%)!important;max-width:1420px!important;overflow:visible!important;padding-bottom:28px}
+.company-hero{display:grid;grid-template-columns:minmax(0,1.25fr) 390px;gap:18px;padding:22px;background:
+  radial-gradient(circle at 18% 15%,rgba(68,125,214,.18),transparent 36%),
+  radial-gradient(circle at 88% 10%,rgba(224,174,78,.12),transparent 30%),
+  #0d131c;border-bottom:1px solid var(--line)}
+.company-hero-copy{padding:24px 22px}
+.company-hero-copy>small,.company-topline>div>small,.company-section-head small,.company-create-card>small{color:#d9ad55;font-size:10px;font-weight:900;letter-spacing:.14em}
+.company-hero-copy h1{max-width:760px;margin:8px 0 12px;font-size:34px;line-height:1.16}
+.company-hero-copy p{max-width:760px;margin:0;color:#9aa8ba;font-size:13px;line-height:1.8}
+.company-start-rules{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:22px}
+.company-start-rules span{padding:11px 12px;border:1px solid #263244;border-radius:10px;background:#0a1018;color:#8e9db1;font-size:10px}
+.company-start-rules b{display:block;margin-bottom:4px;color:#e5ebf3;font-size:11px}
+.company-create-card{align-self:start;padding:22px;border:1px solid #334055;border-radius:14px;background:rgba(8,12,18,.88);box-shadow:0 18px 50px rgba(0,0,0,.28)}
+.company-create-card h2{margin:6px 0 14px;font-size:22px}
+.company-create-card label,.corp-action-bar label,.global-budget label,.treasury-trade label{display:grid;gap:6px;margin:10px 0;color:#8999ad;font-size:10px}
+.company-create-card input,.company-create-card select,.corp-action-bar input,.global-budget input,.takeover-cell input,.treasury-trade input,.treasury-trade select{height:42px;border:1px solid #293548;border-radius:8px;background:#070c12;color:#edf2f8;padding:0 11px;outline:0}
+.company-create-card input:focus,.company-create-card select:focus,.corp-action-bar input:focus,.global-budget input:focus,.takeover-cell input:focus,.treasury-trade input:focus,.treasury-trade select:focus{border-color:#8b7448}
+.company-primary{width:100%;height:46px;margin-top:9px;border:0;border-radius:8px;background:#d7a849;color:#171109;font-weight:950}
+.company-create-card p{margin:10px 0 0;color:#708096;font-size:9px;line-height:1.55}
+.company-preview{padding:20px}
+.company-section-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:14px}
+.company-section-head h2{margin:4px 0 0;font-size:20px}
+.company-section-head>span{max-width:620px;color:#7e8ca0;font-size:10px;text-align:right;line-height:1.55}
+.company-section-head>span b{color:#e9edf4}
+.company-rival-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.company-rival-grid article{padding:13px;border:1px solid #202b39;border-radius:10px;background:#0a1017}
+.company-rival-grid h3{margin:10px 0 3px;font-size:13px}
+.company-rival-grid p{margin:0;color:#6f7f93;font-size:9px}
+.company-rival-grid strong{display:block;margin-top:12px;font-size:16px}
+.company-rival-grid>article>span{display:block;margin-top:3px;color:#7d8c9f;font-size:8px}
+.corp-type,.corp-country{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;border:1px solid #2b3747;color:#9aa8ba;font-size:7px;font-weight:900;vertical-align:middle}
+.corp-type.bot{border-color:#5e4c2b;background:#211a0e;color:#e3bd6b}
+.corp-type.player{border-color:#295378;background:#0d1d2d;color:#78b9eb}
+.corp-type.me{border-color:#2f6948;background:#0d2116;color:#7ee2a6}
+.corp-country{margin-left:3px;background:#0d131b}
+
+.company-topline{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 24px;border-bottom:1px solid var(--line);background:linear-gradient(130deg,#0f1721,#0b1119 58%,#16130d)}
+.company-topline h1{margin:4px 0;font-size:30px}
+.company-topline p{margin:0;color:#7d8b9e;font-size:10px}
+.company-share-quote{text-align:right}
+.company-share-quote small{display:block;color:#7c8b9f;font-size:9px}
+.company-share-quote b{display:block;margin:3px 0;font-size:28px}
+.company-share-quote span{font-size:10px}
+.company-kpi-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:1px;background:#1b2532;border-bottom:1px solid #202a38}
+.company-kpi-grid article{min-height:92px;padding:14px 12px;background:#0c121a;display:grid;align-content:center}
+.company-kpi-grid article.danger{background:#211011;box-shadow:inset 0 -2px #8d3e44}
+.company-kpi-grid small{color:#718095;font-size:8px}
+.company-kpi-grid b{margin:4px 0;font-size:15px;white-space:nowrap}
+.company-kpi-grid span{color:#7f8d9f;font-size:8px}
+.company-stat-strip{display:flex;gap:1px;overflow-x:auto;background:#1b2532;border-bottom:1px solid #202a38}
+.company-stat-strip span{min-width:120px;flex:1;padding:10px 12px;background:#101720;color:#77869a;font-size:9px;white-space:nowrap}
+.company-stat-strip b{margin-left:4px;color:#dce4ee}
+.company-notice{margin:14px 18px 0;padding:10px 12px;border:1px solid #5c4d2d;border-radius:8px;background:#1c170d;color:#e3bf75;font-size:10px}
+.company-notice.muted{border-color:#253143;background:#0b1118;color:#7d8b9d}
+.company-install-note{margin:24px;padding:28px;border:1px solid #665024;border-radius:14px;background:#17130c}
+.company-install-note h2{margin:0 0 9px;font-size:20px}
+.company-install-note p{color:#d3ad62}
+.company-install-note code{display:block;margin:14px 0;padding:12px;border-radius:8px;background:#080b10;color:#8fd4b4}
+.company-install-note span{display:block;color:#8b98aa;line-height:1.65;font-size:11px}
+
+.corp-section{margin:18px;padding:18px;border:1px solid #202b39;border-radius:12px;background:#0b1118}
+.corp-action-bar,.global-budget{display:flex;align-items:end;justify-content:space-between;gap:14px;margin-bottom:12px;padding:10px 12px;border:1px solid #1c2734;border-radius:9px;background:#080d13}
+.corp-action-bar label,.global-budget label{width:min(280px,100%);margin:0}
+.corp-action-bar span,.global-budget span{padding-bottom:5px;color:#8593a6;font-size:10px}
+.corp-action-bar b,.global-budget b{color:#eef2f7}
+.corp-action-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.corp-action-grid button{min-height:93px;padding:13px;border:1px solid #263345;border-radius:10px;background:#101821;color:#e8edf3;text-align:left}
+.corp-action-grid button:hover{border-color:#586b84;background:#14202c;transform:translateY(-1px)}
+.corp-action-grid button.risk{border-color:#503d30;background:#17130f}
+.corp-action-grid small{display:block;color:#d6aa52;font-size:8px}
+.corp-action-grid b{display:block;margin:5px 0;font-size:13px}
+.corp-action-grid span{display:block;color:#7d8b9d;font-size:9px;line-height:1.45}
+
+.company-region-tabs{display:flex;gap:5px;margin-bottom:9px}
+.company-region-tabs button{height:34px;padding:0 14px;border:1px solid #273345;border-radius:8px;background:#0a1017;color:#8190a3;font-size:10px;font-weight:900}
+.company-region-tabs button.on{border-color:#8a7040;background:#1b160d;color:#edc571}
+.competition-table{border:1px solid #1e2936;border-radius:10px;overflow:hidden}
+.competition-row{display:grid;grid-template-columns:minmax(220px,1.8fr) 1fr .75fr .85fr .75fr 190px;align-items:center;min-height:64px;border-top:1px solid #17212c;background:#0b1118}
+.competition-row:first-child{border-top:0}
+.competition-row.head{min-height:34px;background:#111923;color:#64758b;font-size:8px;font-weight:900}
+.competition-row>span{min-width:0;padding:8px 10px;font-size:9px}
+.company-name-cell{display:grid}
+.company-name-cell>b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+.company-name-cell>small{margin-top:4px;color:#76869a;white-space:nowrap}
+.competition-row span>small{display:block;margin-top:3px;color:#69798e;font-size:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.takeover-cell{display:flex!important;gap:5px;align-items:center}
+.takeover-cell input{min-width:0;width:104px;height:34px;font-size:9px}
+.takeover-cell button,.global-country-grid button,.stake-row button,.treasury-trade button{height:34px;border:1px solid #70582d;border-radius:7px;background:#211a0e;color:#edc572;font-size:9px;font-weight:900}
+.takeover-cell button{flex:1;white-space:nowrap}
+
+.global-country-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.global-country-grid article{padding:13px;border:1px solid #243142;border-radius:10px;background:#0c131b}
+.global-country-grid article.entered{border-color:#2d5d47;background:#0d1814}
+.global-country-grid article>div{display:flex;justify-content:space-between;align-items:center}
+.global-country-grid article>div>span{display:grid;place-items:center;width:34px;height:24px;border-radius:6px;background:#192333;color:#aebcd0;font-size:9px;font-weight:950}
+.global-country-grid article>div>b{color:#7f8da0;font-size:8px}
+.global-country-grid article.entered>div>b{color:#71d39a}
+.global-country-grid h3{margin:10px 0 4px;font-size:14px}
+.global-country-grid p{min-height:32px;margin:0;color:#7f8ea2;font-size:9px;line-height:1.45}
+.global-country-grid small{display:block;min-height:27px;margin:7px 0;color:#65768a;font-size:8px}
+.global-country-grid button{width:100%}
+
+.takeover-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.takeover-summary article{padding:13px;border:1px solid #243142;border-radius:9px;background:#0c131b}
+.takeover-summary article.warn{border-color:#685429;background:#19150d}
+.takeover-summary article.danger{border-color:#7a343b;background:#1d0f11}
+.takeover-summary small{display:block;color:#748397;font-size:8px}
+.takeover-summary b{display:block;margin:5px 0;font-size:18px}
+.takeover-summary span{color:#7e8da0;font-size:8px}
+.takeover-columns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.takeover-columns>div{min-width:0;border:1px solid #1c2734;border-radius:9px;overflow:hidden}
+.takeover-columns h3{margin:0;padding:10px 12px;border-bottom:1px solid #1b2632;background:#101821;font-size:11px}
+.stake-row{min-height:52px;padding:8px 10px;border-top:1px solid #17212b;display:grid;grid-template-columns:minmax(0,1fr) 70px 110px auto;align-items:center;gap:8px}
+.stake-row:first-of-type{border-top:0}
+.stake-row span{display:grid;min-width:0}
+.stake-row span b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}
+.stake-row span small{color:#6f7f94;font-size:7px}
+.stake-row strong{font-size:12px}
+.stake-row em{font-style:normal;color:#8e9caf;font-size:8px;text-align:right}
+.stake-row button{padding:0 9px}
+
+.treasury-trade{display:grid;grid-template-columns:minmax(280px,1fr) 220px 220px;gap:9px;align-items:end;margin-bottom:12px}
+.treasury-trade label{margin:0}
+.treasury-trade>div{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.treasury-trade button.sell{border-color:#35517b;background:#101b2c;color:#7ea8ec}
+.treasury-holdings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.treasury-holdings article{display:grid;grid-template-columns:minmax(0,1.5fr) .65fr .85fr .85fr;align-items:center;padding:10px 12px;border:1px solid #1f2a38;border-radius:8px;background:#0a1017}
+.treasury-holdings article>div{display:grid}
+.treasury-holdings article small{color:#6c7c91;font-size:7px}
+.treasury-holdings article span,.treasury-holdings article strong,.treasury-holdings article em{font-size:9px;text-align:right}
+.treasury-holdings article em{font-style:normal;font-weight:900}
+
+.corp-event-feed{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.corp-event-feed article{padding:12px;border:1px solid #202c39;border-radius:9px;background:#0a1017}
+.corp-event-feed article.takeover{border-color:#71353b;background:#180e10}
+.corp-event-feed article>div{display:flex;justify-content:space-between;color:#738398;font-size:7px}
+.corp-event-feed article>div span{color:#d1a84f;font-weight:900}
+.corp-event-feed h3{margin:7px 0 4px;font-size:11px}
+.corp-event-feed p{min-height:40px;margin:0;color:#8190a3;font-size:8px;line-height:1.5}
+.corp-event-feed>article>small{display:block;margin-top:7px;color:#617188;font-size:7px}
+
+@media(max-width:1320px){
+  .company-kpi-grid{grid-template-columns:repeat(4,1fr)}
+  .company-kpi-grid article:nth-child(n+5){border-top:1px solid #1b2532}
+  .competition-row{grid-template-columns:minmax(190px,1.5fr) 1fr .75fr .8fr .7fr 170px}
+  .company-rival-grid,.global-country-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:1000px){
+  .company-hero{grid-template-columns:1fr}
+  .company-create-card{width:100%}
+  .corp-action-grid{grid-template-columns:repeat(2,1fr)}
+  .competition-table{overflow-x:auto}
+  .competition-row{min-width:920px}
+  .global-country-grid{grid-template-columns:repeat(2,1fr)}
+  .takeover-columns{grid-template-columns:1fr}
+  .treasury-trade{grid-template-columns:1fr 1fr}
+  .treasury-trade>div{grid-column:1/-1}
+  .corp-event-feed{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:760px){
+  .company-page{padding:8px 8px 72px}
+  .company-shell{min-height:0!important}
+  .company-hero{padding:8px;gap:8px}
+  .company-hero-copy{padding:14px 10px}
+  .company-hero-copy h1{font-size:24px}
+  .company-start-rules{grid-template-columns:1fr}
+  .company-create-card{padding:16px}
+  .company-preview,.corp-section{margin:8px;padding:12px}
+  .company-preview{padding:12px}
+  .company-section-head{align-items:flex-start}
+  .company-section-head>span{max-width:46%;font-size:8px}
+  .company-rival-grid{display:flex;overflow-x:auto}
+  .company-rival-grid article{min-width:190px}
+  .company-topline{padding:15px 14px}
+  .company-topline h1{font-size:22px}
+  .company-share-quote b{font-size:21px}
+  .company-kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .company-kpi-grid article{min-height:82px}
+  .company-stat-strip span{min-width:112px}
+  .corp-action-bar,.global-budget{display:grid}
+  .corp-action-bar label,.global-budget label{width:100%}
+  .corp-action-grid{grid-template-columns:1fr 1fr}
+  .company-region-tabs{overflow-x:auto}
+  .global-country-grid{display:flex;overflow-x:auto}
+  .global-country-grid article{min-width:215px}
+  .takeover-summary{grid-template-columns:1fr}
+  .stake-row{grid-template-columns:minmax(0,1fr) 58px 85px}
+  .stake-row button{grid-column:1/-1}
+  .treasury-trade{grid-template-columns:1fr}
+  .treasury-trade>div{grid-column:auto}
+  .treasury-holdings{grid-template-columns:1fr}
+  .corp-event-feed{grid-template-columns:1fr}
+}
+@media(max-width:430px){
+  .corp-action-grid{grid-template-columns:1fr}
+  .company-kpi-grid{grid-template-columns:1fr 1fr}
+  .company-section-head{display:block}
+  .company-section-head>span{display:block;max-width:none;margin-top:5px;text-align:left}
+}
+
+@media(max-width:1500px) and (min-width:768px){.main-nav{max-width:660px;overflow-x:auto;scrollbar-width:none}.main-nav::-webkit-scrollbar{display:none}.main-nav button{flex:0 0 auto;white-space:nowrap;padding:0 8px;font-size:11px}.top{gap:10px}.header-money .asset{min-width:88px}}

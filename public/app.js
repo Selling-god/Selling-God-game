@@ -16,7 +16,9 @@ let state={
   account:null,positions:[],orders:[],trades:[],ranking:[],
   bankDeposits:[],bankLoans:[],bankMeta:{},chartRanges:{},
   game:{events:[],predictions:[],shorts:[],ipos:[],subscriptions:[],dividends:[],short_adjustments:[],prediction_stats:{total:0,correct:0}},gameAvailable:true,gameError:'',
-  side:'BUY',type:'LIMIT',tif:'DAY',tab:'market',tradeTab:'book',
+  company:{my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],events:[],world:null},
+  companyAvailable:true,companyError:'',companyRegion:'국내',companyNotice:'',
+  side:'BUY',type:'LIMIT',tif:'DAY',tab:'company',tradeTab:'book',
   orderQty:1,orderPrice:null,pendingOrder:null,chartPeriod:'1M',marketFilter:'ALL'
 };
 
@@ -158,6 +160,18 @@ function recordOrderMeta(body,order,s){
   saveMeta();
 }
 function emptyGame(){return {events:[],predictions:[],shorts:[],ipos:[],subscriptions:[],dividends:[],short_adjustments:[],prediction_stats:{total:0,correct:0}}}
+function emptyCompany(){return {my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],events:[],world:null}}
+function companyGrowth(c){return Number(c?.previous_revenue)>0?((Number(c.revenue)-Number(c.previous_revenue))/Number(c.previous_revenue))*100:0}
+function companyProfitMargin(c){return Number(c?.revenue)>0?Number(c.profit)/Number(c.revenue)*100:0}
+function companyDebtRatio(c){return Number(c?.valuation)>0?Number(c.debt)/Number(c.valuation)*100:0}
+function companyStakeAgainstMe(){return Number(state.company?.my_company?.incoming_stake||0)}
+function compactMoney(v){
+  v=Number(v)||0;
+  if(Math.abs(v)>=1000000000000)return `${(v/1000000000000).toFixed(1)}조`;
+  if(Math.abs(v)>=100000000)return `${(v/100000000).toFixed(1)}억`;
+  if(Math.abs(v)>=10000)return `${(v/10000).toFixed(1)}만`;
+  return nf.format(Math.round(v));
+}
 function gameEvents(){return Array.isArray(state.game?.events)?state.game.events:[]}
 function predictionFor(id){return (state.game?.predictions||[]).find(x=>Number(x.event_id)===Number(id))||null}
 function eventTypeLabel(t){return ({EARNINGS:'실적발표',RUMOR:'루머 검증',SECTOR:'업종 이슈',CONTRACT:'수주·계약',MACRO:'거시경제'})[t]||'시장 이벤트'}
@@ -245,19 +259,19 @@ async function validate(){
 }
 
 function renderDiag(){
-  app.innerHTML=`<div class="diag"><div><h1>KX EXCHANGE 설정 필요</h1><p>Supabase 환경변수가 비어 있어 시장에 연결할 수 없습니다.</p><code>NEXT_PUBLIC_SUPABASE_URL\nNEXT_PUBLIC_SUPABASE_ANON_KEY</code><p>Render Environment에 두 값을 넣고 다시 배포해 주세요.</p></div></div>`;
+  app.innerHTML=`<div class="diag"><div><h1>KX CORPORATE 설정 필요</h1><p>Supabase 환경변수가 비어 있어 시장에 연결할 수 없습니다.</p><code>NEXT_PUBLIC_SUPABASE_URL\nNEXT_PUBLIC_SUPABASE_ANON_KEY</code><p>Render Environment에 두 값을 넣고 다시 배포해 주세요.</p></div></div>`;
 }
 
 function renderAuth(){
   app.innerHTML=`<main class="auth"><form class="auth-card" id="authForm">
     <div class="kxlogo">KX</div>
-    <h1>KX EXCHANGE</h1>
-    <p>공용 호가와 실제 체결 구조를 사용하는 주식시장 시뮬레이션</p>
+    <h1>KX CORPORATE</h1>
+    <p>회사를 설립하고 국내·글로벌 기업과 경쟁하는 경영·주식시장 시뮬레이션</p>
     <div class="auth-tabs"><button type="button" class="on" data-mode="login">로그인</button><button type="button" data-mode="signup">회원가입</button></div>
     <label id="nickWrap" style="display:none">닉네임<input id="nickname" maxlength="18"></label>
     <label>이메일<input id="email" type="email" required></label>
     <label>비밀번호<input id="password" type="password" minlength="6" required></label>
-    <button class="primary" id="authSubmit">시장 입장</button>
+    <button class="primary" id="authSubmit">경영 시작</button>
     <small class="auth-msg" id="authMsg"></small>
   </form></main>`;
   let mode='login';
@@ -265,7 +279,7 @@ function renderAuth(){
     mode=b.dataset.mode;
     document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('on',x===b));
     document.getElementById('nickWrap').style.display=mode==='signup'?'grid':'none';
-    document.getElementById('authSubmit').textContent=mode==='signup'?'계정 만들기':'시장 입장';
+    document.getElementById('authSubmit').textContent=mode==='signup'?'계정 만들기':'경영 시작';
   });
   document.getElementById('authForm').onsubmit=async e=>{
     e.preventDefault();
@@ -330,6 +344,23 @@ async function loadGameLayer(runSync=false,force=false){
     }else{console.warn('game layer:',e);state.gameError=raw;}
   }
 }
+async function loadCompanyLayer(runSync=false,force=false){
+  if(state.companyAvailable===false&&!force)return;
+  try{
+    const d=runSync?await rpc('kx_company_sync',{}):await rpc('kx_company_snapshot',{});
+    state.company=d&&typeof d==='object'?{...emptyCompany(),...d}:emptyCompany();
+    state.companyAvailable=true;state.companyError='';
+  }catch(e){
+    const raw=String(e?.message||'');
+    if(e?.status===404||raw.includes('kx_company_')||raw.includes('Could not find the function')){
+      state.companyAvailable=false;
+      state.companyError='회사 경영 확장 SQL이 아직 Supabase에 설치되지 않았습니다.';
+    }else{
+      console.warn('company layer:',e);
+      state.companyError=raw||'회사 경영 데이터를 불러오지 못했습니다.';
+    }
+  }
+}
 async function sync(advance=false,full=false,forcePrivate=false){
   if(syncBusy)return;
   syncBusy=true;
@@ -339,6 +370,7 @@ async function sync(advance=false,full=false,forcePrivate=false){
     await loadPublicSnapshot(includeAux,advance);
     if(full||forcePrivate||syncRound%2===0)await loadPrivateSnapshot();
     if(full||syncRound%2===0)await loadGameLayer(advance||full,full);
+    if(full||state.tab==='company'||syncRound%3===0)await loadCompanyLayer(advance||full,full);
     renderTerminal();
   }catch(e){
     console.error(e);
@@ -386,7 +418,7 @@ function stockMarketBadge(s){return `<span class="market-badge ${marketArea(s)==
 function stockVisible(s){return !s?.listing_tick||Number(state.clock?.tick_no||0)>=Number(s.listing_tick)}
 
 function topNav(){
-  const items=[['market','시장'],['portfolio','내 자산'],['orders','주문 내역'],['news','뉴스'],['strategy','전략실'],['learn','투자 기초'],['bank','은행'],['ranking','랭킹']];
+  const items=[['company','회사 경영'],['market','증권시장'],['portfolio','개인 자산'],['orders','주문'],['news','뉴스'],['strategy','시장 전략'],['bank','은행'],['ranking','랭킹'],['learn','투자 기초']];
   return `<nav class="main-nav">${items.map(([k,label])=>`<button data-main-tab="${k}" class="${state.tab===k?'on':''}">${label}</button>`).join('')}</nav>`;
 }
 
@@ -519,6 +551,171 @@ function renderMarket(s,ch){
     ${renderChartPanel(s,ch)}
     ${renderTradeCard(s,ch)}
   </main>`;
+}
+
+
+function companyTypeBadge(c){
+  const type=c?.operator_type||(c?.is_bot?'BOT':c?.owner_user_id?'PLAYER':'BOT');
+  return `<span class="corp-type ${type==='BOT'?'bot':type==='ME'?'me':'player'}">${type==='BOT'?'BOT 기업':type==='ME'?'내 회사':'유저 회사'}</span>`;
+}
+function companyCountryBadge(c){return `<span class="corp-country">${escapeHtml(c?.home_country||'대한민국')}</span>`}
+function companyMarketStatus(m){
+  const p=Number(m?.presence||0);
+  return p>=70?'핵심시장':p>=40?'성장시장':p>=15?'진입시장':'시험진출';
+}
+function renderCompanyCreate(){
+  const rivals=(state.company?.companies||[]).filter(c=>c.is_bot).slice(0,8);
+  return `<main class="page-view company-page"><section class="panel page-panel company-shell">
+    <div class="company-hero">
+      <div class="company-hero-copy"><small>KX CORPORATE · STARTUP</small><h1>내 회사를 설립하고 시장에 들어가세요</h1><p>이제 이 게임의 중심은 개인 주식투자만이 아닙니다. 직접 회사를 만들고 국내 BOT·다른 유저 회사와 경쟁한 뒤, 해외시장으로 확장하고 상대 회사 지분까지 인수할 수 있습니다.</p>
+        <div class="company-start-rules"><span><b>초기 법인자금</b> 10억원</span><span><b>시작시장</b> 대한민국</span><span><b>경쟁상대</b> BOT + 실제 유저 회사</span><span><b>확장</b> 미국·일본·독일·싱가포르·영국·인도·브라질</span></div>
+      </div>
+      <form id="companyCreateForm" class="company-create-card">
+        <small>NEW COMPANY</small><h2>회사 설립</h2>
+        <label>회사 이름<input id="companyName" maxlength="24" placeholder="예: 아스트라 테크" required></label>
+        <label>종목 코드<input id="companyTicker" maxlength="6" placeholder="예: AST" required></label>
+        <label>주력 산업<select id="companySector"><option>AI·반도체</option><option>게임·콘텐츠</option><option>모빌리티</option><option>바이오</option><option>핀테크</option><option>유통</option><option>에너지</option><option>로보틱스</option><option>산업재·자동화</option><option>기술·서비스</option></select></label>
+        <button class="company-primary" type="submit">회사 설립하고 경영 시작</button>
+        <p id="companyCreateMsg">회사 이름은 다른 유저와 구분되며, 종목 코드는 영문/숫자 2~6자로 사용합니다.</p>
+      </form>
+    </div>
+    <section class="company-preview">
+      <div class="company-section-head"><div><small>MARKET PREVIEW</small><h2>이미 시장에서 움직이는 경쟁사</h2></div><span>회사를 만들면 아래 기업들과 같은 시장에서 경쟁하게 됩니다.</span></div>
+      <div class="company-rival-grid">${rivals.map((c,i)=>`<article><div>${companyTypeBadge(c)} ${companyCountryBadge(c)}</div><h3>${escapeHtml(c.name)}</h3><p>${escapeHtml(c.sector)} · ${escapeHtml(c.ai_style||'BOT')}</p><strong>${compactMoney(c.valuation)}원</strong><span>기업가치 순위 #${i+1}</span></article>`).join('')}</div>
+    </section>
+  </section></main>`;
+}
+
+function renderCompanyCommand(my){
+  const amount=100000000;
+  const actions=[
+    ['RND','R&D 투자','기술력·제품경쟁력 상승','장기 성장'],
+    ['MARKETING','마케팅','브랜드·국내점유율 상승','시장 확대'],
+    ['CAPEX','설비 투자','운영·품질·인력 상승','생산력'],
+    ['HIRING','핵심 채용','인력·기술·운영 강화','성장 기반'],
+    ['PRICE_WAR','가격 경쟁','점유율 상승, 이익·브랜드 부담','공격적'],
+    ['COSTCUT','구조조정','현금흐름 개선, 브랜드 일부 하락','방어적'],
+    ['LOAN','기업 대출','현금 확보, 부채와 이자 부담 증가','자금 조달'],
+    ['REPAY','부채 상환','재무 안정성 개선','재무 관리']
+  ];
+  return `<section class="corp-section">
+    <div class="company-section-head"><div><small>01 · CEO COMMAND</small><h2>경영 의사결정</h2></div><span>같은 돈을 어디에 쓰느냐에 따라 회사의 강점과 주가가 달라집니다.</span></div>
+    <div class="corp-action-bar"><label>기본 집행금액<input id="companyActionAmount" type="number" min="10000000" step="10000000" value="${amount}"></label><span>현재 법인현금 <b>${won(my.cash)}</b></span></div>
+    <div class="corp-action-grid">${actions.map(a=>`<button data-company-action="${a[0]}" class="${a[0]==='PRICE_WAR'||a[0]==='LOAN'?'risk':''}"><small>${a[3]}</small><b>${a[1]}</b><span>${a[2]}</span></button>`).join('')}</div>
+  </section>`;
+}
+
+function renderCompetitionBoard(my){
+  const all=(state.company?.companies||[]).filter(c=>Number(c.id)!==Number(my.id));
+  const rows=all.filter(c=>state.companyRegion==='국내'?c.home_country==='대한민국':(c.home_country!=='대한민국'||Number(c.global_level)>0||Number(c.global_share)>0))
+    .sort((a,b)=>Number(b.valuation)-Number(a.valuation)).slice(0,18);
+  const myRank=[...(state.company?.companies||[])].sort((a,b)=>Number(b.valuation)-Number(a.valuation)).findIndex(c=>Number(c.id)===Number(my.id))+1;
+  return `<section class="corp-section competition-section">
+    <div class="company-section-head"><div><small>02 · COMPETITION</small><h2>${state.companyRegion==='국내'?'국내':'글로벌'} 경쟁 구도</h2></div><span>내 기업가치 전체 순위 <b>#${myRank||'-'}</b></span></div>
+    <div class="company-region-tabs"><button data-company-region="국내" class="${state.companyRegion==='국내'?'on':''}">국내 경쟁</button><button data-company-region="해외" class="${state.companyRegion==='해외'?'on':''}">해외·글로벌 경쟁</button></div>
+    <div class="competition-table">
+      <div class="competition-row head"><span>기업</span><span>기업가치</span><span>주가</span><span>${state.companyRegion==='국내'?'국내':'글로벌'} 점유율</span><span>내 인수지분</span><span>인수</span></div>
+      ${rows.length?rows.map((c,i)=>`<div class="competition-row">
+        <span class="company-name-cell"><b>#${i+1} ${escapeHtml(c.name)}</b><small>${companyTypeBadge(c)} ${companyCountryBadge(c)} · ${escapeHtml(c.sector)}</small></span>
+        <span><b>${compactMoney(c.valuation)}원</b><small>${pct(companyGrowth(c))} 매출성장</small></span>
+        <span><b>${won(c.share_price)}</b><small>${escapeHtml(c.ticker)}</small></span>
+        <span><b>${Number(state.companyRegion==='국내'?c.domestic_share:c.global_share).toFixed(2)}%</b><small>${escapeHtml(c.last_event||'경쟁 중')}</small></span>
+        <span><b class="${Number(c.acquired_stake)>0?'up':''}">${Number(c.acquired_stake||0).toFixed(2)}%</b><small>누적 확보</small></span>
+        <span class="takeover-cell"><input id="takeBudget_${c.id}" type="number" min="1000000" step="10000000" value="100000000"><button data-company-buy="${c.id}">지분 매입</button></span>
+      </div>`).join(''):`<div class="empty">표시할 경쟁사가 없습니다.</div>`}
+    </div>
+  </section>`;
+}
+
+function renderGlobalExpansion(my){
+  const countries=[
+    ['US','미국','세계 최대 소비·기술시장','높은 비용 / 높은 성장'],
+    ['JP','일본','제조·콘텐츠·로봇 강국','품질 경쟁'],
+    ['DE','독일','유럽 산업 중심시장','기술·신뢰 경쟁'],
+    ['SG','싱가포르','동남아 금융·허브','글로벌 진출 거점'],
+    ['GB','영국','금융·콘텐츠 시장','브랜드 경쟁'],
+    ['IN','인도','고성장 대형시장','가격·규모 경쟁'],
+    ['BR','브라질','남미 핵심시장','성장성 높은 시장']
+  ];
+  const markets=state.company?.my_markets||[];
+  return `<section class="corp-section">
+    <div class="company-section-head"><div><small>03 · GLOBAL EXPANSION</small><h2>해외 진출</h2></div><span>해외에 진출하면 글로벌 매출과 점유율이 생기고 해외 BOT들과 직접 경쟁합니다.</span></div>
+    <div class="global-budget"><label>진출 투자금<input id="companyExpansionBudget" type="number" min="80000000" step="10000000" value="200000000"></label><span>글로벌 레벨 <b>${Number(my.global_level||0)}/5</b> · 글로벌 점유율 <b>${Number(my.global_share||0).toFixed(2)}%</b></span></div>
+    <div class="global-country-grid">${countries.map(x=>{const m=markets.find(m=>m.country_code===x[0]);return `<article class="${m?'entered':''}"><div><span>${x[0]}</span>${m?`<b>${companyMarketStatus(m)}</b>`:'<b>미진출</b>'}</div><h3>${x[1]}</h3><p>${x[2]}</p><small>${m?`현지 영향력 ${Number(m.presence).toFixed(0)} · 점유율 ${Number(m.market_share).toFixed(2)}%`:x[3]}</small><button data-company-expand="${x[0]}">${m?'추가 투자':'시장 진출'}</button></article>`}).join('')}</div>
+  </section>`;
+}
+
+function renderTakeoverDesk(my){
+  const mine=state.company?.my_holdings||[];
+  const incoming=state.company?.incoming_holdings||[];
+  const threat=companyStakeAgainstMe();
+  return `<section class="corp-section takeover-section">
+    <div class="company-section-head"><div><small>04 · M&A / CONTROL</small><h2>지분 인수와 경영권</h2></div><span>한 기업이 50% 이상을 확보하면 해당 회사가 자회사로 편입됩니다.</span></div>
+    <div class="takeover-summary">
+      <article class="${threat>=35?'danger':threat>=15?'warn':''}"><small>내 회사 외부 보유지분</small><b>${threat.toFixed(2)}%</b><span>${threat>=50?'경영권이 인수된 상태':threat>=35?'경영권 방어가 필요한 수준':threat>=15?'인수 움직임을 주시할 수준':'현재 경영권은 비교적 안정적'}</span></article>
+      <article><small>내가 투자한 경쟁사</small><b>${mine.length}개</b><span>지분을 쌓아 50%를 넘기면 자회사 편입</span></article>
+      <article><small>현재 지배기업</small><b>${escapeHtml(my.parent_name||'없음')}</b><span>${my.parent_name?'인수된 뒤에도 경영은 계속할 수 있습니다.':'독립 경영 상태'}</span></article>
+    </div>
+    <div class="takeover-columns">
+      <div><h3>내 회사에 들어온 지분</h3>${incoming.length?incoming.map(h=>`<div class="stake-row"><span><b>${escapeHtml(h.holder_name)}</b><small>${escapeHtml(h.holder_type)} · ${escapeHtml(h.holder_ticker)}</small></span><strong class="${Number(h.stake)>=25?'down':''}">${Number(h.stake).toFixed(2)}%</strong><em>${compactMoney(h.market_value)}원</em></div>`).join(''):`<div class="empty compact">아직 외부 기업이 내 회사 지분을 확보하지 않았습니다.</div>`}</div>
+      <div><h3>내 회사가 보유한 경쟁사 지분</h3>${mine.length?mine.map(h=>`<div class="stake-row owned"><span><b>${escapeHtml(h.target_name)}</b><small>${escapeHtml(h.target_ticker)} · ${escapeHtml(h.target_country)}</small></span><strong>${Number(h.stake).toFixed(2)}%</strong><em>${compactMoney(h.market_value)}원</em><button data-company-sell="${h.target_company_id}">일부 매각</button></div>`).join(''):`<div class="empty compact">아직 인수한 경쟁사 지분이 없습니다.</div>`}</div>
+    </div>
+  </section>`;
+}
+
+function renderCorporateMarket(my){
+  const opts=(state.company?.stock_options||[]).slice(0,80);
+  const holdings=state.company?.market_holdings||[];
+  return `<section class="corp-section corporate-market">
+    <div class="company-section-head"><div><small>05 · CORPORATE TREASURY</small><h2>회사 자금으로 기존 주식시장 운용</h2></div><span>기존 KX 주식 시스템의 현재가를 그대로 사용해 법인자금을 운용합니다.</span></div>
+    <div class="treasury-trade">
+      <label>시장 종목<select id="corpStockTicker">${opts.map(s=>`<option value="${s.ticker}">${s.market_area==='해외'?'[해외]':'[국내]'} ${escapeHtml(s.name)} · ${escapeHtml(s.ticker)} · ${won(s.last_price)}</option>`).join('')}</select></label>
+      <label>거래금액<input id="corpStockAmount" type="number" min="10000" step="10000" value="50000000"></label>
+      <div><button data-company-market-side="BUY">법인 매수</button><button data-company-market-side="SELL" class="sell">법인 매도</button></div>
+    </div>
+    <div class="treasury-holdings">${holdings.length?holdings.map(h=>`<article><div><b>${escapeHtml(h.name)}</b><small>${escapeHtml(h.ticker)} · ${escapeHtml(h.market_area)} ${escapeHtml(h.market_country||'')}</small></div><span>${nf.format(Number(h.shares))}주</span><strong>${compactMoney(h.market_value)}원</strong><em class="${Number(h.pnl)>=0?'up':'down'}">${Number(h.pnl)>=0?'+':''}${compactMoney(h.pnl)}원</em></article>`).join(''):`<div class="empty compact">회사 자금으로 보유한 시장 주식이 없습니다.</div>`}</div>
+  </section>`;
+}
+
+function renderCompanyEvents(){
+  const rows=state.company?.events||[];
+  return `<section class="corp-section corp-event-section">
+    <div class="company-section-head"><div><small>06 · LIVE CORPORATE NEWS</small><h2>기업 시장 상황</h2></div><span>BOT 인수전·유저 회사의 성장·해외진출 결과가 같은 시장에 누적됩니다.</span></div>
+    <div class="corp-event-feed">${rows.length?rows.slice(0,24).map(e=>`<article class="${e.event_type==='TAKEOVER'?'takeover':''}"><div><span>${escapeHtml(e.event_type)}</span><time>${e.created_at?new Date(e.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></div><h3>${escapeHtml(e.title)}</h3><p>${escapeHtml(e.body)}</p><small>${escapeHtml(e.company_name||'시장 전체')}</small></article>`).join(''):`<div class="empty">아직 기업 이벤트가 없습니다.</div>`}</div>
+  </section>`;
+}
+
+function renderCompanyRoom(){
+  if(state.companyAvailable===false){
+    return `<main class="page-view company-page"><section class="panel page-panel company-shell"><div class="page-title"><div><small>KX CORPORATE</small><h1>회사 경영</h1></div><span>주식시장 위에 회사 경영·인수·해외경쟁을 추가하는 확장 모드</span></div><div class="company-install-note"><h2>회사 경영 확장 SQL을 먼저 한 번 실행해 주세요</h2><p>${escapeHtml(state.companyError||'kx_company_snapshot 함수를 찾을 수 없습니다.')}</p><code>SUPABASE_COMPANY_EXPANSION.sql</code><span>Supabase SQL Editor에서 패치 ZIP에 들어 있는 위 파일 전체를 실행하면 BOT 기업, 유저 회사, 지분 인수, 해외진출, 법인 주식운용이 활성화됩니다. 기존 주식·은행 기능은 삭제되지 않습니다.</span></div></section></main>`;
+  }
+  const my=state.company?.my_company;
+  if(!my)return renderCompanyCreate();
+  const grow=companyGrowth(my),margin=companyProfitMargin(my),debt=companyDebtRatio(my),threat=companyStakeAgainstMe();
+  return `<main class="page-view company-page"><section class="panel page-panel company-shell">
+    <div class="company-topline">
+      <div><small>CEO OFFICE · ${escapeHtml(my.ticker)}</small><h1>${escapeHtml(my.name)}</h1><p>${escapeHtml(my.sector)} · 본사 ${escapeHtml(my.home_country)} · ${my.parent_name?`${escapeHtml(my.parent_name)} 계열사`:'독립 경영'}</p></div>
+      <div class="company-share-quote"><small>기업 주가</small><b>${won(my.share_price)}</b><span class="${grow>=0?'up':'down'}">매출성장 ${pct(grow)}</span></div>
+    </div>
+    <div class="company-kpi-grid">
+      <article><small>기업가치</small><b>${compactMoney(my.valuation)}원</b><span>시장평가</span></article>
+      <article><small>법인 현금</small><b>${compactMoney(my.cash)}원</b><span>경영·투자 가용자금</span></article>
+      <article><small>매출</small><b>${compactMoney(my.revenue)}원</b><span class="${grow>=0?'up':'down'}">${pct(grow)}</span></article>
+      <article><small>영업이익</small><b class="${Number(my.profit)>=0?'up':'down'}">${compactMoney(my.profit)}원</b><span>이익률 ${margin.toFixed(1)}%</span></article>
+      <article><small>부채</small><b>${compactMoney(my.debt)}원</b><span>기업가치 대비 ${debt.toFixed(1)}%</span></article>
+      <article><small>국내 점유율</small><b>${Number(my.domestic_share||0).toFixed(2)}%</b><span>브랜드 ${Number(my.brand||0).toFixed(0)}</span></article>
+      <article><small>글로벌 점유율</small><b>${Number(my.global_share||0).toFixed(2)}%</b><span>진출 레벨 ${Number(my.global_level||0)}/5</span></article>
+      <article class="${threat>=35?'danger':''}"><small>외부 보유지분</small><b>${threat.toFixed(2)}%</b><span>${threat>=35?'인수 위험 상승':'경영권 방어 상태'}</span></article>
+    </div>
+    <div class="company-stat-strip"><span>기술력 <b>${Number(my.technology).toFixed(0)}</b></span><span>브랜드 <b>${Number(my.brand).toFixed(0)}</b></span><span>운영 <b>${Number(my.operations).toFixed(0)}</b></span><span>제품력 <b>${Number(my.product_quality).toFixed(0)}</b></span><span>임직원 <b>${nf.format(Number(my.employees))}명</b></span><span>최근 이슈 <b>${escapeHtml(my.last_event||'-')}</b></span></div>
+    ${state.companyNotice?`<div class="company-notice" id="companyMsg">${escapeHtml(state.companyNotice)}</div>`:`<div class="company-notice muted" id="companyMsg">경영 결정은 법인 현금·매출·기술·브랜드·시장점유율·기업가치에 연결됩니다.</div>`}
+    ${renderCompanyCommand(my)}
+    ${renderCompetitionBoard(my)}
+    ${renderGlobalExpansion(my)}
+    ${renderTakeoverDesk(my)}
+    ${renderCorporateMarket(my)}
+    ${renderCompanyEvents()}
+  </section></main>`;
 }
 
 function renderPortfolio(){
@@ -710,7 +907,8 @@ function openTutorial(startIndex=0){
 function renderTerminal(){
   const s=selected();if(!s)return;
   const ch=changeOf(s);
-  const content=state.tab==='market'?renderMarket(s,ch)
+  const content=state.tab==='company'?renderCompanyRoom()
+    :state.tab==='market'?renderMarket(s,ch)
     :state.tab==='portfolio'?renderPortfolio()
     :state.tab==='orders'?renderOrders()
     :state.tab==='news'?renderNews()
@@ -721,23 +919,23 @@ function renderTerminal(){
 
   app.innerHTML=`<div class="terminal">
     <header class="top">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX EXCHANGE</strong></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong></div>
       ${topNav()}
       <div class="market-status"><b>DAY ${state.clock?.game_day||1}</b><span>${gameTime(state.clock?.game_minute||0)}</span><em>${SESS[state.clock?.session]||'-'}</em><i class="market-regime ${(state.clock?.market_regime||'NEUTRAL').toLowerCase()}">${REGIME[state.clock?.market_regime||'NEUTRAL']||'중립'}장</i></div>
-      <div class="header-money"><div class="asset cash"><small>보유 현금</small><b>${won(state.account?.cash)}</b></div><div class="asset"><small>총자산</small><b>${won(totalAssets())}</b></div></div>
+      <div class="header-money"><div class="asset cash"><small>개인 현금</small><b>${won(state.account?.cash)}</b></div><div class="asset"><small>개인 총자산</small><b>${won(totalAssets())}</b></div></div>
       <button class="tutorial-btn" id="tutorialBtn">튜토리얼</button><button class="logout" id="logout">로그아웃</button>
     </header>
-    <div class="mobile-account-bar"><span>보유 현금 <b>${won(state.account?.cash)}</b></span><span>총자산 <b>${won(totalAssets())}</b></span></div>
+    <div class="mobile-account-bar"><span>개인 현금 <b>${won(state.account?.cash)}</b></span><span>개인 총자산 <b>${won(totalAssets())}</b></span></div>
     ${content}
     <nav class="mobile-nav">
-      <button data-main-tab="market" class="${state.tab==='market'?'on':''}">시장</button>
+      <button data-main-tab="company" class="${state.tab==='company'?'on':''}">회사</button>
+      <button data-main-tab="market" class="${state.tab==='market'?'on':''}">증권</button>
       <button data-main-tab="portfolio" class="${state.tab==='portfolio'?'on':''}">자산</button>
-      <button data-main-tab="orders" class="${state.tab==='orders'?'on':''}">주문</button>
       <button data-main-tab="news" class="${state.tab==='news'?'on':''}">뉴스</button>
-      <button data-main-tab="strategy" class="${state.tab==='strategy'?'on':''}">전략실</button>
-      <button data-main-tab="learn" class="${state.tab==='learn'?'on':''}">기초</button>
+      <button data-main-tab="strategy" class="${state.tab==='strategy'?'on':''}">전략</button>
       <button data-main-tab="bank" class="${state.tab==='bank'?'on':''}">은행</button>
       <button data-main-tab="ranking" class="${state.tab==='ranking'?'on':''}">랭킹</button>
+      <button data-main-tab="learn" class="${state.tab==='learn'?'on':''}">기초</button>
     </nav>
   </div>`;
   bind();
@@ -816,6 +1014,9 @@ function bind(){
     if(next==='news'||next==='ranking'){
       try{await loadPublicSnapshot(true,false)}catch(e){console.error(e)}
     }
+    if(next==='company'){
+      try{await loadCompanyLayer(true,true)}catch(e){console.error(e)}
+    }
     renderTerminal();
   });
 
@@ -854,6 +1055,71 @@ function bind(){
   if(submit)submit.onclick=placeOrder;
 
   document.querySelectorAll('[data-cancel]').forEach(b=>b.onclick=()=>cancelOrder(b.dataset.cancel));
+
+  const companyForm=document.getElementById('companyCreateForm');
+  if(companyForm)companyForm.onsubmit=async e=>{
+    e.preventDefault();
+    const msg=document.getElementById('companyCreateMsg'),btn=companyForm.querySelector('button[type="submit"]');
+    const name=document.getElementById('companyName')?.value.trim();
+    const ticker=document.getElementById('companyTicker')?.value.trim().toUpperCase();
+    const sector=document.getElementById('companySector')?.value;
+    if(btn)btn.disabled=true;
+    try{
+      const d=await rpc('kx_company_create',{p_name:name,p_ticker:ticker,p_sector:sector});
+      state.companyNotice=d?.message||'회사 설립이 완료되었습니다.';
+      await loadCompanyLayer(true,true);renderTerminal();
+    }catch(err){if(msg)msg.textContent=err.message;if(btn)btn.disabled=false}
+  };
+
+  document.querySelectorAll('[data-company-region]').forEach(b=>b.onclick=()=>{
+    state.companyRegion=b.dataset.companyRegion||'국내';renderTerminal();
+  });
+
+  const companyRun=async(name,body,question)=>{
+    if(question&&!confirm(question))return;
+    const msg=document.getElementById('companyMsg');
+    try{
+      const d=await rpc(name,body);
+      state.companyNotice=d?.message||'경영 결정이 반영되었습니다.';
+      await loadCompanyLayer(true,true);renderTerminal();
+    }catch(err){
+      state.companyNotice='처리 실패: '+err.message;
+      if(msg)msg.textContent=state.companyNotice;else alert(state.companyNotice);
+    }
+  };
+
+  document.querySelectorAll('[data-company-action]').forEach(b=>b.onclick=()=>{
+    const action=b.dataset.companyAction;
+    const amount=Math.max(0,Math.floor(Number(document.getElementById('companyActionAmount')?.value)||0));
+    const labels={RND:'R&D 투자',MARKETING:'마케팅 투자',CAPEX:'설비 투자',HIRING:'핵심 인재 채용',PRICE_WAR:'가격 경쟁',COSTCUT:'비용 구조조정',LOAN:'기업 대출',REPAY:'부채 상환'};
+    const risky=action==='PRICE_WAR'?'가격 경쟁은 점유율을 얻는 대신 이익과 브랜드에 부담이 생깁니다. ':action==='LOAN'?'대출은 현금을 늘리지만 부채와 이자 부담이 커집니다. ':'';
+    companyRun('kx_company_action',{p_action:action,p_amount:amount},`${risky}${labels[action]||'경영 결정'}을 실행할까요?`);
+  });
+
+  document.querySelectorAll('[data-company-expand]').forEach(b=>b.onclick=()=>{
+    const code=b.dataset.companyExpand;
+    const amount=Math.max(80000000,Math.floor(Number(document.getElementById('companyExpansionBudget')?.value)||200000000));
+    companyRun('kx_company_expand',{p_country_code:code,p_budget:amount},`${won(amount)}을 투입해 해당 해외시장에 진출/추가투자할까요?`);
+  });
+
+  document.querySelectorAll('[data-company-buy]').forEach(b=>b.onclick=()=>{
+    const id=Number(b.dataset.companyBuy);
+    const amount=Math.max(1000000,Math.floor(Number(document.getElementById(`takeBudget_${id}`)?.value)||100000000));
+    companyRun('kx_company_buy_shares',{p_target_company_id:id,p_budget:amount},`${won(amount)} 한도에서 이 회사 지분을 매입할까요? 지분이 50%를 넘으면 자회사로 편입됩니다.`);
+  });
+
+  document.querySelectorAll('[data-company-sell]').forEach(b=>b.onclick=()=>{
+    const id=Number(b.dataset.companySell);
+    const amount=Math.max(1000000,Math.floor(Number(document.getElementById('companyActionAmount')?.value)||100000000));
+    companyRun('kx_company_sell_shares',{p_target_company_id:id,p_amount:amount},`${won(amount)} 상당의 보유지분을 현재 기업가치 기준으로 일부 매각할까요?`);
+  });
+
+  document.querySelectorAll('[data-company-market-side]').forEach(b=>b.onclick=()=>{
+    const ticker=document.getElementById('corpStockTicker')?.value;
+    const side=b.dataset.companyMarketSide;
+    const amount=Math.max(10000,Math.floor(Number(document.getElementById('corpStockAmount')?.value)||50000000));
+    companyRun('kx_company_trade_market',{p_ticker:ticker,p_side:side,p_amount:amount},`회사 자금으로 ${ticker}를 ${side==='BUY'?'매수':'매도'}할까요?`);
+  });
 
   document.querySelectorAll('[data-event-predict]').forEach(b=>b.onclick=async()=>{
     const msg=b.closest('.market-event-card');
@@ -974,7 +1240,7 @@ function drawChart(){
 }
 
 async function start(){
-  app.innerHTML='<div class="boot"><div class="kxlogo">KX</div><b>KX EXCHANGE</b><span>공용 시장에 연결하는 중…</span></div>';
+  app.innerHTML='<div class="boot"><div class="kxlogo">KX</div><b>KX CORPORATE</b><span>기업·주식시장에 연결하는 중…</span></div>';
   if(!session.user){
     try{session.user=await req('/auth/v1/user');save()}catch{}
   }
