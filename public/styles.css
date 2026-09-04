@@ -712,3 +712,65 @@ body.tutorial-active{overflow:hidden}
 .online-required-head{display:flex;align-items:flex-start;justify-content:space-between;gap:28px;padding:34px 34px 8px}.online-required-head small{color:#d5ad5d;font-size:9px;font-weight:900;letter-spacing:.14em}.online-required-head h1{margin:7px 0 9px;font-size:29px}.online-required-head p{max-width:900px;margin:0;color:#8b9bad;font-size:12px;line-height:1.7}.online-required-badge{flex:0 0 auto;padding:9px 12px;border:1px solid #735044;border-radius:999px;background:#21140f;color:#e5ad91;font-size:9px;font-weight:900;letter-spacing:.08em}
 .online-install-card{margin:22px 34px!important;border-color:#745b2d!important;background:#151109!important}.online-install-card code{margin:0!important}.online-preview-grid{margin:18px 34px 0}.online-required-shell .setup-security-note{margin:18px 34px 34px}.online-required-shell .setup-security-note b{color:#e0bd71;margin-right:8px}
 @media(max-width:900px){.online-required-head{display:grid;padding:22px 18px 4px}.online-required-badge{justify-self:start}.online-install-card{margin:18px!important}.online-preview-grid{margin:14px 18px 0;grid-template-columns:1fr!important}.online-required-shell .setup-security-note{margin:16px 18px 24px}.online-mode-chip{display:none}}
+
+
+/* V5 MANAGEMENT-FIRST UI */
+.compact-management-nav{gap:4px;margin-left:18px;flex:1;justify-content:flex-start;min-width:0}
+.compact-management-nav button{height:38px;padding:0 14px;border:1px solid transparent;border-radius:9px;font-size:10.5px;white-space:nowrap}
+.compact-management-nav button.on{border-color:#5b4825;background:#211a0f;color:#efd182;box-shadow:none}
+.compact-management-nav button[data-main-tab="ranking"]{margin-left:6px;border-left:1px solid #28323e;border-radius:0 9px 9px 0}
+.corporate-cycle-status{margin-left:auto;gap:7px;padding-left:12px;border-left:1px solid #27303b}
+.corporate-cycle-status em{border-color:#315a48;background:#0d211a;color:#7cd5aa}
+.management-topbar{gap:12px;padding-inline:14px}
+.management-topbar .brand{gap:8px}.management-topbar .brand strong{font-size:12px}
+.management-topbar .header-money{gap:14px}.management-topbar .asset{min-width:105px}.management-topbar .asset b{font-size:14px}
+
+.compact-online-banner{width:auto;margin:12px 18px 0;padding:8px 11px;border-radius:9px;box-shadow:none}
+.compact-online-banner>div{display:flex!important;grid-template-columns:none!important;align-items:center;gap:8px!important}
+.compact-online-banner b{font-size:10px}.compact-online-banner>div>span:last-child{grid-column:auto!important;font-size:8.5px;color:#728b7e}
+.compact-online-banner .online-live-dot{padding:4px 7px!important}
+
+.connection-repair-shell{min-height:0!important;padding:28px!important;background:#0a1017!important}
+.connection-repair-card{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:18px;padding:22px;border:1px solid #604f2d;border-radius:14px;background:linear-gradient(135deg,#17130b,#0d131a)}
+.connection-repair-icon{width:48px;height:48px;display:grid;place-items:center;border:1px solid #8b6d32;border-radius:12px;background:#2b210e;color:#f0c76b;font-size:24px;font-weight:1000}
+.connection-repair-copy small{color:#c7a75f;font-size:8px;font-weight:900;letter-spacing:.12em}.connection-repair-copy h1{margin:5px 0 7px;font-size:23px}.connection-repair-copy p{margin:0;color:#9aa7b8;font-size:10px;line-height:1.55}
+.connection-repair-card .company-primary{min-width:150px;height:42px;border:1px solid #896b31;border-radius:9px;background:#6e531f;color:#fff1c5;font-size:10px;font-weight:900}
+.repair-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.repair-steps article{display:flex;align-items:flex-start;gap:11px;padding:14px;border:1px solid #273340;border-radius:11px;background:#0c131b}.repair-steps article>b{flex:0 0 26px;width:26px;height:26px;display:grid;place-items:center;border-radius:7px;background:#172230;color:#d8ba72;font-size:10px}.repair-steps span{display:grid;gap:4px}.repair-steps strong{font-size:10px}.repair-steps small{color:#7f8ea1;font-size:8.5px;line-height:1.5}.repair-steps code{color:#d4b66d}
+.repair-detail{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px;margin-top:14px;padding:13px 14px;border-left:3px solid #66512a;background:#0b1016;color:#8492a4;font-size:8.5px}.repair-detail b{color:#d6b66e}.repair-detail code{overflow:auto;color:#aeb9c8;white-space:nowrap}.repair-detail span{grid-column:1/-1}
+
+.acquisition-guide{display:grid;grid-template-columns:minmax(260px,1.3fr) minmax(420px,1.7fr) 180px;align-items:center;gap:18px;margin:18px;padding:18px;border:1px solid #32435a;border-radius:14px;background:linear-gradient(120deg,#0e1722,#0b1118 62%,#17140d)}
+.acquisition-guide>div:first-child small{color:#d0a95b;font-size:8px;font-weight:900;letter-spacing:.12em}.acquisition-guide h2{margin:5px 0 7px;font-size:18px}.acquisition-guide p{margin:0;color:#8796a8;font-size:9px;line-height:1.55}
+.ownership-steps{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}.ownership-steps span{min-height:58px;display:grid;place-content:center;text-align:center;border:1px solid #293849;border-radius:9px;background:#0b121a}.ownership-steps b{color:#eed083;font-size:13px}.ownership-steps small{margin-top:4px;color:#7e8da0;font-size:7.5px}
+.subsidiary-count{display:grid;gap:3px;padding-left:16px;border-left:1px solid #303947}.subsidiary-count small{color:#7b899a;font-size:8px}.subsidiary-count b{font-size:22px;color:#d9e3ef}.subsidiary-count span{color:#8695a7;font-size:8px;line-height:1.45}
+
+.acquisition-market{overflow:visible}.acquisition-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:14px}
+.acquisition-card{padding:14px;border:1px solid #283646;border-radius:12px;background:#0b121a;box-shadow:0 8px 20px rgba(0,0,0,.12)}
+.acquisition-card.major{border-color:#4d4930}.acquisition-card.hostile{border-color:#67413d}.acquisition-card.controlled{border-color:#3f6a56;background:linear-gradient(145deg,#0b1714,#0b1218)}
+.acq-company-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.acq-company-head>span{display:grid;gap:5px}.acq-company-head>span>b{font-size:13px}.acq-company-head>span>small{display:flex;align-items:center;gap:5px;color:#76869b;font-size:8px}.acq-company-head>em{font-style:normal;color:#596b81;font-size:10px;font-weight:900}
+.acq-value{display:grid;grid-template-columns:1.4fr .9fr .9fr;gap:1px;margin-top:12px;border:1px solid #202c38;border-radius:8px;overflow:hidden;background:#202c38}.acq-value span{display:grid;gap:4px;padding:9px;background:#0d151e}.acq-value small{color:#6e7f92;font-size:7px}.acq-value b{font-size:10px}
+.acq-stake{margin-top:12px}.acq-stake>div:first-child{display:flex;align-items:center;gap:8px}.acq-stake small{color:#75869a;font-size:8px}.acq-stake b{font-size:15px}.acq-stake em{margin-left:auto;padding:3px 6px;border:1px solid #38485b;border-radius:999px;color:#9dabbc;font-size:7px;font-style:normal}.acq-stake>span{display:block;margin-top:5px;color:#79899c;font-size:8px;line-height:1.4}
+.acq-progress{height:7px!important;margin-top:7px;border-radius:99px;background:#17202b;overflow:hidden}.acq-progress i{display:block;height:100%;background:linear-gradient(90deg,#7a6639,#cfaa55);border-radius:99px}
+.acquisition-card.controlled .acq-progress i{background:linear-gradient(90deg,#2f7358,#69c292)}
+.acq-actions{display:grid;grid-template-columns:minmax(120px,1fr) auto auto;gap:7px;margin-top:12px}.acq-actions label{display:grid;gap:4px;color:#75869b;font-size:7px}.acq-actions input{height:34px;width:100%;padding:0 8px;border:1px solid #2b3949;border-radius:7px;background:#080d13;color:#fff}.acq-actions button{height:34px;padding:0 10px;border:1px solid #465a71;border-radius:7px;background:#111b26;color:#cbd7e5;font-size:8px;font-weight:900}.acq-actions button:hover:not(:disabled){background:#182737}.acq-actions .tender{border-color:#765e2e;background:#211a0d;color:#efd183}.acq-actions button:disabled{opacity:.35;cursor:not-allowed}.acq-note{display:block;margin-top:7px;color:#6e7d8f;font-size:7.5px;line-height:1.45}
+
+.company-workspace>.acquisition-guide{margin-left:18px;margin-right:18px}
+.company-stat-strip{overflow-x:auto;scrollbar-width:none}.company-stat-strip::-webkit-scrollbar{display:none}
+.company-topline.management-topline{min-height:118px!important;padding:19px 22px!important}.management-topline h1{font-size:26px!important}.company-value-hero{min-width:260px;padding:13px 15px}.company-value-hero b{font-size:28px}
+
+@media(max-width:1450px){
+  .compact-management-nav button{padding:0 10px;font-size:9.5px}
+  .management-topbar .header-money .asset{min-width:92px}
+  .management-topbar .tutorial-btn{display:none}
+  .acquisition-guide{grid-template-columns:1fr 1.4fr}.subsidiary-count{grid-column:1/-1;border-left:0;border-top:1px solid #303947;padding:10px 0 0}
+}
+@media(max-width:1100px){
+  .management-topbar .brand strong{display:none}.online-mode-chip{display:none}.corporate-cycle-status{display:none}.management-topbar .header-money{margin-left:auto}
+  .compact-management-nav{overflow-x:auto;scrollbar-width:none}.compact-management-nav::-webkit-scrollbar{display:none}
+  .acquisition-cards{grid-template-columns:1fr}.acquisition-guide{grid-template-columns:1fr}.ownership-steps{grid-template-columns:repeat(5,minmax(70px,1fr));overflow-x:auto}.subsidiary-count{grid-column:auto}
+}
+@media(max-width:720px){
+  .management-topbar .header-money{display:none}.compact-management-nav{display:none}
+  .connection-repair-shell{padding:12px!important}.connection-repair-card{grid-template-columns:42px minmax(0,1fr);padding:15px}.connection-repair-icon{width:40px;height:40px}.connection-repair-card .company-primary{grid-column:1/-1;width:100%}.repair-steps{grid-template-columns:1fr}
+  .acquisition-guide{margin:8px;padding:13px}.ownership-steps{grid-template-columns:repeat(5,76px)}.acquisition-cards{padding:8px}.acq-value{grid-template-columns:1fr 1fr}.acq-value span:first-child{grid-column:1/-1}.acq-actions{grid-template-columns:1fr 1fr}.acq-actions label{grid-column:1/-1}
+  .company-workspace>.acquisition-guide{margin-left:8px;margin-right:8px}
+}

@@ -491,32 +491,45 @@ async function loadPrivateSnapshot(){
 async function loadGameLayer(runSync=false,force=false){
   if(state.gameAvailable===false&&!force)return;
   try{
-    const d=runSync?await rpc('kx_game_sync',{}):await rpc('kx_game_snapshot',{});
+    // 회사 경영 버전에서는 기존 보조 게임 레이어가 시장 뉴스를 새로 생성하지 않습니다.
+    // 오래된 kx_news 스키마와 kx_game_sync가 충돌해도 회사 경영에는 영향을 주지 않도록 조회 전용으로 유지합니다.
+    const d=await rpc('kx_game_snapshot',{});
     state.game=d&&typeof d==='object'?{...emptyGame(),...d}:emptyGame();
     state.gameAvailable=true;state.gameError='';
   }catch(e){
     const raw=String(e?.message||'');
     if(e?.status===404||raw.includes('kx_game_')||raw.includes('Could not find the function')){
-      state.gameAvailable=false;state.gameError='Supabase에서 KX 게임 확장 SQL을 아직 찾을 수 없습니다.';
-    }else{console.warn('game layer:',e);state.gameError=raw;}
+      state.gameAvailable=false;state.gameError='';
+    }else{
+      state.gameAvailable=false;state.gameError='';
+    }
   }
 }
 async function loadCompanyLayer(runSync=false,force=false){
+  const isMissing=e=>{const raw=String(e?.message||'');return e?.status===404||raw.includes('Could not find the function')||raw.includes('schema cache')||raw.includes('PGRST202')};
   try{
-    const d=runSync?await rpc('kx_company_sync',{}):await rpc('kx_company_snapshot',{});
+    let d=null,lastErr=null;
+    const attempts=runSync
+      ?['kx_company_sync_v5','kx_company_snapshot_v5','kx_company_sync','kx_company_snapshot']
+      :['kx_company_snapshot_v5','kx_company_snapshot'];
+    for(const name of attempts){
+      try{d=await rpc(name,{});if(d)break}catch(e){lastErr=e;if(!isMissing(e)&&name.includes('snapshot'))throw e;}
+    }
+    if(!d)throw lastErr||new Error('회사 데이터를 불러오지 못했습니다.');
     state.company=d&&typeof d==='object'?{...emptyCompany(),...d}:emptyCompany();
     state.companyAvailable=true;
     state.companyMode='REMOTE';
     state.companyError='';
+    if(runSync&&lastErr&&!isMissing(lastErr))state.companyNotice='온라인 회사 데이터는 연결되었습니다. 자동 경영주기 갱신 중 일부 처리가 지연되어 현재 스냅샷을 표시합니다.';
   }catch(e){
     const raw=String(e?.message||'');
-    const missing=e?.status===404||raw.includes('kx_company_')||raw.includes('Could not find the function')||raw.includes('schema cache');
+    const missing=isMissing(e)||raw.includes('kx_company_');
     state.companyAvailable=false;
     state.companyMode='REMOTE';
     state.company=emptyCompany();
     state.companyError=missing
-      ?'온라인 회사 경영 DB/RPC가 아직 Supabase에 설치되지 않았습니다. SUPABASE_COMPANY_EXPANSION_REQUIRED.sql을 전체 실행한 뒤 다시 확인해 주세요.'
-      :(raw||'온라인 회사 경영 서버에 연결하지 못했습니다. 네트워크와 Supabase 상태를 확인한 뒤 다시 시도해 주세요.');
+      ?'회사 경영 RPC를 찾지 못했습니다. 이번 패치의 KX_CORPORATE_V5_REPAIR.sql을 Supabase SQL Editor에서 실행한 뒤 연결 확인을 눌러 주세요.'
+      :(raw||'온라인 회사 서버에 연결하지 못했습니다. Supabase 연결 상태를 확인해 주세요.');
   }
 }
 
@@ -578,10 +591,14 @@ function stockVisible(s){return !s?.listing_tick||Number(state.clock?.tick_no||0
 
 function topNav(){
   const items=[
-    ['company','CEO 대시보드','dashboard'],['company','경영·조직','operations'],['company','경쟁·M&A','competition'],['company','해외사업','global'],
-    ['company','언론·IR','media'],['company','세무·준법','tax'],['market','기업 금융시장',''],['ranking','회사 순위',''],['portfolio','개인 투자','']
+    ['company','경영실','dashboard'],
+    ['company','사업 운영','operations'],
+    ['company','투자·인수','competition'],
+    ['company','글로벌','global'],
+    ['company','홍보·리스크','risk'],
+    ['ranking','기업 순위','']
   ];
-  return `<nav class="main-nav management-nav">${items.map(([k,label,section])=>`<button data-main-tab="${k}" ${section?`data-company-section-nav="${section}"`:''} class="${state.tab===k&&(!section||state.companySection===section)?'on':''}">${label}</button>`).join('')}</nav>`;
+  return `<nav class="main-nav management-nav compact-management-nav">${items.map(([k,label,section])=>`<button data-main-tab="${k}" ${section?`data-company-section-nav="${section}"`:''} class="${state.tab===k&&(!section||state.companySection===section)?'on':''}">${label}</button>`).join('')}</nav>`;
 }
 
 function renderStockPicker(s){
@@ -889,24 +906,36 @@ function renderTaxOffice(my){
   </section>`;
 }
 
+function acquisitionStage(stake){
+  const v=Number(stake||0);
+  if(v>=66.7)return {label:'지배력 확정',cls:'control',desc:'특별결의까지 강한 영향력을 가진 지배 단계'};
+  if(v>=50)return {label:'경영권 확보',cls:'control',desc:'의결권 과반 확보 · 자회사 편입'};
+  if(v>=33.4)return {label:'경영권 압박',cls:'hostile',desc:'주요 의사결정을 막거나 협상을 주도할 수 있는 수준'};
+  if(v>=15)return {label:'주요 주주',cls:'major',desc:'공개매수와 본격적인 경영권 인수전을 시작할 수 있는 수준'};
+  if(v>=5)return {label:'전략적 지분',cls:'stake',desc:'시장에 존재감이 생긴 전략적 투자 단계'};
+  return {label:'일반 투자',cls:'normal',desc:'소수지분 투자 단계'};
+}
+function renderAcquisitionGuide(my){
+  const subsidiaries=(state.company?.companies||[]).filter(c=>Number(c.parent_company_id)===Number(my.id));
+  return `<section class="acquisition-guide"><div><small>OWNERSHIP & CONTROL</small><h2>주식을 사서 실제로 경영권을 확보합니다</h2><p>경쟁사 지분을 장내에서 모으고, 주요 주주가 된 뒤 공개매수로 경영권을 노릴 수 있습니다. 상대 회사도 방어하며, 과반을 확보하면 온라인 시장에서 실제 자회사로 편입됩니다.</p></div><div class="ownership-steps"><span><b>5%</b><small>전략적 지분</small></span><span><b>15%</b><small>주요 주주</small></span><span><b>33.4%</b><small>경영권 압박</small></span><span><b>50%</b><small>경영권 확보</small></span><span><b>66.7%</b><small>지배력 확정</small></span></div><div class="subsidiary-count"><small>현재 자회사</small><b>${subsidiaries.length}개</b><span>${subsidiaries.length?subsidiaries.map(x=>escapeHtml(x.name)).join(' · '):'아직 확보한 경영권이 없습니다.'}</span></div></section>`;
+}
+
 function renderCompetitionBoard(my){
   const all=(state.company?.companies||[]).filter(c=>Number(c.id)!==Number(my.id));
   const rows=all.filter(c=>state.companyRegion==='국내'?c.home_country==='대한민국':(c.home_country!=='대한민국'||Number(c.global_level)>0||Number(c.global_share)>0))
-    .sort((a,b)=>Number(b.valuation)-Number(a.valuation)).slice(0,18);
+    .sort((a,b)=>Number(b.valuation)-Number(a.valuation)).slice(0,16);
   const myRank=[...(state.company?.companies||[])].sort((a,b)=>Number(b.valuation)-Number(a.valuation)).findIndex(c=>Number(c.id)===Number(my.id))+1;
-  return `<section class="corp-section competition-section">
-    <div class="company-section-head"><div><small>02 · COMPETITION</small><h2>${state.companyRegion==='국내'?'국내':'글로벌'} 경쟁 구도</h2></div><span>내 기업가치 전체 순위 <b>#${myRank||'-'}</b></span></div>
-    <div class="company-region-tabs"><button data-company-region="국내" class="${state.companyRegion==='국내'?'on':''}">국내 경쟁</button><button data-company-region="해외" class="${state.companyRegion==='해외'?'on':''}">해외·글로벌 경쟁</button></div>
-    <div class="competition-table">
-      <div class="competition-row head"><span>기업</span><span>기업가치</span><span>주가</span><span>${state.companyRegion==='국내'?'국내':'글로벌'} 점유율</span><span>내 인수지분</span><span>인수</span></div>
-      ${rows.length?rows.map((c,i)=>`<div class="competition-row">
-        <span class="company-name-cell"><b>#${i+1} ${escapeHtml(c.name)}</b><small>${companyTypeBadge(c)} ${companyCountryBadge(c)} · ${escapeHtml(c.sector)}</small></span>
-        <span><b>${compactMoney(c.valuation)}원</b><small>${pct(companyGrowth(c))} 매출성장</small></span>
-        <span><b>${won(c.share_price)}</b><small>${escapeHtml(c.ticker)}</small></span>
-        <span><b>${Number(state.companyRegion==='국내'?c.domestic_share:c.global_share).toFixed(2)}%</b><small>${escapeHtml(c.last_event||'경쟁 중')}</small></span>
-        <span><b class="${Number(c.acquired_stake)>0?'up':''}">${Number(c.acquired_stake||0).toFixed(2)}%</b><small>누적 확보</small></span>
-        <span class="takeover-cell"><input id="takeBudget_${c.id}" type="number" min="1000000" step="10000000" value="100000000"><button data-company-buy="${c.id}">지분 매입</button></span>
-      </div>`).join(''):`<div class="empty">표시할 경쟁사가 없습니다.</div>`}
+  return `<section class="corp-section competition-section acquisition-market">
+    <div class="company-section-head"><div><small>COMPANY MARKET</small><h2>${state.companyRegion==='국내'?'국내 기업':'글로벌 기업'} 투자·인수</h2></div><span>회사 가치 순위 <b>#${myRank||'-'}</b> · 법인현금 <b>${compactMoney(my.cash)}원</b></span></div>
+    <div class="company-region-tabs"><button data-company-region="국내" class="${state.companyRegion==='국내'?'on':''}">국내 기업</button><button data-company-region="해외" class="${state.companyRegion==='해외'?'on':''}">해외 기업</button></div>
+    <div class="acquisition-cards">
+      ${rows.length?rows.map((c,i)=>{const stake=Number(c.acquired_stake||0),stage=acquisitionStage(stake),controlled=Number(c.parent_company_id)===Number(my.id)||stake>=50;return `<article class="acquisition-card ${stage.cls} ${controlled?'controlled':''}">
+        <div class="acq-company-head"><span><b>${escapeHtml(c.name)}</b><small>${companyTypeBadge(c)} ${companyCountryBadge(c)} · ${escapeHtml(c.sector)}</small></span><em>#${i+1}</em></div>
+        <div class="acq-value"><span><small>회사 가치</small><b>${compactMoney(c.valuation)}원</b></span><span><small>주당 가치</small><b>${won(c.share_price)}</b></span><span><small>${state.companyRegion==='국내'?'국내':'글로벌'} 점유율</small><b>${Number(state.companyRegion==='국내'?c.domestic_share:c.global_share).toFixed(2)}%</b></span></div>
+        <div class="acq-stake"><div><small>내 보유지분</small><b>${stake.toFixed(2)}%</b><em>${stage.label}</em></div><div class="acq-progress"><i style="width:${Math.min(100,stake/50*100)}%"></i></div><span>${controlled?'경영권 확보 완료 · 자회사':stage.desc}</span></div>
+        <div class="acq-actions"><label>인수 예산<input id="takeBudget_${c.id}" type="number" min="1000000" step="10000000" value="100000000"></label><button data-company-buy="${c.id}">장내 지분 매수</button><button data-company-tender="${c.id}" class="tender" ${stake<15||controlled?'disabled':''}>공개매수</button></div>
+        <small class="acq-note">${controlled?'이미 경영권을 확보했습니다. 보유지분은 아래 지분 관리에서 매각할 수 있습니다.':stake>=15?'공개매수 가능 · 시장가격보다 프리미엄을 지급해 더 많은 지분을 한 번에 확보합니다.':'15% 이상 확보하면 공개매수가 열립니다.'}</small>
+      </article>`}).join(''):`<div class="empty">표시할 경쟁사가 없습니다.</div>`}
     </div>
   </section>`;
 }
@@ -975,30 +1004,33 @@ function renderCompanyEvents(){
 
 function renderCompanyModeBanner(){
   if(state.companyAvailable===false)return '';
-  return `<div class="company-mode-banner online"><div><small>ONLINE CORPORATE LEAGUE</small><b>온라인 회사 경영 서버 연결됨</b><span>BOT 기업과 실제 유저 회사가 같은 Supabase 시장 데이터를 사용합니다. 회사 설립·경영결정·M&A·세금·언론·해외사업이 모두 온라인에 저장됩니다.</span></div><span class="online-live-dot">LIVE</span></div>`;
+  return `<div class="company-mode-banner online compact-online-banner"><div><span class="online-live-dot">LIVE</span><b>온라인 기업 리그</b><span>유저 회사와 BOT 기업의 경영·지분·인수 데이터가 같은 서버에서 진행됩니다.</span></div></div>`;
 }
 function renderCompanyOnlineRequired(){
-  const err=escapeHtml(state.companyError||'온라인 회사 경영 데이터베이스 연결을 확인할 수 없습니다.');
-  return `<main class="page-view company-page"><section class="panel page-panel company-shell setup-shell online-required-shell">
-    <div class="online-required-head"><div><small>KX CORPORATE · ONLINE ONLY</small><h1>온라인 회사 경영 연결이 필요합니다</h1><p>이 버전은 로컬 모드를 사용하지 않습니다. 모든 플레이어 회사, BOT 기업, M&A, 세금, 언론·IR, 해외사업 데이터가 Supabase의 같은 온라인 리그에서 진행됩니다.</p></div><span class="online-required-badge">ONLINE REQUIRED</span></div>
-    <div class="company-install-note compact-install online-install-card"><div><h2>필수 SQL을 Supabase에서 한 번 실행해 주세요</h2><p>${err}</p></div><code>SUPABASE_COMPANY_EXPANSION_REQUIRED.sql</code><button data-company-retry>온라인 연결 다시 확인</button></div>
-    <div class="setup-preview-grid online-preview-grid"><article><small>01 · SHARED WORLD</small><b>공용 회사 시장</b><span>다른 유저 회사와 BOT 기업이 같은 순위·기업가치·경쟁 데이터를 공유합니다.</span></article><article><small>02 · M&A</small><b>온라인 경영권 전쟁</b><span>지분 매집과 적대적 인수, 방어조치가 서버에 저장되어 실제 경쟁처럼 이어집니다.</span></article><article><small>03 · MANAGEMENT</small><b>서버 저장 경영</b><span>CEO 의사결정, 법인세, 언론·IR, 해외진출과 기업 재무가 기기 변경 후에도 유지됩니다.</span></article><article><small>04 · NO LOCAL FALLBACK</small><b>로컬 전환 없음</b><span>DB 연결 실패 시 임시 BOT 리그로 바뀌지 않습니다. 연결 복구 후 같은 온라인 회사로 계속합니다.</span></article></div>
-    <div class="setup-security-note"><b>적용 순서</b> 패치 ZIP의 SQL 파일 전체 복사 → Supabase SQL Editor에서 실행 → 이 화면의 <strong>온라인 연결 다시 확인</strong> 클릭. SQL 설치 후에는 별도의 모드 선택 없이 온라인 모드가 기본으로 실행됩니다.</div>
+  const err=escapeHtml(state.companyError||'온라인 회사 서버에 연결할 수 없습니다.');
+  return `<main class="page-view company-page"><section class="panel page-panel company-shell connection-repair-shell">
+    <div class="connection-repair-card">
+      <div class="connection-repair-icon">!</div>
+      <div class="connection-repair-copy"><small>ONLINE COMPANY SERVER</small><h1>회사 서버 연결을 복구해 주세요</h1><p>${err}</p></div>
+      <button data-company-retry class="company-primary">연결 다시 확인</button>
+    </div>
+    <div class="repair-steps"><article><b>1</b><span><strong>이번 패치의 SQL 실행</strong><small><code>KX_CORPORATE_V5_REPAIR.sql</code> 전체를 Supabase SQL Editor에서 한 번 실행합니다.</small></span></article><article><b>2</b><span><strong>페이지 새로고침 없이 확인</strong><small>위의 ‘연결 다시 확인’을 누르면 새 RPC를 바로 다시 검사합니다.</small></span></article><article><b>3</b><span><strong>온라인 모드만 사용</strong><small>로컬 BOT 모드로 전환하지 않으며 모든 회사 데이터는 서버에 저장됩니다.</small></span></article></div>
+    <div class="repair-detail"><b>현재 오류</b><code>${err}</code><span>기존 V4/V4.1 SQL을 이미 실행했더라도 이번 복구 SQL을 다시 실행해도 됩니다. 기존 회사 데이터는 삭제하지 않습니다.</span></div>
   </section></main>`;
 }
+
 function renderCompanySubnav(){
-  const tabs=[['dashboard','CEO 대시보드','회사 전체 상황'],['operations','경영·조직','제품·인재·생산'],['competition','경쟁·M&A','인수전·시장경쟁'],['global','해외사업','글로벌 확장'],['media','언론·IR','투자자·브랜드'],['tax','세무·준법','세금·규제'],['finance','재무·투자','법인 증권운용']];
-  return `<nav class="company-subnav">${tabs.map(x=>`<button data-company-section="${x[0]}" class="${state.companySection===x[0]?'on':''}"><b>${x[1]}</b><small>${x[2]}</small></button>`).join('')}</nav>`;
+  return '';
 }
 function renderExecutiveAgenda(my){
   const issues=[];
   const t=state.company?.control_case;if(t)issues.push(['critical','경영권 방어 비상',`${escapeHtml(t.attacker_name||'경쟁사')} 지분 ${Number(t.stake||0).toFixed(1)}% · 즉시 이사회 대응 필요`,'competition']);
-  if(Number(my.tax_due||0)+Number(my.tax_arrears||0)>0)issues.push(['warn','법인세 의사결정',`납부·미납/추징 대상 ${compactMoney(Number(my.tax_due||0)+Number(my.tax_arrears||0))}원`,'tax']);
+  if(Number(my.tax_due||0)+Number(my.tax_arrears||0)>0)issues.push(['warn','법인세 의사결정',`납부·미납/추징 대상 ${compactMoney(Number(my.tax_due||0)+Number(my.tax_arrears||0))}원`,'risk']);
   if(Number(my.employee_morale||60)<45)issues.push(['warn','핵심 인력 이탈 위험',`직원 사기 ${Number(my.employee_morale||0).toFixed(0)} · 복지/보상 또는 조직투자 필요`,'operations']);
   if(Number(my.product_quality||50)<52)issues.push(['warn','제품 품질 리스크',`제품력 ${Number(my.product_quality||0).toFixed(0)} · 리콜과 고객 신뢰 하락 가능성`,'operations']);
-  if(Number(my.cash||0)<Math.max(120000000,Number(my.revenue||0)*.12))issues.push(['warn','현금흐름 주의',`법인 현금 ${compactMoney(my.cash)}원 · 투자/세금/M&A 대응 여력이 낮습니다.`,'finance']);
+  if(Number(my.cash||0)<Math.max(120000000,Number(my.revenue||0)*.12))issues.push(['warn','현금흐름 주의',`법인 현금 ${compactMoney(my.cash)}원 · 투자/세금/M&A 대응 여력이 낮습니다.`,'competition']);
   if(Number(my.global_level||0)<2&&Number(my.valuation||0)>2400000000)issues.push(['opportunity','해외 진출 기회',`기업 규모에 비해 해외 사업 비중이 낮습니다. 글로벌 성장을 검토할 수 있습니다.`,'global']);
-  if(Number(my.media_reputation||50)<45||Number(my.investor_sentiment||50)<45)issues.push(['opportunity','IR·평판 회복 필요',`미디어 평판 ${Number(my.media_reputation||0).toFixed(0)} · 투자자 심리 ${Number(my.investor_sentiment||0).toFixed(0)}`,'media']);
+  if(Number(my.media_reputation||50)<45||Number(my.investor_sentiment||50)<45)issues.push(['opportunity','IR·평판 회복 필요',`미디어 평판 ${Number(my.media_reputation||0).toFixed(0)} · 투자자 심리 ${Number(my.investor_sentiment||0).toFixed(0)}`,'risk']);
   if(!issues.length)issues.push(['stable','경영 상태 안정','긴급 안건은 없습니다. 경쟁사 투자·해외진출·R&D 중 다음 성장 전략을 선택하세요.','operations']);
   return `<section class="executive-agenda"><div class="company-section-head"><div><small>BOARD AGENDA</small><h2>오늘의 이사회 안건</h2></div><span>주가를 보는 대신 지금 회사에서 해결해야 할 문제와 기회를 먼저 보여줍니다.</span></div><div class="agenda-grid">${issues.slice(0,6).map((x,i)=>`<button class="agenda-card ${x[0]}" data-company-section-jump="${x[3]}"><span>${i+1<10?'0':''}${i+1}</span><div><b>${x[1]}</b><small>${x[2]}</small></div><em>검토 →</em></button>`).join('')}</div></section>`;
 }
@@ -1008,12 +1040,10 @@ function renderRivalSnapshot(my){
 }
 function renderCompanyWorkspace(my){
   const section=state.companySection||'dashboard';
-  if(section==='operations')return `${renderCompanyPulse(my)}${renderCompanyCommand(my)}`;
-  if(section==='competition')return `${renderTakeoverCrisis(my)}${renderCompetitionBoard(my)}${renderTakeoverDesk(my)}`;
+  if(section==='operations')return `${renderCompanyCommand(my)}${renderCompanyPulse(my)}`;
+  if(section==='competition')return `${renderTakeoverCrisis(my)}${renderAcquisitionGuide(my)}${renderCompetitionBoard(my)}${renderTakeoverDesk(my)}${renderCorporateMarket(my)}`;
   if(section==='global')return `${renderGlobalExpansion(my)}${renderRivalSnapshot(my)}`;
-  if(section==='media')return `${renderMediaDesk(my)}${renderCompanyEvents()}`;
-  if(section==='tax')return `${renderTaxOffice(my)}${renderCompanyPulse(my)}`;
-  if(section==='finance')return `${renderCorporateMarket(my)}${renderCompanyPulse(my)}`;
+  if(section==='risk')return `${renderMediaDesk(my)}${renderTaxOffice(my)}${renderCompanyEvents()}`;
   return `${renderTakeoverCrisis(my)}${renderExecutiveAgenda(my)}${renderCompanyPulse(my)}${renderRivalSnapshot(my)}${renderCompanyEvents()}`;
 }
 
@@ -1025,7 +1055,7 @@ function renderCompanyRoom(){
   return `<main class="page-view company-page"><section class="panel page-panel company-shell management-first-shell">
     ${renderCompanyModeBanner()}
     <div class="company-topline management-topline">
-      <div><small>CEO OFFICE · ${escapeHtml(my.ticker)}</small><h1>${escapeHtml(my.name)}</h1><p>${escapeHtml(my.sector)} · 본사 ${escapeHtml(my.home_country)} · ${my.parent_name?`${escapeHtml(my.parent_name)} 계열사`:'독립 경영'} · 경영주기 #${Number(state.company?.world?.cycle_no||0)}</p></div>
+      <div><small>MANAGEMENT HQ · ${escapeHtml(my.ticker)}</small><h1>${escapeHtml(my.name)}</h1><p>${escapeHtml(my.sector)} · 본사 ${escapeHtml(my.home_country)} · ${my.parent_name?`${escapeHtml(my.parent_name)} 계열사`:'독립 경영'} · 경영주기 #${Number(state.company?.world?.cycle_no||0)}</p></div>
       <div class="company-value-hero"><small>회사 가치</small><b>${compactMoney(my.valuation)}원</b><span>법인현금 ${compactMoney(my.cash)}원 · 주당가치 ${won(my.share_price)}</span></div>
     </div>
     <div class="company-kpi-grid management-kpis">
@@ -1039,7 +1069,7 @@ function renderCompanyRoom(){
       <article class="${threat>=35?'danger':''}"><small>경영권 위험</small><b>${threat.toFixed(2)}%</b><span>${threat>=35?'적대적 인수 대응 필요':'경영권 안정'}</span></article>
     </div>
     <div class="company-stat-strip"><span>기술력 <b>${Number(my.technology).toFixed(0)}</b></span><span>제품력 <b>${Number(my.product_quality).toFixed(0)}</b></span><span>운영 <b>${Number(my.operations).toFixed(0)}</b></span><span>고객신뢰 <b>${Number(my.customer_trust||0).toFixed(0)}</b></span><span>투자자심리 <b>${Number(my.investor_sentiment||0).toFixed(0)}</b></span><span>준법 <b>${Number(my.compliance||0).toFixed(0)}</b></span><span>최근 이슈 <b>${escapeHtml(my.last_event||'-')}</b></span></div>
-    ${state.companyNotice?`<div class="company-notice" id="companyMsg">${escapeHtml(state.companyNotice)}</div>`:`<div class="company-notice muted" id="companyMsg">CEO 대시보드는 주가보다 회사의 사업·사람·현금·세금·경쟁 상황을 먼저 보여줍니다.</div>`}
+    ${state.companyNotice?`<div class="company-notice" id="companyMsg">${escapeHtml(state.companyNotice)}</div>`:`<div class="company-notice muted" id="companyMsg">경영실에서는 사업·조직·현금·세금·경영권을 한눈에 관리합니다.</div>`}
     ${renderCompanySubnav()}
     <div class="company-workspace">${renderCompanyWorkspace(my)}</div>
   </section></main>`;
@@ -1174,10 +1204,10 @@ function renderInvestmentGuide(){
 
 function tutorialSteps(){
   return [
-    {selector:'[data-main-tab="company"]',kicker:'01 · CEO',title:'이 게임의 중심은 이제 회사 경영입니다',text:'먼저 CEO 대시보드에서 매출·현금·직원·고객·세금·경영권 위험을 확인합니다. 주식은 회사 재무전략 중 하나일 뿐입니다.'},
+    {selector:'[data-company-section-nav="dashboard"]',kicker:'01 · 경영실',title:'회사의 전체 상황부터 확인합니다',text:'매출·현금·조직·세금·경영권 위험을 먼저 보고 오늘의 이사회 안건을 처리합니다.'},
     {selector:'.executive-agenda',kicker:'02 · 이사회',title:'오늘 처리해야 할 경영 안건을 봅니다',text:'품질, 인재, 세금, 현금흐름, 적대적 인수처럼 지금 회사에 가장 중요한 문제와 기회가 자동으로 위에 올라옵니다.'},
-    {selector:'.company-subnav',kicker:'03 · 부서 경영',title:'경영·M&A·해외·IR·세무를 나눠 관리합니다',text:'모든 기능을 한 화면에 섞지 않고 부서별로 분리했습니다. 각 결정은 회사 가치와 경쟁력에 연결됩니다.'},
-    {selector:'[data-main-tab="market"]',kicker:'04 · 기업금융',title:'증권시장은 회사 경영을 돕는 보조 수단입니다',text:'법인 전략투자, 업종 시너지, 해외시장 정보 확보에 활용합니다. 주식 매매 자체가 게임의 최종 목표는 아닙니다.'},
+    {selector:'[data-company-section-nav="operations"]',kicker:'03 · 사업 운영',title:'제품·인재·생산을 직접 경영합니다',text:'R&D, 품질, 채용, 설비, 복지와 구조조정이 서로 다른 회사 지표에 영향을 줍니다.'},
+    {selector:'[data-company-section-nav="competition"]',kicker:'04 · 투자·인수',title:'다른 회사 주식을 사서 경영권을 확보할 수 있습니다',text:'장내 지분 매수에서 시작해 주요 주주가 되고, 공개매수로 50% 이상을 확보하면 상대 회사를 자회사로 편입합니다.'},
     {selector:'[data-main-tab="ranking"]',kicker:'05 · 경쟁',title:'승부는 회사 가치로 확인합니다',text:'회사 가치 순위에서 국내외 BOT과 다른 유저 회사보다 더 큰 기업을 만드는 것이 핵심 목표입니다.'}
   ];
 }
@@ -1247,18 +1277,18 @@ function renderTerminal(){
     <header class="top management-topbar">
       <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE'}</span></div>
       ${topNav()}
-      <div class="market-status"><b>DAY ${state.clock?.game_day||1}</b><span>${gameTime(state.clock?.game_minute||0)}</span><em>${SESS[state.clock?.session]||'-'}</em><i class="market-regime ${(state.clock?.market_regime||'NEUTRAL').toLowerCase()}">${REGIME[state.clock?.market_regime||'NEUTRAL']||'중립'}장</i></div>
+      <div class="market-status corporate-cycle-status"><b>경영주기 #${Number(state.company?.world?.cycle_no||0)}</b><span>DAY ${state.clock?.game_day||1} · ${gameTime(state.clock?.game_minute||0)}</span><em>ONLINE LEAGUE</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
       <button class="tutorial-btn" id="tutorialBtn">튜토리얼</button><button class="logout" id="logout">로그아웃</button>
     </header>
     <div class="mobile-account-bar"><span>법인 현금 <b>${legalCash}</b></span><span>회사 가치 <b>${companyValue}</b></span></div>
     ${content}
     <nav class="mobile-nav management-mobile-nav">
-      <button data-main-tab="company" data-company-section-nav="dashboard" class="${state.tab==='company'&&state.companySection==='dashboard'?'on':''}">CEO</button>
-      <button data-main-tab="company" data-company-section-nav="operations" class="${state.tab==='company'&&state.companySection==='operations'?'on':''}">경영</button>
-      <button data-main-tab="company" data-company-section-nav="competition" class="${state.tab==='company'&&state.companySection==='competition'?'on':''}">M&A</button>
-      <button data-main-tab="company" data-company-section-nav="global" class="${state.tab==='company'&&state.companySection==='global'?'on':''}">해외</button>
-      <button data-main-tab="market" class="${state.tab==='market'?'on':''}">금융</button>
+      <button data-main-tab="company" data-company-section-nav="dashboard" class="${state.tab==='company'&&state.companySection==='dashboard'?'on':''}">경영실</button>
+      <button data-main-tab="company" data-company-section-nav="operations" class="${state.tab==='company'&&state.companySection==='operations'?'on':''}">사업</button>
+      <button data-main-tab="company" data-company-section-nav="competition" class="${state.tab==='company'&&state.companySection==='competition'?'on':''}">인수</button>
+      <button data-main-tab="company" data-company-section-nav="global" class="${state.tab==='company'&&state.companySection==='global'?'on':''}">글로벌</button>
+      <button data-main-tab="company" data-company-section-nav="risk" class="${state.tab==='company'&&state.companySection==='risk'?'on':''}">리스크</button>
       <button data-main-tab="ranking" class="${state.tab==='ranking'?'on':''}">순위</button>
     </nav>
   </div>`;
@@ -1444,6 +1474,12 @@ function bind(){
     const id=Number(b.dataset.companyBuy);
     const amount=Math.max(1000000,Math.floor(Number(document.getElementById(`takeBudget_${id}`)?.value)||100000000));
     companyRun('kx_company_buy_shares',{p_target_company_id:id,p_budget:amount},`${won(amount)} 한도에서 이 회사 지분을 매입할까요? 지분이 50%를 넘으면 자회사로 편입됩니다.`);
+  });
+
+  document.querySelectorAll('[data-company-tender]').forEach(b=>b.onclick=()=>{
+    const id=Number(b.dataset.companyTender);
+    const amount=Math.max(50000000,Math.floor(Number(document.getElementById(`takeBudget_${id}`)?.value)||300000000));
+    companyRun('kx_company_tender_offer',{p_target_company_id:id,p_budget:amount,p_premium_pct:15},`${won(amount)} 한도로 공개매수를 시작할까요? 시장가에 15% 프리미엄을 지급해 더 많은 지분을 확보하지만 상대 회사의 경영권 방어 때문에 실제 매입량이 줄 수 있습니다.`);
   });
 
   document.querySelectorAll('[data-company-sell]').forEach(b=>b.onclick=()=>{
