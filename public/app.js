@@ -1,4 +1,6 @@
 (()=>{
+const KX_COMPANY_BUILD='5.3.0-CORE';
+window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
 const won=n=>`${nf.format(Math.round(Number(n)||0))}원`;
@@ -41,6 +43,7 @@ async function req(path,opt={}){
   return data;
 }
 async function rpc(name,body,auth=true){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(body||{}),auth})}
+async function companyApi(action,payload={},auth=true){return rpc('kx_company_api_v1',{p_action:String(action||'').toUpperCase(),p_payload:payload||{}},auth)}
 function escapeHtml(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 
 async function ensureFreshBuild(){return true}
@@ -532,28 +535,33 @@ function missingRpcError(e){
   return e?.status===404||raw.includes('Could not find the function')||raw.includes('schema cache')||raw.includes('PGRST202');
 }
 async function loadCompanyLayer(runSync=false,force=false){
-  // V5.2.2: online-only, one stable company API. Do not probe legacy RPC names.
+  // V5.3: one company API only. PING is public so DB-install errors and login errors are distinguishable.
   if(state.companyRpcMode==='BROKEN'&&!force)return;
-  const endpoint=runSync?'kx_company_sync_v52':'kx_company_snapshot_v52';
-  const call=async()=>{
-    try{return await rpc(endpoint,{})}catch(e){
-      if((e?.status===401||e?.status===403)&&await refresh())return await rpc(endpoint,{});
-      throw e;
-    }
-  };
   try{
+    const ping=await companyApi('PING',{},false);
+    if(!ping?.ok)throw new Error('회사 API 응답을 확인할 수 없습니다.');
+    const call=async()=>{
+      let d=await companyApi(runSync?'SYNC':'SNAPSHOT',{});
+      if(d?.needs_login&&await refresh())d=await companyApi(runSync?'SYNC':'SNAPSHOT',{});
+      return d;
+    };
     const d=await call();
-    if(!d||typeof d!=='object')throw new Error('회사 데이터를 불러오지 못했습니다.');
-    state.companyRpcMode='V52';
+    if(d?.needs_login){
+      state.companyRpcMode='V53';state.companyAvailable=false;state.companyMode='REMOTE';state.company=emptyCompany();
+      state.companyError='로그인 세션이 만료되었습니다. 로그아웃 후 다시 로그인해 주세요.';return;
+    }
+    if(!d||typeof d!=='object'||d.ok===false)throw new Error(d?.message||'회사 데이터를 불러오지 못했습니다.');
+    state.companyRpcMode='V53';
     state.company={...emptyCompany(),...d};
-    state.companyAvailable=true;state.companyMode='REMOTE';state.companyError='';state.companyNotice='';
+    state.companyAvailable=true;state.companyMode='REMOTE';state.companyError='';
   }catch(e){
     const raw=String(e?.message||'');
     state.companyAvailable=false;state.companyMode='REMOTE';state.company=emptyCompany();
     if(missingRpcError(e)){
       state.companyRpcMode='BROKEN';
-      state.companyError='온라인 회사 API가 아직 등록되지 않았습니다. KX_CORPORATE_ONE_CLICK_RECOVERY.sql 하나만 실행한 뒤 「연결 다시 확인」을 눌러 주세요.';
+      state.companyError='회사 온라인 API(kx_company_api_v1)가 없습니다. KX_CORPORATE_RUN_ONLY_THIS_V53.sql 하나만 실행한 뒤 다시 확인해 주세요.';
     }else{
+      state.companyRpcMode='V53';
       state.companyError=raw||'온라인 회사 서버에 연결하지 못했습니다.';
     }
   }
@@ -1071,7 +1079,7 @@ function renderCompanyOnlineRequired(){
       <div class="connection-repair-copy"><small>ONLINE COMPANY SERVER</small><h1>회사 서버 연결을 복구해 주세요</h1><p>${err}</p></div>
       <button data-company-retry class="company-primary">연결 다시 확인</button>
     </div>
-    <div class="repair-steps"><article><b>1</b><span><strong>이번 패치의 SQL 실행</strong><small><code>KX_CORPORATE_ONE_CLICK_RECOVERY.sql</code> 전체를 Supabase SQL Editor에서 한 번 실행합니다.</small></span></article><article><b>2</b><span><strong>페이지 새로고침 없이 확인</strong><small>위의 ‘연결 다시 확인’을 누르면 새 RPC를 바로 다시 검사합니다.</small></span></article><article><b>3</b><span><strong>온라인 모드만 사용</strong><small>로컬 BOT 모드로 전환하지 않으며 모든 회사 데이터는 서버에 저장됩니다.</small></span></article></div>
+    <div class="repair-steps"><article><b>1</b><span><strong>이번 패치의 SQL 실행</strong><small><code>KX_CORPORATE_RUN_ONLY_THIS_V53.sql</code> 전체를 Supabase SQL Editor에서 한 번 실행합니다.</small></span></article><article><b>2</b><span><strong>페이지 새로고침 없이 확인</strong><small>위의 ‘연결 다시 확인’을 누르면 통합 온라인 API를 바로 다시 검사합니다.</small></span></article><article><b>3</b><span><strong>온라인 모드만 사용</strong><small>로컬 BOT 모드로 전환하지 않으며 모든 회사 데이터는 서버에 저장됩니다.</small></span></article></div>
     <div class="repair-detail"><b>현재 오류</b><code>${err}</code><span>이 복구 SQL은 회사 서버 API만 보강하며 기존 회사·유저·주식·은행 데이터는 삭제하지 않습니다.</span></div>
   </section></main>`;
 }
@@ -1351,7 +1359,7 @@ function renderTerminal(){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':state.companyRpcMode==='LEGACY'?'ONLINE 호환':'ONLINE'}</span></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · CORE 5.3'}</span></div>
       ${topNav()}
       <div class="market-status corporate-cycle-status"><b>경영주기 #${Number(state.company?.world?.cycle_no||0)}</b><span>DAY ${state.clock?.game_day||1} · ${gameTime(state.clock?.game_minute||0)}</span><em>ONLINE LEAGUE</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
@@ -1500,7 +1508,8 @@ function bind(){
       const sector=state.companyDraft.sector||'기술·서비스';
       if(btn)btn.disabled=true;
       try{
-        const d=await rpc('kx_company_create',{p_name:name,p_ticker:'',p_sector:sector});
+        const d=await companyApi('CREATE',{p_name:name,p_sector:sector});
+        if(d?.ok===false)throw new Error(d.message||'회사 설립에 실패했습니다.');
         state.companyDraft={name:'',sector:'AI·반도체'};
         state.companyNotice=d?.message||'회사 설립이 완료되었습니다.';
         await loadCompanyLayer(true,true);renderTerminal();
@@ -1519,11 +1528,17 @@ function bind(){
   const companyRun=async(name,body,question)=>{
     if(question&&!confirm(question))return;
     const msg=document.getElementById('companyMsg');
+    const route={
+      kx_company_action:'MANAGE',kx_company_defense:'DEFENSE',kx_company_expand:'EXPAND',
+      kx_company_buy_shares:'BUY_SHARES',kx_company_tender_offer:'TENDER',kx_company_sell_shares:'SELL_SHARES',
+      kx_company_trade_market:'TRADE_MARKET',kx_company_media_v52:'MEDIA',kx_company_tax:'TAX'
+    }[name]||name;
     try{
-      const d=await rpc(name,body);
+      const d=await companyApi(route,body||{});
+      if(d?.ok===false)throw new Error(d.message||'경영 결정을 처리하지 못했습니다.');
       state.companyNotice=d?.message||'경영 결정이 온라인 회사 데이터에 반영되었습니다.';
       await loadCompanyLayer(true,true);
-      if(state.companyAnalysisId){try{state.companyAnalysis=state.companyRpcMode==='LEGACY'?null:await rpc('kx_company_profile_v52',{p_company_id:Number(state.companyAnalysisId)})}catch{state.companyAnalysis=null}}
+      if(state.companyAnalysisId){try{state.companyAnalysis=await companyApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)})}catch{state.companyAnalysis=null}}
       renderTerminal();
       return d;
     }catch(err){
@@ -1590,10 +1605,7 @@ function bind(){
   document.querySelectorAll('[data-company-analyze]').forEach(b=>b.onclick=async()=>{
     const id=Number(b.dataset.companyAnalyze);state.companyAnalysisId=id;state.companyAnalysis=null;
     try{
-      if(state.companyRpcMode==='LEGACY'){
-        const c=(state.company.companies||[]).find(x=>Number(x.id)===id);
-        state.companyAnalysis=c?{company:c,my_stake:Number(c.acquired_stake||0),history:[],press:[]}:null;
-      }else state.companyAnalysis=await rpc('kx_company_profile_v52',{p_company_id:id});
+      state.companyAnalysis=await companyApi('PROFILE',{p_company_id:id});
       state.companySection='competition';renderTerminal();
     }catch(err){state.companyNotice='기업 분석을 불러오지 못했습니다: '+err.message;renderTerminal();}
   });
@@ -1625,7 +1637,7 @@ function bind(){
     await loadCompanyLayer(true,true);
     state.companyNotice=state.companyAvailable
       ?'온라인 회사 경영 서버가 연결되었습니다. BOT과 다른 유저 회사가 같은 시장에서 경쟁합니다.'
-      :'온라인 DB 연결에 실패했습니다. 필수 SQL 실행 여부와 Supabase 설정을 확인해 주세요.';
+      :'온라인 연결에 실패했습니다. KX_CORPORATE_RUN_ONLY_THIS_V53.sql 실행 결과에서 api_exists=true인지 확인해 주세요.';
     renderTerminal();
   });
 
