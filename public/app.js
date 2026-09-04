@@ -532,47 +532,27 @@ function missingRpcError(e){
   return e?.status===404||raw.includes('Could not find the function')||raw.includes('schema cache')||raw.includes('PGRST202');
 }
 async function loadCompanyLayer(runSync=false,force=false){
-  // If the company API is known to be unavailable, do not hammer Supabase every 5 seconds.
-  // The user can explicitly retry after applying the one-file server repair SQL.
+  // V5.2.2: online-only, one stable company API. Do not probe legacy RPC names.
   if(state.companyRpcMode==='BROKEN'&&!force)return;
-  const modern=runSync?'kx_company_sync_v52':'kx_company_snapshot_v52';
-  const legacy=runSync?'kx_company_sync':'kx_company_snapshot';
-  const call=async(name)=>{
-    try{return await rpc(name,{})}catch(e){
-      if((e?.status===401||e?.status===403)&&await refresh())return await rpc(name,{});
+  const endpoint=runSync?'kx_company_sync_v52':'kx_company_snapshot_v52';
+  const call=async()=>{
+    try{return await rpc(endpoint,{})}catch(e){
+      if((e?.status===401||e?.status===403)&&await refresh())return await rpc(endpoint,{});
       throw e;
     }
   };
   try{
-    let d=null;
-    if(state.companyRpcMode==='LEGACY'){
-      d=await call(legacy);
-    }else{
-      try{
-        d=await call(modern);
-        state.companyRpcMode='V52';
-      }catch(e){
-        if(!missingRpcError(e))throw e;
-        // Stay ONLINE: use the already-installed online company API instead of local data.
-        // This fallback is remembered so the missing V5.2 RPC is not requested repeatedly.
-        try{
-          d=await call(legacy);
-          state.companyRpcMode='LEGACY';
-          if(!state.companyNotice)state.companyNotice='온라인 호환 모드로 연결되었습니다. 최신 뉴스·기업 그래프 기능은 서버 복구 SQL 실행 후 활성화됩니다.';
-        }catch(legacyErr){
-          throw e;
-        }
-      }
-    }
+    const d=await call();
     if(!d||typeof d!=='object')throw new Error('회사 데이터를 불러오지 못했습니다.');
+    state.companyRpcMode='V52';
     state.company={...emptyCompany(),...d};
-    state.companyAvailable=true;state.companyMode='REMOTE';state.companyError='';
+    state.companyAvailable=true;state.companyMode='REMOTE';state.companyError='';state.companyNotice='';
   }catch(e){
     const raw=String(e?.message||'');
     state.companyAvailable=false;state.companyMode='REMOTE';state.company=emptyCompany();
     if(missingRpcError(e)){
       state.companyRpcMode='BROKEN';
-      state.companyError='회사 서버 API가 아직 등록되지 않았습니다. 패치의 KX_CORPORATE_SERVER_REPAIR_ONLY.sql 하나만 실행한 뒤 「연결 다시 확인」을 눌러 주세요.';
+      state.companyError='온라인 회사 API가 아직 등록되지 않았습니다. KX_CORPORATE_ONE_CLICK_RECOVERY.sql 하나만 실행한 뒤 「연결 다시 확인」을 눌러 주세요.';
     }else{
       state.companyError=raw||'온라인 회사 서버에 연결하지 못했습니다.';
     }
@@ -1091,7 +1071,7 @@ function renderCompanyOnlineRequired(){
       <div class="connection-repair-copy"><small>ONLINE COMPANY SERVER</small><h1>회사 서버 연결을 복구해 주세요</h1><p>${err}</p></div>
       <button data-company-retry class="company-primary">연결 다시 확인</button>
     </div>
-    <div class="repair-steps"><article><b>1</b><span><strong>이번 패치의 SQL 실행</strong><small><code>KX_CORPORATE_SERVER_REPAIR_ONLY.sql</code> 전체를 Supabase SQL Editor에서 한 번 실행합니다.</small></span></article><article><b>2</b><span><strong>페이지 새로고침 없이 확인</strong><small>위의 ‘연결 다시 확인’을 누르면 새 RPC를 바로 다시 검사합니다.</small></span></article><article><b>3</b><span><strong>온라인 모드만 사용</strong><small>로컬 BOT 모드로 전환하지 않으며 모든 회사 데이터는 서버에 저장됩니다.</small></span></article></div>
+    <div class="repair-steps"><article><b>1</b><span><strong>이번 패치의 SQL 실행</strong><small><code>KX_CORPORATE_ONE_CLICK_RECOVERY.sql</code> 전체를 Supabase SQL Editor에서 한 번 실행합니다.</small></span></article><article><b>2</b><span><strong>페이지 새로고침 없이 확인</strong><small>위의 ‘연결 다시 확인’을 누르면 새 RPC를 바로 다시 검사합니다.</small></span></article><article><b>3</b><span><strong>온라인 모드만 사용</strong><small>로컬 BOT 모드로 전환하지 않으며 모든 회사 데이터는 서버에 저장됩니다.</small></span></article></div>
     <div class="repair-detail"><b>현재 오류</b><code>${err}</code><span>이 복구 SQL은 회사 서버 API만 보강하며 기존 회사·유저·주식·은행 데이터는 삭제하지 않습니다.</span></div>
   </section></main>`;
 }
