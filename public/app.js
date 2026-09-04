@@ -1,5 +1,5 @@
 (()=>{
-const KX_COMPANY_BUILD='5.4.0-LIVE-MGMT';
+const KX_COMPANY_BUILD='5.6.0-LIVE-MARKET';
 window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
@@ -11,6 +11,15 @@ const NEWS_SEEN_KEY='kx_news_seen_v2';
 let lastSeenNewsId=Number(localStorage.getItem(NEWS_SEEN_KEY)||0);
 let newsBaselineReady=false;
 let newsFlashTimer=null;
+let companyIncomeToastTimer=null;
+let companyIncomeBaselineReady=false;
+let lastCompanyIncomeId=0;
+let companyApiReady=false;
+let companyLastFetchAt=0;
+let companyLastAdvanceAt=0;
+let companyVisualTimer=null;
+const COMPANY_SERVER_SYNC_MS=12000;
+const COMPANY_VISUAL_TICK_MS=1000;
 
 let session=null;
 let state={
@@ -44,6 +53,50 @@ async function req(path,opt={}){
 }
 async function rpc(name,body,auth=true){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(body||{}),auth})}
 async function companyApi(action,payload={},auth=true){return rpc('kx_company_api_v1',{p_action:String(action||'').toUpperCase(),p_payload:payload||{}},auth)}
+function showCompanyIncomeToast(row){
+  if(!row)return;
+  clearTimeout(companyIncomeToastTimer);
+  document.getElementById('companyIncomeToast')?.remove();
+  const el=document.createElement('aside');
+  el.id='companyIncomeToast';el.className='company-income-toast';
+  const amount=Number(row.amount)||0;
+  el.innerHTML=`<small>법인계좌 입금</small><b>${escapeHtml(row.source_name||'투자수익')}</b><strong class="${amount>=0?'up':'down'}">${amount>=0?'+':''}${compactMoney(amount)}원</strong><span>${escapeHtml(row.income_label||row.income_type||'현금수익')} · ${escapeHtml(row.note||'법인현금에 반영되었습니다.')}</span>`;
+  document.body.appendChild(el);requestAnimationFrame(()=>el.classList.add('show'));
+  companyIncomeToastTimer=setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),220)},6000);
+}
+function processCompanyIncome(rows){
+  if(!Array.isArray(rows)||!rows.length)return;
+  const ids=rows.map(r=>Number(r.id)||0),maxId=Math.max(...ids,0);
+  if(!companyIncomeBaselineReady){companyIncomeBaselineReady=true;lastCompanyIncomeId=maxId;return;}
+  const unseen=rows.filter(r=>(Number(r.id)||0)>lastCompanyIncomeId).sort((a,b)=>(Number(a.id)||0)-(Number(b.id)||0));
+  if(unseen.length)showCompanyIncomeToast(unseen[unseen.length-1]);
+  lastCompanyIncomeId=Math.max(lastCompanyIncomeId,maxId);
+}
+function visualCompanyPrice(c,now=Date.now()){
+  if(!c)return 0;
+  const base=Math.max(1,Number(c.share_price)||1),id=Number(c.id)||1,vol=Math.max(.00018,Math.min(.00135,(Number(c.volatility)||1.5)/1250));
+  const t=Math.floor(now/COMPANY_VISUAL_TICK_MS),bias=Math.max(-vol*.45,Math.min(vol*.45,(Number(c.last_return_pct)||0)/100*.04));
+  const wave=Math.sin((t+id*13)*.72)*vol*.62+Math.sin((t+id*7)*.27)*vol*.31;
+  return Math.max(1,base*(1+bias+wave));
+}
+function updateCompanyVisualQuotes(){
+  if(state.tab!=='company')return;
+  const now=Date.now();
+  document.querySelectorAll('[data-company-live-price]').forEach(el=>{
+    const id=Number(el.dataset.companyLivePrice)||0;
+    let c=(state.company?.companies||[]).find(x=>Number(x.id)===id);
+    if(!c&&Number(state.company?.my_company?.id)===id)c=state.company.my_company;
+    if(!c&&Number(state.companyAnalysis?.company?.id)===id)c=state.companyAnalysis.company;
+    if(c)el.textContent=won(visualCompanyPrice(c,now));
+  });
+  if(document.getElementById('companyTargetChart'))drawCompanyTargetChart();
+}
+function scheduleCompanyVisualTicker(){
+  clearInterval(companyVisualTimer);companyVisualTimer=null;
+  if(state.tab!=='company')return;
+  updateCompanyVisualQuotes();
+  companyVisualTimer=setInterval(updateCompanyVisualQuotes,COMPANY_VISUAL_TICK_MS);
+}
 function escapeHtml(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 
 async function ensureFreshBuild(){return true}
@@ -343,6 +396,22 @@ function compactMoney(v){
   if(Math.abs(v)>=10000)return `${(v/10000).toFixed(1)}만`;
   return nf.format(Math.round(v));
 }
+function preciseCompactMoney(v,span=0){
+  v=Number(v)||0;span=Math.abs(Number(span)||0);
+  if(Math.abs(v)>=1000000000000){
+    const digits=span<50000000000?2:1;
+    return `${(v/1000000000000).toFixed(digits)}조`;
+  }
+  if(Math.abs(v)>=100000000){
+    const digits=span<50000000?3:span<200000000?2:1;
+    return `${(v/100000000).toFixed(digits)}억`;
+  }
+  if(Math.abs(v)>=10000){
+    const digits=span<500000?2:span<5000000?1:0;
+    return `${(v/10000).toFixed(digits)}만`;
+  }
+  return nf.format(Math.round(v));
+}
 function gameEvents(){return Array.isArray(state.game?.events)?state.game.events:[]}
 function predictionFor(id){return (state.game?.predictions||[]).find(x=>Number(x.event_id)===Number(id))||null}
 function eventTypeLabel(t){return ({EARNINGS:'실적발표',RUMOR:'루머 검증',SECTOR:'업종 이슈',CONTRACT:'수주·계약',MACRO:'거시경제'})[t]||'시장 이벤트'}
@@ -535,38 +604,37 @@ function missingRpcError(e){
   return e?.status===404||raw.includes('Could not find the function')||raw.includes('schema cache')||raw.includes('PGRST202');
 }
 async function loadCompanyLayer(runSync=false,force=false){
-  // V5.4: one company API only. PING is public so DB-install errors and login errors are distinguishable.
+  // V5.6: PING is only used at boot/recovery. Normal market refresh uses a single RPC.
   if(state.companyRpcMode==='BROKEN'&&!force)return;
   try{
-    const ping=await companyApi('PING',{},false);
-    if(!ping?.ok)throw new Error('회사 API 응답을 확인할 수 없습니다.');
-    const call=async()=>{
-      let d=await companyApi(runSync?'SYNC':'SNAPSHOT',{});
-      if(d?.needs_login&&await refresh())d=await companyApi(runSync?'SYNC':'SNAPSHOT',{});
-      return d;
-    };
-    const d=await call();
+    if(!companyApiReady||force&&state.companyRpcMode==='BROKEN'){
+      const ping=await companyApi('PING',{},false);
+      if(!ping?.ok)throw new Error('회사 API 응답을 확인할 수 없습니다.');
+      companyApiReady=true;state.companyRpcMode='V56';
+    }
+    const action=runSync?'SYNC':'SNAPSHOT';
+    let d=await companyApi(action,{});
+    if(d?.needs_login&&await refresh())d=await companyApi(action,{});
     if(d?.needs_login){
-      state.companyRpcMode='V54';state.companyAvailable=false;state.companyMode='REMOTE';state.company=emptyCompany();
+      state.companyAvailable=false;state.companyMode='REMOTE';state.company=emptyCompany();
       state.companyError='로그인 세션이 만료되었습니다. 로그아웃 후 다시 로그인해 주세요.';return;
     }
     if(!d||typeof d!=='object'||d.ok===false)throw new Error(d?.message||'회사 데이터를 불러오지 못했습니다.');
-    state.companyRpcMode='V54';
-    state.company={...emptyCompany(),...d};
+    state.companyRpcMode='V56';state.company={...emptyCompany(),...d};
     state.companyAvailable=true;state.companyMode='REMOTE';state.companyError='';
-    // Keep the currently selected takeover target live too, so its price/news chart moves while the user is watching it.
+    companyLastFetchAt=Date.now();if(runSync)companyLastAdvanceAt=companyLastFetchAt;
+    processCompanyIncome(state.company?.investment_income||[]);
     if(state.companyAnalysisId){
-      try{state.companyAnalysis=await companyApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)});}catch(_e){/* keep last successful profile */}
+      try{state.companyAnalysis=await companyApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)});}catch(_e){}
     }
   }catch(e){
     const raw=String(e?.message||'');
     state.companyAvailable=false;state.companyMode='REMOTE';state.company=emptyCompany();
     if(missingRpcError(e)){
-      state.companyRpcMode='BROKEN';
-      state.companyError='회사 온라인 API(kx_company_api_v1)가 없습니다. KX_CORPORATE_RUN_ONLY_THIS_V54.sql 하나만 실행한 뒤 다시 확인해 주세요.';
+      state.companyRpcMode='BROKEN';companyApiReady=false;
+      state.companyError='회사 온라인 API(kx_company_api_v1)가 없습니다. KX_CORPORATE_RUN_ONLY_THIS_V56.sql 하나만 실행한 뒤 다시 확인해 주세요.';
     }else{
-      state.companyRpcMode='V54';
-      state.companyError=raw||'온라인 회사 서버에 연결하지 못했습니다.';
+      state.companyRpcMode='V56';state.companyError=raw||'온라인 회사 서버에 연결하지 못했습니다.';
     }
   }
 }
@@ -580,7 +648,9 @@ async function sync(advance=false,full=false,forcePrivate=false){
     await loadPublicSnapshot(includeAux,advance);
     if(full||forcePrivate||syncRound%2===0)await loadPrivateSnapshot();
     if(full||syncRound%2===0)await loadGameLayer(advance||full,full);
-    if(full||state.tab==='company'||syncRound%3===0)await loadCompanyLayer(advance||full,full);
+    const companyDue=full||Date.now()-companyLastAdvanceAt>=COMPANY_SERVER_SYNC_MS;
+    if(companyDue)await loadCompanyLayer(true,full);
+    else if(forcePrivate&&state.tab==='company'&&Date.now()-companyLastFetchAt>=4000)await loadCompanyLayer(false,false);
     const editingCompanyForm=companyFormIsBeingEdited();
     rememberCompanyDraft();
     if(!editingCompanyForm)renderTerminal();
@@ -920,7 +990,8 @@ function renderInvestmentReturnPanel(my){
   const sum=state.company?.investment_summary||{};
   const incomes=(state.company?.investment_income||[]).slice(0,10);
   const value=Number(sum.portfolio_value||0),cost=Number(sum.portfolio_cost||0),unreal=Number(sum.unrealized_pnl??(value-cost)),real=Number(sum.realized_pnl||0),divi=Number(sum.dividend_income||0),projectReturn=Number(sum.project_return||0),globalReturn=Number(sum.global_return||0);
-  return `<section class="investment-return-panel"><div class="company-section-head"><div><small>RETURN DESK</small><h2>투자금이 어디서 돌아오는지</h2></div><span>경쟁사 지분·법인 주식의 평가손익과, 매각이익·배당·프로젝트 성과금·해외사업 현금유입을 한곳에서 보여줍니다.</span></div><div class="return-kpis"><article><small>전체 투자 평가액</small><b>${compactMoney(value)}원</b><span>투자원가 ${compactMoney(cost)}원</span></article><article><small>평가손익</small><b class="${unreal>=0?'up':'down'}">${unreal>=0?'+':''}${compactMoney(unreal)}원</b><span>아직 매도 전 손익</span></article><article><small>확정 매매손익</small><b class="${real>=0?'up':'down'}">${real>=0?'+':''}${compactMoney(real)}원</b><span>매도 결과가 법인현금에 반영</span></article><article><small>누적 현금유입</small><b class="up">${compactMoney(divi+projectReturn+globalReturn)}원</b><span>배당 ${compactMoney(divi)} · 프로젝트 ${compactMoney(projectReturn)} · 해외 ${compactMoney(globalReturn)}</span></article></div><div class="income-feed">${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||x.source_code||'투자')}</b><small>${escapeHtml(x.income_label||x.income_type||'현금수익')} · 주기 #${Number(x.cycle_no)||0}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong><em>${escapeHtml(x.note||'법인현금 반영')}</em></article>`).join(''):`<div class="empty compact">아직 확정된 현금수익이 없습니다. 프로젝트 성과·해외사업·배당·지분 매각이 발생하면 이곳에 실제 입금 내역이 쌓입니다.</div>`}</div></section>`;
+  const cycle=Number(state.company?.world?.cycle_no||0),nextYield=6-(cycle%6||0),nextGlobal=4-(cycle%4||0);
+  return `<section class="investment-return-panel"><div class="company-section-head"><div><small>RETURN DESK</small><h2>투자금이 어디서 돌아오는지</h2></div><span>경쟁사 지분·법인 주식의 평가손익과, 매각이익·배당·프로젝트 성과금·해외사업 현금유입을 한곳에서 보여줍니다.</span></div><div class="return-schedule"><span><b>배당·금융수익</b> 약 ${nextYield||6}주기 뒤 정산</span><span><b>해외사업 현금</b> 약 ${nextGlobal||4}주기 뒤 정산</span><span>서버는 회사별 요청이 아니라 <b>시장 전체를 한 번에 배치 정산</b>합니다.</span></div><div class="return-kpis"><article><small>전체 투자 평가액</small><b>${compactMoney(value)}원</b><span>투자원가 ${compactMoney(cost)}원</span></article><article><small>평가손익</small><b class="${unreal>=0?'up':'down'}">${unreal>=0?'+':''}${compactMoney(unreal)}원</b><span>아직 매도 전 손익</span></article><article><small>확정 매매손익</small><b class="${real>=0?'up':'down'}">${real>=0?'+':''}${compactMoney(real)}원</b><span>매도 결과가 법인현금에 반영</span></article><article><small>누적 현금유입</small><b class="up">${compactMoney(divi+projectReturn+globalReturn)}원</b><span>배당 ${compactMoney(divi)} · 프로젝트 ${compactMoney(projectReturn)} · 해외 ${compactMoney(globalReturn)}</span></article></div><div class="income-feed">${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||x.source_code||'투자')}</b><small>${escapeHtml(x.income_label||x.income_type||'현금수익')} · 주기 #${Number(x.cycle_no)||0}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong><em>${escapeHtml(x.note||'법인현금 반영')}</em></article>`).join(''):`<div class="empty compact">아직 확정된 현금수익이 없습니다. 프로젝트 성과·해외사업·배당·지분 매각이 발생하면 이곳에 실제 입금 내역이 쌓입니다.</div>`}</div></section>`;
 }
 function renderCompanyCommand(my){
   const core=['RND','QUALITY','CAPEX','HIRING','MARKETING','WELFARE'];
@@ -1025,7 +1096,7 @@ function renderCompetitionBoard(my){
   return `<section class="corp-section competition-section simple-company-market">
     <div class="company-section-head"><div><small>COMPANY ANALYSIS</small><h2>기업을 먼저 분석한 뒤 인수하세요</h2></div><div class="analysis-head-actions"><span>내 순위 #${myRank||'-'} / ${(state.company?.companies||[]).length} · 법인현금 ${compactMoney(my.cash)}원</span><button data-main-tab="market" class="section-link">기존 증권시장 차트 보기</button></div></div>
     <div class="company-region-tabs"><button data-company-region="국내" class="${state.companyRegion==='국내'?'on':''}">국내 기업</button><button data-company-region="해외" class="${state.companyRegion==='해외'?'on':''}">해외 기업</button></div>
-    <div class="company-analysis-layout"><div class="company-browser">${rows.length?rows.map((c,i)=>{const stake=Number(c.acquired_stake||0),gap=Number(c.valuation)/Math.max(1,Number(my.valuation)),news=companyPressFor(c.id)[0];return `<button class="company-browser-row ${Number(state.companyAnalysisId)===Number(c.id)?'on':''}" data-company-analyze="${c.id}"><strong>${i+1}</strong><span><b>${escapeHtml(c.name)}</b><small>${companyTypeBadge(c)} ${escapeHtml(c.home_country)} · ${escapeHtml(c.sector)}</small>${news?`<em>최근 기사 · ${escapeHtml(news.headline)}</em>`:''}</span><div><b>${compactMoney(c.valuation)}원</b><small>내 회사의 ${gap>=1?`${gap.toFixed(gap>99?0:1)}배`:`${(gap*100).toFixed(0)}%`} · 내 지분 ${stake.toFixed(1)}%</small></div><i>분석 →</i></button>`}).join(''):`<div class="empty">표시할 기업이 없습니다.</div>`}</div>${renderCompanyAnalysisPanel(my)}</div>
+    <div class="company-analysis-layout"><div class="company-browser">${rows.length?rows.map((c,i)=>{const stake=Number(c.acquired_stake||0),gap=Number(c.valuation)/Math.max(1,Number(my.valuation)),news=companyPressFor(c.id)[0];return `<button class="company-browser-row ${Number(state.companyAnalysisId)===Number(c.id)?'on':''}" data-company-analyze="${c.id}"><strong>${i+1}</strong><span><b>${escapeHtml(c.name)}</b><small>${companyTypeBadge(c)} ${escapeHtml(c.home_country)} · ${escapeHtml(c.sector)}</small>${news?`<em>최근 기사 · ${escapeHtml(news.headline)}</em>`:''}</span><div><b>${compactMoney(c.valuation)}원</b><small>주가 <em class="browser-live-price" data-company-live-price="${c.id}">${won(c.share_price)}</em> · 내 회사의 ${gap>=1?`${gap.toFixed(gap>99?0:1)}배`:`${(gap*100).toFixed(0)}%`} · 내 지분 ${stake.toFixed(1)}%</small></div><i>분석 →</i></button>`}).join(''):`<div class="empty">표시할 기업이 없습니다.</div>`}</div>${renderCompanyAnalysisPanel(my)}</div>
   </section>`;
 }
 
@@ -1035,8 +1106,8 @@ function renderCompanyAnalysisPanel(my){
   const c=p.company,stake=Number(p.my_stake||c.acquired_stake||0),controlled=stake>=50||Number(c.parent_company_id)===Number(my.id),stage=acquisitionStage(stake),gap=Number(c.valuation)/Math.max(1,Number(my.valuation));
   const press=p.press||[];
   return `<aside class="company-analysis-panel"><div class="analysis-title"><div>${companyTypeBadge(c)} ${companyCountryBadge(c)}<h2>${escapeHtml(c.name)}</h2><p>${escapeHtml(c.sector)} · ${companyOwnerLabel(c)}</p></div><strong>${compactMoney(c.valuation)}원<small>내 회사 대비 ${gap>=1?`${gap.toFixed(gap>99?0:1)}배`:`${(gap*100).toFixed(0)}%`}</small></strong></div>
-    <div class="analysis-kpis market-kpis"><span>현재 주가 <b>${won(c.share_price)}</b><em class="${Number(c.last_return_pct||0)>=0?'up':'down'}">${Number(c.last_return_pct||0)>=0?'+':''}${Number(c.last_return_pct||0).toFixed(2)}%</em></span><span>BOT·투자자 수급 <b class="${Number(c.investor_flow||0)>=0?'up':'down'}">${Number(c.investor_flow||0)>=0?'+':''}${compactMoney(c.investor_flow||0)}원</b></span><span>변동성 <b>${Number(c.volatility||1.5).toFixed(2)}%</b></span><span>내 지분 <b>${stake.toFixed(2)}%</b></span></div>
-    <div class="company-target-chart live-company-chart"><div class="mini-chart-head"><div><b>실시간 기업 주가</b><small>5~6초마다 BOT 주문·뉴스·실적·투자심리에 따라 변합니다.</small></div><span class="live-dot">LIVE</span></div><canvas id="companyTargetChart"></canvas><div class="chart-decision-note"><span>매출 ${compactMoney(c.revenue)}원</span><span>영업이익 ${compactMoney(c.profit)}원</span><span>투자심리 ${Number(c.investor_sentiment||50).toFixed(0)}</span><span>최근 수급 ${Number(c.investor_flow||0)>=0?'순매수':'순매도'}</span></div></div>
+    <div class="analysis-kpis market-kpis"><span>현재 주가 <b data-company-live-price="${c.id}">${won(c.share_price)}</b><em class="${Number(c.last_return_pct||0)>=0?'up':'down'}">${Number(c.last_return_pct||0)>=0?'+':''}${Number(c.last_return_pct||0).toFixed(2)}%</em></span><span>BOT·투자자 수급 <b class="${Number(c.investor_flow||0)>=0?'up':'down'}">${Number(c.investor_flow||0)>=0?'+':''}${compactMoney(c.investor_flow||0)}원</b></span><span>변동성 <b>${Number(c.volatility||1.5).toFixed(2)}%</b></span><span>내 지분 <b>${stake.toFixed(2)}%</b></span></div>
+    <div class="company-target-chart live-company-chart"><div class="mini-chart-head"><div><b>실시간 기업 주가</b><small>서버는 약 12초마다 시장 전체를 한 번에 정산하고, 화면은 그 사이의 움직임을 부드럽게 표시합니다.</small></div><span class="live-dot">LIVE</span></div><canvas id="companyTargetChart"></canvas><div class="chart-decision-note"><span>매출 ${compactMoney(c.revenue)}원</span><span>영업이익 ${compactMoney(c.profit)}원</span><span>투자심리 ${Number(c.investor_sentiment||50).toFixed(0)}</span><span>최근 수급 ${Number(c.investor_flow||0)>=0?'순매수':'순매도'}</span></div></div>
     <div class="analysis-news"><h3>최근 관련 뉴스</h3>${press.length?press.slice(0,4).map(a=>`<article><small>${escapeHtml(a.outlet_name||'경제뉴스')}</small><b>${escapeHtml(a.headline)}</b><p>${escapeHtml(a.article_body||'')}</p></article>`).join(''):`<div class="empty compact">최근 보도 기사가 없습니다.</div>`}</div>
     <div class="analysis-acquire"><div><small>현재 단계</small><b>${stage.label}</b><span>${controlled?'경영권 확보 완료':stage.desc}</span></div><label>인수 예산<input id="takeBudget_${c.id}" type="number" min="1000000" step="10000000" value="100000000"></label><button data-company-buy="${c.id}" ${controlled?'disabled':''}>장내 지분 매수</button><button data-company-tender="${c.id}" class="tender" ${stake<15||controlled?'disabled':''}>공개매수</button></div>
   </aside>`;
@@ -1116,7 +1187,7 @@ function renderCompanyOnlineRequired(){
       <div class="connection-repair-copy"><small>ONLINE COMPANY SERVER</small><h1>회사 서버 연결을 복구해 주세요</h1><p>${err}</p></div>
       <button data-company-retry class="company-primary">연결 다시 확인</button>
     </div>
-    <div class="repair-steps"><article><b>1</b><span><strong>이번 패치의 SQL 실행</strong><small><code>KX_CORPORATE_RUN_ONLY_THIS_V54.sql</code> 전체를 Supabase SQL Editor에서 한 번 실행합니다.</small></span></article><article><b>2</b><span><strong>페이지 새로고침 없이 확인</strong><small>위의 ‘연결 다시 확인’을 누르면 통합 온라인 API를 바로 다시 검사합니다.</small></span></article><article><b>3</b><span><strong>온라인 모드만 사용</strong><small>로컬 BOT 모드로 전환하지 않으며 모든 회사 데이터는 서버에 저장됩니다.</small></span></article></div>
+    <div class="repair-steps"><article><b>1</b><span><strong>이번 패치의 SQL 실행</strong><small><code>KX_CORPORATE_RUN_ONLY_THIS_V56.sql</code> 전체를 Supabase SQL Editor에서 한 번 실행합니다.</small></span></article><article><b>2</b><span><strong>페이지 새로고침 없이 확인</strong><small>위의 ‘연결 다시 확인’을 누르면 통합 온라인 API를 바로 다시 검사합니다.</small></span></article><article><b>3</b><span><strong>온라인 모드만 사용</strong><small>로컬 BOT 모드로 전환하지 않으며 모든 회사 데이터는 서버에 저장됩니다.</small></span></article></div>
     <div class="repair-detail"><b>현재 오류</b><code>${err}</code><span>이 복구 SQL은 회사 서버 API만 보강하며 기존 회사·유저·주식·은행 데이터는 삭제하지 않습니다.</span></div>
   </section></main>`;
 }
@@ -1141,10 +1212,19 @@ function renderRivalSnapshot(my){
   return `<section class="executive-rivals"><div class="company-section-head"><div><small>COMPETITIVE INTELLIGENCE</small><h2>주요 경쟁사 동향</h2></div><button data-company-section-jump="competition" class="section-link">경쟁·M&A 전체 보기</button></div><div class="executive-rival-list">${rivals.map((r,i)=>{const ratio=Number(r.valuation)/Math.max(1,Number(my.valuation))*100;return `<article><strong>${i+1}</strong><div><b>${escapeHtml(r.name)}</b><small>${escapeHtml(r.home_country)} · ${escapeHtml(r.sector)} · ${companyOwnerLabel(r)}</small></div><span>${compactMoney(r.valuation)}원</span><em class="${ratio>120?'down':ratio<80?'up':''}">${ratio.toFixed(0)}%</em></article>`}).join('')}</div></section>`;
 }
 function renderCompanyGrowthPanel(my){
-  const hist=state.company?.my_history||[];
+  const hist=[...(state.company?.my_history||[])].sort((a,b)=>Number(a.cycle_no)-Number(b.cycle_no));
   const metric=state.companyMetric||'valuation';
   const labels={valuation:'회사 가치',revenue:'매출',profit:'영업이익'};
-  return `<section class="company-growth-panel"><div class="company-section-head"><div><small>GROWTH CHART</small><h2>우리 회사 성장 그래프</h2></div><div class="growth-metric-tabs">${Object.entries(labels).map(([k,v])=>`<button data-company-metric="${k}" class="${metric===k?'on':''}">${v}</button>`).join('')}</div></div><div class="growth-chart-wrap"><canvas id="companyGrowthChart"></canvas>${hist.length<2?`<div class="chart-empty-note">경영주기가 진행되면 회사의 성장·하락 기록이 여기에 쌓입니다.</div>`:''}</div></section>`;
+  const rows=hist.filter(r=>Number.isFinite(Number(r[metric]))).slice(-64);
+  const vals=rows.map(r=>Number(r[metric]||0));
+  const first=vals.length?vals[0]:Number(my?.[metric]||0);
+  const last=vals.length?vals[vals.length-1]:Number(my?.[metric]||0);
+  const high=vals.length?Math.max(...vals):last;
+  const low=vals.length?Math.min(...vals):last;
+  const delta=vals.length>1&&Math.abs(first)>0?((last-first)/Math.abs(first))*100:0;
+  const span=Math.abs(high-low);
+  const formatValue=v=>`${preciseCompactMoney(v,span||Math.abs(v)*0.03)}원`;
+  return `<section class="company-growth-panel refined-growth-panel"><div class="company-section-head"><div><small>GROWTH CHART</small><h2>우리 회사 성장 그래프</h2></div><div class="growth-metric-tabs">${Object.entries(labels).map(([k,v])=>`<button data-company-metric="${k}" class="${metric===k?'on':''}">${v}</button>`).join('')}</div></div><div class="growth-panel-grid"><div class="growth-chart-stage"><div class="growth-panel-copy"><b>${labels[metric]}</b><span>경영 주기별로 ${labels[metric]}이 어떻게 바뀌는지 바로 확인할 수 있습니다.</span></div><div class="growth-chart-wrap"><canvas id="companyGrowthChart"></canvas>${hist.length<2?`<div class="chart-empty-note">경영주기가 진행되면 회사의 성장·하락 기록이 여기에 쌓입니다.</div>`:''}</div></div><aside class="growth-side-stats"><article><small>현재 ${labels[metric]}</small><b>${formatValue(last)}</b><span>${rows.length?`기록 ${rows.length}개 반영`:'첫 데이터를 기다리는 중'}</span></article><article><small>구간 변화율</small><b class="${delta>=0?'up':'down'}">${rows.length>1?`${delta>=0?'+':''}${delta.toFixed(2)}%`:'—'}</b><span>${rows.length>1?'첫 기록 대비 현재 변화':'비교할 데이터가 아직 부족합니다.'}</span></article><article><small>최근 최고 / 최저</small><b>${formatValue(high)}</b><span>최저 ${formatValue(low)}</span></article><article><small>읽는 법</small><b>한눈에 보기</b><span>버튼으로 지표를 바꾸고, 차트 아래보다 오른쪽 요약 카드에서 결과를 빠르게 확인하세요.</span></article></aside></div></section>`;
 }
 function renderCompanyLatestNews(my){
   const rows=(state.company?.press||[]).slice(0,6);
@@ -1152,9 +1232,14 @@ function renderCompanyLatestNews(my){
 }
 
 function renderDashboardProgress(my){
-  const projects=(state.company?.projects||[]).filter(p=>['ACTIVE','PAYBACK'].includes(String(p.status))).slice(0,4);
+  const allProjects=state.company?.projects||[];
+  const projects=allProjects.filter(p=>['ACTIVE','PAYBACK'].includes(String(p.status))).slice(0,4);
   const incomes=(state.company?.investment_income||[]).slice(0,5);
-  return `<section class="dashboard-progress"><div class="company-section-head"><div><small>WHAT IS HAPPENING NOW</small><h2>내 결정이 지금 어떻게 진행되고 있나</h2></div><button data-company-section-jump="operations" class="section-link">사업 운영 전체 보기</button></div><div class="dashboard-progress-grid"><div class="dashboard-projects"><h3>진행 중 프로젝트</h3>${projects.length?projects.map(p=>{const d=Math.max(1,Number(p.duration_cycles)||1),n=Math.min(d,Number(p.progress_cycles)||0),pc=p.status==='PAYBACK'?100:Math.round(n/d*100);return `<article><span><b>${escapeHtml(p.title||p.project_type)}</b><small>${projectStatusLabel(p)} · ${p.status==='PAYBACK'?`회수 ${Number(p.payout_cycles_remaining||0)}회 남음`:`${n}/${d}주기`}</small></span><div><i style="width:${pc}%"></i></div><strong>${compactMoney(p.realized_return||0)}원 회수</strong></article>`}).join(''):`<div class="empty compact">진행 중 프로젝트가 없습니다.</div>`}</div><div class="dashboard-income"><h3>최근 법인현금 유입</h3>${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||'투자수익')}</b><small>${escapeHtml(x.income_label||x.income_type)}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong></article>`).join(''):`<div class="empty compact">아직 확정된 투자 수익이 없습니다.</div>`}</div></div></section>`;
+  const activeCount=allProjects.filter(p=>String(p.status)==='ACTIVE').length;
+  const paybackCount=allProjects.filter(p=>String(p.status)==='PAYBACK').length;
+  const realized=incomes.reduce((sum,x)=>sum+Number(x.amount||0),0);
+  const totalReturn=projects.reduce((sum,p)=>sum+Number(p.realized_return||0),0);
+  return `<section class="dashboard-progress refined-progress-panel"><div class="company-section-head"><div><small>WHAT IS HAPPENING NOW</small><h2>내 결정이 지금 어떻게 진행되고 있나</h2></div><button data-company-section-jump="operations" class="section-link">사업 운영 전체 보기</button></div><div class="dashboard-progress-summary"><article><small>실행 중 프로젝트</small><b>${activeCount}개</b><span>현재 돈을 쓰며 진행 중인 과제</span></article><article><small>회수 단계</small><b>${paybackCount}개</b><span>완료 후 수익을 돌려받는 단계</span></article><article><small>최근 확정 수익</small><b class="${realized>=0?'up':'down'}">${realized>=0?'+':''}${compactMoney(realized)}원</b><span>최근 기록된 법인현금 유입 합계</span></article><article><small>누적 회수 금액</small><b>${compactMoney(totalReturn)}원</b><span>현재 화면의 프로젝트에서 확인되는 회수 금액</span></article></div><div class="dashboard-progress-grid"><div class="dashboard-projects"><h3>진행 중 프로젝트</h3>${projects.length?projects.map(p=>{const d=Math.max(1,Number(p.duration_cycles)||1),n=Math.min(d,Number(p.progress_cycles)||0),pc=p.status==='PAYBACK'?100:Math.round(n/d*100);return `<article><span><b>${escapeHtml(p.title||p.project_type)}</b><small>${projectStatusLabel(p)} · ${p.status==='PAYBACK'?`회수 ${Number(p.payout_cycles_remaining||0)}회 남음`:`${n}/${d}주기 진행`}</small></span><div><i style="width:${pc}%"></i></div><strong>${compactMoney(p.realized_return||0)}원 회수</strong></article>`}).join(''):`<div class="empty compact">진행 중 프로젝트가 없습니다.</div>`}</div><div class="dashboard-income"><h3>최근 법인현금 유입</h3>${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||'투자수익')}</b><small>${escapeHtml(x.income_label||x.income_type)}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong></article>`).join(''):`<div class="empty compact">아직 확정된 투자 수익이 없습니다.</div>`}</div></div></section>`;
 }
 function renderCompanyWorkspace(my){
   const section=state.companySection||'dashboard';
@@ -1164,6 +1249,21 @@ function renderCompanyWorkspace(my){
   return `${renderTakeoverCrisis(my)}${renderCompanyGrowthPanel(my)}${renderDashboardProgress(my)}${renderExecutiveAgenda(my)}${renderCompanyLatestNews(my)}`;
 }
 
+function renderCompanySubnav(my){
+  const section=state.companySection||'dashboard';
+  const active=(state.company?.projects||[]).filter(p=>['ACTIVE','PAYBACK'].includes(String(p.status))).length;
+  const threat=companyStakeAgainstMe();
+  const newsCount=(state.company?.press||[]).length;
+  const taxIssue=Number(my.tax_due||0)+Number(my.tax_arrears||0);
+  const items=[
+    ['dashboard','경영 홈','핵심 지표와 안건'],
+    ['operations','사업 운영',active?`프로젝트 ${active}개 진행 중`:'새 프로젝트 시작'],
+    ['competition','투자·M&A',threat>=15?`경영권 위험 ${threat.toFixed(1)}%`:'경쟁사 분석'],
+    ['risk','뉴스·리스크',taxIssue>0?`세무 이슈 ${compactMoney(taxIssue)}원`:newsCount?`최근 뉴스 ${newsCount}건`:'IR·세무 점검']
+  ];
+  return `<nav class="company-section-switcher">${items.map(([k,title,desc])=>`<button data-company-section="${k}" class="${section===k?'on':''}"><b>${title}</b><span>${desc}</span></button>`).join('')}</nav>`;
+}
+
 function renderCompanyRoom(){
   if(state.companyAvailable===false)return renderCompanyOnlineRequired();
   const my=state.company?.my_company;
@@ -1171,11 +1271,41 @@ function renderCompanyRoom(){
   const grow=companyGrowth(my),margin=companyProfitMargin(my),threat=companyStakeAgainstMe();
   const companies=[...(state.company?.companies||[])].filter(x=>x.status!=='INACTIVE').sort((a,b)=>Number(b.valuation)-Number(a.valuation));
   const myRank=companies.findIndex(c=>Number(c.id)===Number(my.id))+1;
-  return `<main class="page-view company-page"><section class="panel page-panel company-shell management-first-shell v52-clean-shell">
+  const activeProjects=(state.company?.projects||[]).filter(p=>String(p.status)==='ACTIVE').length;
+  const paybackProjects=(state.company?.projects||[]).filter(p=>String(p.status)==='PAYBACK').length;
+  const latestIncome=(state.company?.investment_income||[])[0]||null;
+  const latestArticle=(state.company?.press||[])[0]||null;
+  const headline=String(latestArticle?.headline||'');
+  const shortHeadline=headline?escapeHtml(headline.length>36?`${headline.slice(0,36)}…`:headline):'최근 공시·기사가 아직 없습니다.';
+  const health=Number(my.cash||0)>=Math.max(120000000,Number(my.revenue||0)*0.12)?'현금 여력 안정':'현금 여력 주의';
+  const notice=state.companyNotice?escapeHtml(state.companyNotice):'처음에는 ‘경영 홈 → 사업 운영 → 투자·M&A’ 순서로 보면 흐름이 더 잘 보입니다.';
+  return `<main class="page-view company-page"><section class="panel page-panel company-shell management-first-shell v52-clean-shell corporate-ui-refresh">
     ${renderCompanyModeBanner()}
-    <div class="company-topline management-topline clean-company-topline"><div><small>CEO OFFICE · ONLINE · LIVE MARKET</small><h1>${escapeHtml(my.name)}</h1><p>${escapeHtml(my.sector)} · 대한민국 · 전체 ${companies.length}개 회사 중 <b>#${myRank||'-'}</b></p></div><div class="company-value-hero"><small>회사 가치</small><b>${compactMoney(my.valuation)}원</b><span>주가 ${won(my.share_price)} <em class="${Number(my.last_return_pct||0)>=0?'up':'down'}">${Number(my.last_return_pct||0)>=0?'+':''}${Number(my.last_return_pct||0).toFixed(2)}%</em> · 법인현금 ${compactMoney(my.cash)}원</span></div></div>
-    <div class="company-kpi-grid simple-kpis"><article><small>매출</small><b>${compactMoney(my.revenue)}원</b><span class="${grow>=0?'up':'down'}">전기 대비 ${pct(grow)}</span></article><article><small>영업이익</small><b class="${Number(my.profit)>=0?'up':'down'}">${compactMoney(my.profit)}원</b><span>이익률 ${margin.toFixed(1)}%</span></article><article><small>국내 점유율</small><b>${Number(my.domestic_share||0).toFixed(2)}%</b><span>글로벌 ${Number(my.global_share||0).toFixed(2)}%</span></article><article class="${threat>=35?'danger':''}"><small>경영권 위험</small><b>${threat.toFixed(1)}%</b><span>${threat>=35?'방어 필요':'안정'}</span></article></div>
-    ${state.companyNotice?`<div class="company-notice" id="companyMsg">${escapeHtml(state.companyNotice)}</div>`:`<div class="company-notice muted" id="companyMsg">처음에는 ‘경영 홈 → 사업·해외 → 기업·M&A’ 순서로 보면 됩니다.</div>`}
+    <div class="company-hero-grid">
+      <section class="company-hero-card">
+        <div class="company-hero-head"><div><small>CEO OFFICE · LIVE MANAGEMENT</small><h1>${escapeHtml(my.name)}</h1><p>${escapeHtml(my.sector)} · 대한민국 · 전체 ${companies.length}개 회사 중 <b>#${myRank||'-'}</b> · ${companyScaleLabel(my.valuation)}</p></div><div class="company-hero-price"><small>현재 주가</small><b data-company-live-price="${my.id}">${won(my.share_price)}</b><span class="${Number(my.last_return_pct||0)>=0?'up':'down'}">${Number(my.last_return_pct||0)>=0?'+':''}${Number(my.last_return_pct||0).toFixed(2)}%</span></div></div>
+        <div class="company-hero-metrics">
+          <article><small>회사 가치</small><b>${compactMoney(my.valuation)}원</b><span>법인 현금 ${compactMoney(my.cash)}원</span></article>
+          <article><small>매출</small><b>${compactMoney(my.revenue)}원</b><span class="${grow>=0?'up':'down'}">전기 대비 ${pct(grow)}</span></article>
+          <article><small>영업이익</small><b class="${Number(my.profit)>=0?'up':'down'}">${compactMoney(my.profit)}원</b><span>이익률 ${margin.toFixed(1)}%</span></article>
+          <article><small>시장 점유율</small><b>${Number(my.domestic_share||0).toFixed(2)}%</b><span>글로벌 ${Number(my.global_share||0).toFixed(2)}%</span></article>
+          <article class="${threat>=35?'danger':''}"><small>경영권 위험</small><b>${threat.toFixed(1)}%</b><span>${threat>=35?'방어 필요':'현재 안정'}</span></article>
+        </div>
+      </section>
+      <aside class="company-briefing-card">
+        <small>오늘의 브리핑</small>
+        <h3>지금 가장 먼저 볼 것</h3>
+        <ul>
+          <li><b>사업 운영</b><span>진행 중 ${activeProjects}개 · 회수 단계 ${paybackProjects}개</span></li>
+          <li><b>현금 상태</b><span>${health}</span></li>
+          <li><b>최근 수익</b><span>${latestIncome?`${escapeHtml(latestIncome.source_name||'투자수익')} ${Number(latestIncome.amount)>=0?'+':''}${compactMoney(latestIncome.amount)}원`:'아직 확정 수익이 없습니다.'}</span></li>
+          <li><b>최근 뉴스</b><span>${shortHeadline}</span></li>
+        </ul>
+        <div class="briefing-shortcuts"><button data-company-section="operations">사업 보기</button><button data-company-section="competition">M&A 보기</button><button data-company-section="risk">뉴스 보기</button></div>
+      </aside>
+    </div>
+    <div class="company-notice ui-refresh-notice ${state.companyNotice?'':'muted'}" id="companyMsg">${notice}</div>
+    ${renderCompanySubnav(my)}
     <div class="company-workspace">${renderCompanyWorkspace(my)}</div>
   </section></main>`;
 }
@@ -1373,7 +1503,7 @@ function drawCompanyGrowthChart(){
   const vals=rows.map(r=>Number(r[metric]||0));let lo=Math.min(...vals),hi=Math.max(...vals),center=(hi+lo)/2||1;
   const minBand=Math.max(Math.abs(center)*.025,1);if(hi-lo<minBand){lo=center-minBand/2;hi=center+minBand/2}else{const pad=(hi-lo)*.12;lo-=pad;hi+=pad}
   const L=66,R=20,T=20,B=36,pw=W-L-R,ph=H-T-B;ctx.strokeStyle='#273242';ctx.lineWidth=1;ctx.fillStyle='#7c8b9f';ctx.font='11px sans-serif';ctx.textAlign='right';
-  for(let i=0;i<5;i++){const y=T+ph*i/4;ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(W-R,y);ctx.stroke();const v=hi-(hi-lo)*i/4;ctx.fillText(compactMoney(v),L-8,y+4)}
+  for(let i=0;i<5;i++){const y=T+ph*i/4;ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(W-R,y);ctx.stroke();const v=hi-(hi-lo)*i/4;ctx.fillText(preciseCompactMoney(v,hi-lo),L-8,y+4)}
   const x=i=>L+(rows.length===1?pw/2:i*pw/(rows.length-1)),y=v=>T+(hi-v)/(hi-lo)*ph;
   const grad=ctx.createLinearGradient(0,T,0,T+ph);grad.addColorStop(0,'rgba(231,191,97,.22)');grad.addColorStop(1,'rgba(231,191,97,.01)');
   ctx.beginPath();rows.forEach((r,i)=>{const xx=x(i),yy=y(vals[i]);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.strokeStyle='#e7bf61';ctx.lineWidth=2.6;ctx.stroke();ctx.lineTo(x(rows.length-1),T+ph);ctx.lineTo(x(0),T+ph);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
@@ -1384,6 +1514,8 @@ function drawCompanyGrowthChart(){
 function drawCompanyTargetChart(){
   const canvas=document.getElementById('companyTargetChart');if(!canvas)return;
   let rows=[...(state.companyAnalysis?.history||[])].sort((a,b)=>Number(a.cycle_no)-Number(b.cycle_no)).slice(-60);
+  const liveCompany=state.companyAnalysis?.company;
+  if(liveCompany&&rows.length){const lp=visualCompanyPrice(liveCompany),prev=Number(rows[rows.length-1]?.close_price||rows[rows.length-1]?.share_price||liveCompany.share_price)||lp;rows=[...rows,{cycle_no:'LIVE',open_price:prev,close_price:lp,high_price:Math.max(prev,lp)*1.0007,low_price:Math.min(prev,lp)*.9993,share_price:lp,volume:Math.max(100,Number(liveCompany.shares_outstanding||1000000)*.00025)}].slice(-60);}
   const dpr=window.devicePixelRatio||1,W=Math.max(360,canvas.clientWidth||650),H=Math.max(260,canvas.clientHeight||300);canvas.width=W*dpr;canvas.height=H*dpr;const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
   rows=rows.map((r,i)=>{const prev=i?Number(rows[i-1].close_price||rows[i-1].share_price||0):Number(r.share_price||r.close_price||0);let c=Number(r.close_price||r.share_price||prev),o=Number(r.open_price||prev||c),h=Number(r.high_price||Math.max(o,c)),l=Number(r.low_price||Math.min(o,c));if(!(c>0))c=prev||1;if(!(o>0))o=c;if(!(h>0))h=Math.max(o,c);if(!(l>0))l=Math.min(o,c);h=Math.max(h,o,c);l=Math.min(l,o,c);return {...r,_o:o,_c:c,_h:h,_l:l,_v:Math.max(0,Number(r.volume)||0)}}).filter(r=>r._c>0);
   if(!rows.length){ctx.fillStyle='#7b899c';ctx.font='12px sans-serif';ctx.textAlign='center';ctx.fillText('주가 데이터가 쌓이는 중입니다.',W/2,H/2);return;}
@@ -1415,7 +1547,7 @@ function renderTerminal(){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 5.4'}</span></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 5.6'}</span></div>
       ${topNav()}
       <div class="market-status corporate-cycle-status"><b>경영주기 #${Number(state.company?.world?.cycle_no||0)}</b><span>DAY ${state.clock?.game_day||1} · ${gameTime(state.clock?.game_minute||0)}</span><em>ONLINE LEAGUE</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
@@ -1434,6 +1566,7 @@ function renderTerminal(){
   bind();
   if(state.tab==='market')drawChart();
   if(state.tab==='company'){requestAnimationFrame(()=>{drawCompanyGrowthChart();drawCompanyTargetChart();});}
+  scheduleCompanyVisualTicker();
 }
 
 function rememberOrderInputs(){
@@ -1593,8 +1726,7 @@ function bind(){
       const d=await companyApi(route,body||{});
       if(d?.ok===false)throw new Error(d.message||'경영 결정을 처리하지 못했습니다.');
       state.companyNotice=d?.message||'경영 결정이 온라인 회사 데이터에 반영되었습니다.';
-      await loadCompanyLayer(true,true);
-      if(state.companyAnalysisId){try{state.companyAnalysis=await companyApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)})}catch{state.companyAnalysis=null}}
+      await loadCompanyLayer(false,false);
       renderTerminal();
       return d;
     }catch(err){
@@ -1695,11 +1827,11 @@ function bind(){
 
   document.querySelectorAll('[data-company-retry]').forEach(b=>b.onclick=async()=>{
     b.disabled=true;b.textContent='온라인 연결 확인 중…';
-    state.companyRpcMode='AUTO';
-    await loadCompanyLayer(true,true);
+    state.companyRpcMode='AUTO';companyApiReady=false;
+    await loadCompanyLayer(false,true);
     state.companyNotice=state.companyAvailable
       ?'온라인 회사 경영 서버가 연결되었습니다. BOT과 다른 유저 회사가 같은 시장에서 경쟁합니다.'
-      :'온라인 연결에 실패했습니다. KX_CORPORATE_RUN_ONLY_THIS_V54.sql 실행 결과에서 api_exists=true인지 확인해 주세요.';
+      :'온라인 연결에 실패했습니다. KX_CORPORATE_RUN_ONLY_THIS_V56.sql 실행 결과에서 api_exists=true인지 확인해 주세요.';
     renderTerminal();
   });
 
