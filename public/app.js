@@ -418,7 +418,7 @@ function stockMarketBadge(s){return `<span class="market-badge ${marketArea(s)==
 function stockVisible(s){return !s?.listing_tick||Number(state.clock?.tick_no||0)>=Number(s.listing_tick)}
 
 function topNav(){
-  const items=[['company','회사 경영'],['market','증권시장'],['portfolio','개인 자산'],['orders','주문'],['news','뉴스'],['strategy','시장 전략'],['bank','은행'],['ranking','랭킹'],['learn','투자 기초']];
+  const items=[['company','회사 경영'],['market','자금·증권시장'],['portfolio','개인 자산'],['orders','주문'],['news','뉴스'],['strategy','시장 전략'],['bank','은행'],['ranking','랭킹'],['learn','투자 기초']];
   return `<nav class="main-nav">${items.map(([k,label])=>`<button data-main-tab="${k}" class="${state.tab===k?'on':''}">${label}</button>`).join('')}</nav>`;
 }
 
@@ -433,6 +433,15 @@ function renderStockPicker(s){
     <label class="stock-search-select"><span>종목 바로가기</span><select id="stockSelect">${pool.map(x=>`<option value="${x.ticker}" ${x.ticker===s.ticker?'selected':''}>${marketArea(x)==='해외'?'[해외] ':'[국내] '}${escapeHtml(x.name)} · ${x.ticker}</option>`).join('')}</select></label>
     <div class="watchlist-list">${watch.map(x=>{const c=changeOf(x);return `<button data-ticker="${x.ticker}" class="watch-row ${x.ticker===s.ticker?'on':''}"><span><b>${escapeHtml(x.name)}</b><small>${marketArea(x)} · ${escapeHtml(x.sector)}</small></span><strong>${nf.format(x.last_price)}</strong><em class="${c>=0?'up':'down'}">${pct(c)}</em>${marketArea(x)==='해외'?`<small class="local-quote">${localPriceText(x)}</small>`:''}</button>`}).join('')}</div>
   </aside>`;
+}
+
+function renderCorporateMarketBridge(s){
+  const my=state.companyAvailable!==false?state.company?.my_company:null;
+  if(!my)return '';
+  const same=String(my.sector||'')===String(s.sector||'');
+  const overseas=marketArea(s)==='해외';
+  const impact=same?'동종업종: 보유하면 기술·운영 시너지':overseas?'해외종목: 글로벌 시장정보·기관 관심 상승':'재무투자: 손익과 집중도가 신용·투자심리에 반영';
+  return `<div class="market-company-bridge"><div><small>COMPANY LINK · ${escapeHtml(my.ticker)}</small><b>이 종목을 회사 전략자산으로 활용할 수 있습니다</b><span>${escapeHtml(impact)} · 법인현금 ${compactMoney(my.cash)}원 · 운용위험 ${Number(my.treasury_risk||0).toFixed(0)}</span></div><label>법인 예산<input id="quickCorpAmount" type="number" min="1000000" step="10000000" value="50000000"></label><div class="market-company-actions"><button data-company-quick-market-side="BUY">법인 전략매수</button><button data-company-quick-market-side="SELL" class="sell">법인 매도</button><button data-main-tab="company" class="ghost">CEO실</button></div></div>`;
 }
 
 function renderChartPanel(s,ch){
@@ -458,6 +467,7 @@ function renderChartPanel(s,ch){
     <div class="ohlc balanced-ohlc">
       <span>시가 <b>${nf.format(s.open_price)}</b></span><span>고가 <b>${nf.format(s.high_price)}</b></span><span>저가 <b>${nf.format(s.low_price)}</b></span><span>전일 <b>${nf.format(s.prev_close)}</b></span><span>거래량 <b>${nf.format(s.volume)}</b></span>
     </div>
+    ${renderCorporateMarketBridge(s)}
     ${renderMarketCoach(s)}
     ${latestNews.length?`<div class="news-wire"><span class="wire-live">LIVE</span><div class="wire-track">${latestNews.map(n=>`<button data-main-tab="news"><b>${n.severity==='EXTRA'?'호외':n.severity==='BREAKING'?'속보':'뉴스'}</b><span>${escapeHtml(n.headline)}</span><time>${n.created_at?new Date(n.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></button>`).join('')}</div></div>`:''}
     ${keyNews?`<button class="headline-strip" data-main-tab="news"><span>${keyNews.severity==='EXTRA'?'호외':'속보'}</span><b>${escapeHtml(keyNews.headline)}</b><small>기사 보기</small></button>`:''}
@@ -567,7 +577,7 @@ function renderCompanyCreate(){
   const rivals=(state.company?.companies||[]).filter(c=>c.is_bot).slice(0,8);
   return `<main class="page-view company-page"><section class="panel page-panel company-shell">
     <div class="company-hero">
-      <div class="company-hero-copy"><small>KX CORPORATE · STARTUP</small><h1>내 회사를 설립하고 시장에 들어가세요</h1><p>이제 이 게임의 중심은 개인 주식투자만이 아닙니다. 직접 회사를 만들고 국내 BOT·다른 유저 회사와 경쟁한 뒤, 해외시장으로 확장하고 상대 회사 지분까지 인수할 수 있습니다.</p>
+      <div class="company-hero-copy"><small>KX CORPORATE · STARTUP</small><h1>내 회사를 설립하고 시장에 들어가세요</h1><p>이 게임의 중심은 이제 주식 매매가 아니라 회사 자체를 키우는 것입니다. 제품·인재·설비·재무·언론·세금·경영권을 직접 결정하고, 국내 BOT·다른 유저 회사와 경쟁한 뒤 해외시장까지 확장합니다.</p>
         <div class="company-start-rules"><span><b>초기 법인자금</b> 10억원</span><span><b>시작시장</b> 대한민국</span><span><b>경쟁상대</b> BOT + 실제 유저 회사</span><span><b>확장</b> 미국·일본·독일·싱가포르·영국·인도·브라질</span></div>
       </div>
       <form id="companyCreateForm" class="company-create-card">
@@ -632,19 +642,88 @@ function renderTakeoverCrisis(my){
 function renderCompanyCommand(my){
   const amount=100000000;
   const actions=[
-    ['RND','R&D 투자','기술력·제품경쟁력 상승','장기 성장'],
-    ['MARKETING','마케팅','브랜드·국내점유율 상승','시장 확대'],
-    ['CAPEX','설비 투자','운영·품질·인력 상승','생산력'],
-    ['HIRING','핵심 채용','인력·기술·운영 강화','성장 기반'],
-    ['PRICE_WAR','가격 경쟁','점유율 상승, 이익·브랜드 부담','공격적'],
-    ['COSTCUT','구조조정','현금흐름 개선, 브랜드 일부 하락','방어적'],
-    ['LOAN','기업 대출','현금 확보, 부채와 이자 부담 증가','자금 조달'],
-    ['REPAY','부채 상환','재무 안정성 개선','재무 관리']
+    ['RND','R&D 투자','기술력·제품경쟁력 상승','기술'],
+    ['QUALITY','품질·안전 투자','제품력·고객신뢰 상승, 리콜 위험 감소','제품'],
+    ['CAPEX','설비 투자','운영·생산력·고용 확대','생산'],
+    ['HIRING','핵심 인재 채용','인력·기술·운영 강화','인재'],
+    ['WELFARE','복지·보상 강화','직원 사기와 생산성 상승','조직'],
+    ['MARKETING','마케팅','브랜드·시장점유율 상승','영업'],
+    ['PRICE_WAR','가격 경쟁','점유율 상승, 이익·브랜드 부담','공격'],
+    ['COSTCUT','구조조정','현금흐름 개선, 사기·브랜드 부담','방어'],
+    ['DIVIDEND','배당 실시','주주 신뢰·투자수요 상승, 현금 감소','주주'],
+    ['COMPLIANCE','준법·감사 투자','컴플라이언스·신용도 상승, 규제 위험 감소','준법'],
+    ['LOAN','기업 대출','현금 확보, 부채·신용 부담 증가','조달'],
+    ['REPAY','부채 상환','재무 안정성·신용도 개선','재무']
   ];
-  return `<section class="corp-section">
-    <div class="company-section-head"><div><small>01 · CEO COMMAND</small><h2>경영 의사결정</h2></div><span>같은 돈을 어디에 쓰느냐에 따라 회사의 강점과 주가가 달라집니다.</span></div>
-    <div class="corp-action-bar"><label>기본 집행금액<input id="companyActionAmount" type="number" min="10000000" step="10000000" value="${amount}"></label><span>현재 법인현금 <b>${won(my.cash)}</b></span></div>
-    <div class="corp-action-grid">${actions.map(a=>`<button data-company-action="${a[0]}" class="${a[0]==='PRICE_WAR'||a[0]==='LOAN'?'risk':''}"><small>${a[3]}</small><b>${a[1]}</b><span>${a[2]}</span></button>`).join('')}</div>
+  return `<section class="corp-section ceo-command-section">
+    <div class="company-section-head"><div><small>01 · CEO OFFICE</small><h2>CEO 경영 의사결정</h2></div><span>매출만 올리는 버튼이 아니라 제품·사람·주주·규제·재무가 서로 연결됩니다.</span></div>
+    <div class="corp-action-bar"><label>기본 집행금액<input id="companyActionAmount" type="number" min="10000000" step="10000000" value="${amount}"></label><span>현재 법인현금 <b>${won(my.cash)}</b></span><span>신용점수 <b>${Number(my.credit_score||65).toFixed(0)}</b></span></div>
+    <div class="corp-action-grid management-grid">${actions.map(a=>`<button data-company-action="${a[0]}" class="${['PRICE_WAR','LOAN','COSTCUT'].includes(a[0])?'risk':''}"><small>${a[3]}</small><b>${a[1]}</b><span>${a[2]}</span></button>`).join('')}</div>
+  </section>`;
+}
+
+function companyMood(v){
+  v=Number(v)||0;
+  return v>=78?'매우 강함':v>=62?'강함':v>=45?'중립':v>=28?'약함':'패닉';
+}
+function companyRiskLabel(v){
+  v=Number(v)||0;
+  return v>=70?'매우 높음':v>=45?'높음':v>=22?'주의':'낮음';
+}
+function renderCompanyPulse(my){
+  const taxDue=Number(my.tax_due||0),arrears=Number(my.tax_arrears||0),audit=Number(my.audit_risk||0),sent=Number(my.investor_sentiment||50);
+  const flow=Number(my.investor_flow||0),morale=Number(my.employee_morale||65),trust=Number(my.customer_trust||60),comp=Number(my.compliance||75);
+  return `<section class="management-pulse">
+    <div class="pulse-head"><div><small>LIVE MANAGEMENT</small><h2>회사 상태판</h2></div><span>주가뿐 아니라 세무·직원·고객·투자자·규제 상태를 동시에 관리합니다.</span></div>
+    <div class="pulse-grid">
+      <article><small>투자자 심리</small><b>${sent.toFixed(0)}</b><span>${companyMood(sent)} · 최근 순매수 ${flow>=0?'+':''}${compactMoney(flow)}원</span></article>
+      <article><small>직원 사기</small><b>${morale.toFixed(0)}</b><span>${companyMood(morale)} · 생산성과 인재이탈에 영향</span></article>
+      <article><small>고객 신뢰</small><b>${trust.toFixed(0)}</b><span>${companyMood(trust)} · 매출·브랜드·리콜에 영향</span></article>
+      <article class="${comp<45?'danger':''}"><small>준법 수준</small><b>${comp.toFixed(0)}</b><span>규제·세무조사·신용평가에 영향</span></article>
+      <article class="${taxDue+arrears>0?'warn':''}"><small>납부할 세금</small><b>${compactMoney(taxDue+arrears)}원</b><span>현재 고지 ${compactMoney(taxDue)} · 미납/추징대상 ${compactMoney(arrears)}</span></article>
+      <article class="${audit>=45?'danger':audit>=22?'warn':''}"><small>세무·규제 위험</small><b>${audit.toFixed(0)}</b><span>${companyRiskLabel(audit)} · 규제열 ${Number(my.regulatory_heat||0).toFixed(0)}</span></article>
+      <article><small>미디어 평판</small><b>${Number(my.media_reputation||50).toFixed(0)}</b><span>기사·논란이 브랜드와 투자수요에 연결</span></article>
+      <article><small>법인 운용 위험</small><b>${Number(my.treasury_risk||0).toFixed(0)}</b><span>주식 포트폴리오 집중도·손익이 신용도에 영향</span></article>
+    </div>
+  </section>`;
+}
+
+function renderMediaDesk(my){
+  const campaigns=state.company?.media_campaigns||[];
+  const outlets=[
+    ['ECON_DAILY','KX 경제일보','국내 기관·개인 투자자','보수적이고 안정적인 노출'],
+    ['BIZ_TV','비즈니스24','대중·개인 투자자','도달률이 높고 브랜드 효과가 큼'],
+    ['GLOBAL_WIRE','Global Finance Wire','해외 기관·글로벌 투자자','비싸지만 해외 수요에 강함'],
+    ['EDGE_MEDIA','EDGE 미디어','온라인·단기 매매 투자자','반응이 크지만 역풍 가능성도 큼']
+  ];
+  return `<section class="corp-section media-desk-section">
+    <div class="company-section-head"><div><small>02 · MEDIA / IR</small><h2>언론·IR 전략</h2></div><span>광고·협찬임을 밝힌 기업 PR/IR 캠페인입니다. 성공하면 BOT 투자수요가 늘지만 과한 홍보는 역풍이 날 수 있습니다.</span></div>
+    <div class="media-summary"><span>투자자 심리 <b>${Number(my.investor_sentiment||50).toFixed(0)}</b></span><span>미디어 평판 <b>${Number(my.media_reputation||50).toFixed(0)}</b></span><span>현재 기사 모멘텀 <b>${Number(my.media_momentum||0).toFixed(0)}</b></span><span>기관 관심도 <b>${Number(my.institutional_interest||35).toFixed(0)}</b></span></div>
+    <div class="media-controls"><label>기사/PR 예산<input id="companyMediaBudget" type="number" min="20000000" step="10000000" value="70000000"></label><label>콘텐츠 유형<select id="companyMediaCampaign"><option value="IR_INTERVIEW">CEO·실적 IR 인터뷰</option><option value="PRODUCT_FEATURE">신제품·기술 특집</option><option value="GLOBAL_ROADSHOW">글로벌 투자자 로드쇼</option><option value="AGGRESSIVE_SPIN">공격적 이미지 메이킹</option></select></label></div>
+    <div class="media-outlet-grid">${outlets.map(o=>`<button data-company-media="${o[0]}"><small>${o[2]}</small><b>${o[1]}</b><span>${o[3]}</span></button>`).join('')}</div>
+    <div class="media-campaign-history"><h3>최근 보도·IR 집행</h3>${campaigns.length?campaigns.slice(0,6).map(c=>`<article><span><b>${escapeHtml(c.outlet_name)}</b><small>${escapeHtml(c.campaign_label||c.campaign_type)}</small></span><strong>${compactMoney(c.budget)}원</strong><em>${Number(c.sentiment_impact)>=0?'+':''}${Number(c.sentiment_impact||0).toFixed(1)} 투자심리</em></article>`).join(''):`<div class="empty compact">아직 집행한 언론·IR 캠페인이 없습니다.</div>`}</div>
+  </section>`;
+}
+
+function renderTaxOffice(my){
+  const due=Number(my.tax_due||0),arrears=Number(my.tax_arrears||0),risk=Number(my.audit_risk||0);
+  const recs=state.company?.tax_records||[];
+  return `<section class="corp-section tax-office-section">
+    <div class="company-section-head"><div><small>03 · TAX / COMPLIANCE</small><h2>세금·세무 리스크</h2></div><span>게임에서는 분기 결산을 압축해 진행하며, 흑자에 단순화된 22% 법인세가 부과됩니다.</span></div>
+    <div class="tax-ledger">
+      <article><small>이번 고지세액</small><b>${compactMoney(due)}원</b><span>${due>0?'납부·절세검토·분납·신고누락 중 선택':'현재 납부할 고지 없음'}</span></article>
+      <article class="${arrears>0?'danger':''}"><small>미납·추징 대상</small><b>${compactMoney(arrears)}원</b><span>오래 둘수록 조사 위험과 가산 부담 증가</span></article>
+      <article class="${risk>=45?'danger':risk>=22?'warn':''}"><small>세무조사 위험</small><b>${risk.toFixed(0)}</b><span>${companyRiskLabel(risk)}</span></article>
+      <article><small>준법 / 지배구조</small><b>${Number(my.compliance||75).toFixed(0)} / ${Number(my.governance||50).toFixed(0)}</b><span>낮으면 투자자·은행·규제기관 신뢰 하락</span></article>
+    </div>
+    <div class="tax-actions">
+      <button data-company-tax="PAY" ${due+arrears<=0?'disabled':''}><small>정상 처리</small><b>세금 납부</b><span>고지세액과 미납액을 정리하고 신뢰를 높입니다.</span></button>
+      <button data-company-tax="PLAN" ${due<=0?'disabled':''}><small>합법적 절세</small><b>세무 검토·절세</b><span>세무비용을 들여 납부세액을 일부 줄입니다.</span></button>
+      <button data-company-tax="INSTALLMENT" ${due<=0?'disabled':''}><small>현금흐름</small><b>분할 납부</b><span>당장 현금을 아끼지만 잔액과 가산 부담이 남습니다.</span></button>
+      <button data-company-tax="EVADE" class="risk" ${due<=0?'disabled':''}><small>불법·고위험</small><b>신고 누락 시도</b><span>당장은 세금을 피하지만 적발 시 추징·과징금·평판·거래 제한이 발생할 수 있습니다.</span></button>
+      <button data-company-tax="CORRECT" ${arrears<=0?'disabled':''}><small>위기 수습</small><b>자진 정정</b><span>미납 상태를 스스로 정리해 향후 조사 위험을 낮춥니다.</span></button>
+    </div>
+    <div class="tax-history"><h3>최근 세무 기록</h3>${recs.length?recs.slice(0,6).map(r=>`<article class="${r.audit_triggered?'danger':''}"><span><b>${escapeHtml(r.action_label||r.action)}</b><small>경영주기 #${Number(r.cycle_no)||0}</small></span><strong>세액 ${compactMoney(r.base_tax)}원</strong><em>${r.audit_triggered?`조사 적발 · 부담 ${compactMoney(r.penalty)}원`:`납부 ${compactMoney(r.paid)}원`}</em></article>`).join(''):`<div class="empty compact">아직 세무 기록이 없습니다.</div>`}</div>
   </section>`;
 }
 
@@ -710,51 +789,62 @@ function renderTakeoverDesk(my){
 function renderCorporateMarket(my){
   const opts=(state.company?.stock_options||[]).slice(0,80);
   const holdings=state.company?.market_holdings||[];
-  return `<section class="corp-section corporate-market">
-    <div class="company-section-head"><div><small>05 · CORPORATE TREASURY</small><h2>회사 자금으로 기존 주식시장 운용</h2></div><span>기존 KX 주식 시스템의 현재가를 그대로 사용해 법인자금을 운용합니다.</span></div>
+  const pv=holdings.reduce((a,h)=>a+Number(h.market_value||0),0),pp=holdings.reduce((a,h)=>a+Number(h.pnl||0),0);
+  return `<section class="corp-section corporate-market strategic-treasury">
+    <div class="company-section-head"><div><small>07 · STRATEGIC TREASURY</small><h2>법인 전략투자·증권 운용</h2></div><span>이제 주식은 단순 돈벌이가 아닙니다. 동종산업·해외기업 투자는 기술·시장정보를 얻고, 손실·과도한 집중은 신용도와 투자심리를 떨어뜨립니다.</span></div>
+    <div class="treasury-impact"><article><small>포트폴리오 가치</small><b>${compactMoney(pv)}원</b></article><article><small>평가손익</small><b class="${pp>=0?'up':'down'}">${pp>=0?'+':''}${compactMoney(pp)}원</b></article><article><small>운용 위험</small><b>${Number(my.treasury_risk||0).toFixed(0)}</b></article><article><small>신용점수</small><b>${Number(my.credit_score||65).toFixed(0)}</b></article></div>
     <div class="treasury-trade">
-      <label>시장 종목<select id="corpStockTicker">${opts.map(s=>`<option value="${s.ticker}">${s.market_area==='해외'?'[해외]':'[국내]'} ${escapeHtml(s.name)} · ${escapeHtml(s.ticker)} · ${won(s.last_price)}</option>`).join('')}</select></label>
+      <label>전략 투자 종목<select id="corpStockTicker">${opts.map(s=>`<option value="${s.ticker}">${s.market_area==='해외'?'[해외]':'[국내]'} ${escapeHtml(s.name)} · ${escapeHtml(s.sector)} · ${won(s.last_price)}</option>`).join('')}</select></label>
       <label>거래금액<input id="corpStockAmount" type="number" min="10000" step="10000" value="50000000"></label>
       <div><button data-company-market-side="BUY">법인 매수</button><button data-company-market-side="SELL" class="sell">법인 매도</button></div>
     </div>
-    <div class="treasury-holdings">${holdings.length?holdings.map(h=>`<article><div><b>${escapeHtml(h.name)}</b><small>${escapeHtml(h.ticker)} · ${escapeHtml(h.market_area)} ${escapeHtml(h.market_country||'')}</small></div><span>${nf.format(Number(h.shares))}주</span><strong>${compactMoney(h.market_value)}원</strong><em class="${Number(h.pnl)>=0?'up':'down'}">${Number(h.pnl)>=0?'+':''}${compactMoney(h.pnl)}원</em></article>`).join(''):`<div class="empty compact">회사 자금으로 보유한 시장 주식이 없습니다.</div>`}</div>
+    <div class="treasury-rule"><b>경영 영향</b><span>동종업종 보유 → 기술·운영 시너지</span><span>해외 종목 보유 → 글로벌 시장정보·기관 관심 증가</span><span>수익 → 투자자 심리·신용 상승</span><span>대규모 손실/집중 → 신용·주가 압박</span></div>
+    <div class="treasury-holdings">${holdings.length?holdings.map(h=>`<article><div><b>${escapeHtml(h.name)}</b><small>${escapeHtml(h.ticker)} · ${escapeHtml(h.market_area)} ${escapeHtml(h.market_country||'')} · ${escapeHtml(h.sector||'')}</small></div><span>${nf.format(Number(h.shares))}주</span><strong>${compactMoney(h.market_value)}원</strong><em class="${Number(h.pnl)>=0?'up':'down'}">${Number(h.pnl)>=0?'+':''}${compactMoney(h.pnl)}원</em></article>`).join(''):`<div class="empty compact">회사 자금으로 보유한 전략투자가 없습니다.</div>`}</div>
   </section>`;
 }
 
 function renderCompanyEvents(){
   const rows=state.company?.events||[];
   return `<section class="corp-section corp-event-section">
-    <div class="company-section-head"><div><small>06 · LIVE CORPORATE NEWS</small><h2>기업 시장 상황</h2></div><span>BOT 인수전·유저 회사의 성장·해외진출 결과가 같은 시장에 누적됩니다.</span></div>
-    <div class="corp-event-feed">${rows.length?rows.slice(0,24).map(e=>{const cls=['TAKEOVER','TAKEOVER_BID'].includes(e.event_type)?'takeover':e.event_type==='DEFENSE'?'defense':e.event_type==='CONTROL'?'control':'';return `<article class="${cls}"><div><span>${escapeHtml(e.event_type)}</span><time>${e.created_at?new Date(e.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></div><h3>${escapeHtml(e.title)}</h3><p>${escapeHtml(e.body)}</p><small>${escapeHtml(e.company_name||'시장 전체')}</small></article>`}).join(''):`<div class="empty">아직 기업 이벤트가 없습니다.</div>`}</div>
+    <div class="company-section-head"><div><small>09 · CORPORATE NEWSROOM</small><h2>회사·시장 사건</h2></div><span>경쟁사 행동뿐 아니라 언론, 투자자 매수세, 세무조사, 제품문제, 수주 등 경영 사건이 누적됩니다.</span></div>
+    <div class="corp-event-feed">${rows.length?rows.slice(0,30).map(e=>{const type=String(e.event_type||'');const cls=['TAKEOVER','TAKEOVER_BID'].includes(type)?'takeover':type==='DEFENSE'?'defense':type==='CONTROL'?'control':['AUDIT','TAX_PENALTY','RECALL'].includes(type)?'danger':['MEDIA','INVESTOR','CONTRACT'].includes(type)?'positive':type==='TAX'?'tax':'';return `<article class="${cls}"><div><span>${escapeHtml(type)}</span><time>${e.created_at?new Date(e.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></div><h3>${escapeHtml(e.title)}</h3><p>${escapeHtml(e.body)}</p><small>${escapeHtml(e.company_name||'시장 전체')}</small></article>`}).join(''):`<div class="empty">아직 기업 이벤트가 없습니다.</div>`}</div>
   </section>`;
 }
 
 function renderCompanyRoom(){
   if(state.companyAvailable===false){
-    return `<main class="page-view company-page"><section class="panel page-panel company-shell"><div class="page-title"><div><small>KX CORPORATE</small><h1>회사 경영</h1></div><span>주식시장 위에 회사 경영·인수·해외경쟁을 추가하는 확장 모드</span></div><div class="company-install-note"><h2>회사 경영 확장 SQL을 먼저 한 번 실행해 주세요</h2><p>${escapeHtml(state.companyError||'kx_company_snapshot 함수를 찾을 수 없습니다.')}</p><code>SUPABASE_COMPANY_EXPANSION.sql</code><span>Supabase SQL Editor에서 패치 ZIP에 들어 있는 위 파일 전체를 실행하면 BOT 기업, 유저 회사, 지분 인수, 해외진출, 법인 주식운용이 활성화됩니다. 기존 주식·은행 기능은 삭제되지 않습니다.</span></div></section></main>`;
+    return `<main class="page-view company-page"><section class="panel page-panel company-shell setup-shell">
+      <div class="page-title"><div><small>KX CORPORATE · DATABASE UPDATE</small><h1>회사 경영 데이터베이스 업데이트가 필요합니다</h1></div><span>웹 코드 오류가 아니라 Supabase에 회사 경영 테이블/RPC가 아직 없는 상태입니다.</span></div>
+      <div class="company-install-note compact-install"><div><h2>패치 ZIP의 SQL을 한 번만 실행하면 됩니다</h2><p>${escapeHtml(state.companyError||'kx_company_snapshot 함수를 찾을 수 없습니다.')}</p></div><code>SUPABASE_COMPANY_EXPANSION.sql</code><button data-company-retry>SQL 실행 후 설치 확인</button></div>
+      <div class="setup-preview-grid"><article><small>CEO</small><b>실제 경영 의사결정</b><span>R&D·품질·인재·복지·생산·배당·대출</span></article><article><small>MEDIA / IR</small><b>언론·투자자 관리</b><span>기사·IR → BOT 투자수요와 주가에 반영</span></article><article><small>TAX</small><b>법인세·세무조사</b><span>납부·절세·분납·신고누락·자진정정</span></article><article><small>M&A</small><b>경영권 전쟁</b><span>국내외 BOT·유저 회사의 적대적 인수</span></article></div>
+      <p class="setup-security-note">브라우저의 공개 키로 DB 구조를 자동 생성하는 것은 보안상 할 수 없기 때문에 최초 1회 SQL Editor 실행은 필요합니다. 실행 후에는 이 화면이 다시 나오지 않습니다.</p>
+    </section></main>`;
   }
   const my=state.company?.my_company;
   if(!my)return renderCompanyCreate();
   const grow=companyGrowth(my),margin=companyProfitMargin(my),debt=companyDebtRatio(my),threat=companyStakeAgainstMe();
   return `<main class="page-view company-page"><section class="panel page-panel company-shell">
     <div class="company-topline">
-      <div><small>CEO OFFICE · ${escapeHtml(my.ticker)}</small><h1>${escapeHtml(my.name)}</h1><p>${escapeHtml(my.sector)} · 본사 ${escapeHtml(my.home_country)} · ${my.parent_name?`${escapeHtml(my.parent_name)} 계열사`:'독립 경영'}</p></div>
-      <div class="company-share-quote"><small>기업 주가</small><b>${won(my.share_price)}</b><span class="${grow>=0?'up':'down'}">매출성장 ${pct(grow)}</span></div>
+      <div><small>CEO OFFICE · ${escapeHtml(my.ticker)}</small><h1>${escapeHtml(my.name)}</h1><p>${escapeHtml(my.sector)} · 본사 ${escapeHtml(my.home_country)} · ${my.parent_name?`${escapeHtml(my.parent_name)} 계열사`:'독립 경영'} · 경영주기 #${Number(state.company?.world?.cycle_no||0)}</p></div>
+      <div class="company-share-quote"><small>기업 주가</small><b>${won(my.share_price)}</b><span class="${Number(my.investor_flow||0)>=0?'up':'down'}">투자자 ${Number(my.investor_flow||0)>=0?'순매수':'순매도'} ${compactMoney(Math.abs(Number(my.investor_flow||0)))}원</span></div>
     </div>
     <div class="company-kpi-grid">
-      <article><small>기업가치</small><b>${compactMoney(my.valuation)}원</b><span>시장평가</span></article>
-      <article><small>법인 현금</small><b>${compactMoney(my.cash)}원</b><span>경영·투자 가용자금</span></article>
+      <article><small>기업가치</small><b>${compactMoney(my.valuation)}원</b><span>실적+평판+투자심리 반영</span></article>
+      <article><small>법인 현금</small><b>${compactMoney(my.cash)}원</b><span>급여·세금·투자·M&A 재원</span></article>
       <article><small>매출</small><b>${compactMoney(my.revenue)}원</b><span class="${grow>=0?'up':'down'}">${pct(grow)}</span></article>
       <article><small>영업이익</small><b class="${Number(my.profit)>=0?'up':'down'}">${compactMoney(my.profit)}원</b><span>이익률 ${margin.toFixed(1)}%</span></article>
-      <article><small>부채</small><b>${compactMoney(my.debt)}원</b><span>기업가치 대비 ${debt.toFixed(1)}%</span></article>
+      <article><small>부채</small><b>${compactMoney(my.debt)}원</b><span>기업가치 대비 ${debt.toFixed(1)}% · 신용 ${Number(my.credit_score||65).toFixed(0)}</span></article>
       <article><small>국내 점유율</small><b>${Number(my.domestic_share||0).toFixed(2)}%</b><span>브랜드 ${Number(my.brand||0).toFixed(0)}</span></article>
       <article><small>글로벌 점유율</small><b>${Number(my.global_share||0).toFixed(2)}%</b><span>진출 레벨 ${Number(my.global_level||0)}/5</span></article>
-      <article class="${threat>=35?'danger':''}"><small>외부 보유지분</small><b>${threat.toFixed(2)}%</b><span>${threat>=35?'인수 위험 상승':'경영권 방어 상태'}</span></article>
+      <article class="${threat>=35?'danger':''}"><small>외부 경영권 지분</small><b>${threat.toFixed(2)}%</b><span>${threat>=35?'인수 위험 상승':'경영권 방어 상태'}</span></article>
     </div>
     <div class="company-stat-strip"><span>기술력 <b>${Number(my.technology).toFixed(0)}</b></span><span>브랜드 <b>${Number(my.brand).toFixed(0)}</b></span><span>운영 <b>${Number(my.operations).toFixed(0)}</b></span><span>제품력 <b>${Number(my.product_quality).toFixed(0)}</b></span><span>임직원 <b>${nf.format(Number(my.employees))}명</b></span><span>최근 이슈 <b>${escapeHtml(my.last_event||'-')}</b></span></div>
-    ${state.companyNotice?`<div class="company-notice" id="companyMsg">${escapeHtml(state.companyNotice)}</div>`:`<div class="company-notice muted" id="companyMsg">경영 결정은 법인 현금·매출·기술·브랜드·시장점유율·기업가치에 연결됩니다.</div>`}
+    ${state.companyNotice?`<div class="company-notice" id="companyMsg">${escapeHtml(state.companyNotice)}</div>`:`<div class="company-notice muted" id="companyMsg">회사의 모든 결정이 현금·실적·직원·고객·투자자·세금·신용·주가·경영권에 연결됩니다.</div>`}
     ${renderTakeoverCrisis(my)}
+    ${renderCompanyPulse(my)}
     ${renderCompanyCommand(my)}
+    ${renderMediaDesk(my)}
+    ${renderTaxOffice(my)}
     ${renderCompetitionBoard(my)}
     ${renderGlobalExpansion(my)}
     ${renderTakeoverDesk(my)}
@@ -1136,8 +1226,8 @@ function bind(){
   document.querySelectorAll('[data-company-action]').forEach(b=>b.onclick=()=>{
     const action=b.dataset.companyAction;
     const amount=Math.max(0,Math.floor(Number(document.getElementById('companyActionAmount')?.value)||0));
-    const labels={RND:'R&D 투자',MARKETING:'마케팅 투자',CAPEX:'설비 투자',HIRING:'핵심 인재 채용',PRICE_WAR:'가격 경쟁',COSTCUT:'비용 구조조정',LOAN:'기업 대출',REPAY:'부채 상환'};
-    const risky=action==='PRICE_WAR'?'가격 경쟁은 점유율을 얻는 대신 이익과 브랜드에 부담이 생깁니다. ':action==='LOAN'?'대출은 현금을 늘리지만 부채와 이자 부담이 커집니다. ':'';
+    const labels={RND:'R&D 투자',QUALITY:'품질·안전 투자',MARKETING:'마케팅 투자',CAPEX:'설비 투자',HIRING:'핵심 인재 채용',WELFARE:'복지·보상 강화',PRICE_WAR:'가격 경쟁',COSTCUT:'비용 구조조정',DIVIDEND:'배당 실시',COMPLIANCE:'준법·감사 투자',LOAN:'기업 대출',REPAY:'부채 상환'};
+    const risky=action==='PRICE_WAR'?'가격 경쟁은 점유율을 얻는 대신 이익과 브랜드에 부담이 생깁니다. ':action==='COSTCUT'?'구조조정은 현금을 개선하지만 직원 사기와 평판에 부담이 생깁니다. ':action==='LOAN'?'대출은 현금을 늘리지만 부채와 신용 부담이 커집니다. ':'';
     companyRun('kx_company_action',{p_action:action,p_amount:amount},`${risky}${labels[action]||'경영 결정'}을 실행할까요?`);
   });
 
@@ -1172,6 +1262,34 @@ function bind(){
     const side=b.dataset.companyMarketSide;
     const amount=Math.max(10000,Math.floor(Number(document.getElementById('corpStockAmount')?.value)||50000000));
     companyRun('kx_company_trade_market',{p_ticker:ticker,p_side:side,p_amount:amount},`회사 자금으로 ${ticker}를 ${side==='BUY'?'매수':'매도'}할까요?`);
+  });
+
+
+  document.querySelectorAll('[data-company-quick-market-side]').forEach(b=>b.onclick=()=>{
+    const ticker=selected()?.ticker;
+    const side=b.dataset.companyQuickMarketSide;
+    const amount=Math.max(1000000,Math.floor(Number(document.getElementById('quickCorpAmount')?.value)||50000000));
+    companyRun('kx_company_trade_market',{p_ticker:ticker,p_side:side,p_amount:amount},`${escapeHtml(ticker)}를 회사 전략자산으로 ${side==='BUY'?'매수':'매도'}할까요? 이 거래의 손익·업종·해외 여부가 회사 경영지표에도 반영됩니다.`);
+  });
+
+  document.querySelectorAll('[data-company-media]').forEach(b=>b.onclick=()=>{
+    const outlet=b.dataset.companyMedia;
+    const campaign=document.getElementById('companyMediaCampaign')?.value||'IR_INTERVIEW';
+    const budget=Math.max(20000000,Math.floor(Number(document.getElementById('companyMediaBudget')?.value)||70000000));
+    const labels={ECON_DAILY:'KX 경제일보',BIZ_TV:'비즈니스24',GLOBAL_WIRE:'Global Finance Wire',EDGE_MEDIA:'EDGE 미디어'};
+    const warn=campaign==='AGGRESSIVE_SPIN'?'공격적 이미지 메이킹은 단기 투자수요가 클 수 있지만 과장 논란이 생기면 역풍도 큽니다. ':'';
+    companyRun('kx_company_media',{p_outlet:outlet,p_campaign:campaign,p_budget:budget},`${warn}${labels[outlet]||'언론사'}에 ${won(budget)} 규모의 PR/IR 캠페인을 집행할까요?`);
+  });
+
+  document.querySelectorAll('[data-company-tax]').forEach(b=>b.onclick=()=>{
+    const action=b.dataset.companyTax;
+    const text={PAY:'현재 고지세액과 미납 세금을 납부할까요?',PLAN:'세무 전문가 비용을 들여 합법적 절세 검토를 진행할까요?',INSTALLMENT:'세금 일부만 먼저 납부하고 잔액을 이월할까요? 잔액에는 가산 부담과 조사 위험이 생깁니다.',EVADE:'신고 누락은 불법 고위험 선택입니다. 적발되면 원세금 외 추징·가산 부담, 평판 하락, 규제조사와 일시 거래 제한이 발생할 수 있습니다. 그래도 시도할까요?',CORRECT:'미납·누락 세금을 자진 정정해 정리할까요?'};
+    companyRun('kx_company_tax',{p_action:action},text[action]||'세무 결정을 실행할까요?');
+  });
+
+  document.querySelectorAll('[data-company-retry]').forEach(b=>b.onclick=async()=>{
+    b.disabled=true;b.textContent='확인 중…';
+    await loadCompanyLayer(true,true);renderTerminal();
   });
 
   document.querySelectorAll('[data-event-predict]').forEach(b=>b.onclick=async()=>{
