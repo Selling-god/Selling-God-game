@@ -1,5 +1,5 @@
 (()=>{
-const KX_COMPANY_BUILD='5.7.0-CLEAN-MA-NEWS-CLOCK';
+const KX_COMPANY_BUILD='5.8.0-STABLE-CHART-NEWS-BRIEF';
 window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
@@ -1084,19 +1084,41 @@ function renderCompanyPulse(my){
   </section>`;
 }
 
+function companyNewsPresets(my){
+  const name=String(my?.name||'우리 회사'),sector=String(my?.sector||'주력 사업');
+  const revenue=compactMoney(my?.revenue||0),profit=compactMoney(my?.profit||0),margin=companyProfitMargin(my).toFixed(1),share=Number(my?.domestic_share||0).toFixed(2),globalShare=Number(my?.global_share||0).toFixed(2);
+  const tech=Number(my?.technology||50).toFixed(0),quality=Number(my?.product_quality||50).toFixed(0),trust=Number(my?.customer_trust||60).toFixed(0),morale=Number(my?.employee_morale||60).toFixed(0);
+  return [
+    {id:'EARNINGS',tag:'실적',title:'실적 개선 보도',campaign:'IR_INTERVIEW',budget:70000000,headline:`${name}, 실적 개선세 지속…영업이익 ${profit}원`,body:`${name}은 최근 매출 ${revenue}원, 영업이익률 ${margin}%를 기록했다고 밝혔다. 회사는 ${sector} 사업의 수익성 개선과 비용 효율화가 실적에 반영되고 있다고 설명했다.`},
+    {id:'PRODUCT',tag:'제품',title:'신제품·서비스 공개',campaign:'PRODUCT_FEATURE',budget:85000000,headline:`${name}, ${sector} 신제품 공개…시장 공략 강화`,body:`${name}은 ${sector} 분야의 신규 제품·서비스를 공개하고 시장 확대에 나선다고 밝혔다. 현재 제품 경쟁력 지표는 ${quality}, 고객 신뢰는 ${trust} 수준이며 회사는 후속 투자와 품질 개선을 병행할 계획이다.`},
+    {id:'RND',tag:'R&D',title:'기술개발 성과 발표',campaign:'PRODUCT_FEATURE',budget:90000000,headline:`${name}, 핵심 기술개발 성과 발표…기술 경쟁력 강화`,body:`${name}은 핵심 연구개발 프로젝트에서 의미 있는 성과를 확보했다고 밝혔다. 회사의 현재 기술 지표는 ${tech}이며, 이번 성과를 실제 제품과 사업 경쟁력으로 연결하기 위한 추가 투자를 검토하고 있다.`},
+    {id:'CONTRACT',tag:'수주',title:'대형 계약·수주',campaign:'IR_INTERVIEW',budget:80000000,headline:`${name}, 신규 공급계약 추진…매출 확대 기대`,body:`${name}은 주요 고객사와 신규 공급·사업 계약을 추진하고 있다고 밝혔다. 회사는 현재 국내 시장점유율 ${share}%를 바탕으로 계약 성사 시 매출과 생산 규모가 확대될 것으로 기대하고 있다.`},
+    {id:'GLOBAL',tag:'해외',title:'해외시장 진출',campaign:'GLOBAL_ROADSHOW',budget:110000000,headline:`${name}, 해외시장 확대 본격화…글로벌 사업 비중 키운다`,body:`${name}은 해외 파트너십과 현지 사업 확대를 통해 글로벌 시장 공략을 강화한다고 밝혔다. 현재 글로벌 점유율은 ${globalShare}%이며 회사는 지역별 사업성과에 따라 단계적으로 투자 규모를 늘릴 계획이다.`},
+    {id:'PEOPLE',tag:'인재',title:'핵심 인재·조직 강화',campaign:'IR_INTERVIEW',budget:60000000,headline:`${name}, 핵심 인재 확보·조직 경쟁력 강화`,body:`${name}은 성장 전략 실행을 위해 핵심 인재 채용과 조직 역량 강화에 나선다고 밝혔다. 현재 직원 사기 지표는 ${morale}이며, 연구개발·사업·운영 부문의 실행력을 높이는 데 초점을 맞출 계획이다.`},
+    {id:'TRUST',tag:'신뢰',title:'품질·고객 신뢰 강조',campaign:'PRODUCT_FEATURE',budget:65000000,headline:`${name}, 품질관리 강화…고객 신뢰 제고 나선다`,body:`${name}은 제품 품질과 고객 대응 체계를 강화한다고 밝혔다. 현재 제품 경쟁력 ${quality}, 고객 신뢰 ${trust} 수준을 바탕으로 재구매와 장기 고객 기반 확대를 추진한다는 계획이다.`},
+    {id:'SHAREHOLDER',tag:'주주',title:'주주가치·재무 안정',campaign:'IR_INTERVIEW',budget:75000000,headline:`${name}, 재무 안정과 주주가치 제고 전략 발표`,body:`${name}은 성장투자와 재무 건전성의 균형을 유지하면서 주주가치를 높이는 전략을 추진한다고 밝혔다. 회사는 현금흐름과 사업 성과를 고려해 투자·배당·재무정책을 조정할 방침이다.`}
+  ];
+}
+
 function renderMediaDesk(my){
   const press=state.company?.press||[];
   const campaigns=state.company?.media_campaigns||[];
+  const presets=companyNewsPresets(my);
   const outlets=[['ECON_DAILY','KX 경제일보','국내 경제지'],['BIZ_TV','비즈니스24','대중 경제방송'],['GLOBAL_WIRE','Global Finance Wire','글로벌 금융통신'],['EDGE_MEDIA','EDGE 미디어','온라인 경제매체']];
   return `<section class="corp-section media-desk-section newsroom-management clean-newsroom-management">
-    <div class="company-section-head"><div><small>NEWS · IR</small><h2>언론 보도 · 투자자 관계</h2></div><span>직접 작성한 기사는 실제 게임 뉴스로 보도되고, 다른 회사의 기사도 시장에 나오며 주가·BOT 수급에 영향을 줍니다.</span></div>
+    <div class="company-section-head"><div><small>NEWS · IR</small><h2>언론 보도 · 투자자 관계</h2></div><span>직접 작성해도 되고, 아래 기사 기획안 중 하나를 골라 언론사에 맡길 수도 있습니다. 보도 결과는 투자심리·BOT 수급·주가에 반영됩니다.</span></div>
+    <div class="news-preset-section">
+      <div class="news-preset-title"><div><small>EDITORIAL BRIEF</small><h3>기사 기획안에서 고르기</h3></div><p>원하는 주제를 누르면 현재 회사 실적에 맞춰 제목과 본문이 자동 작성됩니다. 마음에 들면 언론사를 골라 보도 요청하세요.</p></div>
+      <div class="news-preset-grid">${presets.map(p=>`<button type="button" data-company-news-preset="${p.id}"><small>${p.tag}</small><b>${p.title}</b><span>${escapeHtml(p.headline)}</span><em>이 기획안 사용 →</em></button>`).join('')}</div>
+    </div>
+    <div class="news-compose-divider"><span>또는 직접 작성</span></div>
     <div class="clean-newsroom-grid">
       <div class="news-compose-card clean-news-compose">
-        <div class="news-compose-title"><small>PRESS RELEASE</small><h3>보도자료 작성</h3><p>과장된 홍보는 역풍이 날 수 있습니다. 회사 실적과 신뢰를 보고 예산을 결정하세요.</p></div>
+        <div class="news-compose-title"><small>PRESS RELEASE</small><h3>보도자료 작성</h3><p>기획안을 선택하면 아래 내용이 자동으로 채워집니다. 직접 수정하거나 처음부터 작성해도 됩니다.</p></div>
         <label>기사 제목<input id="companyMediaHeadline" maxlength="80" placeholder="예: 신제품 공개…글로벌 공급계약 추진"></label>
         <label>기사 내용<textarea id="companyMediaBody" maxlength="360" rows="5" placeholder="보도하고 싶은 내용을 직접 적어 주세요."></textarea></label>
         <div class="media-controls compact clean-media-controls"><label>보도 방식<select id="companyMediaCampaign"><option value="IR_INTERVIEW">CEO·실적 인터뷰</option><option value="PRODUCT_FEATURE">신제품·기술 특집</option><option value="GLOBAL_ROADSHOW">글로벌 투자자 로드쇼</option><option value="AGGRESSIVE_SPIN">공격적 이미지 메이킹</option></select></label><label>홍보·IR 예산<input id="companyMediaBudget" type="number" min="20000000" step="10000000" value="70000000"></label></div>
-        <div class="media-outlet-grid compact-outlets clean-outlet-grid">${outlets.map(o=>`<button data-company-media="${o[0]}"><small>${o[2]}</small><b>${o[1]}</b><span>보도 요청</span></button>`).join('')}</div>
+        <div class="media-outlet-grid compact-outlets clean-outlet-grid">${outlets.map(o=>`<button data-company-media="${o[0]}"><small>${o[2]}</small><b>${o[1]}</b><span>이 언론사에 맡기기</span></button>`).join('')}</div>
       </div>
       <aside class="media-impact-card clean-media-impact"><small>MARKET REACTION</small><h3>현재 시장 반응</h3><div><span>투자자 심리<b>${Number(my.investor_sentiment||50).toFixed(0)}</b></span><span>기관 관심<b>${Number(my.institutional_interest||35).toFixed(0)}</b></span><span>미디어 평판<b>${Number(my.media_reputation||50).toFixed(0)}</b></span><span>최근 BOT 수급<b class="${Number(my.investor_flow||0)>=0?'up':'down'}">${Number(my.investor_flow||0)>=0?'+':''}${compactMoney(my.investor_flow||0)}원</b></span></div><p>다른 회사가 새로운 기사를 내면 우측 상단에 기업 뉴스 알림이 잠시 나타납니다.</p></aside>
     </div>
@@ -1333,6 +1355,23 @@ function renderCompanySubnav(my){
   return `<nav class="company-section-switcher">${items.map(([k,title,desc])=>`<button data-company-section="${k}" class="${section===k?'on':''}"><b>${title}</b><span>${desc}</span></button>`).join('')}</nav>`;
 }
 
+function renderCompanyCompactContext(my,myRank,companies){
+  return `<div class="company-compact-context"><div><small>LIVE COMPANY</small><b>${escapeHtml(my.name)}</b><span>${escapeHtml(my.sector)} · #${myRank||'-'} / ${companies.length}</span></div><div><span>주가 <b data-company-live-price="${my.id}">${won(my.share_price)}</b></span><span>회사 가치 <b>${compactMoney(my.valuation)}원</b></span><span>법인현금 <b>${compactMoney(my.cash)}원</b></span></div></div>`;
+}
+function renderCompanySectionIntro(my){
+  const section=state.companySection||'dashboard';
+  const projects=(state.company?.projects||[]).filter(p=>['ACTIVE','PAYBACK'].includes(String(p.status))).length;
+  const holdings=(state.company?.my_holdings||[]).length;
+  const articles=(state.company?.press||[]).length;
+  const map={
+    operations:['BUSINESS COMMAND','사업 운영 · 해외 확장','R&D·설비·인재·품질 프로젝트와 해외사업을 관리합니다. 투자금이 어디에 쓰이고 언제 수익으로 돌아오는지 이 화면에서 확인하세요.',`진행 프로젝트 ${projects}개`],
+    competition:['INVESTMENT & M&A','기업 분석 · 투자 · 인수','회사명·국가·업종으로 경쟁사를 찾고 주가 차트·뉴스·실적을 확인한 뒤 투자나 인수를 결정합니다.',`투자 기업 ${holdings}개`],
+    risk:['NEWSROOM & RISK','뉴스 보도 · IR · 리스크','보도자료를 직접 쓰거나 기사 기획안을 골라 언론사에 맡기고, 투자자 반응·세금·규제 리스크를 관리합니다.',`시장 기사 ${articles}건`]
+  };
+  const x=map[section]||map.operations;
+  return `<section class="company-section-intro section-${section}"><div><small>${x[0]}</small><h1>${x[1]}</h1><p>${x[2]}</p></div><strong>${x[3]}</strong></section>`;
+}
+
 function renderCompanyRoom(){
   if(state.companyAvailable===false)return renderCompanyOnlineRequired();
   const my=state.company?.my_company;
@@ -1347,10 +1386,8 @@ function renderCompanyRoom(){
   const headline=String(latestArticle?.headline||'');
   const shortHeadline=headline?escapeHtml(headline.length>36?`${headline.slice(0,36)}…`:headline):'최근 공시·기사가 아직 없습니다.';
   const health=Number(my.cash||0)>=Math.max(120000000,Number(my.revenue||0)*0.12)?'현금 여력 안정':'현금 여력 주의';
-  const notice=state.companyNotice?escapeHtml(state.companyNotice):'처음에는 ‘경영 홈 → 사업 운영 → 투자·M&A’ 순서로 보면 흐름이 더 잘 보입니다.';
-  return `<main class="page-view company-page"><section class="panel page-panel company-shell management-first-shell v52-clean-shell corporate-ui-refresh">
-    ${renderCompanyModeBanner()}
-    <div class="company-hero-grid">
+  const notice=state.companyNotice?escapeHtml(state.companyNotice):'위 메뉴를 누르면 해당 업무 화면이 바로 열립니다.';
+  const dashboardHero=`<div class="company-hero-grid">
       <section class="company-hero-card">
         <div class="company-hero-head"><div><small>CEO OFFICE · LIVE MANAGEMENT</small><h1>${escapeHtml(my.name)}</h1><p>${escapeHtml(my.sector)} · 대한민국 · 전체 ${companies.length}개 회사 중 <b>#${myRank||'-'}</b> · ${companyScaleLabel(my.valuation)}</p></div><div class="company-hero-price"><small>현재 주가</small><b data-company-live-price="${my.id}">${won(my.share_price)}</b><span class="${Number(my.last_return_pct||0)>=0?'up':'down'}">${Number(my.last_return_pct||0)>=0?'+':''}${Number(my.last_return_pct||0).toFixed(2)}%</span></div></div>
         <div class="company-hero-metrics">
@@ -1362,17 +1399,15 @@ function renderCompanyRoom(){
         </div>
       </section>
       <aside class="company-briefing-card">
-        <small>오늘의 브리핑</small>
-        <h3>지금 가장 먼저 볼 것</h3>
-        <ul>
-          <li><b>사업 운영</b><span>진행 중 ${activeProjects}개 · 회수 단계 ${paybackProjects}개</span></li>
-          <li><b>현금 상태</b><span>${health}</span></li>
-          <li><b>최근 수익</b><span>${latestIncome?`${escapeHtml(latestIncome.source_name||'투자수익')} ${Number(latestIncome.amount)>=0?'+':''}${compactMoney(latestIncome.amount)}원`:'아직 확정 수익이 없습니다.'}</span></li>
-          <li><b>최근 뉴스</b><span>${shortHeadline}</span></li>
-        </ul>
+        <small>오늘의 브리핑</small><h3>지금 가장 먼저 볼 것</h3>
+        <ul><li><b>사업 운영</b><span>진행 중 ${activeProjects}개 · 회수 단계 ${paybackProjects}개</span></li><li><b>현금 상태</b><span>${health}</span></li><li><b>최근 수익</b><span>${latestIncome?`${escapeHtml(latestIncome.source_name||'투자수익')} ${Number(latestIncome.amount)>=0?'+':''}${compactMoney(latestIncome.amount)}원`:'아직 확정 수익이 없습니다.'}</span></li><li><b>최근 뉴스</b><span>${shortHeadline}</span></li></ul>
         <div class="briefing-shortcuts"><button data-company-section="operations">사업 보기</button><button data-company-section="competition">M&A 보기</button><button data-company-section="risk">뉴스 보기</button></div>
       </aside>
-    </div>
+    </div>`;
+  const sectionTop=state.companySection==='dashboard'?dashboardHero:`${renderCompanyCompactContext(my,myRank,companies)}${renderCompanySectionIntro(my)}`;
+  return `<main class="page-view company-page"><section class="panel page-panel company-shell management-first-shell v52-clean-shell corporate-ui-refresh">
+    ${renderCompanyModeBanner()}
+    ${sectionTop}
     <div class="company-notice ui-refresh-notice ${state.companyNotice?'':'muted'}" id="companyMsg">${notice}</div>
     ${renderCompanySubnav(my)}
     <div class="company-workspace">${renderCompanyWorkspace(my)}</div>
@@ -1582,24 +1617,32 @@ function drawCompanyGrowthChart(){
 }
 function drawCompanyTargetChart(){
   const canvas=document.getElementById('companyTargetChart');if(!canvas)return;
-  let rows=[...(state.companyAnalysis?.history||[])].sort((a,b)=>Number(a.cycle_no)-Number(b.cycle_no)).slice(-60);
+  const MAX_SLOTS=60;
+  let source=[...(state.companyAnalysis?.history||[])].sort((a,b)=>Number(a.cycle_no)-Number(b.cycle_no)).slice(-(MAX_SLOTS-1));
   const liveCompany=state.companyAnalysis?.company;
-  if(liveCompany&&rows.length){const lp=visualCompanyPrice(liveCompany),prev=Number(rows[rows.length-1]?.close_price||rows[rows.length-1]?.share_price||liveCompany.share_price)||lp;rows=[...rows,{cycle_no:'LIVE',open_price:prev,close_price:lp,high_price:Math.max(prev,lp)*1.0007,low_price:Math.min(prev,lp)*.9993,share_price:lp,volume:Math.max(100,Number(liveCompany.shares_outstanding||1000000)*.00025)}].slice(-60);}
-  const dpr=window.devicePixelRatio||1,W=Math.max(360,canvas.clientWidth||650),H=Math.max(260,canvas.clientHeight||300);canvas.width=W*dpr;canvas.height=H*dpr;const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
-  rows=rows.map((r,i)=>{const prev=i?Number(rows[i-1].close_price||rows[i-1].share_price||0):Number(r.share_price||r.close_price||0);let c=Number(r.close_price||r.share_price||prev),o=Number(r.open_price||prev||c),h=Number(r.high_price||Math.max(o,c)),l=Number(r.low_price||Math.min(o,c));if(!(c>0))c=prev||1;if(!(o>0))o=c;if(!(h>0))h=Math.max(o,c);if(!(l>0))l=Math.min(o,c);h=Math.max(h,o,c);l=Math.min(l,o,c);return {...r,_o:o,_c:c,_h:h,_l:l,_v:Math.max(0,Number(r.volume)||0)}}).filter(r=>r._c>0);
+  if(liveCompany&&source.length){const lp=visualCompanyPrice(liveCompany),prev=Number(source[source.length-1]?.close_price||source[source.length-1]?.share_price||liveCompany.share_price)||lp;source=[...source,{cycle_no:'LIVE',open_price:prev,close_price:lp,high_price:Math.max(prev,lp)*1.0007,low_price:Math.min(prev,lp)*.9993,share_price:lp,volume:Math.max(100,Number(liveCompany.shares_outstanding||1000000)*.00025)}];}
+  const dpr=window.devicePixelRatio||1,W=Math.max(360,canvas.clientWidth||650),H=Math.max(300,canvas.clientHeight||320);canvas.width=W*dpr;canvas.height=H*dpr;const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
+  const rows=source.map((r,i)=>{const prev=i?Number(source[i-1].close_price||source[i-1].share_price||0):Number(r.share_price||r.close_price||0);let c=Number(r.close_price||r.share_price||prev),o=Number(r.open_price||prev||c),h=Number(r.high_price||Math.max(o,c)),l=Number(r.low_price||Math.min(o,c));if(!(c>0))c=prev||1;if(!(o>0))o=c;if(!(h>0))h=Math.max(o,c);if(!(l>0))l=Math.min(o,c);h=Math.max(h,o,c);l=Math.min(l,o,c);return {...r,_o:o,_c:c,_h:h,_l:l,_v:Math.max(0,Number(r.volume)||0)}}).filter(r=>r._c>0);
   if(!rows.length){ctx.fillStyle='#7b899c';ctx.font='12px sans-serif';ctx.textAlign='center';ctx.fillText('주가 데이터가 쌓이는 중입니다.',W/2,H/2);return;}
-  const companyId=Number(liveCompany?.id||state.companyAnalysisId||0);const historical=rows.filter(r=>String(r.cycle_no)!=='LIVE');
-  let rawLo=Math.min(...historical.map(r=>r._l)),rawHi=Math.max(...historical.map(r=>r._h)),center=(rawHi+rawLo)/2||1;const minBand=Math.max(center*.04,1);
-  if(rawHi-rawLo<minBand){rawLo=center-minBand/2;rawHi=center+minBand/2}else{const pad=(rawHi-rawLo)*.12;rawLo-=pad;rawHi+=pad}
-  if(companyChartAxisCache.id!==companyId||!(companyChartAxisCache.hi>companyChartAxisCache.lo)){companyChartAxisCache={id:companyId,lo:rawLo,hi:rawHi};}
-  else{companyChartAxisCache.lo=Math.min(companyChartAxisCache.lo,rawLo);companyChartAxisCache.hi=Math.max(companyChartAxisCache.hi,rawHi);}
-  const liveLast=rows[rows.length-1];if(liveLast){const margin=(companyChartAxisCache.hi-companyChartAxisCache.lo)*.08;if(liveLast._h>companyChartAxisCache.hi)companyChartAxisCache.hi=liveLast._h+margin;if(liveLast._l<companyChartAxisCache.lo)companyChartAxisCache.lo=Math.max(.01,liveLast._l-margin)}
-  let lo=companyChartAxisCache.lo,hi=companyChartAxisCache.hi;
-  const L=66,R=68,T=18,B=52,volH=45,priceH=H-T-B-volH,pw=W-L-R;const y=v=>T+(hi-v)/(hi-lo)*priceH,step=pw/Math.max(1,rows.length),bw=Math.max(3,Math.min(9,step*.62));
-  ctx.strokeStyle='#273242';ctx.fillStyle='#718095';ctx.font='10px sans-serif';ctx.textAlign='right';for(let i=0;i<5;i++){const yy=T+priceH*i/4;ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(W-R,yy);ctx.stroke();const val=hi-(hi-lo)*i/4;ctx.fillText(nf.format(Math.round(val)),L-7,yy+3)}
-  const maxVol=Math.max(1,...rows.map(r=>r._v));rows.forEach((r,i)=>{const xx=L+i*step+step/2,up=r._c>=r._o,vc=(r._v/maxVol)*volH;ctx.fillStyle=up?'rgba(230,107,112,.25)':'rgba(102,141,232,.25)';ctx.fillRect(xx-bw/2,T+priceH+volH-vc,bw,vc);ctx.strokeStyle=up?'#e66b70':'#668de8';ctx.fillStyle=up?'#e66b70':'#668de8';ctx.beginPath();ctx.moveTo(xx,y(r._h));ctx.lineTo(xx,y(r._l));ctx.stroke();const top=Math.min(y(r._o),y(r._c)),height=Math.max(1.5,Math.abs(y(r._o)-y(r._c)));ctx.fillRect(xx-bw/2,top,bw,height)});
-  const last=rows[rows.length-1],lastY=y(last._c);ctx.save();ctx.setLineDash([5,4]);ctx.strokeStyle='#d7bd72';ctx.beginPath();ctx.moveTo(L,lastY);ctx.lineTo(W-R,lastY);ctx.stroke();ctx.restore();ctx.fillStyle='#d7bd72';ctx.textAlign='left';ctx.font='bold 10px sans-serif';ctx.fillText(nf.format(Math.round(last._c)),W-R+5,lastY+3);
-  ctx.fillStyle='#7b899c';ctx.textAlign='center';[0,Math.floor((rows.length-1)/2),rows.length-1].forEach((i,idx)=>{const r=rows[i];if(r)ctx.fillText(idx===2?'현재':idx===0?`T-${rows.length-1}`:`T-${rows.length-1-i}`,L+i*step+step/2,H-9)});
+  const companyId=Number(liveCompany?.id||state.companyAnalysisId||0),historical=rows.filter(r=>String(r.cycle_no)!=='LIVE');
+  const actualLo=Math.min(...historical.map(r=>r._l)),actualHi=Math.max(...historical.map(r=>r._h)),center=(actualHi+actualLo)/2||1;
+  if(companyChartAxisCache.id!==companyId||!(companyChartAxisCache.hi>companyChartAxisCache.lo)){
+    const band=Math.max(actualHi-actualLo,center*.12,1),mid=(actualHi+actualLo)/2;
+    companyChartAxisCache={id:companyId,lo:Math.max(.01,mid-band*.72),hi:mid+band*.72};
+  }else{
+    const span=Math.max(1,companyChartAxisCache.hi-companyChartAxisCache.lo);
+    if(actualHi>companyChartAxisCache.hi*.995)companyChartAxisCache.hi=actualHi+span*.12;
+    if(actualLo<companyChartAxisCache.lo*1.005)companyChartAxisCache.lo=Math.max(.01,actualLo-span*.12);
+  }
+  const lo=companyChartAxisCache.lo,hi=companyChartAxisCache.hi;
+  const L=72,R=76,T=20,B=54,volH=46,priceH=H-T-B-volH,pw=W-L-R,step=pw/MAX_SLOTS,startSlot=Math.max(0,MAX_SLOTS-rows.length),bw=Math.max(4,Math.min(9,step*.62));
+  const y=v=>T+(hi-v)/(hi-lo)*priceH,x=i=>L+(startSlot+i)*step+step/2;
+  ctx.strokeStyle='#273242';ctx.fillStyle='#718095';ctx.font='10px sans-serif';ctx.textAlign='right';
+  for(let i=0;i<5;i++){const yy=T+priceH*i/4;ctx.beginPath();ctx.moveTo(L,yy);ctx.lineTo(W-R,yy);ctx.stroke();const val=hi-(hi-lo)*i/4;ctx.fillText(nf.format(Math.round(val)),L-8,yy+3)}
+  const maxVol=Math.max(1,...historical.map(r=>r._v),1);
+  rows.forEach((r,i)=>{const xx=x(i),up=r._c>=r._o,vc=(Math.min(r._v,maxVol)/maxVol)*volH;ctx.fillStyle=up?'rgba(230,107,112,.22)':'rgba(102,141,232,.22)';ctx.fillRect(xx-bw/2,T+priceH+volH-vc,bw,vc);ctx.strokeStyle=up?'#e66b70':'#668de8';ctx.fillStyle=up?'#e66b70':'#668de8';ctx.beginPath();ctx.moveTo(xx,y(r._h));ctx.lineTo(xx,y(r._l));ctx.stroke();const top=Math.min(y(r._o),y(r._c)),height=Math.max(1.5,Math.abs(y(r._o)-y(r._c)));ctx.fillRect(xx-bw/2,top,bw,height)});
+  const last=rows[rows.length-1],lastY=Math.max(T,Math.min(T+priceH,y(last._c)));ctx.save();ctx.setLineDash([5,4]);ctx.strokeStyle='#d7bd72';ctx.beginPath();ctx.moveTo(L,lastY);ctx.lineTo(W-R,lastY);ctx.stroke();ctx.restore();ctx.fillStyle='#d7bd72';ctx.textAlign='left';ctx.font='bold 10px sans-serif';ctx.fillText(nf.format(Math.round(last._c)),W-R+5,lastY+3);
+  ctx.fillStyle='#7b899c';ctx.textAlign='center';const marks=[0,Math.floor((rows.length-1)/2),rows.length-1];marks.forEach((i,idx)=>{const r=rows[i];if(r)ctx.fillText(idx===2?'현재':idx===0?`T-${rows.length-1}`:`T-${rows.length-1-i}`,x(i),H-10)});
   const first=rows[0]._c,chg=first?((last._c-first)/first)*100:0;ctx.textAlign='left';ctx.fillStyle=chg>=0?'#e66b70':'#668de8';ctx.font='bold 12px sans-serif';ctx.fillText(`구간 ${chg>=0?'+':''}${chg.toFixed(2)}%`,L,T+12);
 }
 
@@ -1622,7 +1665,7 @@ function renderTerminal(){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 5.7'}</span></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 5.8'}</span></div>
       ${topNav()}
       <div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
@@ -1884,6 +1927,14 @@ function bind(){
   });
 
   document.querySelectorAll('[data-company-metric]').forEach(b=>b.onclick=()=>{state.companyMetric=b.dataset.companyMetric||'valuation';renderTerminal();});
+
+  document.querySelectorAll('[data-company-news-preset]').forEach(b=>b.onclick=()=>{
+    const preset=companyNewsPresets(state.company?.my_company).find(x=>x.id===b.dataset.companyNewsPreset);if(!preset)return;
+    document.querySelectorAll('[data-company-news-preset]').forEach(x=>x.classList.toggle('on',x===b));
+    const h=document.getElementById('companyMediaHeadline'),body=document.getElementById('companyMediaBody'),campaign=document.getElementById('companyMediaCampaign'),budget=document.getElementById('companyMediaBudget');
+    if(h)h.value=preset.headline;if(body)body.value=preset.body;if(campaign)campaign.value=preset.campaign;if(budget)budget.value=String(preset.budget||70000000);
+    h?.scrollIntoView({behavior:'smooth',block:'center'});
+  });
 
   document.querySelectorAll('[data-company-media]').forEach(b=>b.onclick=async()=>{
     const outlet=b.dataset.companyMedia;
