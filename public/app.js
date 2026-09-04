@@ -63,7 +63,13 @@ async function req(path,opt={}){
   return data;
 }
 async function rpc(name,body,auth=true){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(body||{}),auth})}
-async function companyApi(action,payload={},auth=true){return rpc('kx_company_api_v1',{p_action:String(action||'').toUpperCase(),p_payload:payload||{}},auth)}
+async function companyApi(action,payload={},auth=true){
+  const a=String(action||'').toUpperCase();
+  if(a==='PROFILE'){
+    return rpc('kx_company_profile_v5101',{p_company_id:Number(payload?.p_company_id||0)},auth);
+  }
+  return rpc('kx_company_api_v1',{p_action:a,p_payload:payload||{}},auth);
+}
 function showCompanyIncomeToast(row){
   if(!row)return;
   clearTimeout(companyIncomeToastTimer);
@@ -1744,7 +1750,7 @@ function renderTerminal(preserve=false){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 5.10'}</span></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 5.10.1'}</span></div>
       ${topNav()}
       <div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
