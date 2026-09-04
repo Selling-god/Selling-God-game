@@ -585,3 +585,34 @@ body.tutorial-active{overflow:hidden}
 .global-budget,.treasury-trade{padding:15px 16px!important;border:1px solid #24394f!important;border-radius:16px!important;background:#0b1724!important;gap:12px!important;align-items:end!important}
 .global-budget label,.treasury-trade label{display:grid!important;gap:7px!important;color:#8da4ba!important;font-size:10px!important;font-weight:800!important}.global-budget input,.treasury-trade input,.treasury-trade select{height:44px!important;border:1px solid #34506d!important;border-radius:11px!important;background:#07111b!important;color:#eff5fb!important;padding:0 12px!important;font-size:13px!important;outline:none!important}.global-budget input:focus,.treasury-trade input:focus,.treasury-trade select:focus{border-color:#6d91bb!important;box-shadow:0 0 0 3px rgba(79,119,161,.15)!important}.treasury-trade>div{display:flex!important;gap:8px!important}.treasury-trade button,.global-country-grid button{min-height:42px!important;border:1px solid #3a5c7e!important;border-radius:11px!important;background:#17314b!important;color:#edf5fc!important;padding:0 14px!important;font-weight:900!important;cursor:pointer!important}.treasury-trade button.sell{border-color:#65414a!important;background:#2b171d!important}.global-country-grid article{border:1px solid #24394f!important;border-radius:16px!important;background:#0b1724!important;padding:15px!important}.global-country-grid article.entered{border-color:#355f59!important;background:linear-gradient(180deg,rgba(42,87,79,.16),#0b1724)!important}
 @media(max-width:850px){.media-target-shell{grid-template-columns:1fr}.treasury-trade{grid-template-columns:1fr!important}.global-budget{grid-template-columns:1fr!important}}
+
+/* =========================================================
+   KX CORPORATE 5.10 - money input / stable company analysis / ranking focus
+   ========================================================= */
+.company-analysis-slot{display:contents}
+.analysis-loading>div,.analysis-error>div{display:grid;place-items:center;text-align:center;gap:10px;min-height:280px;padding:28px}
+.analysis-loading-dot{width:34px;height:34px;border:3px solid #26394e;border-top-color:#dfbc62;border-radius:50%;animation:kxAnalysisSpin .85s linear infinite}
+@keyframes kxAnalysisSpin{to{transform:rotate(360deg)}}
+.analysis-loading b,.analysis-error b{font-size:18px;color:#eef4fb}.analysis-loading p,.analysis-error p{margin:0;max-width:420px;color:#8fa4b9;font-size:12px;line-height:1.65}
+
+.human-money-shell{display:grid!important;grid-template-columns:1fr!important;gap:6px!important;min-width:0}
+.human-money-shell>span{font-size:10px!important;font-weight:900!important;color:#91a8bf!important}
+.human-money-shell input{width:100%!important;min-width:0!important;height:46px!important;border:1px solid #35516f!important;border-radius:12px!important;background:#07111b!important;color:#f3f7fb!important;padding:0 14px!important;font-size:15px!important;font-weight:800!important;outline:none!important;box-sizing:border-box!important}
+.human-money-shell input:focus{border-color:#7da0c7!important;box-shadow:0 0 0 3px rgba(89,130,176,.16)!important}
+.human-money-shell small{font-size:10px!important;color:#7dd0a8!important;font-weight:800!important;line-height:1.35}
+.human-money-shell small.invalid-money{color:#899aac!important;font-weight:600!important}
+.global-budget .human-money-shell{min-width:330px}
+.analysis-acquire .human-money-shell{min-width:190px}
+.treasury-trade .human-money-shell{min-width:210px}
+
+/* Ranking: make my company impossible to miss. */
+.corporate-ranklist .rankrow.me{position:relative;margin:7px 8px;border:2px solid #e0b94f!important;border-radius:13px;background:linear-gradient(90deg,rgba(224,185,79,.16),rgba(12,20,31,.92))!important;box-shadow:0 0 0 1px rgba(244,207,105,.08) inset,0 0 22px rgba(207,163,53,.10);overflow:hidden}
+.corporate-ranklist .rankrow.me:before{content:'MY';position:absolute;left:0;top:0;bottom:0;width:5px;background:#efc65c}
+.corporate-ranklist .rankrow.me>strong{color:#f2cd6d!important}
+.ranking-me-chip{display:inline-flex;align-items:center;margin-left:8px;padding:2px 7px;border-radius:999px;background:#d5a93e;color:#111821;font-size:8px;font-style:normal;font-weight:950;vertical-align:middle}
+
+.clean-company-row.on{border-color:#d6b75c!important;background:linear-gradient(90deg,rgba(214,183,92,.11),#0e1a28)!important;box-shadow:0 0 0 1px rgba(214,183,92,.15) inset}
+.clean-company-browser{scroll-behavior:auto!important;overflow-anchor:none!important}
+.company-analysis-panel{overflow-anchor:none}
+
+@media(max-width:800px){.global-budget .human-money-shell,.analysis-acquire .human-money-shell,.treasury-trade .human-money-shell{min-width:0}.corporate-ranklist .rankrow.me{margin:6px 4px}}
