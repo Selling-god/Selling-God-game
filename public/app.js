@@ -16,7 +16,7 @@ let state={
   account:null,positions:[],orders:[],trades:[],ranking:[],
   bankDeposits:[],bankLoans:[],bankMeta:{},chartRanges:{},
   game:{events:[],predictions:[],shorts:[],ipos:[],subscriptions:[],dividends:[],short_adjustments:[],prediction_stats:{total:0,correct:0}},gameAvailable:true,gameError:'',
-  company:{my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],events:[],world:null},
+  company:{my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],events:[],world:null,control_case:null},
   companyAvailable:true,companyError:'',companyRegion:'국내',companyNotice:'',
   side:'BUY',type:'LIMIT',tif:'DAY',tab:'company',tradeTab:'book',
   orderQty:1,orderPrice:null,pendingOrder:null,chartPeriod:'1M',marketFilter:'ALL'
@@ -160,7 +160,7 @@ function recordOrderMeta(body,order,s){
   saveMeta();
 }
 function emptyGame(){return {events:[],predictions:[],shorts:[],ipos:[],subscriptions:[],dividends:[],short_adjustments:[],prediction_stats:{total:0,correct:0}}}
-function emptyCompany(){return {my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],events:[],world:null}}
+function emptyCompany(){return {my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],events:[],world:null,control_case:null}}
 function companyGrowth(c){return Number(c?.previous_revenue)>0?((Number(c.revenue)-Number(c.previous_revenue))/Number(c.previous_revenue))*100:0}
 function companyProfitMargin(c){return Number(c?.revenue)>0?Number(c.profit)/Number(c.revenue)*100:0}
 function companyDebtRatio(c){return Number(c?.valuation)>0?Number(c.debt)/Number(c.valuation)*100:0}
@@ -586,6 +586,49 @@ function renderCompanyCreate(){
   </section></main>`;
 }
 
+function takeoverStageMeta(stage,stake){
+  const map={
+    WATCH:['인수 움직임 포착','watch','공격 기업이 의미 있는 지분을 모으기 시작했습니다. 지금 대응하면 비교적 적은 비용으로 방어할 수 있습니다.'],
+    PRESSURE:['경영권 압박','pressure','대량 지분 매집이 이어지고 있습니다. 시장에서는 적대적 인수 가능성을 본격적으로 보기 시작합니다.'],
+    HOSTILE:['적대적 인수전','hostile','공격 기업이 사실상 경영권 인수를 선언한 단계입니다. 현금과 지분을 어디에 사용할지 빠르게 결정해야 합니다.'],
+    EMERGENCY:['경영권 비상','emergency','50% 경영권선이 가까워졌습니다. 대응을 미루면 최종 공개매수로 경영권이 넘어갈 수 있습니다.'],
+    TAKEOVER:['경영권 상실 위기','emergency','공격 기업이 경영권선을 넘기고 있습니다. 즉각적인 지분 축소 또는 독립 회복 전략이 필요합니다.']
+  };
+  return map[stage]||map[stake>=40?'EMERGENCY':stake>=30?'HOSTILE':stake>=20?'PRESSURE':'WATCH'];
+}
+
+function renderTakeoverCrisis(my){
+  const c=state.company?.control_case;
+  if(!c)return '';
+  const stake=Number(c.stake||0),left=Math.max(0,Number(c.cycles_left||0));
+  const defense=Number(my.defense_power||c.defense_power||0),counter=Number(c.counter_stake||0);
+  const meta=takeoverStageMeta(c.stage,stake);
+  const progress=Math.min(100,Math.max(2,stake/50*100));
+  const actions=[
+    ['BUYBACK','긴급 자사주 매입','시장에 직접 자금을 투입해 공격 기업 지분 일부를 되사옵니다.','즉시 지분↓'],
+    ['NEGOTIATE','지분 매각 협상','공격 기업에 프리미엄을 제시해 보유지분 일부를 직접 되사옵니다.','비용↑ / 효과↑'],
+    ['WHITE_KNIGHT','백기사 확보','우호 투자자와 의결권 협약을 맺어 추가 인수의 효율을 낮춥니다.','방어력 크게↑'],
+    ['POISON_PILL','포이즌필 발동','추가 인수 비용을 크게 높입니다. 강력하지만 주주 반발과 경영 부담이 생깁니다.','강력 / 1회'],
+    ['RIGHTS_ISSUE','긴급 유상증자','신주를 발행해 공격 기업의 지분율을 희석하고 동시에 현금을 확보합니다.','희석 / 1회'],
+    ['COUNTER_TAKEOVER','역인수·맞지분','오히려 공격 기업의 지분을 사들여 협상 카드를 만들고 상대를 압박합니다.','공격적 방어']
+  ];
+  return `<section class="takeover-crisis ${meta[1]}">
+    <div class="takeover-crisis-head">
+      <div><small>BOARD EMERGENCY · HOSTILE TAKEOVER</small><h2>${meta[0]}</h2><p>${escapeHtml(meta[2])}</p></div>
+      <div class="takeover-alarm"><span>공격 기업</span><b>${escapeHtml(c.attacker_name||'-')}</b><small>${escapeHtml(c.attacker_country||'')} · ${escapeHtml(c.attacker_type||'')} · ${escapeHtml(c.attacker_ticker||'')}</small></div>
+    </div>
+    <div class="takeover-pressure-grid">
+      <article><small>상대 확보 지분</small><b>${stake.toFixed(2)}%</b><span>50% 이상이면 경영권 인수</span></article>
+      <article><small>남은 대응 라운드</small><b>${left}</b><span>${left<=4?'최종 공개매수 임박':left<=8?'대응을 서둘러야 합니다':'아직 방어전략을 고를 시간이 있습니다'}</span></article>
+      <article><small>경영권 방어력</small><b>${defense.toFixed(0)}</b><span>높을수록 상대의 추가 매입 효율 감소</span></article>
+      <article><small>상대 회사 맞지분</small><b>${counter.toFixed(2)}%</b><span>10% 이상이면 역인수 협상 압박 효과</span></article>
+    </div>
+    <div class="takeover-progress"><div class="takeover-progress-label"><span>${escapeHtml(c.attacker_name||'공격 기업')} 지분</span><b>${stake.toFixed(2)}% / 50%</b></div><div class="takeover-progress-track"><i style="width:${progress}%"></i><em></em></div><small>방어를 하지 않으면 BOT이 인수전 마감 시 프리미엄을 붙인 최종 공개매수를 시도할 수 있습니다.</small></div>
+    <div class="takeover-board-note"><b>긴급 이사회</b><span>한 라운드에 하나의 방어 결정만 실행할 수 있습니다. 모든 선택에는 현금, 브랜드, 지분 희석 등 서로 다른 대가가 있습니다.</span><label>이번 대응 예산<input id="takeoverDefenseBudget" type="number" min="40000000" step="10000000" value="150000000"></label></div>
+    <div class="takeover-defense-grid">${actions.map(a=>{const used=(a[0]==='POISON_PILL'&&c.used_poison_pill)||(a[0]==='RIGHTS_ISSUE'&&c.used_rights_issue);return `<button data-company-defense="${a[0]}" ${used?'disabled':''}><small>${a[3]}</small><b>${a[1]}</b><span>${used?'이번 인수전에서 이미 사용함':a[2]}</span></button>`}).join('')}</div>
+  </section>`;
+}
+
 function renderCompanyCommand(my){
   const amount=100000000;
   const actions=[
@@ -654,7 +697,8 @@ function renderTakeoverDesk(my){
     <div class="takeover-summary">
       <article class="${threat>=35?'danger':threat>=15?'warn':''}"><small>내 회사 외부 보유지분</small><b>${threat.toFixed(2)}%</b><span>${threat>=50?'경영권이 인수된 상태':threat>=35?'경영권 방어가 필요한 수준':threat>=15?'인수 움직임을 주시할 수준':'현재 경영권은 비교적 안정적'}</span></article>
       <article><small>내가 투자한 경쟁사</small><b>${mine.length}개</b><span>지분을 쌓아 50%를 넘기면 자회사 편입</span></article>
-      <article><small>현재 지배기업</small><b>${escapeHtml(my.parent_name||'없음')}</b><span>${my.parent_name?'인수된 뒤에도 경영은 계속할 수 있습니다.':'독립 경영 상태'}</span></article>
+      <article><small>현재 지배기업</small><b>${escapeHtml(my.parent_name||'없음')}</b><span>${my.parent_name?'방어로 상대 지분을 50% 아래로 낮추면 독립 회복 가능':'독립 경영 상태'}</span></article>
+      <article class="${Number(my.defense_power||0)>=20?'safe':''}"><small>경영권 방어력</small><b>${Number(my.defense_power||0).toFixed(0)}</b><span>백기사·포이즌필 등으로 상승하며 시간이 지나면 서서히 약해집니다.</span></article>
     </div>
     <div class="takeover-columns">
       <div><h3>내 회사에 들어온 지분</h3>${incoming.length?incoming.map(h=>`<div class="stake-row"><span><b>${escapeHtml(h.holder_name)}</b><small>${escapeHtml(h.holder_type)} · ${escapeHtml(h.holder_ticker)}</small></span><strong class="${Number(h.stake)>=25?'down':''}">${Number(h.stake).toFixed(2)}%</strong><em>${compactMoney(h.market_value)}원</em></div>`).join(''):`<div class="empty compact">아직 외부 기업이 내 회사 지분을 확보하지 않았습니다.</div>`}</div>
@@ -681,7 +725,7 @@ function renderCompanyEvents(){
   const rows=state.company?.events||[];
   return `<section class="corp-section corp-event-section">
     <div class="company-section-head"><div><small>06 · LIVE CORPORATE NEWS</small><h2>기업 시장 상황</h2></div><span>BOT 인수전·유저 회사의 성장·해외진출 결과가 같은 시장에 누적됩니다.</span></div>
-    <div class="corp-event-feed">${rows.length?rows.slice(0,24).map(e=>`<article class="${e.event_type==='TAKEOVER'?'takeover':''}"><div><span>${escapeHtml(e.event_type)}</span><time>${e.created_at?new Date(e.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></div><h3>${escapeHtml(e.title)}</h3><p>${escapeHtml(e.body)}</p><small>${escapeHtml(e.company_name||'시장 전체')}</small></article>`).join(''):`<div class="empty">아직 기업 이벤트가 없습니다.</div>`}</div>
+    <div class="corp-event-feed">${rows.length?rows.slice(0,24).map(e=>{const cls=['TAKEOVER','TAKEOVER_BID'].includes(e.event_type)?'takeover':e.event_type==='DEFENSE'?'defense':e.event_type==='CONTROL'?'control':'';return `<article class="${cls}"><div><span>${escapeHtml(e.event_type)}</span><time>${e.created_at?new Date(e.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></div><h3>${escapeHtml(e.title)}</h3><p>${escapeHtml(e.body)}</p><small>${escapeHtml(e.company_name||'시장 전체')}</small></article>`}).join(''):`<div class="empty">아직 기업 이벤트가 없습니다.</div>`}</div>
   </section>`;
 }
 
@@ -709,6 +753,7 @@ function renderCompanyRoom(){
     </div>
     <div class="company-stat-strip"><span>기술력 <b>${Number(my.technology).toFixed(0)}</b></span><span>브랜드 <b>${Number(my.brand).toFixed(0)}</b></span><span>운영 <b>${Number(my.operations).toFixed(0)}</b></span><span>제품력 <b>${Number(my.product_quality).toFixed(0)}</b></span><span>임직원 <b>${nf.format(Number(my.employees))}명</b></span><span>최근 이슈 <b>${escapeHtml(my.last_event||'-')}</b></span></div>
     ${state.companyNotice?`<div class="company-notice" id="companyMsg">${escapeHtml(state.companyNotice)}</div>`:`<div class="company-notice muted" id="companyMsg">경영 결정은 법인 현금·매출·기술·브랜드·시장점유율·기업가치에 연결됩니다.</div>`}
+    ${renderTakeoverCrisis(my)}
     ${renderCompanyCommand(my)}
     ${renderCompetitionBoard(my)}
     ${renderGlobalExpansion(my)}
@@ -1094,6 +1139,14 @@ function bind(){
     const labels={RND:'R&D 투자',MARKETING:'마케팅 투자',CAPEX:'설비 투자',HIRING:'핵심 인재 채용',PRICE_WAR:'가격 경쟁',COSTCUT:'비용 구조조정',LOAN:'기업 대출',REPAY:'부채 상환'};
     const risky=action==='PRICE_WAR'?'가격 경쟁은 점유율을 얻는 대신 이익과 브랜드에 부담이 생깁니다. ':action==='LOAN'?'대출은 현금을 늘리지만 부채와 이자 부담이 커집니다. ':'';
     companyRun('kx_company_action',{p_action:action,p_amount:amount},`${risky}${labels[action]||'경영 결정'}을 실행할까요?`);
+  });
+
+  document.querySelectorAll('[data-company-defense]').forEach(b=>b.onclick=()=>{
+    const action=b.dataset.companyDefense;
+    const amount=Math.max(40000000,Math.floor(Number(document.getElementById('takeoverDefenseBudget')?.value)||150000000));
+    const labels={BUYBACK:'긴급 자사주 매입',NEGOTIATE:'공격 기업과 지분 매각 협상',WHITE_KNIGHT:'백기사 우호지분 확보',POISON_PILL:'포이즌필 발동',RIGHTS_ISSUE:'긴급 유상증자',COUNTER_TAKEOVER:'역인수·맞지분 전략'};
+    const warnings={POISON_PILL:'강력한 방어 효과가 있지만 브랜드와 운영에 단기 부담이 생깁니다. ',RIGHTS_ISSUE:'신주 발행으로 공격자 지분이 희석되지만 기존 주주도 함께 희석됩니다. ',COUNTER_TAKEOVER:'상대 회사를 공격하는 만큼 많은 현금이 묶일 수 있습니다. '};
+    companyRun('kx_company_defense',{p_action:action,p_budget:amount},`${warnings[action]||''}${labels[action]||'경영권 방어'}을 실행할까요? 인수전에서는 한 경영 라운드에 하나의 방어 결정만 할 수 있습니다.`);
   });
 
   document.querySelectorAll('[data-company-expand]').forEach(b=>b.onclick=()=>{

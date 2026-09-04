@@ -445,10 +445,11 @@ body.tutorial-active{overflow:hidden}
 .global-country-grid small{display:block;min-height:27px;margin:7px 0;color:#65768a;font-size:8px}
 .global-country-grid button{width:100%}
 
-.takeover-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.takeover-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
 .takeover-summary article{padding:13px;border:1px solid #243142;border-radius:9px;background:#0c131b}
 .takeover-summary article.warn{border-color:#685429;background:#19150d}
 .takeover-summary article.danger{border-color:#7a343b;background:#1d0f11}
+.takeover-summary article.safe{border-color:#285c46;background:#0d1a15}
 .takeover-summary small{display:block;color:#748397;font-size:8px}
 .takeover-summary b{display:block;margin:5px 0;font-size:18px}
 .takeover-summary span{color:#7e8da0;font-size:8px}
@@ -478,11 +479,53 @@ body.tutorial-active{overflow:hidden}
 .corp-event-feed{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
 .corp-event-feed article{padding:12px;border:1px solid #202c39;border-radius:9px;background:#0a1017}
 .corp-event-feed article.takeover{border-color:#71353b;background:#180e10}
+.corp-event-feed article.control{border-color:#735a2d;background:#1b160d}
+.corp-event-feed article.defense{border-color:#2f674e;background:#0d1914}
 .corp-event-feed article>div{display:flex;justify-content:space-between;color:#738398;font-size:7px}
 .corp-event-feed article>div span{color:#d1a84f;font-weight:900}
 .corp-event-feed h3{margin:7px 0 4px;font-size:11px}
 .corp-event-feed p{min-height:40px;margin:0;color:#8190a3;font-size:8px;line-height:1.5}
 .corp-event-feed>article>small{display:block;margin-top:7px;color:#617188;font-size:7px}
+
+
+.takeover-crisis{margin:14px 18px;padding:16px;border:1px solid #634326;border-radius:12px;background:linear-gradient(135deg,#18110d 0%,#0d1118 62%);box-shadow:0 12px 38px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.025);position:relative;overflow:hidden}
+.takeover-crisis:before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,#7f5b2e,#b9574e,#7f5b2e);opacity:.85}
+.takeover-crisis.hostile,.takeover-crisis.emergency{border-color:#7d3b3f;background:linear-gradient(135deg,#211013 0%,#0d1118 64%)}
+.takeover-crisis.emergency:before{animation:takeoverPulse 1.25s ease-in-out infinite}
+@keyframes takeoverPulse{0%,100%{opacity:.45}50%{opacity:1}}
+.takeover-crisis-head{display:flex;justify-content:space-between;gap:22px;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.07)}
+.takeover-crisis-head>div:first-child{min-width:0}
+.takeover-crisis-head small{color:#c99453;font-size:8px;font-weight:900;letter-spacing:.08em}
+.takeover-crisis-head h2{margin:4px 0 5px;font-size:22px}
+.takeover-crisis-head p{max-width:720px;margin:0;color:#a1adbc;font-size:9px;line-height:1.55}
+.takeover-alarm{min-width:210px;padding:10px 12px;border:1px solid rgba(201,119,86,.3);border-radius:9px;background:rgba(77,28,26,.18);display:grid}
+.takeover-alarm span{color:#8e9aaa;font-size:7px}
+.takeover-alarm b{margin:3px 0;font-size:14px;color:#f1d1be}
+.takeover-alarm small{color:#9b7e75;font-size:7px;letter-spacing:0}
+.takeover-pressure-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:12px 0}
+.takeover-pressure-grid article{padding:11px;border:1px solid #2b3038;border-radius:8px;background:rgba(5,9,14,.62);display:grid}
+.takeover-pressure-grid small{color:#738094;font-size:7px}
+.takeover-pressure-grid b{margin:3px 0;font-size:17px}
+.takeover-pressure-grid span{color:#7f8b9a;font-size:7px;line-height:1.35}
+.takeover-progress{padding:11px 12px;border:1px solid #352b29;border-radius:9px;background:#0a0d12}
+.takeover-progress-label{display:flex;justify-content:space-between;align-items:center;font-size:8px;color:#8d99a8}
+.takeover-progress-label b{font-size:10px;color:#e2c1a3}
+.takeover-progress-track{height:12px;margin:7px 0 6px;border-radius:99px;background:#141b24;position:relative;overflow:hidden;border:1px solid #28303b}
+.takeover-progress-track i{display:block;height:100%;background:linear-gradient(90deg,#8a552e,#a84d45);border-radius:99px;transition:width .35s ease}
+.takeover-progress-track em{position:absolute;top:-2px;bottom:-2px;left:calc(100% - 2px);width:2px;background:#e8c2b2;opacity:.75}
+.takeover-progress>small{color:#7d8794;font-size:7px}
+.takeover-board-note{margin-top:10px;padding:10px 12px;border:1px dashed #4b3d31;border-radius:8px;display:grid;grid-template-columns:auto minmax(0,1fr) 250px;gap:10px;align-items:center;background:rgba(30,20,14,.33)}
+.takeover-board-note>b{font-size:10px;color:#e0b37a}
+.takeover-board-note>span{color:#929cab;font-size:8px;line-height:1.45}
+.takeover-board-note label{margin:0;color:#8f9baa;font-size:7px;display:grid;gap:4px}
+.takeover-board-note input{height:36px;border:1px solid #54432e;border-radius:7px;background:#090d12;color:#edf2f8;padding:0 9px;font-size:9px}
+.takeover-defense-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}
+.takeover-defense-grid button{min-height:92px;padding:11px;text-align:left;border:1px solid #40362e;border-radius:9px;background:#111318;color:#e9edf2;display:grid;align-content:start;gap:4px;cursor:pointer;transition:.15s ease}
+.takeover-defense-grid button:hover{transform:translateY(-1px);border-color:#8a6540;background:#18150f}
+.takeover-defense-grid button:disabled{opacity:.36;cursor:not-allowed;transform:none}
+.takeover-defense-grid button small{color:#c68b51;font-size:7px;font-weight:900}
+.takeover-defense-grid button b{font-size:11px}
+.takeover-defense-grid button span{color:#7f8b99;font-size:7px;line-height:1.4}
 
 @media(max-width:1320px){
   .company-kpi-grid{grid-template-columns:repeat(4,1fr)}
@@ -501,6 +544,9 @@ body.tutorial-active{overflow:hidden}
   .treasury-trade{grid-template-columns:1fr 1fr}
   .treasury-trade>div{grid-column:1/-1}
   .corp-event-feed{grid-template-columns:repeat(2,1fr)}
+  .takeover-pressure-grid{grid-template-columns:repeat(2,1fr)}
+  .takeover-defense-grid{grid-template-columns:repeat(2,1fr)}
+  .takeover-board-note{grid-template-columns:1fr}
 }
 @media(max-width:760px){
   .company-page{padding:8px 8px 72px}
@@ -529,6 +575,10 @@ body.tutorial-active{overflow:hidden}
   .global-country-grid{display:flex;overflow-x:auto}
   .global-country-grid article{min-width:215px}
   .takeover-summary{grid-template-columns:1fr}
+  .takeover-crisis{margin:8px;padding:12px}
+  .takeover-crisis-head{display:grid}
+  .takeover-alarm{min-width:0}
+  .takeover-pressure-grid,.takeover-defense-grid{grid-template-columns:1fr}
   .stake-row{grid-template-columns:minmax(0,1fr) 58px 85px}
   .stake-row button{grid-column:1/-1}
   .treasury-trade{grid-template-columns:1fr}
