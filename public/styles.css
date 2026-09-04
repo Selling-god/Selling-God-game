@@ -701,3 +701,14 @@ body.tutorial-active{overflow:hidden}
   .agenda-card{grid-template-columns:30px minmax(0,1fr)}.agenda-card em{display:none}
   .executive-rival-list article>span{font-size:9px}
 }
+
+/* V4.1 ONLINE-ONLY COMPANY MODE */
+.online-mode-chip{display:inline-flex;align-items:center;height:22px;padding:0 8px;margin-left:8px;border:1px solid #285d48;border-radius:999px;background:#0c2019;color:#8fddb8;font-size:8px;font-weight:900;letter-spacing:.08em;white-space:nowrap}
+.online-mode-chip.online:before{content:"";width:6px;height:6px;margin-right:5px;border-radius:50%;background:#62d49e;box-shadow:0 0 0 3px rgba(98,212,158,.12)}
+.online-mode-chip.offline{border-color:#735044;background:#241510;color:#e5aa90}
+.company-mode-banner.online{border-color:#2c5a48;background:linear-gradient(90deg,#0b1b16,#0b1218)}
+.company-mode-banner.online small{color:#70c79e}.online-live-dot{display:inline-flex!important;grid-column:auto!important;align-items:center;justify-content:center;flex:0 0 auto;padding:6px 9px;border:1px solid #2f6b51;border-radius:999px;background:#0c2119;color:#79d8a7!important;font-size:8px!important;font-weight:900;letter-spacing:.1em}
+.online-required-shell{min-height:680px;background:linear-gradient(180deg,#0a1119,#0a0f15)!important}
+.online-required-head{display:flex;align-items:flex-start;justify-content:space-between;gap:28px;padding:34px 34px 8px}.online-required-head small{color:#d5ad5d;font-size:9px;font-weight:900;letter-spacing:.14em}.online-required-head h1{margin:7px 0 9px;font-size:29px}.online-required-head p{max-width:900px;margin:0;color:#8b9bad;font-size:12px;line-height:1.7}.online-required-badge{flex:0 0 auto;padding:9px 12px;border:1px solid #735044;border-radius:999px;background:#21140f;color:#e5ad91;font-size:9px;font-weight:900;letter-spacing:.08em}
+.online-install-card{margin:22px 34px!important;border-color:#745b2d!important;background:#151109!important}.online-install-card code{margin:0!important}.online-preview-grid{margin:18px 34px 0}.online-required-shell .setup-security-note{margin:18px 34px 34px}.online-required-shell .setup-security-note b{color:#e0bd71;margin-right:8px}
+@media(max-width:900px){.online-required-head{display:grid;padding:22px 18px 4px}.online-required-badge{justify-self:start}.online-install-card{margin:18px!important}.online-preview-grid{margin:14px 18px 0;grid-template-columns:1fr!important}.online-required-shell .setup-security-note{margin:16px 18px 24px}.online-mode-chip{display:none}}

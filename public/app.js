@@ -502,16 +502,21 @@ async function loadGameLayer(runSync=false,force=false){
   }
 }
 async function loadCompanyLayer(runSync=false,force=false){
-  if(state.companyMode==='LOCAL'&&!force){activateLocalCompany(runSync);return}
   try{
     const d=runSync?await rpc('kx_company_sync',{}):await rpc('kx_company_snapshot',{});
     state.company=d&&typeof d==='object'?{...emptyCompany(),...d}:emptyCompany();
-    state.companyAvailable=true;state.companyMode='REMOTE';state.companyError='';
+    state.companyAvailable=true;
+    state.companyMode='REMOTE';
+    state.companyError='';
   }catch(e){
     const raw=String(e?.message||'');
     const missing=e?.status===404||raw.includes('kx_company_')||raw.includes('Could not find the function')||raw.includes('schema cache');
-    state.companyError=missing?'온라인 회사 경쟁 DB가 아직 연결되지 않았습니다. 현재는 로컬 BOT 리그로 바로 플레이할 수 있습니다.':(raw||'온라인 회사 데이터를 불러오지 못해 로컬 BOT 리그로 전환했습니다.');
-    activateLocalCompany(runSync);
+    state.companyAvailable=false;
+    state.companyMode='REMOTE';
+    state.company=emptyCompany();
+    state.companyError=missing
+      ?'온라인 회사 경영 DB/RPC가 아직 Supabase에 설치되지 않았습니다. SUPABASE_COMPANY_EXPANSION_REQUIRED.sql을 전체 실행한 뒤 다시 확인해 주세요.'
+      :(raw||'온라인 회사 경영 서버에 연결하지 못했습니다. 네트워크와 Supabase 상태를 확인한 뒤 다시 시도해 주세요.');
   }
 }
 
@@ -735,7 +740,7 @@ function renderCompanyCreate(){
   return `<main class="page-view company-page"><section class="panel page-panel company-shell">
     <div class="company-hero">
       <div class="company-hero-copy"><small>KX CORPORATE · STARTUP</small><h1>내 회사를 설립하고 시장에 들어가세요</h1><p>이 게임의 중심은 이제 주식 매매가 아니라 회사 자체를 키우는 것입니다. 제품·인재·설비·재무·언론·세금·경영권을 직접 결정하고, 국내 BOT·다른 유저 회사와 경쟁한 뒤 해외시장까지 확장합니다.</p>
-        <div class="company-start-rules"><span><b>초기 법인자금</b> 10억원</span><span><b>시작시장</b> 대한민국</span><span><b>경쟁상대</b> ${state.companyMode==='LOCAL'?'BOT 기업 · 온라인 연결 시 실제 유저 추가':'BOT + 실제 유저 회사'}</span><span><b>확장</b> 미국·일본·독일·싱가포르·영국·인도·브라질</span></div>
+        <div class="company-start-rules"><span><b>초기 법인자금</b> 10억원</span><span><b>시작시장</b> 대한민국</span><span><b>경쟁상대</b> BOT + 실제 유저 회사</span><span><b>확장</b> 미국·일본·독일·싱가포르·영국·인도·브라질</span></div>
       </div>
       <form id="companyCreateForm" class="company-create-card">
         <small>NEW COMPANY</small><h2>회사 설립</h2>
@@ -747,7 +752,7 @@ function renderCompanyCreate(){
       </form>
     </div>
     <section class="company-preview">
-      <div class="company-section-head"><div><small>MARKET PREVIEW</small><h2>이미 시장에서 움직이는 경쟁사</h2></div><span>${state.companyMode==='LOCAL'?'지금은 BOT 기업과 바로 경쟁하며, 온라인 DB 연결 후 실제 유저 회사가 같은 리그에 합류합니다.':'회사를 만들면 BOT과 다른 유저 기업이 같은 시장에서 경쟁합니다.'}</span></div>
+      <div class="company-section-head"><div><small>MARKET PREVIEW</small><h2>이미 시장에서 움직이는 경쟁사</h2></div><span>회사를 만들면 BOT과 다른 유저 기업이 같은 온라인 시장에서 실시간으로 경쟁합니다.</span></div>
       <div class="company-rival-grid">${rivals.map((c,i)=>`<article><div>${companyTypeBadge(c)} ${companyCountryBadge(c)}</div><h3>${escapeHtml(c.name)}</h3><p>${escapeHtml(c.sector)} · ${escapeHtml(c.ai_style||'BOT')}</p><strong>${compactMoney(c.valuation)}원</strong><span>기업가치 순위 #${i+1}</span></article>`).join('')}</div>
     </section>
   </section></main>`;
@@ -969,8 +974,17 @@ function renderCompanyEvents(){
 }
 
 function renderCompanyModeBanner(){
-  if(state.companyMode!=='LOCAL')return '';
-  return `<div class="company-mode-banner"><div><small>LOCAL BOT LEAGUE</small><b>회사 경영은 바로 플레이할 수 있습니다</b><span>온라인 회사 DB가 없어도 경영·세금·언론·해외진출·BOT 인수전은 브라우저에 저장되어 작동합니다. 다른 실제 유저 회사와 경쟁하려면 동봉 SQL을 나중에 한 번만 연결하면 됩니다.</span></div><button data-company-retry>온라인 경쟁 연결 확인</button></div>`;
+  if(state.companyAvailable===false)return '';
+  return `<div class="company-mode-banner online"><div><small>ONLINE CORPORATE LEAGUE</small><b>온라인 회사 경영 서버 연결됨</b><span>BOT 기업과 실제 유저 회사가 같은 Supabase 시장 데이터를 사용합니다. 회사 설립·경영결정·M&A·세금·언론·해외사업이 모두 온라인에 저장됩니다.</span></div><span class="online-live-dot">LIVE</span></div>`;
+}
+function renderCompanyOnlineRequired(){
+  const err=escapeHtml(state.companyError||'온라인 회사 경영 데이터베이스 연결을 확인할 수 없습니다.');
+  return `<main class="page-view company-page"><section class="panel page-panel company-shell setup-shell online-required-shell">
+    <div class="online-required-head"><div><small>KX CORPORATE · ONLINE ONLY</small><h1>온라인 회사 경영 연결이 필요합니다</h1><p>이 버전은 로컬 모드를 사용하지 않습니다. 모든 플레이어 회사, BOT 기업, M&A, 세금, 언론·IR, 해외사업 데이터가 Supabase의 같은 온라인 리그에서 진행됩니다.</p></div><span class="online-required-badge">ONLINE REQUIRED</span></div>
+    <div class="company-install-note compact-install online-install-card"><div><h2>필수 SQL을 Supabase에서 한 번 실행해 주세요</h2><p>${err}</p></div><code>SUPABASE_COMPANY_EXPANSION_REQUIRED.sql</code><button data-company-retry>온라인 연결 다시 확인</button></div>
+    <div class="setup-preview-grid online-preview-grid"><article><small>01 · SHARED WORLD</small><b>공용 회사 시장</b><span>다른 유저 회사와 BOT 기업이 같은 순위·기업가치·경쟁 데이터를 공유합니다.</span></article><article><small>02 · M&A</small><b>온라인 경영권 전쟁</b><span>지분 매집과 적대적 인수, 방어조치가 서버에 저장되어 실제 경쟁처럼 이어집니다.</span></article><article><small>03 · MANAGEMENT</small><b>서버 저장 경영</b><span>CEO 의사결정, 법인세, 언론·IR, 해외진출과 기업 재무가 기기 변경 후에도 유지됩니다.</span></article><article><small>04 · NO LOCAL FALLBACK</small><b>로컬 전환 없음</b><span>DB 연결 실패 시 임시 BOT 리그로 바뀌지 않습니다. 연결 복구 후 같은 온라인 회사로 계속합니다.</span></article></div>
+    <div class="setup-security-note"><b>적용 순서</b> 패치 ZIP의 SQL 파일 전체 복사 → Supabase SQL Editor에서 실행 → 이 화면의 <strong>온라인 연결 다시 확인</strong> 클릭. SQL 설치 후에는 별도의 모드 선택 없이 온라인 모드가 기본으로 실행됩니다.</div>
+  </section></main>`;
 }
 function renderCompanySubnav(){
   const tabs=[['dashboard','CEO 대시보드','회사 전체 상황'],['operations','경영·조직','제품·인재·생산'],['competition','경쟁·M&A','인수전·시장경쟁'],['global','해외사업','글로벌 확장'],['media','언론·IR','투자자·브랜드'],['tax','세무·준법','세금·규제'],['finance','재무·투자','법인 증권운용']];
@@ -1004,6 +1018,7 @@ function renderCompanyWorkspace(my){
 }
 
 function renderCompanyRoom(){
+  if(state.companyAvailable===false)return renderCompanyOnlineRequired();
   const my=state.company?.my_company;
   if(!my)return `${renderCompanyModeBanner()}${renderCompanyCreate()}`;
   const grow=companyGrowth(my),margin=companyProfitMargin(my),debt=companyDebtRatio(my),threat=companyStakeAgainstMe();
@@ -1230,7 +1245,7 @@ function renderTerminal(){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE'}</span></div>
       ${topNav()}
       <div class="market-status"><b>DAY ${state.clock?.game_day||1}</b><span>${gameTime(state.clock?.game_minute||0)}</span><em>${SESS[state.clock?.session]||'-'}</em><i class="market-regime ${(state.clock?.market_regime||'NEUTRAL').toLowerCase()}">${REGIME[state.clock?.market_regime||'NEUTRAL']||'중립'}장</i></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
@@ -1375,13 +1390,9 @@ function bind(){
     const sector=document.getElementById('companySector')?.value;
     if(btn)btn.disabled=true;
     try{
-      if(state.companyMode==='LOCAL'){
-        const d=createLocalCompany(name,ticker,sector);state.companyNotice=d?.message||'회사 설립이 완료되었습니다.';activateLocalCompany(false);renderTerminal();
-      }else{
-        const d=await rpc('kx_company_create',{p_name:name,p_ticker:ticker,p_sector:sector});
-        state.companyNotice=d?.message||'회사 설립이 완료되었습니다.';
-        await loadCompanyLayer(true,true);renderTerminal();
-      }
+      const d=await rpc('kx_company_create',{p_name:name,p_ticker:ticker,p_sector:sector});
+      state.companyNotice=d?.message||'회사 설립이 완료되었습니다.';
+      await loadCompanyLayer(true,true);renderTerminal();
     }catch(err){if(msg)msg.textContent=err.message;if(btn)btn.disabled=false}
   };
 
@@ -1397,9 +1408,9 @@ function bind(){
     if(question&&!confirm(question))return;
     const msg=document.getElementById('companyMsg');
     try{
-      const d=state.companyMode==='LOCAL'?localCompanyAction(name,body):await rpc(name,body);
-      state.companyNotice=d?.message||'경영 결정이 반영되었습니다.';
-      if(state.companyMode==='LOCAL')activateLocalCompany(false);else await loadCompanyLayer(true,true);
+      const d=await rpc(name,body);
+      state.companyNotice=d?.message||'경영 결정이 온라인 회사 데이터에 반영되었습니다.';
+      await loadCompanyLayer(true,true);
       renderTerminal();
     }catch(err){
       state.companyNotice='처리 실패: '+err.message;
@@ -1474,7 +1485,9 @@ function bind(){
   document.querySelectorAll('[data-company-retry]').forEach(b=>b.onclick=async()=>{
     b.disabled=true;b.textContent='온라인 연결 확인 중…';
     await loadCompanyLayer(true,true);
-    state.companyNotice=state.companyMode==='REMOTE'?'온라인 회사 경쟁이 연결되었습니다. 다른 유저 회사와 같은 시장에서 경쟁합니다.':'온라인 DB는 아직 연결되지 않았습니다. 로컬 BOT 리그 경영은 그대로 계속됩니다.';
+    state.companyNotice=state.companyAvailable
+      ?'온라인 회사 경영 서버가 연결되었습니다. BOT과 다른 유저 회사가 같은 시장에서 경쟁합니다.'
+      :'온라인 DB 연결에 실패했습니다. 필수 SQL 실행 여부와 Supabase 설정을 확인해 주세요.';
     renderTerminal();
   });
 
@@ -1597,7 +1610,9 @@ function drawChart(){
 }
 
 async function start(){
-  app.innerHTML='<div class="boot"><div class="kxlogo">KX</div><b>KX CORPORATE</b><span>기업·주식시장에 연결하는 중…</span></div>';
+  localStorage.removeItem(LOCAL_COMPANY_KEY);
+  state.companyMode='REMOTE';
+  app.innerHTML='<div class="boot"><div class="kxlogo">KX</div><b>KX CORPORATE</b><span>온라인 회사 리그·기업시장에 연결하는 중…</span></div>';
   if(!session.user){
     try{session.user=await req('/auth/v1/user');save()}catch{}
   }
