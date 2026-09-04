@@ -18,6 +18,7 @@ let state={
   game:{events:[],predictions:[],shorts:[],ipos:[],subscriptions:[],dividends:[],short_adjustments:[],prediction_stats:{total:0,correct:0}},gameAvailable:true,gameError:'',
   company:{my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],events:[],world:null,control_case:null},
   companyAvailable:true,companyMode:'REMOTE',companyError:'',companyRegion:'국내',companyNotice:'',companySection:'dashboard',
+  companyDraft:{name:'',sector:'AI·반도체'},
   side:'BUY',type:'LIMIT',tif:'DAY',tab:'company',tradeTab:'book',
   orderQty:1,orderPrice:null,pendingOrder:null,chartPeriod:'1M',marketFilter:'ALL'
 };
@@ -543,7 +544,9 @@ async function sync(advance=false,full=false,forcePrivate=false){
     if(full||forcePrivate||syncRound%2===0)await loadPrivateSnapshot();
     if(full||syncRound%2===0)await loadGameLayer(advance||full,full);
     if(full||state.tab==='company'||syncRound%3===0)await loadCompanyLayer(advance||full,full);
-    renderTerminal();
+    const editingCompanyForm=companyFormIsBeingEdited();
+    rememberCompanyDraft();
+    if(!editingCompanyForm)renderTerminal();
   }catch(e){
     console.error(e);
     const el=document.getElementById('globalMsg');
@@ -743,34 +746,67 @@ function renderMarket(s,ch){
 }
 
 
+function companyOperatorType(c){
+  return c?.operator_type||(c?.is_bot?'BOT':c?.owner_user_id?'PLAYER':'BOT');
+}
 function companyTypeBadge(c){
-  const type=c?.operator_type||(c?.is_bot?'BOT':c?.owner_user_id?'PLAYER':'BOT');
-  return `<span class="corp-type ${type==='BOT'?'bot':type==='ME'?'me':'player'}">${type==='BOT'?'BOT 기업':type==='ME'?'내 회사':'유저 회사'}</span>`;
+  const type=companyOperatorType(c);
+  return `<span class="corp-type ${type==='BOT'?'bot':type==='ME'?'me':'player'}">${type==='BOT'?'BOT 회사':type==='ME'?'내 회사':'유저 회사'}</span>`;
+}
+function companyOwnerLabel(c){
+  const type=companyOperatorType(c);
+  if(type==='ME')return '내가 운영 중';
+  if(type==='PLAYER')return `실제 유저 · ${escapeHtml(c?.owner_nickname||'PLAYER')}`;
+  return `AI 경영 · ${escapeHtml(c?.ai_style||'BOT')}`;
+}
+function companyScaleLabel(v){
+  v=Number(v)||0;
+  if(v>=1000000000000000)return '글로벌 초거대기업';
+  if(v>=100000000000000)return '초대형 기업';
+  if(v>=10000000000000)return '대기업';
+  if(v>=1000000000000)return '중견 대기업';
+  if(v>=100000000000)return '중견기업';
+  if(v>=10000000000)return '성장기업';
+  return '신생기업';
 }
 function companyCountryBadge(c){return `<span class="corp-country">${escapeHtml(c?.home_country||'대한민국')}</span>`}
+function rememberCompanyDraft(){
+  if(state.company?.my_company)return;
+  const form=document.getElementById('companyCreateForm');
+  if(!form)return;
+  const name=document.getElementById('companyName'),sector=document.getElementById('companySector');
+  if(name)state.companyDraft.name=name.value;
+  if(sector)state.companyDraft.sector=sector.value;
+}
+function companyFormIsBeingEdited(){
+  const form=document.getElementById('companyCreateForm');
+  return !!(form&&document.activeElement&&form.contains(document.activeElement));
+}
 function companyMarketStatus(m){
   const p=Number(m?.presence||0);
   return p>=70?'핵심시장':p>=40?'성장시장':p>=15?'진입시장':'시험진출';
 }
 function renderCompanyCreate(){
-  const rivals=(state.company?.companies||[]).filter(c=>c.is_bot).slice(0,8);
+  const rivals=(state.company?.companies||[]).filter(c=>c&&c.status!=='INACTIVE').sort((a,b)=>Number(b.valuation)-Number(a.valuation)).slice(0,10);
+  const draft=state.companyDraft||{name:'',sector:'AI·반도체'};
   return `<main class="page-view company-page"><section class="panel page-panel company-shell">
     <div class="company-hero">
-      <div class="company-hero-copy"><small>KX CORPORATE · STARTUP</small><h1>내 회사를 설립하고 시장에 들어가세요</h1><p>이 게임의 중심은 이제 주식 매매가 아니라 회사 자체를 키우는 것입니다. 제품·인재·설비·재무·언론·세금·경영권을 직접 결정하고, 국내 BOT·다른 유저 회사와 경쟁한 뒤 해외시장까지 확장합니다.</p>
-        <div class="company-start-rules"><span><b>초기 법인자금</b> 10억원</span><span><b>시작시장</b> 대한민국</span><span><b>경쟁상대</b> BOT + 실제 유저 회사</span><span><b>확장</b> 미국·일본·독일·싱가포르·영국·인도·브라질</span></div>
+      <div class="company-hero-copy"><small>KX CORPORATE · STARTUP</small><h1>내 회사를 설립하고 온라인 기업시장에 들어가세요</h1><p>플레이어는 작은 신생기업으로 시작합니다. 이미 시장에는 수백억~수천조원 규모의 BOT 기업과 다른 실제 유저 회사가 존재하며, 경영·투자·M&A를 통해 장기간 따라잡는 구조입니다.</p>
+        <div class="company-start-rules"><span><b>초기 법인자금</b> 10억원</span><span><b>시작시장</b> 대한민국</span><span><b>경쟁상대</b> BOT + 실제 유저 회사</span><span><b>목표</b> 작은 회사 → 글로벌 대기업</span></div>
       </div>
       <form id="companyCreateForm" class="company-create-card">
         <small>NEW COMPANY</small><h2>회사 설립</h2>
-        <label>회사 이름<input id="companyName" maxlength="24" placeholder="예: 아스트라 테크" required></label>
-        <label>종목 코드<input id="companyTicker" maxlength="6" placeholder="예: AST" required></label>
-        <label>주력 산업<select id="companySector"><option>AI·반도체</option><option>게임·콘텐츠</option><option>모빌리티</option><option>바이오</option><option>핀테크</option><option>유통</option><option>에너지</option><option>로보틱스</option><option>산업재·자동화</option><option>기술·서비스</option></select></label>
+        <label>회사 이름<input id="companyName" maxlength="40" value="${escapeHtml(draft.name||'')}" placeholder="예: 아스트라 테크놀로지" autocomplete="off" required></label>
+        <label>주력 산업<select id="companySector"><option ${draft.sector==='AI·반도체'?'selected':''}>AI·반도체</option><option ${draft.sector==='게임·콘텐츠'?'selected':''}>게임·콘텐츠</option><option ${draft.sector==='모빌리티'?'selected':''}>모빌리티</option><option ${draft.sector==='바이오'?'selected':''}>바이오</option><option ${draft.sector==='핀테크'?'selected':''}>핀테크</option><option ${draft.sector==='유통'?'selected':''}>유통</option><option ${draft.sector==='에너지'?'selected':''}>에너지</option><option ${draft.sector==='로보틱스'?'selected':''}>로보틱스</option><option ${draft.sector==='산업재·자동화'?'selected':''}>산업재·자동화</option><option ${draft.sector==='기술·서비스'?'selected':''}>기술·서비스</option></select></label>
+        <div class="auto-ticker-note"><b>상장 식별코드는 자동 발급</b><span>종목 코드는 플레이어가 입력하지 않아도 됩니다. 서버가 회사별 고유 코드를 자동으로 생성합니다.</span></div>
         <button class="company-primary" type="submit">회사 설립하고 경영 시작</button>
-        <p id="companyCreateMsg">회사 이름은 다른 유저와 구분되며, 종목 코드는 영문/숫자 2~6자로 사용합니다.</p>
+        <p id="companyCreateMsg">회사 이름은 최대 40자까지 입력할 수 있으며, 입력 중 온라인 동기화가 발생해도 내용이 끊기지 않도록 유지됩니다.</p>
       </form>
     </div>
     <section class="company-preview">
-      <div class="company-section-head"><div><small>MARKET PREVIEW</small><h2>이미 시장에서 움직이는 경쟁사</h2></div><span>회사를 만들면 BOT과 다른 유저 기업이 같은 온라인 시장에서 실시간으로 경쟁합니다.</span></div>
-      <div class="company-rival-grid">${rivals.map((c,i)=>`<article><div>${companyTypeBadge(c)} ${companyCountryBadge(c)}</div><h3>${escapeHtml(c.name)}</h3><p>${escapeHtml(c.sector)} · ${escapeHtml(c.ai_style||'BOT')}</p><strong>${compactMoney(c.valuation)}원</strong><span>기업가치 순위 #${i+1}</span></article>`).join('')}</div>
+      <div class="company-section-head"><div><small>ONLINE COMPANY LEAGUE</small><h2>이미 시장에서 움직이는 회사</h2></div><span>초록색은 내 회사, 파란색은 실제 다른 유저, 금색은 BOT 회사로 표시됩니다.</span></div>
+      <div class="company-legend"><span class="legend-me">내 회사</span><span class="legend-player">실제 유저 회사</span><span class="legend-bot">BOT 회사</span><em>기업가치는 현실의 회사 규모를 참고한 게임용 스케일입니다.</em></div>
+      <div class="company-rival-grid">${rivals.map((c,i)=>{const type=companyOperatorType(c);return `<article class="operator-${type.toLowerCase()}"><div>${companyTypeBadge(c)} ${companyCountryBadge(c)}</div><h3>${escapeHtml(c.name)}</h3><p>${escapeHtml(c.sector)} · ${companyOwnerLabel(c)}</p><strong>${compactMoney(c.valuation)}원</strong><span>${companyScaleLabel(c.valuation)} · 가치 순위 #${i+1}</span></article>`}).join('')}</div>
     </section>
   </section></main>`;
 }
@@ -929,9 +965,9 @@ function renderCompetitionBoard(my){
     <div class="company-section-head"><div><small>COMPANY MARKET</small><h2>${state.companyRegion==='국내'?'국내 기업':'글로벌 기업'} 투자·인수</h2></div><span>회사 가치 순위 <b>#${myRank||'-'}</b> · 법인현금 <b>${compactMoney(my.cash)}원</b></span></div>
     <div class="company-region-tabs"><button data-company-region="국내" class="${state.companyRegion==='국내'?'on':''}">국내 기업</button><button data-company-region="해외" class="${state.companyRegion==='해외'?'on':''}">해외 기업</button></div>
     <div class="acquisition-cards">
-      ${rows.length?rows.map((c,i)=>{const stake=Number(c.acquired_stake||0),stage=acquisitionStage(stake),controlled=Number(c.parent_company_id)===Number(my.id)||stake>=50;return `<article class="acquisition-card ${stage.cls} ${controlled?'controlled':''}">
-        <div class="acq-company-head"><span><b>${escapeHtml(c.name)}</b><small>${companyTypeBadge(c)} ${companyCountryBadge(c)} · ${escapeHtml(c.sector)}</small></span><em>#${i+1}</em></div>
-        <div class="acq-value"><span><small>회사 가치</small><b>${compactMoney(c.valuation)}원</b></span><span><small>주당 가치</small><b>${won(c.share_price)}</b></span><span><small>${state.companyRegion==='국내'?'국내':'글로벌'} 점유율</small><b>${Number(state.companyRegion==='국내'?c.domestic_share:c.global_share).toFixed(2)}%</b></span></div>
+      ${rows.length?rows.map((c,i)=>{const stake=Number(c.acquired_stake||0),stage=acquisitionStage(stake),controlled=Number(c.parent_company_id)===Number(my.id)||stake>=50,type=companyOperatorType(c),gap=Number(c.valuation)/Math.max(1,Number(my.valuation));return `<article class="acquisition-card ${stage.cls} ${controlled?'controlled':''} operator-${type.toLowerCase()}">
+        <div class="acq-company-head"><span><b>${escapeHtml(c.name)}</b><small>${companyTypeBadge(c)} ${companyCountryBadge(c)} · ${escapeHtml(c.sector)} · ${companyOwnerLabel(c)}</small></span><em>#${i+1}</em></div>
+        <div class="acq-value"><span><small>회사 가치</small><b>${compactMoney(c.valuation)}원</b><em>${companyScaleLabel(c.valuation)}</em></span><span><small>내 회사 대비</small><b>${gap>=1?`${gap.toFixed(gap>=100?0:1)}배`:`${(gap*100).toFixed(0)}%`}</b><em>${gap>20?'장기 성장 목표':gap>5?'상당한 규모 차이':'경쟁 가능한 규모'}</em></span><span><small>${state.companyRegion==='국내'?'국내':'글로벌'} 점유율</small><b>${Number(state.companyRegion==='국내'?c.domestic_share:c.global_share).toFixed(2)}%</b></span></div>
         <div class="acq-stake"><div><small>내 보유지분</small><b>${stake.toFixed(2)}%</b><em>${stage.label}</em></div><div class="acq-progress"><i style="width:${Math.min(100,stake/50*100)}%"></i></div><span>${controlled?'경영권 확보 완료 · 자회사':stage.desc}</span></div>
         <div class="acq-actions"><label>인수 예산<input id="takeBudget_${c.id}" type="number" min="1000000" step="10000000" value="100000000"></label><button data-company-buy="${c.id}">장내 지분 매수</button><button data-company-tender="${c.id}" class="tender" ${stake<15||controlled?'disabled':''}>공개매수</button></div>
         <small class="acq-note">${controlled?'이미 경영권을 확보했습니다. 보유지분은 아래 지분 관리에서 매각할 수 있습니다.':stake>=15?'공개매수 가능 · 시장가격보다 프리미엄을 지급해 더 많은 지분을 한 번에 확보합니다.':'15% 이상 확보하면 공개매수가 열립니다.'}</small>
@@ -1036,7 +1072,7 @@ function renderExecutiveAgenda(my){
 }
 function renderRivalSnapshot(my){
   const rivals=(state.company?.companies||[]).filter(x=>Number(x.id)!==Number(my.id)).sort((a,b)=>Number(b.valuation)-Number(a.valuation)).slice(0,6);
-  return `<section class="executive-rivals"><div class="company-section-head"><div><small>COMPETITIVE INTELLIGENCE</small><h2>주요 경쟁사 동향</h2></div><button data-company-section-jump="competition" class="section-link">경쟁·M&A 전체 보기</button></div><div class="executive-rival-list">${rivals.map((r,i)=>{const ratio=Number(r.valuation)/Math.max(1,Number(my.valuation))*100;return `<article><strong>${i+1}</strong><div><b>${escapeHtml(r.name)}</b><small>${escapeHtml(r.home_country)} · ${escapeHtml(r.sector)} · ${r.is_bot?'BOT':'유저'}</small></div><span>${compactMoney(r.valuation)}원</span><em class="${ratio>120?'down':ratio<80?'up':''}">${ratio.toFixed(0)}%</em></article>`}).join('')}</div></section>`;
+  return `<section class="executive-rivals"><div class="company-section-head"><div><small>COMPETITIVE INTELLIGENCE</small><h2>주요 경쟁사 동향</h2></div><button data-company-section-jump="competition" class="section-link">경쟁·M&A 전체 보기</button></div><div class="executive-rival-list">${rivals.map((r,i)=>{const ratio=Number(r.valuation)/Math.max(1,Number(my.valuation))*100;return `<article><strong>${i+1}</strong><div><b>${escapeHtml(r.name)}</b><small>${escapeHtml(r.home_country)} · ${escapeHtml(r.sector)} · ${companyOwnerLabel(r)}</small></div><span>${compactMoney(r.valuation)}원</span><em class="${ratio>120?'down':ratio<80?'up':''}">${ratio.toFixed(0)}%</em></article>`}).join('')}</div></section>`;
 }
 function renderCompanyWorkspace(my){
   const section=state.companySection||'dashboard';
@@ -1152,7 +1188,7 @@ function renderBank(){
 function renderRanking(){
   const companies=[...(state.company?.companies||[])].filter(x=>x&&x.status!=='INACTIVE').sort((a,b)=>Number(b.valuation)-Number(a.valuation));
   if(companies.length){
-    return `<main class="page-view narrow-view"><section class="panel page-panel company-ranking-page"><div class="page-title"><div><small>CORPORATE LEAGUE</small><h1>회사 가치 순위</h1></div><span>주식 계좌 수익이 아니라 회사 자체의 가치와 경쟁력을 기준으로 순위를 매깁니다.</span></div><div class="ranklist corporate-ranklist">${companies.map((r,i)=>`<div class="rankrow ${r.operator_type==='ME'||Number(r.id)===Number(state.company?.my_company?.id)?'me':''}"><strong>${i+1}</strong><span><b>${escapeHtml(r.name)}</b><small>${escapeHtml(r.home_country||'')} · ${escapeHtml(r.sector||'')} · ${r.is_bot?'BOT 기업':r.operator_type==='ME'?'내 회사':'유저 회사'}</small></span><b>${compactMoney(r.valuation)}원</b></div>`).join('')}</div></section></main>`;
+    return `<main class="page-view narrow-view"><section class="panel page-panel company-ranking-page"><div class="page-title"><div><small>CORPORATE LEAGUE</small><h1>회사 가치 순위</h1></div><span>주식 계좌 수익이 아니라 회사 자체의 가치와 경쟁력을 기준으로 순위를 매깁니다.</span></div><div class="ranklist corporate-ranklist">${companies.map((r,i)=>`<div class="rankrow ${r.operator_type==='ME'||Number(r.id)===Number(state.company?.my_company?.id)?'me':''}"><strong>${i+1}</strong><span><b>${escapeHtml(r.name)}</b><small>${companyTypeBadge(r)} ${escapeHtml(r.home_country||'')} · ${escapeHtml(r.sector||'')} · ${companyOwnerLabel(r)} · ${companyScaleLabel(r.valuation)}</small></span><b>${compactMoney(r.valuation)}원</b></div>`).join('')}</div></section></main>`;
   }
   return `<main class="page-view narrow-view"><section class="panel page-panel"><div class="page-title"><div><small>CORPORATE LEAGUE</small><h1>회사 가치 순위</h1></div><span>회사를 설립하면 국내외 BOT 회사와 기업가치 경쟁이 시작됩니다.</span></div><div class="empty">아직 회사 데이터가 없습니다.</div></section></main>`;
 }
@@ -1258,6 +1294,7 @@ function openTutorial(startIndex=0){
   startGuidedTour(startIndex);
 }
 function renderTerminal(){
+  rememberCompanyDraft();
   const s=selected();if(!s)return;
   const ch=changeOf(s);
   const content=state.tab==='company'?renderCompanyRoom()
@@ -1412,19 +1449,25 @@ function bind(){
   document.querySelectorAll('[data-cancel]').forEach(b=>b.onclick=()=>cancelOrder(b.dataset.cancel));
 
   const companyForm=document.getElementById('companyCreateForm');
-  if(companyForm)companyForm.onsubmit=async e=>{
-    e.preventDefault();
-    const msg=document.getElementById('companyCreateMsg'),btn=companyForm.querySelector('button[type="submit"]');
-    const name=document.getElementById('companyName')?.value.trim();
-    const ticker=document.getElementById('companyTicker')?.value.trim().toUpperCase();
-    const sector=document.getElementById('companySector')?.value;
-    if(btn)btn.disabled=true;
-    try{
-      const d=await rpc('kx_company_create',{p_name:name,p_ticker:ticker,p_sector:sector});
-      state.companyNotice=d?.message||'회사 설립이 완료되었습니다.';
-      await loadCompanyLayer(true,true);renderTerminal();
-    }catch(err){if(msg)msg.textContent=err.message;if(btn)btn.disabled=false}
-  };
+  if(companyForm){
+    const nameInput=document.getElementById('companyName'),sectorInput=document.getElementById('companySector');
+    if(nameInput)nameInput.oninput=()=>{state.companyDraft.name=nameInput.value};
+    if(sectorInput)sectorInput.onchange=()=>{state.companyDraft.sector=sectorInput.value};
+    companyForm.onsubmit=async e=>{
+      e.preventDefault();
+      rememberCompanyDraft();
+      const msg=document.getElementById('companyCreateMsg'),btn=companyForm.querySelector('button[type="submit"]');
+      const name=(state.companyDraft.name||'').trim();
+      const sector=state.companyDraft.sector||'기술·서비스';
+      if(btn)btn.disabled=true;
+      try{
+        const d=await rpc('kx_company_create',{p_name:name,p_ticker:'',p_sector:sector});
+        state.companyDraft={name:'',sector:'AI·반도체'};
+        state.companyNotice=d?.message||'회사 설립이 완료되었습니다.';
+        await loadCompanyLayer(true,true);renderTerminal();
+      }catch(err){if(msg)msg.textContent=err.message;if(btn)btn.disabled=false}
+    };
+  }
 
   document.querySelectorAll('[data-company-section],[data-company-section-jump]').forEach(b=>b.onclick=()=>{
     state.companySection=b.dataset.companySection||b.dataset.companySectionJump||'dashboard';state.tab='company';renderTerminal();

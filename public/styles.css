@@ -774,3 +774,25 @@ body.tutorial-active{overflow:hidden}
   .acquisition-guide{margin:8px;padding:13px}.ownership-steps{grid-template-columns:repeat(5,76px)}.acquisition-cards{padding:8px}.acq-value{grid-template-columns:1fr 1fr}.acq-value span:first-child{grid-column:1/-1}.acq-actions{grid-template-columns:1fr 1fr}.acq-actions label{grid-column:1/-1}
   .company-workspace>.acquisition-guide{margin-left:8px;margin-right:8px}
 }
+
+/* V5.1 - clearer online company ownership + startup form stability */
+.auto-ticker-note{display:grid;gap:4px;margin:12px 0;padding:10px 11px;border:1px solid #273343;border-radius:8px;background:#0a1119}
+.auto-ticker-note b{font-size:10px;color:#d9ad55}.auto-ticker-note span{font-size:8px;line-height:1.55;color:#78899d}
+.company-legend{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:10px 0 12px;padding:9px 10px;border:1px solid #202b38;border-radius:9px;background:#091019}
+.company-legend span{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border-radius:999px;font-size:8px;font-weight:900}
+.company-legend span:before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+.company-legend .legend-me{color:#7ee2a6;background:#0d2116;border:1px solid #2f6948}
+.company-legend .legend-player{color:#78b9eb;background:#0d1d2d;border:1px solid #295378}
+.company-legend .legend-bot{color:#e3bd6b;background:#211a0e;border:1px solid #5e4c2b}
+.company-legend em{margin-left:auto;color:#6f8094;font-size:8px;font-style:normal}
+.company-rival-grid article.operator-player{border-color:#28577c;box-shadow:inset 3px 0 #438bc1}
+.company-rival-grid article.operator-me{border-color:#2f6948;box-shadow:inset 3px 0 #4fb777}
+.company-rival-grid article.operator-bot{border-color:#443922;box-shadow:inset 3px 0 #9f7a35}
+.acquisition-card.operator-player{border-color:#28577c;box-shadow:inset 3px 0 #438bc1}
+.acquisition-card.operator-bot{box-shadow:inset 3px 0 #81672f}
+.acquisition-card.operator-me{border-color:#2f6948;box-shadow:inset 3px 0 #4fb777}
+.acq-value span em{display:block;margin-top:3px;color:#718298;font-size:7px;font-style:normal;font-weight:600}
+.corporate-ranklist .rankrow:has(.corp-type.player){box-shadow:inset 3px 0 #438bc1}
+.corporate-ranklist .rankrow:has(.corp-type.bot){box-shadow:inset 3px 0 #7e6530}
+.corporate-ranklist .corp-type{margin-right:5px;transform:translateY(-1px)}
+@media(max-width:760px){.company-legend em{width:100%;margin-left:0}.company-create-card input{font-size:16px}}
