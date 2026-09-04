@@ -1,5 +1,5 @@
 (()=>{
-const KX_COMPANY_BUILD='5.9.0-SHARED-MARKET-NEWS-UX';
+const KX_COMPANY_BUILD='5.11.0-REAL-MANAGEMENT-RESPONSIVE';
 window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
@@ -69,6 +69,16 @@ async function companyApi(action,payload={},auth=true){
     return rpc('kx_company_profile_v5101',{p_company_id:Number(payload?.p_company_id||0)},auth);
   }
   return rpc('kx_company_api_v1',{p_action:a,p_payload:payload||{}},auth);
+}
+async function companyOpsV511(action,payload={}){
+  return rpc('kx_company_ops_v511',{p_action:String(action||'').toUpperCase(),p_payload:payload||{}},true);
+}
+function companyTaxRateText(my){
+  const r=Number(my?.tax_rate_effective||0);
+  return r>0?`${r.toFixed(1)}%`:'결산 전';
+}
+function departmentLabel(code){
+  return ({ENGINEERING:'기술·R&D',SALES:'영업·마케팅',OPERATIONS:'생산·운영',FINANCE:'재무·준법',MANAGEMENT:'경영지원'})[code]||'조직';
 }
 function showCompanyIncomeToast(row){
   if(!row)return;
@@ -1145,6 +1155,44 @@ function renderInvestmentReturnPanel(my){
   const cycle=Number(state.company?.world?.cycle_no||0),nextYield=6-(cycle%6||0),nextGlobal=4-(cycle%4||0);
   return `<section class="investment-return-panel"><div class="company-section-head"><div><small>RETURN DESK</small><h2>투자금이 어디서 돌아오는지</h2></div><span>경쟁사 지분·법인 주식의 평가손익과, 매각이익·배당·프로젝트 성과금·해외사업 현금유입을 한곳에서 보여줍니다.</span></div><div class="return-schedule"><span><b>배당·금융수익</b> 약 ${nextYield||6}주기 뒤 정산</span><span><b>해외사업 현금</b> 약 ${nextGlobal||4}주기 뒤 정산</span><span>서버는 회사별 요청이 아니라 <b>시장 전체를 한 번에 배치 정산</b>합니다.</span></div><div class="return-kpis"><article><small>전체 투자 평가액</small><b>${compactMoney(value)}원</b><span>투자원가 ${compactMoney(cost)}원</span></article><article><small>평가손익</small><b class="${unreal>=0?'up':'down'}">${unreal>=0?'+':''}${compactMoney(unreal)}원</b><span>아직 매도 전 손익</span></article><article><small>확정 매매손익</small><b class="${real>=0?'up':'down'}">${real>=0?'+':''}${compactMoney(real)}원</b><span>매도 결과가 법인현금에 반영</span></article><article><small>누적 현금유입</small><b class="up">${compactMoney(divi+projectReturn+globalReturn)}원</b><span>배당 ${compactMoney(divi)} · 프로젝트 ${compactMoney(projectReturn)} · 해외 ${compactMoney(globalReturn)}</span></article></div><div class="income-feed">${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||x.source_code||'투자')}</b><small>${escapeHtml(x.income_label||x.income_type||'현금수익')} · 주기 #${Number(x.cycle_no)||0}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong><em>${escapeHtml(x.note||'법인현금 반영')}</em></article>`).join(''):`<div class="empty compact">아직 확정된 현금수익이 없습니다. 프로젝트 성과·해외사업·배당·지분 매각이 발생하면 이곳에 실제 입금 내역이 쌓입니다.</div>`}</div></section>`;
 }
+function renderPeopleFinanceDesk(my){
+  const employees=Math.max(0,Number(my.employees||0));
+  const salary=Math.max(0,Number(my.avg_monthly_salary||0));
+  const payroll=Math.max(0,Number(my.monthly_payroll||employees*salary));
+  const fixed=Math.max(0,Number(my.monthly_fixed_cost||0));
+  const runRate=payroll+fixed;
+  const estCorp=Math.max(0,Number(my.estimated_corporate_tax||0));
+  const estLocal=Math.max(0,Number(my.estimated_local_tax||0));
+  const due=Math.max(0,Number(my.tax_due||0)+Number(my.tax_arrears||0));
+  const cycle=Number(state.company?.world?.cycle_no||0);
+  const nextSettlement=120-(cycle%120||0);
+  const depts=[
+    ['ENGINEERING','기술·R&D',Number(my.hr_engineering||0)],
+    ['SALES','영업·마케팅',Number(my.hr_sales||0)],
+    ['OPERATIONS','생산·운영',Number(my.hr_operations||0)],
+    ['FINANCE','재무·준법',Number(my.hr_finance||0)],
+    ['MANAGEMENT','경영지원',Number(my.hr_management||0)]
+  ];
+  return `<section class="corp-section people-finance-desk">
+    <div class="company-section-head"><div><small>PEOPLE · PAYROLL · CASHFLOW</small><h2>인사·급여·고정비</h2></div><span>직원을 채용하면 인건비가 계속 발생하고, 급여 수준은 사기·생산성·이직률에 영향을 줍니다. 게임에서는 120경영주기를 한 회계 정산기간으로 압축합니다.</span></div>
+    <div class="people-finance-kpis">
+      <article><small>재직 인원</small><b>${nf.format(employees)}명</b><span>직원 사기 ${Number(my.employee_morale||0).toFixed(0)}</span></article>
+      <article><small>평균 월급</small><b>${formatKrwSmart(salary||0)}</b><span>1인 기준</span></article>
+      <article><small>월 급여 총액</small><b>${formatKrwSmart(payroll)}</b><span>경영주기마다 분할 지출</span></article>
+      <article><small>월 고정 운영비</small><b>${formatKrwSmart(fixed)}</b><span>임차·서버·관리·유지비</span></article>
+      <article><small>월 고정비 합계</small><b>${formatKrwSmart(runRate)}</b><span>현금이 자동으로 감소</span></article>
+      <article class="${due>0?'warn':''}"><small>세금</small><b>${due>0?formatKrwSmart(due):`예상 ${formatKrwSmart(estCorp+estLocal)}`}</b><span>${due>0?'현재 납부·미납 세액':`실효세율 ${companyTaxRateText(my)}`}</span></article>
+    </div>
+    <div class="department-board">${depts.map(d=>`<article><span>${d[1]}</span><b>${nf.format(d[2])}명</b><small>${employees?`${(d[2]/employees*100).toFixed(1)}%`:'0%'}</small></article>`).join('')}</div>
+    <div class="hr-action-layout">
+      <form class="hr-action-card" id="companyHireForm"><div><small>RECRUIT</small><h3>직원 채용</h3><p>채용비용과 이후 월급이 실제 법인현금에서 나갑니다.</p></div><label>부서<select id="companyHireDepartment">${depts.map(d=>`<option value="${d[0]}">${d[1]}</option>`).join('')}</select></label><label>채용 인원<input id="companyHireCount" type="number" min="1" max="5000" value="10"></label>${companyMoneyInput('companyHireSalary','1인 월급','400만','예: 400만, 650만')}<button type="button" data-company-hr="HIRE">채용 진행</button></form>
+      <form class="hr-action-card" id="companySalaryForm"><div><small>COMPENSATION</small><h3>급여 정책</h3><p>전 직원 평균 월급을 조정합니다. 급여 인상은 사기와 채용 경쟁력을 높이지만 고정비가 커집니다.</p></div>${companyMoneyInput('companySalaryAmount','새 평균 월급',salary?formatKrwSmart(salary):'400만','예: 450만, 700만')}<button type="button" data-company-hr="SET_SALARY">급여 정책 변경</button>${companyMoneyInput('companyBonusAmount','성과급 총액','3000만','예: 3000만, 1억')}<button type="button" data-company-hr="BONUS" class="secondary">성과급 지급</button></form>
+      <form class="hr-action-card danger-card" id="companyLayoffForm"><div><small>WORKFORCE</small><h3>인력 조정</h3><p>감원은 고정비를 줄이지만 퇴직비용과 직원 사기·평판 하락이 발생할 수 있습니다.</p></div><label>부서<select id="companyLayoffDepartment">${depts.map(d=>`<option value="${d[0]}">${d[1]}</option>`).join('')}</select></label><label>감원 인원<input id="companyLayoffCount" type="number" min="1" max="5000" value="5"></label><button type="button" data-company-hr="LAYOFF" class="risk">인력 조정 실행</button></form>
+    </div>
+    <div class="accounting-runway"><span><b>현재 고정비</b>${formatKrwSmart(runRate)}/월</span><span><b>다음 회계 결산</b>약 ${nextSettlement||120}주기 뒤</span><span><b>최근 자동 운영비</b>${formatKrwSmart(Number(my.last_operating_cost||0))}</span><span><b>최근 부채 이자</b>${formatKrwSmart(Number(my.last_interest_cost||0))} · 연 ${Number(my.annual_interest_rate||6.5).toFixed(1)}%</span><span><b>누적 급여 비용</b>${formatKrwSmart(Number(my.payroll_accrued||0))}</span></div>
+  </section>`;
+}
+
 function renderCompanyCommand(my){
   const core=['RND','QUALITY','CAPEX','HIRING','MARKETING','WELFARE'];
   const active=(state.company?.projects||[]).filter(p=>['ACTIVE','PAYBACK'].includes(String(p.status))).length;
@@ -1209,21 +1257,24 @@ function renderMediaDesk(my){
 
 function renderTaxOffice(my){
   const due=Number(my.tax_due||0),arrears=Number(my.tax_arrears||0),risk=Number(my.audit_risk||0);
+  const estCorp=Number(my.estimated_corporate_tax||0),estLocal=Number(my.estimated_local_tax||0),rate=Number(my.tax_rate_effective||0);
   const recs=state.company?.tax_records||[];
-  return `<section class="corp-section tax-office-section">
-    <div class="company-section-head"><div><small>03 · TAX / COMPLIANCE</small><h2>세금·세무 리스크</h2></div><span>게임에서는 분기 결산을 압축해 진행하며, 흑자에 단순화된 22% 법인세가 부과됩니다.</span></div>
+  const cycle=Number(state.company?.world?.cycle_no||0),left=120-(cycle%120||0);
+  return `<section class="corp-section tax-office-section modern-tax-office">
+    <div class="company-section-head"><div><small>TAX · ACCOUNTING</small><h2>세금·회계 결산</h2></div><span>현재 고지세액뿐 아니라 다음 결산에 예상되는 세금과 실제 현금유출을 함께 보여줍니다. 세율은 게임 밸런스를 위해 한국 법인과세 구조를 단순화한 값입니다.</span></div>
+    <div class="tax-summary-hero"><div><small>현재 납부할 세금</small><b>${formatKrwSmart(due+arrears)}</b><span>${due+arrears>0?'법인현금에서 납부해야 합니다.':'현재 확정 고지 없음'}</span></div><div><small>다음 결산 예상세금</small><b>${formatKrwSmart(estCorp+estLocal)}</b><span>법인세 ${formatKrwSmart(estCorp)} + 지방세 ${formatKrwSmart(estLocal)}</span></div><div><small>예상 실효세율</small><b>${rate.toFixed(1)}%</b><span>이익 규모에 따라 달라짐</span></div><div><small>다음 결산</small><b>${left||120}주기</b><span>120주기마다 세액 확정</span></div></div>
     <div class="tax-ledger">
-      <article><small>이번 고지세액</small><b>${compactMoney(due)}원</b><span>${due>0?'납부·절세검토·분납·신고누락 중 선택':'현재 납부할 고지 없음'}</span></article>
-      <article class="${arrears>0?'danger':''}"><small>미납·추징 대상</small><b>${compactMoney(arrears)}원</b><span>오래 둘수록 조사 위험과 가산 부담 증가</span></article>
+      <article><small>확정 고지세액</small><b>${formatKrwSmart(due)}</b><span>${due>0?'납부·절세검토·분납 중 선택':'현재 고지 없음'}</span></article>
+      <article class="${arrears>0?'danger':''}"><small>미납·추징 대상</small><b>${formatKrwSmart(arrears)}</b><span>미납이 길어질수록 조사·가산 부담 증가</span></article>
       <article class="${risk>=45?'danger':risk>=22?'warn':''}"><small>세무조사 위험</small><b>${risk.toFixed(0)}</b><span>${companyRiskLabel(risk)}</span></article>
-      <article><small>준법 / 지배구조</small><b>${Number(my.compliance||75).toFixed(0)} / ${Number(my.governance||50).toFixed(0)}</b><span>낮으면 투자자·은행·규제기관 신뢰 하락</span></article>
+      <article><small>준법 / 지배구조</small><b>${Number(my.compliance||75).toFixed(0)} / ${Number(my.governance||50).toFixed(0)}</b><span>은행·기관투자자·규제기관 신뢰에 영향</span></article>
     </div>
     <div class="tax-actions">
-      <button data-company-tax="PAY" ${due+arrears<=0?'disabled':''}><small>정상 처리</small><b>세금 납부</b><span>고지세액과 미납액을 정리하고 신뢰를 높입니다.</span></button>
-      <button data-company-tax="PLAN" ${due<=0?'disabled':''}><small>합법적 절세</small><b>세무 검토·절세</b><span>세무비용을 들여 납부세액을 일부 줄입니다.</span></button>
-      <button data-company-tax="INSTALLMENT" ${due<=0?'disabled':''}><small>현금흐름</small><b>분할 납부</b><span>당장 현금을 아끼지만 잔액과 가산 부담이 남습니다.</span></button>
-      <button data-company-tax="EVADE" class="risk" ${due<=0?'disabled':''}><small>불법·고위험</small><b>신고 누락 시도</b><span>당장은 세금을 피하지만 적발 시 추징·과징금·평판·거래 제한이 발생할 수 있습니다.</span></button>
-      <button data-company-tax="CORRECT" ${arrears<=0?'disabled':''}><small>위기 수습</small><b>자진 정정</b><span>미납 상태를 스스로 정리해 향후 조사 위험을 낮춥니다.</span></button>
+      <button data-company-tax="PAY" ${due+arrears<=0?'disabled':''}><small>정상 처리</small><b>세금 납부</b><span>확정 세액을 법인현금에서 지급</span></button>
+      <button data-company-tax="PLAN" ${due<=0?'disabled':''}><small>합법적 절세</small><b>세무 검토</b><span>비용을 지불해 공제·비용처리를 검토</span></button>
+      <button data-company-tax="INSTALLMENT" ${due<=0?'disabled':''}><small>현금흐름</small><b>분할 납부</b><span>현금을 보존하지만 가산 부담 발생</span></button>
+      <button data-company-tax="EVADE" class="risk" ${due<=0?'disabled':''}><small>불법·고위험</small><b>신고 누락 시도</b><span>적발 시 추징·평판·거래 제한 위험</span></button>
+      <button data-company-tax="CORRECT" ${arrears<=0?'disabled':''}><small>위기 수습</small><b>자진 정정</b><span>미납을 정리하고 조사 위험을 낮춤</span></button>
     </div>
     <div class="tax-history"><h3>최근 세무 기록</h3>${recs.length?recs.slice(0,6).map(r=>`<article class="${r.audit_triggered?'danger':''}"><span><b>${escapeHtml(r.action_label||r.action)}</b><small>경영주기 #${Number(r.cycle_no)||0}</small></span><strong>세액 ${compactMoney(r.base_tax)}원</strong><em>${r.audit_triggered?`조사 적발 · 부담 ${compactMoney(r.penalty)}원`:`납부 ${compactMoney(r.paid)}원`}</em></article>`).join(''):`<div class="empty compact">아직 세무 기록이 없습니다.</div>`}</div>
   </section>`;
@@ -1270,10 +1321,12 @@ function renderCompanyAnalysisPanel(my){
   if(!p||!p.company)return `<aside class="company-analysis-panel empty-analysis"><div><b>분석할 회사를 선택하세요</b><p>왼쪽에서 내 회사 또는 경쟁사를 선택하면 서버 공용 주가 차트, 최근 뉴스, 지분 구조를 확인할 수 있습니다.</p></div></aside>`;
   const c=p.company,self=Number(c.id)===Number(my.id),stake=self?ownerStakeOf(my):Number(p.my_stake||c.acquired_stake||0),controlled=!self&&(stake>=50||Number(c.parent_company_id)===Number(my.id)),stage=acquisitionStage(stake),gap=Number(c.valuation)/Math.max(1,Number(my.valuation));
   const press=(p.press||[]).filter(a=>!a.created_at||Date.now()-new Date(a.created_at).getTime()<=15*60*1000);
-  return `<aside class="company-analysis-panel"><div class="analysis-title"><div>${companyTypeBadge(c)} ${companyCountryBadge(c)}<h2>${escapeHtml(c.name)}${self?' <span class="me-chip">내 회사</span>':''}</h2><p>${escapeHtml(c.sector)} · ${companyOwnerLabel(c)}</p></div><strong>${companyMarketValueText(c)}<small>${c.home_country!=='대한민국'?`원화 환산 ${compactMoney(c.valuation)}원`:self?`전체 #${[...(state.company?.companies||[])].sort((a,b)=>Number(b.valuation)-Number(a.valuation)).findIndex(x=>Number(x.id)===Number(c.id))+1}`:`내 회사 대비 ${gap>=1?`${gap.toFixed(gap>99?0:1)}배`:`${(gap*100).toFixed(0)}%`}`}</small></strong></div>
-    <div class="analysis-kpis market-kpis"><span>현재 주가 <b>${companySharePriceText(c)}</b><em class="${Number(c.last_return_pct||0)>=0?'up':'down'}">${Number(c.last_return_pct||0)>=0?'+':''}${Number(c.last_return_pct||0).toFixed(2)}%</em></span><span>시장 수급 <b class="${Number(c.investor_flow||0)>=0?'up':'down'}">${Number(c.investor_flow||0)>=0?'+':''}${compactMoney(c.investor_flow||0)}원</b></span><span>변동성 <b>${Number(c.volatility||1.5).toFixed(2)}%</b></span><span>${self?'내 경영진 지분':'내 지분'} <b>${stake.toFixed(2)}%</b></span></div>
-    <div class="company-target-chart live-company-chart"><div class="mini-chart-head"><div><b>공용 실시간 주가</b><small>모든 유저가 같은 서버 가격·같은 캔들을 봅니다. 새 캔들이 생기면 기존 봉이 자연스럽게 왼쪽으로 이동합니다.</small></div><span class="live-dot">SHARED</span></div><canvas id="companyTargetChart"></canvas><div class="chart-decision-note"><span>매출 ${compactMoney(c.revenue)}원</span><span>영업이익 ${compactMoney(c.profit)}원</span><span>투자심리 ${Number(c.investor_sentiment||50).toFixed(0)}</span><span>최근 수급 ${Number(c.investor_flow||0)>=0?'순매수':'순매도'}</span></div></div>
-    <div class="analysis-news"><h3>최근 15분 관련 뉴스</h3>${press.length?press.slice(0,4).map(a=>`<article><small>${escapeHtml(a.outlet_name||'경제뉴스')}</small><b>${escapeHtml(a.headline)}</b><p>${escapeHtml(a.article_body||'')}</p></article>`).join(''):`<div class="empty compact">최근 15분 안에 보도된 기사가 없습니다.</div>`}</div>
+  const ret=Number(c.last_return_pct||0),flow=Number(c.investor_flow||0);
+  return `<aside class="company-analysis-panel clean-profile-panel">
+    <div class="analysis-profile-head"><div><span class="analysis-country">${escapeHtml(c.home_country||'')}</span>${companyTypeBadge(c)}<h2>${escapeHtml(c.name)}${self?' <em class="me-chip">내 회사</em>':''}</h2><p>${escapeHtml(c.sector)} · ${companyOwnerLabel(c)}</p></div><div class="analysis-value-box"><small>기업가치</small><b>${companyMarketValueText(c)}</b><span>${c.home_country!=='대한민국'?`원화 환산 ${compactMoney(c.valuation)}원`:self?'내 회사':`내 회사 대비 ${gap>=1?`${gap.toFixed(gap>99?0:1)}배`:`${(gap*100).toFixed(0)}%`}`}</span></div></div>
+    <div class="analysis-stat-grid"><article><small>현재 주가</small><b>${companySharePriceText(c)}</b><span class="${ret>=0?'up':'down'}">${ret>=0?'+':''}${ret.toFixed(2)}%</span></article><article><small>시장 수급</small><b class="${flow>=0?'up':'down'}">${flow>=0?'+':''}${compactMoney(flow)}원</b><span>공용 서버 수급</span></article><article><small>변동성</small><b>${Number(c.volatility||1.5).toFixed(2)}%</b><span>최근 가격 변동폭</span></article><article><small>${self?'내 경영진·우호 지분':'내 보유 지분'}</small><b>${stake.toFixed(2)}%</b><span>${self?`외부 ${Number(my.incoming_stake||0).toFixed(2)}%`:stage.label}</span></article></div>
+    <div class="company-target-chart live-company-chart clean-live-chart"><div class="mini-chart-head"><div><b>공용 실시간 주가</b><small>모든 유저가 같은 서버 가격·캔들을 봅니다. 새 캔들이 생길 때 차트가 왼쪽으로 흐릅니다.</small></div><span class="live-dot">SHARED</span></div><canvas id="companyTargetChart"></canvas><div class="chart-decision-note"><span><small>매출</small><b>${compactMoney(c.revenue)}원</b></span><span><small>영업이익</small><b>${compactMoney(c.profit)}원</b></span><span><small>투자심리</small><b>${Number(c.investor_sentiment||50).toFixed(0)}</b></span><span><small>수급 방향</small><b class="${flow>=0?'up':'down'}">${flow>=0?'순매수':'순매도'}</b></span></div></div>
+    <div class="analysis-news"><div class="analysis-subhead"><h3>최근 15분 관련 뉴스</h3><span>${press.length}건</span></div>${press.length?press.slice(0,4).map(a=>`<article><small>${escapeHtml(a.outlet_name||'경제뉴스')}</small><b>${escapeHtml(a.headline)}</b><p>${escapeHtml(a.article_body||'')}</p></article>`).join(''):`<div class="empty compact">최근 15분 안에 보도된 기사가 없습니다.</div>`}</div>
     ${self?`<div class="self-ownership-panel"><div><small>내 경영진·우호 지분</small><b>${stake.toFixed(2)}%</b><span>외부 세력 합계 ${Number(my.incoming_stake||0).toFixed(2)}% · 적대적 지분이 늘수록 이 비율이 낮아집니다.</span></div><button data-company-section-jump="competition" class="section-link">경영권 방어 현황 보기</button></div>`:`<div class="analysis-acquire"><div><small>현재 단계</small><b>${stage.label}</b><span>${controlled?'경영권 확보 완료':stage.desc}</span></div>${companyMoneyInput(`takeBudget_${c.id}`,'인수 예산','1억')}<button data-company-buy="${c.id}" ${controlled?'disabled':''}>장내 지분 매수</button><button data-company-tender="${c.id}" class="tender" ${stake<15||controlled?'disabled':''}>공개매수</button></div>`}
   </aside>`;
 }
@@ -1407,7 +1460,7 @@ function renderDashboardProgress(my){
 }
 function renderCompanyWorkspace(my){
   const section=state.companySection||'dashboard';
-  if(section==='operations')return `${renderCompanyCommand(my)}${renderInvestmentReturnPanel(my)}${renderCorporateMarket(my)}${renderGlobalExpansion(my)}<details class="management-details"><summary>회사 세부 상태 보기</summary>${renderCompanyPulse(my)}</details>`;
+  if(section==='operations')return `${renderCompanyCommand(my)}${renderPeopleFinanceDesk(my)}${renderInvestmentReturnPanel(my)}${renderCorporateMarket(my)}${renderGlobalExpansion(my)}<details class="management-details"><summary>회사 세부 상태 보기</summary>${renderCompanyPulse(my)}</details>`;
   if(section==='competition')return `${renderTakeoverCrisis(my)}${renderCompetitionBoard(my)}<details class="management-details"><summary>내 지분·경영권 현황 보기</summary>${renderTakeoverDesk(my)}</details>`;
   if(section==='risk')return `${renderMediaDesk(my)}<details class="management-details"><summary>세금·준법 관리</summary>${renderTaxOffice(my)}</details>`;
   return `${renderTakeoverCrisis(my)}${renderCompanyGrowthPanel(my)}${renderDashboardProgress(my)}${renderExecutiveAgenda(my)}${renderCompanyLatestNews(my)}`;
@@ -1750,7 +1803,7 @@ function renderTerminal(preserve=false){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 5.10.1'}</span></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 5.11'}</span></div>
       ${topNav()}
       <div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
@@ -2044,6 +2097,21 @@ function bind(){
     const risk=['QUICK_BUZZ','RUMOR_POST'].includes(outlet)?'저가 매체는 과장·오보로 역효과가 날 가능성이 큽니다. ':outlet==='EDGE_MEDIA'?'저렴한 온라인 매체라 자극적인 기사 위험이 있습니다. ':'';
     const result=await companyRun('kx_company_media_v52',{p_outlet:outlet,p_target_company_id:targetId},`${risk}${name}에 ${formatKrwSmart(cost)}을 지불하고 ${target?.name||'선택한 회사'} 보도를 맡길까요? 기사 제목과 내용은 언론사가 해당 회사 상태를 보고 자체 작성합니다.`);
     if(result?.headline)showCompanyPressFlash({headline:result.headline,article_body:result.article_body,outlet_name:result.outlet_name||name,bot_flow:result.bot_flow,company_id:result.target_company_id||targetId});
+  });
+
+  document.querySelectorAll('[data-company-hr]').forEach(b=>b.onclick=async()=>{
+    const action=b.dataset.companyHr;
+    const dept=action==='LAYOFF'?document.getElementById('companyLayoffDepartment')?.value:document.getElementById('companyHireDepartment')?.value;
+    const count=action==='LAYOFF'?Math.max(1,Math.floor(Number(document.getElementById('companyLayoffCount')?.value)||1)):Math.max(1,Math.floor(Number(document.getElementById('companyHireCount')?.value)||1));
+    const salary=action==='HIRE'?parseCompanyMoney(document.getElementById('companyHireSalary')?.value,4000000):action==='BONUS'?parseCompanyMoney(document.getElementById('companyBonusAmount')?.value,30000000):parseCompanyMoney(document.getElementById('companySalaryAmount')?.value,Number(state.company?.my_company?.avg_monthly_salary||4000000));
+    const label={HIRE:`${departmentLabel(dept)} ${count}명 채용`,SET_SALARY:`평균 월급을 ${formatKrwSmart(salary)}으로 변경`,BONUS:`성과급 ${formatKrwSmart(salary)} 지급`,LAYOFF:`${departmentLabel(dept)} ${count}명 인력 조정`}[action]||'인사 결정';
+    if(!confirm(`${label}을 실행할까요? 급여·퇴직비용은 실제 법인현금과 향후 고정비에 반영됩니다.`))return;
+    try{
+      const d=await companyOpsV511(action,{department:dept,count,salary,amount:salary});
+      if(!d?.ok)throw new Error(d?.message||'인사 결정을 처리하지 못했습니다.');
+      state.companyNotice=d.message||'인사 결정이 반영되었습니다.';
+      await loadCompanyLayer(false,true);renderTerminal(true);
+    }catch(err){state.companyNotice='인사 처리 실패: '+err.message;const msg=document.getElementById('companyMsg');if(msg)msg.textContent=state.companyNotice;else alert(state.companyNotice);}
   });
 
   document.querySelectorAll('[data-company-tax]').forEach(b=>b.onclick=()=>{

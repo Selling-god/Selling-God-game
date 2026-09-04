@@ -616,3 +616,74 @@ body.tutorial-active{overflow:hidden}
 .company-analysis-panel{overflow-anchor:none}
 
 @media(max-width:800px){.global-budget .human-money-shell,.analysis-acquire .human-money-shell,.treasury-trade .human-money-shell{min-width:0}.corporate-ranklist .rankrow.me{margin:6px 4px}}
+
+/* =========================================================
+   KX CORPORATE 5.11 - real management + responsive layout
+   ========================================================= */
+.people-finance-desk{display:grid;gap:16px}
+.people-finance-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.people-finance-kpis article{min-width:0;padding:15px 16px;border:1px solid #26384d;border-radius:14px;background:#0d1826;display:grid;gap:5px}
+.people-finance-kpis small{font-size:10px;color:#8298af}.people-finance-kpis b{font-size:19px;color:#f0f5fb}.people-finance-kpis span{font-size:10px;color:#8ea3b8;line-height:1.45}
+.department-board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.department-board article{padding:12px;border:1px solid #213247;border-radius:12px;background:#0a1420;display:grid;gap:3px}
+.department-board span{font-size:10px;color:#8ea3b8}.department-board b{font-size:16px;color:#eef4fb}.department-board small{font-size:9px;color:#71879d}
+.hr-action-layout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.hr-action-card{min-width:0;padding:16px;border:1px solid #24374d;border-radius:16px;background:#0c1724;display:grid;align-content:start;gap:11px}
+.hr-action-card>div{display:grid;gap:4px}.hr-action-card>div small{font-size:9px;color:#8299b0;letter-spacing:.1em;font-weight:900}.hr-action-card h3{margin:0;font-size:17px}.hr-action-card p{margin:0;color:#8ea2b7;font-size:11px;line-height:1.5}
+.hr-action-card label{display:grid;gap:5px;font-size:10px;color:#8da3b9}.hr-action-card input,.hr-action-card select{width:100%;height:42px;box-sizing:border-box;border:1px solid #314760;border-radius:10px;background:#08121d;color:#edf4fb;padding:0 11px;font:inherit;outline:none}.hr-action-card input:focus,.hr-action-card select:focus{border-color:#5e83b1;box-shadow:0 0 0 2px rgba(94,131,177,.14)}
+.hr-action-card button{min-height:42px;border:1px solid #456488;border-radius:10px;background:#18314d;color:#f1f6fb;font-weight:900;cursor:pointer}.hr-action-card button.secondary{background:#101e2e}.hr-action-card button.risk,.hr-action-card.danger-card button{border-color:#6b3d45;background:#2a171c;color:#ffc1c6}
+.accounting-runway{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:12px;border:1px solid #203247;border-radius:14px;background:#09131e}.accounting-runway span{display:grid;gap:3px;font-size:11px;color:#9aadc0}.accounting-runway b{font-size:9px;color:#6f879e;letter-spacing:.05em}
+.modern-tax-office{display:grid;gap:14px}.tax-summary-hero{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.tax-summary-hero>div{padding:15px;border:1px solid #273a50;border-radius:14px;background:#0c1724;display:grid;gap:5px}.tax-summary-hero small{color:#8096ad;font-size:10px}.tax-summary-hero b{font-size:19px}.tax-summary-hero span{font-size:10px;color:#8da2b7;line-height:1.45}
+
+/* Cleaner company analysis profile */
+.clean-profile-panel{display:grid;gap:14px;padding:18px!important;min-width:0;overflow:hidden}
+.analysis-profile-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,.42fr);gap:14px;align-items:start}
+.analysis-profile-head>div:first-child{min-width:0}.analysis-country{display:inline-flex;margin-right:6px;padding:4px 8px;border:1px solid #2c4058;border-radius:999px;color:#91a7bd;font-size:9px;font-weight:800}
+.analysis-profile-head h2{margin:8px 0 4px;font-size:22px;line-height:1.25;overflow-wrap:anywhere}.analysis-profile-head p{margin:0;color:#8da2b8;font-size:11px;line-height:1.5}
+.analysis-value-box{padding:13px 14px;border:1px solid #2a3d54;border-radius:14px;background:#0b1623;display:grid;gap:4px;min-width:0}.analysis-value-box small{font-size:9px;color:#8096ad}.analysis-value-box b{font-size:18px;line-height:1.3;overflow-wrap:anywhere}.analysis-value-box span{font-size:9px;color:#8da2b6}
+.analysis-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.analysis-stat-grid article{padding:11px 12px;border:1px solid #22354a;border-radius:12px;background:#09141f;display:grid;gap:4px;min-width:0}.analysis-stat-grid small{font-size:9px;color:#7f95ac}.analysis-stat-grid b{font-size:14px;overflow-wrap:anywhere}.analysis-stat-grid span{font-size:9px;color:#8499ae}
+.clean-live-chart{min-width:0;overflow:hidden}.clean-live-chart canvas{display:block;width:100%!important;max-width:100%;height:320px!important}.clean-live-chart .chart-decision-note span{display:grid;gap:2px}.clean-live-chart .chart-decision-note small{font-size:8px;color:#71879d}.clean-live-chart .chart-decision-note b{font-size:10px;color:#dbe6f1}
+.analysis-subhead{display:flex;justify-content:space-between;align-items:center;gap:8px}.analysis-subhead h3{margin:0}.analysis-subhead span{padding:3px 7px;border-radius:999px;background:#142338;color:#9eb1c4;font-size:9px}
+
+/* Company browser and workspace must never force desktop width. */
+.company-analysis-layout,.clean-analysis-layout,.company-analysis-slot,.company-browser,.clean-company-browser,.company-workspace,.corp-section{min-width:0;max-width:100%}
+.clean-company-browser{overscroll-behavior:contain;scrollbar-gutter:stable}
+
+/* Mobile/tablet: preserve functionality rather than shrinking desktop cards. */
+@media(max-width:1180px){
+  .company-analysis-layout.clean-analysis-layout{grid-template-columns:minmax(0,1fr)!important;gap:14px}
+  .clean-company-browser{max-height:460px!important;min-height:260px}
+  .analysis-profile-head{grid-template-columns:minmax(0,1fr) 230px}
+  .people-finance-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .hr-action-layout{grid-template-columns:1fr 1fr}.hr-action-card:last-child{grid-column:1/-1}
+  .department-board{grid-template-columns:repeat(5,minmax(110px,1fr));overflow-x:auto;padding-bottom:4px}
+  .tax-summary-hero{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .global-country-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .company-target-chart{max-width:100%;overflow:hidden}
+}
+@media(max-width:900px){
+  .management-topbar .main-nav{display:none!important}
+  .management-mobile-nav{display:grid!important}
+  .company-shell.corporate-ui-refresh,.company-shell{padding:12px!important}
+  .company-browser-toolbar{grid-template-columns:1fr!important;gap:8px!important}.company-region-tabs{justify-content:stretch}.company-region-tabs button{flex:1}
+  .company-search-box{width:100%;min-width:0}.company-search-box input{min-width:0;width:100%}
+  .clean-company-row{grid-template-columns:48px minmax(0,1fr) minmax(120px,.55fr)!important;gap:9px!important}.clean-company-row .company-row-quote,.clean-company-row .company-row-stake,.clean-company-row .company-row-open{grid-column:auto}.clean-company-row .company-row-open{display:none}
+  .analysis-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .company-target-chart canvas,.clean-live-chart canvas{height:290px!important}
+  .people-finance-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.hr-action-layout{grid-template-columns:1fr}.hr-action-card:last-child{grid-column:auto}.accounting-runway{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .return-kpis,.treasury-impact,.takeover-summary,.pulse-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .global-budget,.treasury-trade{grid-template-columns:1fr!important}.global-budget>*{min-width:0}
+}
+@media(max-width:640px){
+  body{overflow-x:hidden}.terminal,.page-view,.page-panel{max-width:100vw;overflow-x:hidden}
+  .management-topbar{padding:7px 9px!important}.management-topbar .brand strong,.management-topbar .online-mode-chip,.management-topbar .corporate-cycle-status,.management-topbar .company-header-money{display:none!important}.management-topbar .kxlogo{width:38px;height:38px}.management-topbar .tutorial-btn,.management-topbar .logout{padding:0 8px!important;font-size:9px!important}
+  .mobile-account-bar{display:grid!important;grid-template-columns:1fr 1fr;gap:6px;padding:7px 9px}.mobile-account-bar span{min-width:0;font-size:9px}.mobile-account-bar b{display:block;overflow:hidden;text-overflow:ellipsis}
+  .company-section-switcher{grid-template-columns:1fr 1fr!important}.company-section-switcher button{padding:10px!important}.company-section-switcher button span{font-size:9px!important}
+  .company-browser-summary{display:grid!important;grid-template-columns:auto auto;gap:4px}.company-browser-summary small{grid-column:1/-1}
+  .clean-company-browser{max-height:390px!important}.clean-company-row{grid-template-columns:42px minmax(0,1fr)!important;padding:11px!important}.clean-company-row .company-row-value,.clean-company-row .company-row-quote,.clean-company-row .company-row-stake{grid-column:2;display:grid!important;grid-template-columns:auto 1fr;gap:6px;align-items:baseline}.clean-company-row .company-row-value small,.clean-company-row .company-row-quote small,.clean-company-row .company-row-stake small{font-size:8px}.clean-company-row .company-row-value b,.clean-company-row .company-row-quote b,.clean-company-row .company-row-stake b{font-size:11px!important}.company-row-identity b{font-size:13px!important}.company-row-identity small,.company-row-identity em{font-size:8.5px!important}
+  .clean-profile-panel{padding:12px!important}.analysis-profile-head{grid-template-columns:1fr}.analysis-value-box{width:auto}.analysis-stat-grid{grid-template-columns:1fr 1fr}.analysis-stat-grid article{padding:9px}.analysis-profile-head h2{font-size:19px}.clean-live-chart canvas{height:245px!important}.chart-decision-note{grid-template-columns:1fr 1fr!important}
+  .people-finance-kpis,.tax-summary-hero,.tax-ledger,.tax-actions,.return-kpis,.treasury-impact,.takeover-summary,.pulse-grid{grid-template-columns:1fr!important}.department-board{grid-template-columns:repeat(5,112px)}.accounting-runway{grid-template-columns:1fr}.hr-action-card{padding:13px}
+  .project-launch-grid,.project-grid,.global-country-grid{grid-template-columns:1fr!important}.project-launch-box{grid-template-columns:1fr!important}.corp-money-input input,.hr-action-card input,.hr-action-card select,.global-budget input,.treasury-trade input,.treasury-trade select{font-size:16px!important;max-width:100%;box-sizing:border-box}
+  .income-feed article,.treasury-holdings article,.stake-row{grid-template-columns:1fr!important;gap:5px!important}.income-feed article em{text-align:left!important}
+  .company-section-head h2{font-size:21px!important}.company-section-head>span{font-size:10px!important}
+}
