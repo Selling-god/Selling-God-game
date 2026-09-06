@@ -1,5 +1,5 @@
 (()=>{
-const KX_COMPANY_BUILD='5.11.0-REAL-MANAGEMENT-RESPONSIVE';
+const KX_COMPANY_BUILD='5.12.0-CEO-GAMEPLAY-ONBOARDING';
 window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
@@ -325,10 +325,20 @@ const NEWS_SEV={NORMAL:'일반',BREAKING:'속보',EXTRA:'호외'};
 const ORDER_STATUS={OPEN:'미체결',PARTIAL:'부분체결',FILLED:'체결완료',CANCELED:'취소',REJECTED:'거절'};
 const GUIDE_MODE_KEY='kx_guidance_mode_v2';
 const BASE_ASSET_PREFIX='kx_baseline_assets_v1';
-const GUIDE_MODES={STANDARD:{label:'표준',short:'표준',desc:'핵심 보조선과 짧은 설명을 표시합니다.'}};
-function guidanceMode(){return 'STANDARD'}
-function guidanceInfo(){return GUIDE_MODES.STANDARD}
-function setGuidanceMode(){localStorage.setItem(GUIDE_MODE_KEY,'STANDARD')}
+const GUIDE_MODES={
+  BEGINNER:{label:'초보 CEO',short:'초보',desc:'추천 행동·예상 효과·안전 예산을 적극적으로 보여줍니다.'},
+  STANDARD:{label:'표준 경영',short:'표준',desc:'핵심 도움말만 남기고 판단은 플레이어가 직접 합니다.'},
+  REALISTIC:{label:'극현실',short:'극현실',desc:'추천과 힌트를 최소화하고 실제 경영처럼 숫자와 결과만 보고 판단합니다.'}
+};
+function guidanceMode(){
+  const saved=String(localStorage.getItem(GUIDE_MODE_KEY)||'').toUpperCase();
+  return GUIDE_MODES[saved]?saved:'BEGINNER';
+}
+function guidanceInfo(){return GUIDE_MODES[guidanceMode()]||GUIDE_MODES.BEGINNER}
+function setGuidanceMode(mode='BEGINNER'){
+  const next=GUIDE_MODES[String(mode).toUpperCase()]?String(mode).toUpperCase():'BEGINNER';
+  localStorage.setItem(GUIDE_MODE_KEY,next);return next;
+}
 function scopedKey(prefix){return `${prefix}_${session?.user?.id||'guest'}`}
 function baselineAssets(){
   const key=scopedKey(BASE_ASSET_PREFIX),current=Number(totalAssets())||0;
@@ -366,6 +376,17 @@ function defaultMeta(){return {orders:0,limitOrders:0,marketOrders:0,filledOrder
 function loadMeta(){try{return {...defaultMeta(),...(JSON.parse(localStorage.getItem(META_KEY)||'{}')||{})}}catch{return defaultMeta()}}
 let playerMeta=loadMeta();
 function saveMeta(){localStorage.setItem(META_KEY,JSON.stringify(playerMeta||defaultMeta()))}
+const COMPANY_GAME_META_PREFIX='kx_company_gameplay_v1';
+function companyGameMetaKey(){return `${COMPANY_GAME_META_PREFIX}_${session?.user?.id||'guest'}_${state.company?.my_company?.id||'new'}`}
+function defaultCompanyGameMeta(){return {actions:0,projects:0,media:0,acquisitions:0,expansions:0,hr:0,tax:0,defenses:0,trades:0,decisions:0,lastAction:''}}
+function companyGameMeta(){
+  try{return {...defaultCompanyGameMeta(),...(JSON.parse(localStorage.getItem(companyGameMetaKey())||'{}')||{})}}catch{return defaultCompanyGameMeta()}
+}
+function recordCompanyGameAction(kind,detail=''){
+  const m=companyGameMeta();m.actions=(Number(m.actions)||0)+1;
+  if(kind&&Object.prototype.hasOwnProperty.call(m,kind))m[kind]=(Number(m[kind])||0)+1;
+  m.lastAction=String(detail||kind||'경영 결정');localStorage.setItem(companyGameMetaKey(),JSON.stringify(m));
+}
 function markNewsViewed(){playerMeta.newsViewed=true;saveMeta()}
 function recordOrderMeta(body,order,s){
   if(!body||!order)return;
@@ -1193,16 +1214,82 @@ function renderPeopleFinanceDesk(my){
   </section>`;
 }
 
+function companyCashRunway(my){
+  const payroll=Math.max(0,Number(my.monthly_payroll||Number(my.employees||0)*Number(my.avg_monthly_salary||0)));
+  const fixed=Math.max(0,Number(my.monthly_fixed_cost||0));
+  const monthly=Math.max(1,payroll+fixed);
+  return {monthly,months:Number(my.cash||0)/monthly};
+}
+function companyImpactMeta(action){
+  const map={
+    RND:['기술력↑','제품력↑','중장기 매출','중간'],QUALITY:['품질↑','고객신뢰↑','리콜위험↓','낮음'],CAPEX:['생산능력↑','운영력↑','고정비↑','중간'],HIRING:['인재↑','실행력↑','급여비↑','중간'],MARKETING:['브랜드↑','수요↑','점유율↑','높음'],WELFARE:['직원사기↑','생산성↑','이직위험↓','낮음'],COMPLIANCE:['준법↑','조사위험↓','신용↑','낮음'],PRICE_WAR:['점유율↑','마진↓','브랜드위험','높음'],COSTCUT:['현금흐름↑','고정비↓','사기↓','중간'],DIVIDEND:['투자심리↑','현금↓','주주환원','낮음'],LOAN:['현금↑','부채↑','이자비용↑','중간'],REPAY:['부채↓','신용↑','현금↓','낮음']
+  };
+  return map[action]||['회사 지표 변화','현금 사용','결과 변동','중간'];
+}
+function companyBudgetGuide(my,action='RND'){
+  const cash=Math.max(0,Number(my.cash||0));
+  const bands={RND:[.05,.12],QUALITY:[.03,.08],CAPEX:[.08,.18],HIRING:[.03,.08],MARKETING:[.03,.10],WELFARE:[.02,.06],COMPLIANCE:[.02,.05],PRICE_WAR:[.04,.12],DIVIDEND:[.02,.07],REPAY:[.05,.20]};
+  const b=bands[action]||[.03,.10];return {low:cash*b[0],high:cash*b[1]};
+}
+function companyMissionSnapshot(my,myRank,companies){
+  const meta=companyGameMeta(),projects=state.company?.projects||[],markets=state.company?.my_markets||[],holdings=state.company?.my_holdings||[],campaigns=state.company?.media_campaigns||[];
+  const runway=companyCashRunway(my);const value=Number(my.valuation||0),profit=Number(my.profit||0),morale=Number(my.employee_morale||0),quality=Number(my.product_quality||0);
+  const goals=[
+    {id:'project',title:'첫 성장 프로젝트 시작',desc:'R&D·품질·설비·마케팅 중 하나를 실행',done:projects.length>0||meta.projects>0,section:'operations',reward:'CEO XP +120'},
+    {id:'runway',title:'현금 런웨이 6개월 확보',desc:`현재 ${runway.months.toFixed(1)}개월 · 고정비를 감당할 현금을 확보`,done:runway.months>=6,section:'operations',reward:'안정경영 배지'},
+    {id:'media',title:'첫 기업 홍보 집행',desc:'언론사를 골라 회사의 시장 인지도를 움직여 보기',done:campaigns.length>0||meta.media>0,section:'risk',reward:'IR 경험치'},
+    {id:'stake',title:'경쟁사 전략지분 확보',desc:'한 경쟁사의 지분을 5% 이상 확보',done:holdings.some(h=>Number(h.stake)>=5),section:'competition',reward:'M&A 경험치'},
+    {id:'global',title:'첫 해외시장 진출',desc:'미국·독일·영국·일본·중국 중 한 곳에 진출',done:markets.length>0||meta.expansions>0,section:'operations',reward:'글로벌 배지'},
+    {id:'profit',title:'흑자 경영 달성',desc:'영업이익을 0원 이상으로 유지',done:profit>0,section:'operations',reward:'수익경영 배지'},
+    {id:'people',title:'조직 건강도 확보',desc:'직원 사기와 제품 품질을 모두 60 이상으로 유지',done:morale>=60&&quality>=60,section:'operations',reward:'조직경영 배지'},
+    {id:'scale',title:'기업가치 100억 돌파',desc:`현재 ${formatKrwSmart(value)}`,done:value>=10000000000,section:'dashboard',reward:'성장기업 배지'},
+    {id:'rank',title:'TOP 20 진입',desc:`현재 #${myRank||'-'} / ${companies.length}`,done:!!myRank&&myRank<=20,tab:'ranking',reward:'리그 배지'}
+  ];
+  const completed=goals.filter(g=>g.done).length,xp=completed*120+Math.min(30,Number(meta.actions)||0)*15;
+  const level=Math.max(1,Math.min(10,1+Math.floor(xp/300)));const next=level>=10?300:300-(xp%300||0);
+  return {goals,completed,xp,level,next,meta,runway};
+}
+function renderCompanyGameCenter(my,myRank,companies){
+  const snap=companyMissionSnapshot(my,myRank,companies),open=snap.goals.filter(g=>!g.done).slice(0,3),gm=guidanceMode(),info=guidanceInfo();
+  return `<section class="ceo-game-center"><div class="ceo-level-card"><div><small>CEO CAREER</small><b>LEVEL ${snap.level}</b><span>${snap.completed}/${snap.goals.length} 핵심 목표 달성 · 누적 XP ${snap.xp}</span></div><div class="ceo-xp"><i style="width:${Math.min(100,(snap.xp%300)/3)}%"></i></div><em>${snap.level>=10?'최고 레벨 달성':`다음 레벨까지 ${snap.next} XP`}</em></div><div class="ceo-mission-board"><div class="ceo-mission-head"><div><small>NEXT OBJECTIVES</small><h2>다음에 뭘 해야 할지 고민된다면</h2><p>기능을 전부 외울 필요 없이 아래 3개만 따라가도 회사가 자연스럽게 성장하도록 구성했습니다.</p></div><div class="guide-mode-box"><small>플레이 도움</small>${Object.entries(GUIDE_MODES).map(([k,v])=>`<button data-guide-mode="${k}" class="${gm===k?'on':''}"><b>${v.short}</b><span>${v.desc}</span></button>`).join('')}</div></div><div class="ceo-missions">${open.length?open.map((g,i)=>`<button ${g.tab?`data-main-tab="${g.tab}"`:`data-company-section-jump="${g.section}"`}><strong>0${i+1}</strong><span><b>${g.title}</b><small>${g.desc}</small></span><em>${g.reward} →</em></button>`).join(''):`<div class="mission-complete"><b>핵심 목표를 모두 달성했습니다.</b><span>이제 기업 순위, M&A, 글로벌 점유율을 중심으로 자유롭게 경쟁하세요.</span></div>`}</div><div class="guide-mode-note"><b>${info.label}</b><span>${info.desc}</span></div></div></section>`;
+}
+function companyCoachItems(my){
+  const rows=[],runway=companyCashRunway(my),projects=state.company?.projects||[],markets=state.company?.my_markets||[],holdings=state.company?.my_holdings||[];
+  const tax=Number(my.tax_due||0)+Number(my.tax_arrears||0),threat=companyStakeAgainstMe();
+  if(threat>=15)rows.push(['critical','경영권부터 방어','외부 지분이 15%를 넘었습니다. 성장 투자보다 경영권 방어 결정을 먼저 검토하는 편이 안전합니다.','competition']);
+  if(tax>0)rows.push(['warn','세금 고지 확인',`${formatKrwSmart(tax)}의 확정·미납 세액이 있습니다. 현금 부족 전에 납부 전략을 정하세요.`,'risk']);
+  if(runway.months<4)rows.push(['warn','투자보다 현금 확보',`현재 런웨이 약 ${runway.months.toFixed(1)}개월입니다. 대형 프로젝트보다 비용 조정·현금 확보가 우선입니다.`,'operations']);
+  if(Number(my.product_quality||50)<55)rows.push(['good','품질 프로젝트 추천','제품 품질이 낮아 고객 신뢰와 리콜 위험에 불리합니다. QUALITY 프로젝트가 가장 직접적입니다.','operations']);
+  if(Number(my.employee_morale||60)<50)rows.push(['good','조직 안정화 추천','직원 사기가 낮습니다. 복지·보상 또는 급여 정책을 먼저 손보면 생산성 하락을 줄일 수 있습니다.','operations']);
+  if(!projects.some(p=>['ACTIVE','PAYBACK'].includes(String(p.status))))rows.push(['good','첫 프로젝트 시작','현재 성장 프로젝트가 없습니다. 초반에는 품질 또는 R&D처럼 방향이 분명한 프로젝트가 이해하기 쉽습니다.','operations']);
+  if(Number(my.investor_sentiment||50)<48)rows.push(['good','IR·홍보 검토','투자자 심리가 약합니다. 마케팅 프로젝트는 고객 수요, 언론 보도는 투자자·평판에 더 직접적으로 작용합니다.','risk']);
+  if(!holdings.length&&Number(my.cash||0)>200000000)rows.push(['info','경쟁사 분석 연습','바로 인수하기보다 경쟁사 한 곳을 분석해 가치·실적·뉴스를 비교한 뒤 소수지분부터 시작해 보세요.','competition']);
+  if(!markets.length&&Number(my.valuation||0)>2400000000&&runway.months>=5)rows.push(['info','해외 진출 준비','회사 규모와 현금 여력이 해외 진출을 검토할 수준입니다. 초기에 한 국가에 집중하는 편이 관리하기 쉽습니다.','operations']);
+  if(!rows.length)rows.push(['stable','균형 상태','긴급한 약점이 없습니다. R&D·마케팅·경쟁사 투자 중 원하는 성장 전략을 선택하세요.','operations']);
+  return rows;
+}
+function renderCompanyDecisionCoach(my){
+  if(guidanceMode()==='REALISTIC')return '';
+  const n=guidanceMode()==='BEGINNER'?3:2,rows=companyCoachItems(my).slice(0,n);
+  return `<section class="ceo-coach"><div><small>CEO ASSISTANT</small><h2>현재 회사에서 우선순위</h2><span>정답을 강요하는 기능이 아니라, 복잡한 지표를 읽는 순서를 알려주는 보조판입니다.</span></div><div class="ceo-coach-list">${rows.map((x,i)=>`<button class="${x[0]}" data-company-section-jump="${x[3]}"><strong>${i+1}</strong><span><b>${x[1]}</b><small>${x[2]}</small></span><em>열기 →</em></button>`).join('')}</div></section>`;
+}
+function renderMarketingGuide(my){
+  if(guidanceMode()==='REALISTIC')return '';
+  return `<section class="marketing-guide"><div><small>PROMOTION PLAYBOOK</small><h3>‘마케팅’과 ‘언론 홍보’는 역할이 다릅니다</h3></div><div><article><b>마케팅 프로젝트</b><span>고객 수요·브랜드·시장점유율을 키우는 영업 활동</span><em>사업 운영 → MARKETING</em></article><article><b>언론 홍보·IR</b><span>투자자 심리·미디어 평판·주가 수급에 더 직접적인 활동</span><em>현재 화면의 언론사 선택</em></article><article><b>가격 경쟁</b><span>점유율을 빠르게 얻지만 영업이익률과 브랜드가 흔들릴 수 있는 공격 전략</span><em>재무·위기 대응 메뉴</em></article></div></section>`;
+}
+
 function renderCompanyCommand(my){
   const core=['RND','QUALITY','CAPEX','HIRING','MARKETING','WELFARE'];
   const active=(state.company?.projects||[]).filter(p=>['ACTIVE','PAYBACK'].includes(String(p.status))).length;
+  const gm=guidanceMode();
   const advanced=[['PRICE_WAR','가격 경쟁','즉시','점유율을 빠르게 확보하지만 이익·브랜드가 흔들릴 수 있습니다.'],['COSTCUT','구조조정','즉시','현금을 확보하지만 직원 사기와 평판이 떨어질 수 있습니다.'],['DIVIDEND','주주 배당','즉시','현금을 주주에게 돌려 투자자 신뢰를 높입니다.'],['COMPLIANCE','준법·감사 프로젝트','3주기','규제·세무 위험을 낮추는 방어 프로젝트입니다.'],['LOAN','기업 대출','즉시','현금을 확보하는 대신 부채와 신용 부담이 생깁니다.'],['REPAY','부채 상환','즉시','부채를 줄여 신용과 재무 안정성을 높입니다.']];
+  const cash=Number(my.cash||0),safeLow=cash*.03,safeHigh=cash*.10;
   return `<section class="corp-section ceo-command-section management-v54">
     <div class="company-section-head"><div><small>CEO STRATEGY</small><h2>이번에는 ‘프로젝트’를 시작합니다</h2></div><span>현재 진행·회수 중 ${active}개 · 핵심 프로젝트는 최대 4개까지 동시에 운영할 수 있습니다.</span></div>
     ${renderManagementProjectBoard(my)}
-    <div class="project-launch-box"><div><b>신규 프로젝트 예산</b><span>투자금은 즉시 빠지지만, 프로젝트가 완료되면 성과에 따라 여러 경영주기에 걸쳐 현금이 돌아옵니다.</span></div>${companyMoneyInput('companyActionAmount','집행금액','1억')}</div>
-    <div class="project-launch-grid">${core.map(k=>{const m=managementProjectMeta(k);return `<button data-company-action="${k}" class="project-launch"><div><small>${m[1]} · 위험 ${m[2]}</small><b>${m[0]}</b></div><p>${m[3]}</p><span>${m[4]} · 시작하기 →</span></button>`}).join('')}</div>
-    <details class="advanced-management"><summary>재무·위기 대응 결정 보기</summary><div class="corp-action-grid advanced-grid">${advanced.map(a=>`<button data-company-action="${a[0]}" class="${['PRICE_WAR','LOAN','COSTCUT'].includes(a[0])?'risk':''}"><small>${a[2]}</small><b>${a[1]}</b><span>${a[3]}</span></button>`).join('')}</div></details>
+    <div class="project-launch-box"><div><b>신규 프로젝트 예산</b><span>투자금은 즉시 빠지지만, 프로젝트가 완료되면 성과에 따라 여러 경영주기에 걸쳐 현금이 돌아옵니다.${gm==='BEGINNER'?` 처음에는 법인현금의 약 3~10% 범위가 결과를 배우기 좋습니다.`:''}</span>${gm!=='REALISTIC'?`<div class="budget-presets"><button data-budget-preset="0.03">현금 3%</button><button data-budget-preset="0.05">5%</button><button data-budget-preset="0.10">10%</button><button data-budget-preset="0.15">15%</button></div>`:''}</div>${companyMoneyInput('companyActionAmount','집행금액',cash?formatKrwSmart(Math.max(10000000,Math.min(cash*.05,100000000))):'1억')} ${gm==='BEGINNER'?`<small class="budget-safe-note">현재 참고 범위 ${formatKrwSmart(safeLow)} ~ ${formatKrwSmart(safeHigh)}</small>`:''}</div>
+    <div class="project-launch-grid">${core.map(k=>{const m=managementProjectMeta(k),im=companyImpactMeta(k),b=companyBudgetGuide(my,k);return `<button data-company-action="${k}" class="project-launch"><div><small>${m[1]} · 위험 ${m[2]}</small><b>${m[0]}</b></div><p>${m[3]}</p>${gm!=='REALISTIC'?`<div class="impact-tags"><i>${im[0]}</i><i>${im[1]}</i><i>${im[2]}</i></div>${gm==='BEGINNER'?`<small class="action-budget-hint">참고 예산 ${formatKrwSmart(b.low)}~${formatKrwSmart(b.high)}</small>`:''}`:''}<span>${m[4]} · 시작하기 →</span></button>`}).join('')}</div>
+    <details class="advanced-management"><summary>재무·위기 대응 결정 보기</summary><div class="corp-action-grid advanced-grid">${advanced.map(a=>{const im=companyImpactMeta(a[0]);return `<button data-company-action="${a[0]}" class="${['PRICE_WAR','LOAN','COSTCUT'].includes(a[0])?'risk':''}"><small>${a[2]}</small><b>${a[1]}</b><span>${a[3]}</span>${gm!=='REALISTIC'?`<em>${im.slice(0,3).join(' · ')}</em>`:''}</button>`}).join('')}</div></details>
   </section>`;
 }
 
@@ -1247,6 +1334,7 @@ function renderMediaDesk(my){
   const targets=[...(state.company?.companies||[])].filter(c=>c&&c.status!=='INACTIVE').sort((a,b)=>Number(b.valuation)-Number(a.valuation));
   return `<section class="corp-section media-desk-section newsroom-management clean-newsroom-management auto-newsroom">
     <div class="company-section-head"><div><small>NEWS · IR</small><h2>회사만 고르고, 기사는 언론사에 맡기세요</h2></div><span>기사 제목이나 내용을 직접 고르지 않습니다. 먼저 보도할 회사를 선택한 뒤 언론사를 고르면, 그 매체가 선택한 회사의 실적·기술·평판을 보고 자체적으로 기사를 작성합니다.</span></div>
+    ${renderMarketingGuide(my)}
     <div class="media-target-shell"><div><small>보도 대상 회사</small><b>어느 회사를 기사화할까요?</b><span>내 회사를 홍보할 수도 있고 경쟁사를 기사화할 수도 있습니다. 결과의 방향은 언론사 품질과 실제 회사 상태에 따라 달라집니다.</span></div><label><span>회사 선택</span><select id="companyMediaTarget">${targets.map(c=>`<option value="${c.id}" ${Number(c.id)===Number(my.id)?'selected':''}>${Number(c.id)===Number(my.id)?'[내 회사] ':''}${escapeHtml(c.name)} · ${escapeHtml(c.home_country)} · ${escapeHtml(c.sector)}</option>`).join('')}</select></label></div>
     <div class="auto-news-explain"><div><b>어떤 기사가 나올지는 보장되지 않습니다.</b><span>신뢰도 높은 언론사는 비싸지만 과장 보도 위험이 낮고, 값싼 매체는 비용을 아끼는 대신 이상한 제목·과장 기사로 역풍을 맞을 수 있습니다.</span></div><div class="auto-news-current"><span>내 투자자 심리 <b>${Number(my.investor_sentiment||50).toFixed(0)}</b></span><span>내 미디어 평판 <b>${Number(my.media_reputation||50).toFixed(0)}</b></span><span>내 최근 수급 <b class="${Number(my.investor_flow||0)>=0?'up':'down'}">${Number(my.investor_flow||0)>=0?'+':''}${compactMoney(my.investor_flow||0)}원</b></span></div></div>
     <div class="auto-outlet-grid">${outlets.map(o=>`<article class="auto-outlet-card risk-${o.risk==='극단적'?'extreme':o.risk==='매우 높음'?'very-high':o.risk==='높음'?'high':'normal'}"><div><small>${o.kind}</small><h3>${o.name}</h3><p>${o.tone}</p></div><dl><div><dt>보도 비용</dt><dd>${formatKrwSmart(o.cost)}</dd></div><div><dt>신뢰도</dt><dd>${o.trust}</dd></div><div><dt>역풍 위험</dt><dd>${o.risk}</dd></div></dl><button data-company-media="${o.code}" data-media-cost="${o.cost}" data-media-name="${o.name}">선택한 회사를 이 언론사에 맡기기</button></article>`).join('')}</div>
@@ -1419,7 +1507,7 @@ function renderExecutiveAgenda(my){
   if(Number(my.employee_morale||60)<45)issues.push(['warn','핵심 인력 이탈 위험',`직원 사기 ${Number(my.employee_morale||0).toFixed(0)} · 복지/보상 또는 조직투자 필요`,'operations']);
   if(Number(my.product_quality||50)<52)issues.push(['warn','제품 품질 리스크',`제품력 ${Number(my.product_quality||0).toFixed(0)} · 리콜과 고객 신뢰 하락 가능성`,'operations']);
   if(Number(my.cash||0)<Math.max(120000000,Number(my.revenue||0)*.12))issues.push(['warn','현금흐름 주의',`법인 현금 ${compactMoney(my.cash)}원 · 투자/세금/M&A 대응 여력이 낮습니다.`,'competition']);
-  if(Number(my.global_level||0)<2&&Number(my.valuation||0)>2400000000)issues.push(['opportunity','해외 진출 기회',`기업 규모에 비해 해외 사업 비중이 낮습니다. 글로벌 성장을 검토할 수 있습니다.`,'global']);
+  if(Number(my.global_level||0)<2&&Number(my.valuation||0)>2400000000)issues.push(['opportunity','해외 진출 기회',`기업 규모에 비해 해외 사업 비중이 낮습니다. 글로벌 성장을 검토할 수 있습니다.`,'operations']);
   if(Number(my.media_reputation||50)<45||Number(my.investor_sentiment||50)<45)issues.push(['opportunity','IR·평판 회복 필요',`미디어 평판 ${Number(my.media_reputation||0).toFixed(0)} · 투자자 심리 ${Number(my.investor_sentiment||0).toFixed(0)}`,'risk']);
   if(!issues.length)issues.push(['stable','경영 상태 안정','긴급 안건은 없습니다. 경쟁사 투자·해외진출·R&D 중 다음 성장 전략을 선택하세요.','operations']);
   return `<section class="executive-agenda"><div class="company-section-head"><div><small>BOARD AGENDA</small><h2>오늘의 이사회 안건</h2></div><span>주가를 보는 대신 지금 회사에서 해결해야 할 문제와 기회를 먼저 보여줍니다.</span></div><div class="agenda-grid">${issues.slice(0,6).map((x,i)=>`<button class="agenda-card ${x[0]}" data-company-section-jump="${x[3]}"><span>${i+1<10?'0':''}${i+1}</span><div><b>${x[1]}</b><small>${x[2]}</small></div><em>검토 →</em></button>`).join('')}</div></section>`;
@@ -1459,11 +1547,11 @@ function renderDashboardProgress(my){
   return `<section class="dashboard-progress refined-progress-panel"><div class="company-section-head"><div><small>WHAT IS HAPPENING NOW</small><h2>내 결정이 지금 어떻게 진행되고 있나</h2></div><button data-company-section-jump="operations" class="section-link">사업 운영 전체 보기</button></div><div class="dashboard-progress-summary"><article><small>실행 중 프로젝트</small><b>${activeCount}개</b><span>현재 돈을 쓰며 진행 중인 과제</span></article><article><small>회수 단계</small><b>${paybackCount}개</b><span>완료 후 수익을 돌려받는 단계</span></article><article><small>최근 확정 수익</small><b class="${realized>=0?'up':'down'}">${realized>=0?'+':''}${compactMoney(realized)}원</b><span>최근 기록된 법인현금 유입 합계</span></article><article><small>누적 회수 금액</small><b>${compactMoney(totalReturn)}원</b><span>현재 화면의 프로젝트에서 확인되는 회수 금액</span></article></div><div class="dashboard-progress-grid"><div class="dashboard-projects"><h3>진행 중 프로젝트</h3>${projects.length?projects.map(p=>{const d=Math.max(1,Number(p.duration_cycles)||1),n=Math.min(d,Number(p.progress_cycles)||0),pc=p.status==='PAYBACK'?100:Math.round(n/d*100);return `<article><span><b>${escapeHtml(p.title||p.project_type)}</b><small>${projectStatusLabel(p)} · ${p.status==='PAYBACK'?`회수 ${Number(p.payout_cycles_remaining||0)}회 남음`:`${n}/${d}주기 진행`}</small></span><div><i style="width:${pc}%"></i></div><strong>${compactMoney(p.realized_return||0)}원 회수</strong></article>`}).join(''):`<div class="empty compact">진행 중 프로젝트가 없습니다.</div>`}</div><div class="dashboard-income"><h3>최근 법인현금 유입</h3>${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||'투자수익')}</b><small>${escapeHtml(x.income_label||x.income_type)}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong></article>`).join(''):`<div class="empty compact">아직 확정된 투자 수익이 없습니다.</div>`}</div></div></section>`;
 }
 function renderCompanyWorkspace(my){
-  const section=state.companySection||'dashboard';
-  if(section==='operations')return `${renderCompanyCommand(my)}${renderPeopleFinanceDesk(my)}${renderInvestmentReturnPanel(my)}${renderCorporateMarket(my)}${renderGlobalExpansion(my)}<details class="management-details"><summary>회사 세부 상태 보기</summary>${renderCompanyPulse(my)}</details>`;
-  if(section==='competition')return `${renderTakeoverCrisis(my)}${renderCompetitionBoard(my)}<details class="management-details"><summary>내 지분·경영권 현황 보기</summary>${renderTakeoverDesk(my)}</details>`;
-  if(section==='risk')return `${renderMediaDesk(my)}<details class="management-details"><summary>세금·준법 관리</summary>${renderTaxOffice(my)}</details>`;
-  return `${renderTakeoverCrisis(my)}${renderCompanyGrowthPanel(my)}${renderDashboardProgress(my)}${renderExecutiveAgenda(my)}${renderCompanyLatestNews(my)}`;
+  const section=state.companySection||'dashboard',beginner=guidanceMode()==='BEGINNER';
+  if(section==='operations')return `${renderCompanyDecisionCoach(my)}${renderCompanyCommand(my)}<details class="operations-module" ${beginner?'open':''}><summary><b>인사·급여</b><span>채용, 월급, 성과급, 감원, 고정비</span></summary>${renderPeopleFinanceDesk(my)}</details><details class="operations-module"><summary><b>투자금 회수·현금유입</b><span>프로젝트·배당·해외사업에서 돈이 돌아오는 과정</span></summary>${renderInvestmentReturnPanel(my)}</details><details class="operations-module"><summary><b>법인 투자 포트폴리오</b><span>회사 자금으로 국내·해외 주식 운용</span></summary>${renderCorporateMarket(my)}</details><details class="operations-module"><summary><b>해외시장 진출</b><span>국가별 진출과 현지 매출 성장</span></summary>${renderGlobalExpansion(my)}</details><details class="management-details"><summary>회사 세부 상태 보기</summary>${renderCompanyPulse(my)}</details>`;
+  if(section==='competition')return `${renderCompanyDecisionCoach(my)}${renderTakeoverCrisis(my)}${renderCompetitionBoard(my)}<details class="management-details"><summary>내 지분·경영권 현황 보기</summary>${renderTakeoverDesk(my)}</details>`;
+  if(section==='risk')return `${renderCompanyDecisionCoach(my)}${renderMediaDesk(my)}<details class="management-details" ${Number(my.tax_due||0)+Number(my.tax_arrears||0)>0?'open':''}><summary>세금·준법 관리</summary>${renderTaxOffice(my)}</details>`;
+  return `${renderTakeoverCrisis(my)}${renderCompanyDecisionCoach(my)}${renderCompanyGrowthPanel(my)}${renderDashboardProgress(my)}${renderExecutiveAgenda(my)}${renderCompanyLatestNews(my)}`;
 }
 
 function renderCompanySubnav(my){
@@ -1511,7 +1599,7 @@ function renderCompanyRoom(){
   const latestArticle=(state.company?.press||[])[0]||null;
   const headline=String(latestArticle?.headline||'');
   const shortHeadline=headline?escapeHtml(headline.length>36?`${headline.slice(0,36)}…`:headline):'최근 공시·기사가 아직 없습니다.';
-  const health=Number(my.cash||0)>=Math.max(120000000,Number(my.revenue||0)*0.12)?'현금 여력 안정':'현금 여력 주의';
+  const runway=companyCashRunway(my);const health=runway.months>=6?`현금 런웨이 ${runway.months.toFixed(1)}개월 · 안정`:runway.months>=3?`현금 런웨이 ${runway.months.toFixed(1)}개월 · 주의`:`현금 런웨이 ${runway.months.toFixed(1)}개월 · 위험`;
   const notice=state.companyNotice?escapeHtml(state.companyNotice):'위 메뉴를 누르면 해당 업무 화면이 바로 열립니다.';
   const dashboardHero=`<div class="company-hero-grid">
       <section class="company-hero-card">
@@ -1521,6 +1609,7 @@ function renderCompanyRoom(){
           <article><small>매출</small><b>${compactMoney(my.revenue)}원</b><span class="${grow>=0?'up':'down'}">전기 대비 ${pct(grow)}</span></article>
           <article><small>영업이익</small><b class="${Number(my.profit)>=0?'up':'down'}">${compactMoney(my.profit)}원</b><span>이익률 ${margin.toFixed(1)}%</span></article>
           <article><small>시장 점유율</small><b>${Number(my.domestic_share||0).toFixed(2)}%</b><span>글로벌 ${Number(my.global_share||0).toFixed(2)}%</span></article>
+          <article><small>현금 런웨이</small><b class="${runway.months<3?'down':runway.months>=6?'up':''}">${runway.months.toFixed(1)}개월</b><span>급여·고정비 기준</span></article>
           <article class="${threat>=35?'danger':''}"><small>경영권 위험</small><b>${threat.toFixed(1)}%</b><span>${threat>=35?'방어 필요':'현재 안정'}</span></article>
         </div>
       </section>
@@ -1534,6 +1623,7 @@ function renderCompanyRoom(){
   return `<main class="page-view company-page"><section class="panel page-panel company-shell management-first-shell v52-clean-shell corporate-ui-refresh">
     ${sectionTop}
     <div class="company-notice ui-refresh-notice ${state.companyNotice?'':'muted'}" id="companyMsg">${notice}</div>
+    ${state.companySection==='dashboard'?renderCompanyGameCenter(my,myRank,companies):''}
     <div class="company-workspace">${renderCompanyWorkspace(my)}</div>
   </section></main>`;
 }
@@ -1668,11 +1758,12 @@ function renderInvestmentGuide(){
 
 function tutorialSteps(){
   return [
-    {selector:'[data-company-section-nav="dashboard"]',kicker:'01 · 경영실',title:'회사의 전체 상황부터 확인합니다',text:'매출·현금·조직·세금·경영권 위험을 먼저 보고 오늘의 이사회 안건을 처리합니다.'},
-    {selector:'.executive-agenda',kicker:'02 · 이사회',title:'오늘 처리해야 할 경영 안건을 봅니다',text:'품질, 인재, 세금, 현금흐름, 적대적 인수처럼 지금 회사에 가장 중요한 문제와 기회가 자동으로 위에 올라옵니다.'},
-    {selector:'[data-company-section-nav="operations"]',kicker:'03 · 사업 운영',title:'제품·인재·생산을 직접 경영합니다',text:'R&D, 품질, 채용, 설비, 복지와 구조조정이 서로 다른 회사 지표에 영향을 줍니다.'},
-    {selector:'[data-company-section-nav="competition"]',kicker:'04 · 투자·인수',title:'다른 회사 주식을 사서 경영권을 확보할 수 있습니다',text:'장내 지분 매수에서 시작해 주요 주주가 되고, 공개매수로 50% 이상을 확보하면 상대 회사를 자회사로 편입합니다.'},
-    {selector:'[data-main-tab="ranking"]',kicker:'05 · 경쟁',title:'승부는 회사 가치로 확인합니다',text:'회사 가치 순위에서 국내외 BOT과 다른 유저 회사보다 더 큰 기업을 만드는 것이 핵심 목표입니다.'}
+    {selector:'.ceo-game-center',kicker:'01 · 목표',title:'처음에는 CEO 미션 3개만 따라가세요',text:'모든 기능을 한 번에 배울 필요가 없습니다. 미션이 프로젝트, 홍보, M&A, 해외진출을 순서대로 경험하게 해줍니다.'},
+    {selector:'.ceo-coach',kicker:'02 · 우선순위',title:'현재 회사의 약점을 먼저 해결합니다',text:'현금·세금·직원·품질·경영권을 읽어 지금 가장 중요한 행동을 추천합니다. 극현실 모드에서는 이 보조판이 사라집니다.'},
+    {selector:'[data-company-section-nav="operations"]',kicker:'03 · 사업 운영',title:'프로젝트를 고르고 예산을 배분합니다',text:'R&D, 품질, 설비, 채용, 마케팅, 복지는 서로 다른 지표를 움직입니다. 초보 모드에서는 예상효과와 참고예산을 같이 보여줍니다.'},
+    {selector:'[data-company-section-nav="risk"]',kicker:'04 · 홍보',title:'마케팅과 언론 홍보를 구분해 사용합니다',text:'마케팅은 고객 수요와 점유율, 언론 홍보는 투자자 심리와 미디어 평판에 더 직접적으로 작용합니다.'},
+    {selector:'[data-company-section-nav="competition"]',kicker:'05 · M&A',title:'분석 → 소수지분 → 공개매수 순서로 갑니다',text:'경쟁사를 먼저 분석하고 5% 전략지분부터 확보해 보세요. 15% 이후 공개매수가 열리고 50%를 넘으면 자회사로 편입됩니다.'},
+    {selector:'[data-main-tab="ranking"]',kicker:'06 · 장기 목표',title:'리그 순위가 장기적인 승부입니다',text:'단기 수익만 보는 대신 회사 가치, 현금흐름, 조직, 글로벌 사업을 함께 키워 전체 기업 순위를 올리는 것이 핵심 목표입니다.'}
   ];
 }
 
@@ -1803,11 +1894,11 @@ function renderTerminal(preserve=false){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 5.11'}</span></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 5.12'}</span></div>
       ${topNav()}
       <div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
-      <button class="tutorial-btn" id="tutorialBtn">튜토리얼</button><button class="logout" id="logout">로그아웃</button>
+      <div class="header-guide-mode"><small>도움</small><b>${guidanceInfo().short}</b></div><button class="tutorial-btn" id="tutorialBtn">튜토리얼</button><button class="logout" id="logout">로그아웃</button>
     </header>
     <div class="mobile-account-bar"><span>법인 현금 <b>${legalCash}</b></span><span>회사 가치 <b>${companyValue}</b></span></div>
     ${content}
@@ -1967,6 +2058,13 @@ function bind(){
   document.querySelectorAll('[data-company-section],[data-company-section-jump]').forEach(b=>b.onclick=()=>{
     state.companySection=b.dataset.companySection||b.dataset.companySectionJump||'dashboard';state.tab='company';renderTerminal();
   });
+  document.querySelectorAll('[data-guide-mode]').forEach(b=>b.onclick=()=>{
+    setGuidanceMode(b.dataset.guideMode||'BEGINNER');state.companyNotice=`플레이 도움 모드를 ${guidanceInfo().label}(으)로 변경했습니다.`;renderTerminal(true);
+  });
+  document.querySelectorAll('[data-budget-preset]').forEach(b=>b.onclick=()=>{
+    const my=state.company?.my_company,input=document.getElementById('companyActionAmount');if(!my||!input)return;
+    const ratio=Math.max(0,Number(b.dataset.budgetPreset)||0),amount=Math.max(1000000,Math.floor(Number(my.cash||0)*ratio));input.value=formatKrwSmart(amount);input.dispatchEvent(new Event('input',{bubbles:true}));
+  });
 
   document.querySelectorAll('[data-company-region]').forEach(b=>b.onclick=()=>{
     state.companyRegion=b.dataset.companyRegion||'국내';state.companySearch='';state.companyAnalysisId=null;state.companyAnalysis=null;companyChartAxisCache={id:null,lo:null,hi:null};companyChartSeriesCache={id:null,lastCycle:null,rows:[],panStartedAt:0};renderTerminal();
@@ -1988,6 +2086,9 @@ function bind(){
       const d=await companyApi(route,body||{});
       if(d?.ok===false)throw new Error(d.message||'경영 결정을 처리하지 못했습니다.');
       state.companyNotice=d?.message||'경영 결정이 온라인 회사 데이터에 반영되었습니다.';
+      const projectActions=['RND','QUALITY','CAPEX','HIRING','MARKETING','WELFARE','COMPLIANCE'];
+      const kind=route==='MANAGE'?(projectActions.includes(String(body?.p_action||''))?'projects':null):route==='MEDIA'?'media':['BUY_SHARES','TENDER'].includes(route)?'acquisitions':route==='EXPAND'?'expansions':route==='TAX'?'tax':route==='DEFENSE'?'defenses':route==='TRADE_MARKET'?'trades':route==='PROJECT_DECISION'?'decisions':null;
+      if(['MANAGE','MEDIA','BUY_SHARES','TENDER','EXPAND','TAX','DEFENSE','TRADE_MARKET','PROJECT_DECISION'].includes(route))recordCompanyGameAction(kind,body?.p_action||route);
       await loadCompanyLayer(false,false);
       renderTerminal(true);
       return d;
@@ -2008,7 +2109,9 @@ function bind(){
     const amount=Math.max(0,parseCompanyMoney(document.getElementById('companyActionAmount')?.value,0));
     const labels={RND:'R&D 투자',QUALITY:'품질·안전 투자',MARKETING:'마케팅 투자',CAPEX:'설비 투자',HIRING:'핵심 인재 채용',WELFARE:'복지·보상 강화',PRICE_WAR:'가격 경쟁',COSTCUT:'비용 구조조정',DIVIDEND:'배당 실시',COMPLIANCE:'준법·감사 투자',LOAN:'기업 대출',REPAY:'부채 상환'};
     const risky=action==='PRICE_WAR'?'가격 경쟁은 점유율을 얻는 대신 이익과 브랜드에 부담이 생깁니다. ':action==='COSTCUT'?'구조조정은 현금을 개선하지만 직원 사기와 평판에 부담이 생깁니다. ':action==='LOAN'?'대출은 현금을 늘리지만 부채와 신용 부담이 커집니다. ':'';
-    companyRun('kx_company_action',{p_action:action,p_amount:amount},`${risky}${labels[action]||'경영 결정'}을 실행할까요?`);
+    const cash=Number(state.company?.my_company?.cash||0),ratio=cash>0?amount/cash*100:0,impact=companyImpactMeta(action);const after=['LOAN'].includes(action)?cash+amount:Math.max(0,cash-amount);
+    const context=guidanceMode()==='REALISTIC'?'':`\n\n예상 영향: ${impact.slice(0,3).join(' · ')}\n집행 규모: 현재 법인현금의 ${ratio.toFixed(1)}% · 집행 후 단순 현금 ${formatKrwSmart(after)}`;
+    companyRun('kx_company_action',{p_action:action,p_amount:amount},`${risky}${labels[action]||'경영 결정'}을 실행할까요?${context}`);
   });
 
   document.querySelectorAll('[data-company-defense]').forEach(b=>b.onclick=()=>{
@@ -2110,6 +2213,7 @@ function bind(){
       const d=await companyOpsV511(action,{department:dept,count,salary,amount:salary});
       if(!d?.ok)throw new Error(d?.message||'인사 결정을 처리하지 못했습니다.');
       state.companyNotice=d.message||'인사 결정이 반영되었습니다.';
+      recordCompanyGameAction('hr',action);
       await loadCompanyLayer(false,true);renderTerminal(true);
     }catch(err){state.companyNotice='인사 처리 실패: '+err.message;const msg=document.getElementById('companyMsg');if(msg)msg.textContent=state.companyNotice;else alert(state.companyNotice);}
   });
