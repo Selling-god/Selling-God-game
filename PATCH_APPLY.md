@@ -1,23 +1,15 @@
-# Selling God Serious Realism Hotfix v6.1.1
+# V6.2 패치 적용 순서
 
-## 수정한 오류
-브라우저 콘솔의 아래 오류를 수정했습니다.
+1. 기존 프로젝트를 백업합니다.
+2. 현재 배포 구조에 맞춰 아래 파일을 덮어씁니다.
+   - root 정적 배포: `app.js`, `styles.css`
+   - public 정적 배포: `public/app.js`, `public/styles.css`
+   - 이 프로젝트는 빌드 시 여러 Publish Directory를 자동 동기화하므로 소스 프로젝트에서는 `public/` 파일을 기준으로 적용하면 됩니다.
+3. Supabase SQL Editor에서 `RUN_THIS_IN_SUPABASE_V6.2.sql` 전체를 한 번 실행합니다.
+4. SQL 마지막 결과에서 다음 항목을 확인합니다.
+   - `realism_rpc_exists = true`
+   - `hr_rpc_exists = true`
+5. GitHub/Render를 다시 배포합니다.
+6. Ctrl+Shift+R로 강력 새로고침합니다.
 
-- `ReferenceError: renderCompanyPulse is not defined`
-- M&A 분석 화면에서 발생할 수 있던 `renderCompanyAnalysisLoading is not defined`
-- 기업 목록 첫 진입 시 발생할 수 있던 `renderCompanyAnalysisPlaceholder is not defined`
-- `companyRiskLabel`, `companyMood` 누락 복구
-
-## 적용 방법
-기존 프로젝트에서 아래 두 파일만 교체하세요.
-
-- `/app.js`
-- `/public/app.js`
-
-`styles.css`나 Supabase SQL은 건드릴 필요가 없습니다.
-
-## 검증
-- `node --check app.js` 통과
-- `node --check public/app.js` 통과
-- `npm run build` 통과
-- root / public / out / dist / build / site 모두 READY 확인
+주의: 기본 `kx_company_api_v1` 자체가 없는 DB라면 V6.1.2 기본 회사 SQL부터 적용한 뒤 V6.2를 실행해야 합니다.
