@@ -1,0 +1,14 @@
+KX CORPORATE V6.4
+- People tab
+- Potential / unlimited career level / training / natural growth
+- Inbound headhunting offers + counter offer
+- Talent stats materially affect project/product/company performance
+- Company search in newsroom
+- User/threat company visual distinction
+- Threat company quick critical-press / M&A route
+- V6.4 media RPC
+- Money-scaled takeover defense
+- Real counter-takeover stake display
+- Compact defense UI
+- Removed CEO Assistant / priority coaching from active screens
+- Operations subsystem tabs to reduce scrolling
