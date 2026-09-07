@@ -2016,13 +2016,24 @@ function renderOperationsWorkspace(my){
   else if(tab==='global')body=renderGlobalExpansion(my);
   return `<section class="operations-hub"><nav>${tabs.map(([k,v])=>`<button type="button" data-company-ops-tab="${k}" class="${tab===k?'on':''}">${v}</button>`).join('')}</nav>${body}</section>`;
 }
+function renderDashboardTakeoverAlert(my){
+  const control=state.company?.control_case||null;
+  const incoming=[...(state.company?.incoming_holdings||[])].sort((a,b)=>Number(b.stake||0)-Number(a.stake||0));
+  const top=incoming[0]||null;
+  const stake=Math.max(Number(control?.stake||0),Number(top?.stake||0),companyStakeAgainstMe());
+  if(stake<=0)return '';
+  const attacker=control?.attacker_name||top?.holder_name||top?.company_name||'외부 주주';
+  const owner=ownerStakeOf(my),meta=takeoverStageMeta(control?.stage,stake);
+  return `<section class="dashboard-takeover-alert ${stake>=35?'danger':stake>=15?'warn':'watch'}"><div class="dashboard-takeover-copy"><small>CONTROL ALERT</small><b>${escapeHtml(meta[0])}</b><span>${escapeHtml(attacker)} · 외부 보유 ${stake.toFixed(2)}% · 내 우호지분 ${owner.toFixed(2)}%</span></div><div class="dashboard-takeover-mini"><span><small>공격자 지분</small><b>${stake.toFixed(2)}%</b></span><span><small>내 우호 지분</small><b>${owner.toFixed(2)}%</b></span></div><button type="button" data-company-section-jump="competition">기업/M&amp;A에서 대응</button></section>`;
+}
+
 function renderCompanyWorkspace(my){
   const section=state.companySection||'dashboard';
   if(section==='operations')return renderOperationsWorkspace(my);
   if(section==='people')return `${renderTalentMarket(my)}${renderPeopleFinanceDesk(my)}`;
   if(section==='competition')return `${renderTakeoverCrisis(my)}${renderCompetitionBoard(my)}<details id="takeoverOwnershipDetails" class="management-details" ${companyStakeAgainstMe()>=15?'open':''}><summary>지분·경영권 상세</summary>${renderTakeoverDesk(my)}</details>`;
   if(section==='risk')return `${renderMediaDesk(my)}<details class="management-details" ${Number(my.tax_due||0)+Number(my.tax_arrears||0)>0?'open':''}><summary>세금·준법</summary>${renderTaxOffice(my)}</details>`;
-  return `${renderTakeoverCrisis(my)}${renderExecutiveDecisionQueue(my)}${renderRealOperatingBrief(my)}${renderCompanyGrowthPanel(my)}${renderCompanyLatestNews(my)}`;
+  return `${renderDashboardTakeoverAlert(my)}${renderExecutiveDecisionQueue(my)}${renderRealOperatingBrief(my)}${renderCompanyGrowthPanel(my)}${renderCompanyLatestNews(my)}`;
 }
 
 function renderCompanySubnav(my){

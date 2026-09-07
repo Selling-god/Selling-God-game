@@ -1038,3 +1038,170 @@ body.tutorial-active{overflow:hidden}
   .talent-automation-grid,.interview-candidate-kpis,.talent-stats,.candidate-dual-score,.talent-person-scores{grid-template-columns:repeat(2,minmax(0,1fr))}
   .talent-person-head,.interview-desk-head{flex-direction:column}
 }
+
+/* ==== v6.4.3 TALENT CARD CLIPPING HOTFIX ==== */
+.talent-market,.talent-v640,.talent-block,.candidate-grid,.talent-roster-grid.v640,.poach-grid{
+  width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;
+}
+.talent-market,.talent-v640{overflow-x:hidden!important}
+.talent-block{overflow:hidden!important}
+.candidate-grid{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:16px!important;
+  padding:14px!important;
+  overflow:visible!important;
+}
+.candidate-card{
+  width:100%!important;max-width:100%!important;min-width:0!important;
+  box-sizing:border-box!important;overflow:hidden!important;
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;
+  grid-auto-flow:row!important;align-content:start!important;gap:13px!important;
+  padding:16px!important;
+}
+.candidate-card>*{min-width:0!important;max-width:100%!important;box-sizing:border-box!important;grid-column:1/-1!important}
+.candidate-top{display:grid!important;grid-template-columns:1fr!important;gap:7px!important;min-width:0!important}
+.candidate-top .talent-grade,.candidate-top>span.talent-grade{
+  justify-self:start!important;align-self:start!important;width:max-content!important;max-width:100%!important;
+  min-height:28px!important;padding:0 11px!important;font-size:10px!important;
+}
+.candidate-top>b{font-size:20px!important;line-height:1.25!important;white-space:normal!important;overflow-wrap:anywhere!important}
+.candidate-top>em{font-size:11px!important;line-height:1.5!important;white-space:normal!important;overflow-wrap:anywhere!important;color:#8fa9c5!important}
+.candidate-dual-score{
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:10px!important;margin:0!important;width:100%!important;
+}
+.candidate-dual-score>div{
+  width:100%!important;min-width:0!important;min-height:86px!important;
+  display:flex!important;flex-direction:column!important;justify-content:center!important;
+  padding:12px 14px!important;box-sizing:border-box!important;
+}
+.candidate-dual-score strong{font-size:28px!important;line-height:1!important;white-space:nowrap!important}
+.candidate-dual-score span{font-size:10px!important;line-height:1.35!important;white-space:normal!important;word-break:keep-all!important}
+.talent-stats{
+  display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:8px!important;width:100%!important;min-width:0!important;
+}
+.talent-stats span{min-width:0!important;white-space:normal!important;word-break:keep-all!important}
+.candidate-pay{
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:8px!important;width:100%!important;
+}
+.candidate-pay span{display:grid!important;gap:3px!important;min-width:0!important;white-space:normal!important;word-break:keep-all!important}
+.candidate-pay b{white-space:normal!important;overflow-wrap:anywhere!important}
+.candidate-card>button{width:100%!important;min-width:0!important;min-height:44px!important}
+
+.talent-roster-grid.v640{
+  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:16px!important;padding:14px!important;
+}
+.talent-person-card{
+  width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;
+  overflow:hidden!important;display:grid!important;grid-template-columns:1fr!important;gap:12px!important;
+}
+.talent-person-card>*{min-width:0!important;max-width:100%!important;grid-column:1/-1!important}
+.talent-person-head{width:100%!important;min-width:0!important}
+.talent-person-head>div{min-width:0!important;max-width:100%!important}
+.talent-person-head .talent-grade{justify-self:start!important;width:max-content!important;max-width:100%!important}
+.talent-person-head b,.talent-person-head small{white-space:normal!important;overflow-wrap:anywhere!important}
+.talent-person-scores{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important;width:100%!important}
+.talent-person-scores span{min-width:0!important;white-space:normal!important;word-break:keep-all!important}
+.talent-person-actions{width:100%!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
+.talent-person-actions>span{grid-column:1/-1!important;margin:0!important;white-space:normal!important;overflow-wrap:anywhere!important}
+.talent-person-actions button{width:100%!important;min-width:0!important}
+
+.poach-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:16px!important;padding:14px!important}
+.poach-card{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;overflow:hidden!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.poach-card>*{min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
+.poach-company,.poach-person,.poach-current,.poach-card>button{grid-column:1/-1!important}
+.poach-company b,.poach-person b,.poach-person small,.poach-current{white-space:normal!important;overflow-wrap:anywhere!important}
+.poach-card label input{width:100%!important;min-width:0!important;box-sizing:border-box!important}
+
+@media(max-width:1150px){
+  .candidate-grid,.talent-roster-grid.v640,.poach-grid{grid-template-columns:1fr!important}
+}
+@media(max-width:640px){
+  .candidate-grid,.talent-roster-grid.v640,.poach-grid{padding:8px!important;gap:10px!important}
+  .candidate-card,.talent-person-card,.poach-card{padding:12px!important}
+  .candidate-dual-score,.talent-person-scores{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .talent-stats,.candidate-pay{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .candidate-pay span:last-child{grid-column:1/-1!important}
+  .talent-person-actions{grid-template-columns:1fr!important}
+}
+
+/* ==== v6.4.4 LAYOUT + M&A HOME SUMMARY HOTFIX ==== */
+.company-page,.company-shell,.company-workspace,.talent-market,.people-finance-desk{
+  width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;
+}
+.company-page,.company-shell,.company-workspace{overflow-x:hidden!important}
+
+/* Employee cards: force every card to stay inside its grid cell. */
+.candidate-grid,.talent-roster-grid.v640,.poach-grid{
+  width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;
+}
+.candidate-card{
+  grid-template-columns:minmax(0,1fr)!important;
+  width:100%!important;max-width:100%!important;min-width:0!important;
+  overflow:hidden!important;box-sizing:border-box!important;
+}
+.candidate-card>.candidate-top,.candidate-card>.candidate-dual-score,.candidate-card>.talent-stats,.candidate-card>.candidate-pay,.candidate-card>button{
+  grid-column:1/-1!important;width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;
+}
+.candidate-top .talent-grade{width:max-content!important;max-width:100%!important;justify-self:start!important;white-space:nowrap!important}
+.candidate-dual-score{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.candidate-dual-score>div{min-width:0!important;overflow:hidden!important}
+.candidate-dual-score strong,.candidate-dual-score span{max-width:100%!important;overflow-wrap:anywhere!important}
+.talent-person-card,.poach-card{min-width:0!important;max-width:100%!important;width:100%!important;box-sizing:border-box!important;overflow:hidden!important}
+
+/* General HR forms: no child may force the 3-column layout wider than the page. */
+.people-finance-desk{overflow-x:hidden!important}
+.hr-action-layout{
+  width:100%!important;max-width:100%!important;min-width:0!important;
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:18px!important;
+  box-sizing:border-box!important;overflow:hidden!important;
+}
+.hr-action-card{
+  width:100%!important;max-width:100%!important;min-width:0!important;
+  margin:0!important;box-sizing:border-box!important;overflow:hidden!important;
+}
+.hr-action-card>*{min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
+.hr-action-card label,.hr-action-card .human-money-shell,.hr-action-card .money-input-shell{
+  width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;
+}
+.hr-action-card input,.hr-action-card select,.hr-action-card button{
+  width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;
+}
+.hr-card-head h3,.hr-card-head p,.hr-card-note{white-space:normal!important;overflow-wrap:anywhere!important;word-break:keep-all!important}
+
+/* Dashboard gets only a compact control warning; full defense board lives in M&A. */
+.dashboard-takeover-alert{
+  margin:0 0 14px;padding:14px 16px;border:1px solid #34465d;border-radius:15px;
+  background:#0b1724;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;align-items:center;
+}
+.dashboard-takeover-alert.warn{border-color:#66533b;background:linear-gradient(90deg,rgba(102,83,59,.18),#0b1724 38%)}
+.dashboard-takeover-alert.danger{border-color:#704149;background:linear-gradient(90deg,rgba(112,65,73,.20),#0b1724 42%)}
+.dashboard-takeover-copy{display:grid;gap:3px;min-width:0}
+.dashboard-takeover-copy small{font-size:9px;letter-spacing:.12em;color:#829bb4;font-weight:900}
+.dashboard-takeover-copy b{font-size:17px;color:#f2f6fb}
+.dashboard-takeover-copy span{font-size:11px;color:#91a7bd;white-space:normal;overflow-wrap:anywhere}
+.dashboard-takeover-mini{display:grid;grid-template-columns:repeat(2,minmax(96px,1fr));gap:7px}
+.dashboard-takeover-mini span{padding:8px 10px;border:1px solid #263a50;border-radius:10px;background:#09131e;display:grid;gap:2px}
+.dashboard-takeover-mini small{font-size:8px;color:#7890a7}.dashboard-takeover-mini b{font-size:14px;color:#eef4fb}
+.dashboard-takeover-alert>button{height:40px;padding:0 14px;border:1px solid #405f7e;border-radius:10px;background:#152a40;color:#eaf3fb;font-weight:900;white-space:nowrap;cursor:pointer}
+
+@media(max-width:1180px){
+  .hr-action-layout{grid-template-columns:1fr 1fr!important}
+  .hr-action-card:last-child{grid-column:1/-1!important}
+  .candidate-grid,.talent-roster-grid.v640,.poach-grid{grid-template-columns:1fr!important}
+}
+@media(max-width:820px){
+  .hr-action-layout{grid-template-columns:1fr!important}
+  .hr-action-card:last-child{grid-column:auto!important}
+  .dashboard-takeover-alert{grid-template-columns:1fr!important}
+  .dashboard-takeover-mini{grid-template-columns:1fr 1fr!important}
+  .dashboard-takeover-alert>button{width:100%!important}
+}
+@media(max-width:520px){
+  .candidate-dual-score,.talent-person-scores,.talent-stats,.candidate-pay{grid-template-columns:1fr 1fr!important}
+  .dashboard-takeover-mini{grid-template-columns:1fr!important}
+}
