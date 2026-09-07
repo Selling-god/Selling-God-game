@@ -1,5 +1,5 @@
 (()=>{
-const KX_COMPANY_BUILD='5.12.2-SERIOUS-REALISM-RESTORE';
+const KX_COMPANY_BUILD='6.2.0-EXTREME-REALISM';
 window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
@@ -38,7 +38,7 @@ let state={
   account:null,positions:[],orders:[],trades:[],ranking:[],
   bankDeposits:[],bankLoans:[],bankMeta:{},chartRanges:{},
   game:{events:[],predictions:[],shorts:[],ipos:[],subscriptions:[],dividends:[],short_adjustments:[],prediction_stats:{total:0,correct:0}},gameAvailable:true,gameError:'',
-  company:{my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],media_campaigns:[],tax_records:[],events:[],press:[],my_history:[],projects:[],investment_income:[],investment_summary:{},world:null,control_case:null},
+  company:{my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],media_campaigns:[],tax_records:[],events:[],press:[],my_history:[],projects:[],investment_income:[],investment_summary:{},products:[],finance_periods:[],incidents:[],due_diligence:[],macro:{},supply:{},finance_live:{},realism_available:false,realism_error:'',world:null,control_case:null},
   companyAvailable:true,companyMode:'REMOTE',companyRpcMode:'AUTO',companyError:'',companyRegion:'국내',companyNotice:'',companySection:'dashboard',companyAnalysisId:null,companyAnalysis:null,companyMetric:'valuation',companySearch:'',companyMediaRegion:'ALL',companyKickoff:null,companyKickoffLast:null,
   companyDraft:{name:'',sector:'AI·반도체'},
   side:'BUY',type:'LIMIT',tif:'DAY',tab:'company',tradeTab:'book',
@@ -72,6 +72,9 @@ async function companyApi(action,payload={},auth=true){
 }
 async function companyOpsV511(action,payload={}){
   return rpc('kx_company_ops_v511',{p_action:String(action||'').toUpperCase(),p_payload:payload||{}},true);
+}
+async function companyRealismApi(action,payload={}){
+  return rpc('kx_company_realism_v620',{p_action:String(action||'').toUpperCase(),p_payload:payload||{}},true);
 }
 function companyTaxRateText(my){
   const r=Number(my?.tax_rate_effective||0);
@@ -204,6 +207,33 @@ function companySharePriceText(c){
   const local=krw/meta.fx;
   if(meta.code==='JPY')return `${meta.symbol}${nf.format(Math.round(local))}`;
   return `${meta.symbol}${local>=1000?nf.format(Math.round(local)):local.toFixed(2)}`;
+}
+function companyMarketValueSubText(c){
+  const country=String(c?.home_country||'대한민국');
+  const krw=Math.max(0,Number(c?.valuation)||0);
+  if(country==='대한민국')return `${escapeHtml(c?.sector||'기업')} · 원화 기준`;
+  return `원화 환산 ${compactMoney(krw)}원`;
+}
+function companyRegionMatch(c,region){
+  const country=String(c?.home_country||'대한민국');
+  if(region==='국내')return country==='대한민국';
+  if(region==='미국')return country==='미국';
+  if(region==='중국')return country==='중국';
+  if(region==='일본')return country==='일본';
+  if(region==='유럽')return ['독일','영국','프랑스','이탈리아','스페인','네덜란드','스위스','스웨덴','노르웨이','덴마크','핀란드','벨기에','오스트리아','아일랜드','유럽'].includes(country);
+  return true;
+}
+function projectEconomics(p){
+  const budget=Math.max(0,Number(p?.budget)||0);
+  const realized=Math.max(0,Number(p?.realized_return)||0);
+  const expected=Math.max(0,Number(p?.expected_return)||0);
+  const reference=(String(p?.status||'')==='ACTIVE'&&expected>0)?expected:Math.max(expected,realized);
+  const net=realized-budget;
+  const expectedNet=reference-budget;
+  const roi=budget>0?net/budget*100:0;
+  const expectedRoi=budget>0?expectedNet/budget*100:0;
+  const directProfit=['RND','QUALITY','CAPEX','HIRING','MARKETING'].includes(String(p?.project_type||'').toUpperCase());
+  return {budget,realized,expected,reference,net,expectedNet,roi,expectedRoi,directProfit};
 }
 function ownerStakeOf(my){return Math.max(0,100-Number(my?.incoming_stake||0))}
 
@@ -492,7 +522,7 @@ function recordOrderMeta(body,order,s){
   saveMeta();
 }
 function emptyGame(){return {events:[],predictions:[],shorts:[],ipos:[],subscriptions:[],dividends:[],short_adjustments:[],prediction_stats:{total:0,correct:0}}}
-function emptyCompany(){return {my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],media_campaigns:[],tax_records:[],events:[],press:[],my_history:[],projects:[],investment_income:[],investment_summary:{},world:null,control_case:null}}
+function emptyCompany(){return {my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],media_campaigns:[],tax_records:[],events:[],press:[],my_history:[],projects:[],investment_income:[],investment_summary:{},products:[],finance_periods:[],incidents:[],due_diligence:[],macro:{},supply:{},finance_live:{},realism_available:false,realism_error:'',world:null,control_case:null}}
 const LOCAL_COMPANY_KEY='kx_company_local_v4';
 function clamp(v,min=0,max=100){return Math.max(min,Math.min(max,Number(v)||0))}
 function localBotSeed(){
@@ -886,6 +916,20 @@ async function loadCompanyLayer(runSync=false,force=false){
     }
     if(!d||typeof d!=='object'||d.ok===false)throw new Error(d?.message||'회사 데이터를 불러오지 못했습니다.');
     state.companyRpcMode='V59';state.company={...emptyCompany(),...d};
+    try{
+      const realism=await companyRealismApi('SNAPSHOT',{});
+      if(realism?.ok){
+        state.company.products=Array.isArray(realism.products)?realism.products:[];
+        state.company.finance_periods=Array.isArray(realism.finance_periods)?realism.finance_periods:[];
+        state.company.incidents=Array.isArray(realism.incidents)?realism.incidents:[];
+        state.company.due_diligence=Array.isArray(realism.due_diligence)?realism.due_diligence:[];
+        state.company.macro=realism.macro||{};state.company.supply=realism.supply||{};state.company.finance_live=realism.finance_live||{};
+        state.company.realism_available=true;state.company.realism_error='';
+      }
+    }catch(realismErr){
+      state.company.realism_available=false;
+      state.company.realism_error=missingRpcError(realismErr)?'V6.2 현실경영 SQL이 아직 적용되지 않았습니다.':'현실경영 데이터를 불러오지 못했습니다: '+String(realismErr?.message||realismErr);
+    }
     state.companyAvailable=true;state.companyMode='REMOTE';state.companyError='';
     if(d?.world?.server_time){const t=Date.parse(d.world.server_time);if(Number.isFinite(t))companyServerOffsetMs=t-Date.now();}
     companyLastFetchAt=Date.now();if(runSync)companyLastAdvanceAt=companyLastFetchAt;
@@ -894,14 +938,14 @@ async function loadCompanyLayer(runSync=false,force=false){
     processCompanyPress(state.company?.press||[]);
     trackCompanySnapshotMoments();
     if(state.companyAnalysisId){
-      try{state.companyAnalysis=await companyApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)});}catch(_e){}
+      try{const profile=await companyApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)});try{const rp=await companyRealismApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)});profile.realism_products=Array.isArray(rp?.products)?rp.products:[]}catch(_re){}state.companyAnalysis=profile;}catch(_e){}
     }
   }catch(e){
     const raw=String(e?.message||'');
     state.companyAvailable=false;state.companyMode='REMOTE';state.company=emptyCompany();
     if(missingRpcError(e)){
       state.companyRpcMode='BROKEN';companyApiReady=false;
-      state.companyError='회사 온라인 API(kx_company_api_v1)가 없습니다. KX_CORPORATE_RUN_ONLY_THIS_V59.sql 하나만 실행한 뒤 다시 확인해 주세요.';
+      state.companyError='기본 회사 API(kx_company_api_v1)가 없습니다. 기존 설치라면 V6.1.2 기본 SQL 적용 여부를 먼저 확인한 뒤 RUN_THIS_IN_SUPABASE_V6.2.sql을 실행해 주세요.';
     }else{
       state.companyRpcMode='V56';state.companyError=raw||'온라인 회사 서버에 연결하지 못했습니다.';
     }
@@ -1234,18 +1278,18 @@ function renderTakeoverCrisis(my){
 
 function managementProjectMeta(type){
   const map={
-    RND:['신기술 개발 프로젝트','6주기','중간','기술·제품 경쟁력을 올리고 완료 뒤 성과 매출이 들어옵니다.','장기 고수익'],
-    QUALITY:['품질 혁신 프로젝트','4주기','낮음','품질과 고객 신뢰를 높여 리콜 위험을 낮추고 매출을 안정화합니다.','안정형'],
-    CAPEX:['생산능력 확장','5주기','중간','설비를 늘려 운영능력과 생산량을 키우고 추가 현금흐름을 만듭니다.','중장기'],
-    HIRING:['핵심 인재 영입','4주기','중간','인재를 채용해 기술·운영 역량을 높이고 후속 프로젝트 성공률을 높입니다.','성장형'],
-    MARKETING:['시장 점유율 캠페인','3주기','높음','브랜드와 수요를 빠르게 끌어올리지만 성과 편차가 큽니다.','단기 변동'],
-    WELFARE:['조직 안정화 프로그램','3주기','낮음','직원 사기와 생산성을 높여 장기적인 운영 손실을 줄입니다.','안정형'],
-    COMPLIANCE:['준법·감사 고도화','3주기','낮음','규제·세무 리스크를 낮추고 신용과 기관 신뢰를 높입니다.','방어형']
+    RND:['신기술 개발 프로젝트','6주기','중간','기술과 제품 경쟁력을 높여 향후 제품 원가·수요·품질에 반영합니다. 직접 현금배당은 없습니다.','기술/IP'],
+    QUALITY:['품질 혁신 프로젝트','4주기','낮음','불량률·리콜 위험을 낮추고 고객 신뢰를 높여 제품 판매성과를 개선합니다.','품질/신뢰'],
+    CAPEX:['생산능력 확장','5주기','중간','설비·공정 역량을 높여 제품 공급능력과 생산 효율에 반영합니다.','생산/설비'],
+    HIRING:['핵심 인재 영입','4주기','중간','기술·운영 실행력을 높여 개발과 생산의 병목을 줄입니다.','인적자본'],
+    MARKETING:['시장 점유율 캠페인','3주기','높음','브랜드·수요를 높여 실제 판매량에 반영하지만 경쟁사 대응과 가격에 따라 결과가 달라집니다.','수요창출'],
+    WELFARE:['조직 안정화 프로그램','3주기','낮음','직원 사기와 생산성을 높여 이탈과 운영손실을 낮춥니다.','조직안정'],
+    COMPLIANCE:['준법·감사 고도화','3주기','낮음','규제·세무·신용 위험을 낮춰 장기 사업 안정성을 높입니다.','리스크관리']
   };
   return map[type]||[type,'-','-','회사 경영 프로젝트','-'];
 }
 function projectStatusLabel(p){
-  if(p.status==='PAYBACK')return '성과 회수 중';
+  if(p.status==='PAYBACK')return '구형 성과금 회수';
   if(p.status==='COMPLETED')return '완료';
   if(p.status==='FAILED')return '성과 부진';
   return '진행 중';
@@ -1254,18 +1298,102 @@ function renderManagementProjectBoard(my){
   const rows=[...(state.company?.projects||[])].sort((a,b)=>Number(b.id)-Number(a.id));
   const active=rows.filter(p=>['ACTIVE','PAYBACK'].includes(String(p.status))).slice(0,8);
   const done=rows.filter(p=>!['ACTIVE','PAYBACK'].includes(String(p.status))).slice(0,6);
-  return `<section class="management-project-board">
-    <div class="company-section-head"><div><small>PROJECT PIPELINE</small><h2>진행 중인 경영 프로젝트</h2></div><span>버튼을 누른 즉시 능력치가 끝나는 방식이 아니라, 시간이 지나며 진행 → 성과발표 → 투자회수로 이어집니다.</span></div>
-    <div class="project-grid">${active.length?active.map(p=>{const meta=managementProjectMeta(p.project_type),dur=Math.max(1,Number(p.duration_cycles)||1),prog=Math.min(dur,Number(p.progress_cycles)||0),pc=Math.round(prog/dur*100),budget=Number(p.budget)||0,real=Number(p.realized_return)||0,expected=Number(p.expected_return)||0,remain=Number(p.payout_cycles_remaining)||0;return `<article class="project-card status-${String(p.status||'ACTIVE').toLowerCase()} ${p.decision_pending?'decision-pending':''}"><div class="project-card-head"><span>${escapeHtml(p.project_type)}</span><b>${p.decision_pending?'이사회 결정 필요':projectStatusLabel(p)}</b></div><h3>${escapeHtml(p.title||meta[0])}</h3><p>${escapeHtml(p.outcome||meta[3])}</p><div class="project-progress"><i style="width:${p.status==='PAYBACK'||p.status==='COMPLETED'?100:pc}%"></i></div><div class="project-stats"><span>진행 <b>${p.status==='PAYBACK'?`회수 ${Math.max(0,remain)}회 남음`:`${prog}/${dur}주기`}</b></span><span>투자금 <b>${compactMoney(budget)}원</b></span><span>성공확률 <b>${Number(p.success_chance||0).toFixed(0)}%</b></span><span>실제 회수 <b class="${real>=budget?'up':''}">${compactMoney(real)}원</b></span></div>${p.decision_pending?`<div class="project-decision"><strong>중간 이사회 안건</strong><p>이 선택을 해야 프로젝트가 다음 단계로 진행됩니다.</p><div><button data-project-decision="${p.id}" data-project-choice="BOOST">추가 투자 +20%<small>성공확률 +10% · 기대수익 확대</small></button><button data-project-decision="${p.id}" data-project-choice="STEADY">기존 계획 유지<small>추가비용 없음 · 성공확률 +3%</small></button><button data-project-decision="${p.id}" data-project-choice="SCALE_DOWN">범위 축소<small>투자금 15% 회수 · 성공확률 +8%</small></button></div></div>`:`${p.decision_choice?`<small class="project-choice-note">중간 결정: ${escapeHtml(p.decision_choice)}</small>`:''}`}</article>`}).join(''):`<div class="empty project-empty">진행 중인 프로젝트가 없습니다. 아래에서 첫 프로젝트를 시작해 보세요.</div>`}</div>
-    ${done.length?`<details class="project-history"><summary>완료된 프로젝트 ${done.length}개 보기</summary><div>${done.map(p=>`<article><span><b>${escapeHtml(p.title||p.project_type)}</b><small>${escapeHtml(p.outcome||projectStatusLabel(p))}</small></span><strong>${compactMoney(p.realized_return||0)}원 회수</strong></article>`).join('')}</div></details>`:''}
+  return `<section class="management-project-board"><div class="company-section-head"><div><small>CAPABILITY PROJECTS</small><h2>경영 프로젝트</h2></div><span>V6.2부터 신규 프로젝트는 투자원금을 나눠 돌려주는 상품이 아닙니다. 사업비를 써서 기술·품질·생산·인력·수요·준법 역량을 바꾸고, 그 효과가 제품 판매와 실제 손익에 연결됩니다.</span></div><div class="project-grid">${active.length?active.map(p=>{const meta=managementProjectMeta(p.project_type),dur=Math.max(1,Number(p.duration_cycles)||1),prog=Math.min(dur,Number(p.progress_cycles)||0),pc=Math.round(prog/dur*100),legacy=p.status==='PAYBACK';return `<article class="project-card status-${String(p.status||'ACTIVE').toLowerCase()} ${p.decision_pending?'decision-pending':''}"><div class="project-card-head"><span>${escapeHtml(p.project_type)}</span><b>${p.decision_pending?'이사회 결정 필요':projectStatusLabel(p)}</b></div><h3>${escapeHtml(p.title||meta[0])}</h3><p>${escapeHtml(p.outcome||meta[3])}</p><div class="project-progress"><i style="width:${legacy?100:pc}%"></i></div><div class="project-stats"><span>진행 <b>${legacy?`구형 회수 ${Math.max(0,Number(p.payout_cycles_remaining)||0)}회`:`${prog}/${dur}주기`}</b></span><span>사업비 <b>${compactMoney(p.budget)}원</b></span><span>핵심 목적 <b>${escapeHtml(meta[4])}</b></span><span>성공확률 <b>${Number(p.success_chance||0).toFixed(0)}%</b></span></div>${legacy?`<small class="project-choice-note legacy-note">V6.2 이전에 시작된 프로젝트의 기존 성과금만 계약상 잔여 회수로 유지됩니다. 신규 프로젝트에는 이 구조가 적용되지 않습니다.</small>`:`<small class="project-choice-note">직접 현금수익 없음 · 완료 결과는 제품 원가·품질·수요·생산능력·리스크에 반영</small>`}${p.decision_pending?`<div class="project-decision"><strong>중간 이사회 안건</strong><p>추가 투자는 성공확률을 높이지만 사업비가 늘어납니다. 회수금이 아니라 실제 회사 역량에 투자하는 결정입니다.</p><div><button data-project-decision="${p.id}" data-project-choice="BOOST">추가 투자 +20%<small>성공확률 +10% · 현금 추가 지출</small></button><button data-project-decision="${p.id}" data-project-choice="STEADY">기존 계획 유지<small>추가비용 없음 · 성공확률 +3%</small></button><button data-project-decision="${p.id}" data-project-choice="SCALE_DOWN">범위 축소<small>사업비 15% 절감 · 성공확률 +8%</small></button></div></div>`:`${p.decision_choice?`<small class="project-choice-note">중간 결정: ${escapeHtml(p.decision_choice)}</small>`:''}`}</article>`}).join(''):`<div class="empty project-empty">진행 중인 프로젝트가 없습니다. 프로젝트는 제품·영업 역량을 개선하는 투자입니다.</div>`}</div>${done.length?`<details class="project-history"><summary>완료된 프로젝트 ${done.length}개 보기</summary><div>${done.map(p=>`<article><span><b>${escapeHtml(p.title||p.project_type)}</b><small>${escapeHtml(p.outcome||projectStatusLabel(p))}</small></span><strong>${escapeHtml(managementProjectMeta(p.project_type)[4])}</strong></article>`).join('')}</div></details>`:''}</section>`;
+}
+
+function sectorProductPreset(sector){
+  const map={
+    'AI·반도체':{type:'AI·반도체 솔루션',price:2500000,capacity:120,name:'차세대 AI 가속 솔루션'},
+    '게임·콘텐츠':{type:'게임·콘텐츠 IP',price:69000,capacity:4000,name:'신규 게임·콘텐츠 IP'},
+    '모빌리티':{type:'모빌리티 제품',price:45000000,capacity:8,name:'차세대 모빌리티 플랫폼'},
+    '바이오':{type:'바이오·의료 제품',price:350000,capacity:300,name:'신규 바이오·의료 제품'},
+    '핀테크':{type:'금융 서비스',price:15000,capacity:2500,name:'기업용 금융 서비스'},
+    '유통':{type:'소비재·PB 제품',price:35000,capacity:3500,name:'신규 PB 제품'},
+    '에너지':{type:'에너지 솔루션',price:8000000,capacity:30,name:'고효율 에너지 솔루션'},
+    '로보틱스':{type:'산업용 로봇',price:35000000,capacity:12,name:'산업용 로봇 시스템'},
+    '산업재·자동화':{type:'산업·자동화 장비',price:12000000,capacity:35,name:'스마트 자동화 장비'},
+    '기술·서비스':{type:'B2B 기술 서비스',price:450000,capacity:700,name:'기업용 기술 서비스'}
+  };
+  return map[sector]||map['기술·서비스'];
+}
+function productStatusMeta(status){
+  return ({DEVELOPMENT:['개발 중','development','개발비가 투입되고 있으며 아직 매출은 발생하지 않습니다.'],READY:['출시 승인 대기','ready','개발은 끝났지만 CEO가 출시를 승인해야 판매가 시작됩니다.'],ACTIVE:['판매 중','active','생산·재고·가격·수요에 따라 실제 매출과 매출원가가 발생합니다.'],RETIRED:['단종','retired','판매가 중단된 제품입니다.']})[status]||[status||'상태 미확인','unknown',''];
+}
+function productInventoryCycles(p){const sold=Math.max(.01,Number(p?.last_units_sold)||0);return Number(p?.inventory_units||0)/sold}
+function productGrossMargin(p){const rev=Number(p?.last_revenue||0),cogs=Number(p?.last_cogs||0);return rev>0?(rev-cogs)/rev*100:Number(p?.last_margin_pct||0)}
+function productPricePosition(p){const ref=Math.max(1,Number(p?.reference_price)||Number(p?.target_price)||1),px=Math.max(1,Number(p?.unit_price)||ref);return (px/ref-1)*100}
+function renderRealismInstallNotice(){
+  if(state.company?.realism_available)return '';
+  return `<section class="realism-install-notice"><div><small>V6.2 REAL MANAGEMENT CORE</small><b>제품·판매·공급망·관리회계 확장 SQL이 필요합니다</b><span>${escapeHtml(state.company?.realism_error||'RUN_THIS_IN_SUPABASE_V6.2.sql을 Supabase SQL Editor에서 한 번 실행해 주세요.')}</span></div><code>RUN_THIS_IN_SUPABASE_V6.2.sql</code></section>`;
+}
+function renderMacroEnvironment(){
+  const m=state.company?.macro||{};
+  if(!state.company?.realism_available)return '';
+  const consumer=Number(m.consumer_index||100),energy=Number(m.energy_index||100),logistics=Number(m.logistics_index||100),semi=Number(m.semiconductor_index||100);
+  const mood=v=>v>=108?'과열':v>=102?'강세':v<=92?'침체':v<=98?'약세':'중립';
+  return `<section class="macro-environment"><div class="macro-title"><div><small>MACRO ENVIRONMENT</small><h2>시장 환경</h2></div><span>실제 뉴스 데이터가 아니라 게임 서버 안에서 모든 기업에 동일하게 적용되는 거시환경입니다.</span></div><div class="macro-grid"><article><small>기준금리</small><b>${Number(m.base_rate||3.25).toFixed(2)}%</b><span>대출·기업가치 할인율</span></article><article><small>USD/KRW</small><b>${nf.format(Math.round(Number(m.usd_krw||1350)))}</b><span>해외사업 원가·수익성 영향</span></article><article><small>소비경기</small><b>${consumer.toFixed(1)}</b><span>${mood(consumer)}</span></article><article><small>에너지 원가</small><b>${energy.toFixed(1)}</b><span>${mood(energy)}</span></article><article><small>물류비</small><b>${logistics.toFixed(1)}</b><span>${mood(logistics)}</span></article><article><small>반도체 사이클</small><b>${semi.toFixed(1)}</b><span>${mood(semi)}</span></article></div></section>`;
+}
+function renderProductSalesDesk(my){
+  if(!state.company?.realism_available)return renderRealismInstallNotice();
+  const products=state.company?.products||[],preset=sectorProductPreset(my.sector),active=products.filter(p=>p.status==='ACTIVE'),development=products.filter(p=>p.status==='DEVELOPMENT'),ready=products.filter(p=>p.status==='READY');
+  const lastRevenue=active.reduce((a,p)=>a+Number(p.last_revenue||0),0),lastCogs=active.reduce((a,p)=>a+Number(p.last_cogs||0),0),gross=lastRevenue-lastCogs,margin=lastRevenue>0?gross/lastRevenue*100:0;
+  return `<section class="corp-section product-sales-desk"><div class="company-section-head"><div><small>PRODUCT · SALES · UNIT ECONOMICS</small><h2>제품·서비스 포트폴리오</h2></div><span>프로젝트가 돈을 직접 지급하지 않습니다. 기술·품질·설비·인력 투자가 제품의 원가·품질·생산능력·수요를 바꾸고, 실제 판매에서 현금이 만들어집니다.</span></div>
+    <div class="product-sales-summary"><article><small>판매 중</small><b>${active.length}개</b><span>개발 ${development.length} · 출시대기 ${ready.length}</span></article><article><small>최근 판매매출</small><b>${formatKrwSmart(lastRevenue)}</b><span>경영주기 기준</span></article><article><small>최근 매출총이익</small><b class="${gross>=0?'up':'down'}">${gross>=0?'+':''}${formatKrwSmart(gross)}</b><span>매출총이익률 ${margin.toFixed(1)}%</span></article><article><small>재고자산</small><b>${formatKrwSmart(Number(state.company?.supply?.inventory_value||my.inventory_value||0))}</b><span>팔리지 않은 제품 원가</span></article></div>
+    <div class="new-product-panel"><div><small>NEW PRODUCT DEVELOPMENT</small><h3>신제품·서비스 개발</h3><p>개발비는 즉시 비용으로 나가며 개발 완료 후에도 자동 판매되지 않습니다. 출시가격과 공급량을 직접 결정해야 합니다.</p></div><div class="new-product-form"><label>제품/서비스 이름<input id="newProductName" maxlength="50" value="${escapeHtml(preset.name)}"></label><label>사업 유형<input id="newProductType" maxlength="40" value="${escapeHtml(preset.type)}"></label>${companyMoneyInput('newProductPrice','목표 판매가격',formatKrwSmart(preset.price),'예: 250만, 4500만')}${companyMoneyInput('newProductBudget','개발 예산','1억','예: 1억, 5억')}<label>계획 공급량 / 주기<input id="newProductCapacity" type="number" min="0.01" step="1" value="${preset.capacity}"></label><button data-product-develop>개발 착수</button></div></div>
+    <div class="product-portfolio-grid">${products.length?products.map(p=>{const st=productStatusMeta(p.status),gm=productGrossMargin(p),inv=productInventoryCycles(p),pp=productPricePosition(p),dev=Math.max(1,Number(p.development_cycles)||1),prog=Math.min(dev,Number(p.progress_cycles)||0),pc=Math.round(prog/dev*100),demand=Number(p.last_demand_units||0),capacity=Number(p.capacity_per_cycle||0),sold=Number(p.last_units_sold||0);return `<article class="product-card ${st[1]}"><div class="product-card-head"><span>${escapeHtml(p.product_type||'제품')}</span><b>${st[0]}</b></div><h3>${escapeHtml(p.name)}</h3><p>${st[2]}</p>${p.status==='DEVELOPMENT'?`<div class="product-progress"><i style="width:${pc}%"></i></div><div class="product-progress-label"><span>개발 진행</span><b>${prog}/${dev}주기 · ${pc}%</b></div>`:''}<div class="product-metrics"><span><small>판매가격</small><b>${formatKrwSmart(p.unit_price||p.target_price)}</b><em class="${pp>8?'warn':pp<-8?'up':''}">기준 대비 ${pp>=0?'+':''}${pp.toFixed(1)}%</em></span><span><small>단위원가</small><b>${formatKrwSmart(p.unit_cost)}</b><em>최근 총마진 ${gm.toFixed(1)}%</em></span><span><small>최근 판매량</small><b>${nf.format(Math.round(sold))}</b><em>수요 ${nf.format(Math.round(demand))}</em></span><span><small>공급능력</small><b>${nf.format(Math.round(capacity))}/주기</b><em>불량률 ${Number(p.defect_rate||0).toFixed(2)}%</em></span><span><small>재고</small><b>${nf.format(Math.round(Number(p.inventory_units||0)))}</b><em>${sold>0?`약 ${inv.toFixed(1)}주기 판매분`:'판매 데이터 부족'}</em></span><span><small>누적 매출</small><b>${formatKrwSmart(p.revenue_total||0)}</b><em>누적 판매 ${nf.format(Math.round(Number(p.units_sold_total||0)))}단위</em></span></div>${p.status==='READY'?`<div class="product-action-single"><button data-product-launch="${p.id}">출시 승인</button><small>출시 준비비용은 개발비의 약 3%(최소 500만원)입니다.</small></div>`:''}${p.status==='ACTIVE'?`<details class="product-control"><summary>가격·생산·수요 관리</summary><div class="product-control-grid">${companyMoneyInput(`productPrice_${p.id}`,'새 판매가격',formatKrwSmart(p.unit_price||p.target_price),'예: 250만')}<button data-product-price="${p.id}">가격 변경</button>${companyMoneyInput(`productCapacityBudget_${p.id}`,'생산능력 증설 예산','5000만','예: 5000만, 2억')}<button data-product-capacity="${p.id}">생산능력 투자</button>${companyMoneyInput(`productMarketingBudget_${p.id}`,'제품 수요창출 예산','3000만','예: 3000만, 1억')}<button data-product-marketing="${p.id}">제품 마케팅</button><button class="risk" data-product-retire="${p.id}">제품 단종</button></div></details>`:''}</article>`}).join(''):`<div class="empty project-empty">제품 포트폴리오 데이터가 없습니다. 첫 신제품을 개발해 보세요.</div>`}</div>
   </section>`;
 }
+function renderSupplyChainDesk(my){
+  if(!state.company?.realism_available)return '';
+  const s=state.company?.supply||{},policy=String(s.procurement_policy||my.procurement_policy||'BALANCED');
+  const policies=[['LOW_COST','저가 단일조달','원가 ↓','품질·공급중단 위험 ↑'],['BALANCED','균형 조달','원가·품질 균형','기본 공급망'],['PREMIUM','프리미엄 공급망','품질·납기 안정 ↑','원가 ↑'],['DUAL_SOURCE','이원화 조달','공급중단 위험 최소','관리비·원가 ↑']];
+  return `<section class="corp-section supply-chain-desk"><div class="company-section-head"><div><small>SUPPLY CHAIN · WORKING CAPITAL</small><h2>공급망·운전자본</h2></div><span>싸게 조달하면 원가가 내려가지만 불량과 공급중단 위험이 커집니다. 매출이 발생해도 외상매출금 때문에 현금이 바로 들어오지 않을 수 있습니다.</span></div><div class="supply-kpis"><article><small>조달 정책</small><b>${escapeHtml(policies.find(x=>x[0]===policy)?.[1]||policy)}</b><span>현재 적용</span></article><article><small>공급 신뢰도</small><b>${Number(s.supplier_reliability||my.supplier_reliability||0).toFixed(0)}</b><span>납기·중단 위험</span></article><article class="${Number(s.supply_risk||my.supply_risk||0)>35?'warn':''}"><small>공급망 위험</small><b>${Number(s.supply_risk||my.supply_risk||0).toFixed(1)}</b><span>물류·에너지 환경 포함</span></article><article><small>재고자산</small><b>${formatKrwSmart(s.inventory_value||my.inventory_value||0)}</b><span>현금이 재고에 묶인 금액</span></article><article><small>외상매출금</small><b>${formatKrwSmart(s.accounts_receivable||my.accounts_receivable||0)}</b><span>매출은 났지만 아직 못 받은 돈</span></article><article><small>외상매입금</small><b>${formatKrwSmart(s.accounts_payable||my.accounts_payable||0)}</b><span>공급사에 아직 지급하지 않은 돈</span></article></div><div class="procurement-policy-grid">${policies.map(x=>`<button data-procurement-policy="${x[0]}" class="${policy===x[0]?'on':''}"><b>${x[1]}</b><span>${x[2]}</span><small>${x[3]}</small></button>`).join('')}</div></section>`;
+}
+function renderFinancialStatements(my){
+  if(!state.company?.realism_available)return '';
+  const periods=state.company?.finance_periods||[],f=periods[0]||null,live=state.company?.finance_live||{};
+  const revenue=f?Number(f.revenue||0):Number(live.period_product_revenue||0),cogs=f?Number(f.cogs||0):Number(live.period_cogs||0),gross=f?Number(f.gross_profit||0):revenue-cogs,payroll=f?Number(f.payroll_expense||0):Number(my.monthly_payroll||0)/30,fixed=f?Number(f.fixed_expense||0):Number(my.monthly_fixed_cost||0)/30,rnd=f?Number(f.rnd_expense||0):Number(live.period_rnd_expense||0),marketing=f?Number(f.marketing_expense||0):Number(live.period_marketing_expense||0),otherOpex=f?Number(f.other_opex||0):Number(live.period_other_opex||0),dep=f?Number(f.depreciation_expense||0):Number(live.period_capex_spend||0)*.02,interest=f?Number(f.interest_expense||0):Number(my.last_interest_cost||0),tax=f?Number(f.tax_expense||0):Number(my.estimated_corporate_tax||0)+Number(my.estimated_local_tax||0),op=f?Number(f.operating_profit||0):gross-payroll-fixed-rnd-marketing-otherOpex-dep,net=f?Number(f.net_income||0):op-interest-tax,ocf=f?Number(f.operating_cash_flow||0):Number(my.last_operating_cash_flow||0),icf=f?Number(f.investing_cash_flow||0):-(Number(live.period_capex_spend||0)+Number(live.period_rnd_expense||0)*.35);
+  const periodsHtml=periods.slice(0,5).map(x=>`<tr><td>기간 ${x.period_no}</td><td>${formatKrwSmart(x.revenue)}</td><td class="${Number(x.operating_profit)>=0?'up':'down'}">${formatKrwSmart(x.operating_profit)}</td><td class="${Number(x.net_income)>=0?'up':'down'}">${formatKrwSmart(x.net_income)}</td><td>${formatKrwSmart(x.ending_cash)}</td></tr>`).join('');
+  return `<section class="corp-section financial-statements"><div class="company-section-head"><div><small>MANAGEMENT ACCOUNTING</small><h2>손익·재무상태·현금흐름</h2></div><span>${f?`최근 마감 회계기간 #${f.period_no}`:'현재 회계기간 누적'} · 매출과 현금은 다릅니다. 외상매출·재고·매입채무 때문에 흑자여도 현금이 부족할 수 있습니다.</span></div><div class="statement-grid"><article><div class="statement-head"><small>손익계산</small><b>P&amp;L</b></div><dl><div><dt>제품·서비스 매출</dt><dd>${formatKrwSmart(revenue)}</dd></div><div><dt>매출원가</dt><dd>-${formatKrwSmart(cogs)}</dd></div><div class="subtotal"><dt>매출총이익</dt><dd class="${gross>=0?'up':'down'}">${formatKrwSmart(gross)}</dd></div><div><dt>급여비</dt><dd>-${formatKrwSmart(payroll)}</dd></div><div><dt>고정 운영비</dt><dd>-${formatKrwSmart(fixed)}</dd></div><div><dt>R&amp;D·품질 비용</dt><dd>-${formatKrwSmart(rnd)}</dd></div><div><dt>마케팅비</dt><dd>-${formatKrwSmart(marketing)}</dd></div><div><dt>기타 영업비용</dt><dd>-${formatKrwSmart(otherOpex)}</dd></div><div><dt>감가상각</dt><dd>-${formatKrwSmart(dep)}</dd></div><div class="subtotal"><dt>영업이익</dt><dd class="${op>=0?'up':'down'}">${formatKrwSmart(op)}</dd></div><div><dt>이자·세금</dt><dd>-${formatKrwSmart(interest+tax)}</dd></div><div class="total"><dt>순이익</dt><dd class="${net>=0?'up':'down'}">${formatKrwSmart(net)}</dd></div></dl></article><article><div class="statement-head"><small>재무상태</small><b>BALANCE SHEET</b></div><dl><div><dt>현금</dt><dd>${formatKrwSmart(my.cash)}</dd></div><div><dt>외상매출금</dt><dd>${formatKrwSmart(my.accounts_receivable||state.company?.supply?.accounts_receivable||0)}</dd></div><div><dt>재고자산</dt><dd>${formatKrwSmart(my.inventory_value||state.company?.supply?.inventory_value||0)}</dd></div><div class="subtotal"><dt>단기 운전자산</dt><dd>${formatKrwSmart(Number(my.cash||0)+Number(my.accounts_receivable||0)+Number(my.inventory_value||0))}</dd></div><div><dt>외상매입금</dt><dd>${formatKrwSmart(my.accounts_payable||state.company?.supply?.accounts_payable||0)}</dd></div><div><dt>차입금</dt><dd>${formatKrwSmart(my.debt)}</dd></div><div class="total"><dt>기업가치</dt><dd>${formatKrwSmart(my.valuation)}</dd></div></dl></article><article><div class="statement-head"><small>현금흐름</small><b>CASH FLOW</b></div><dl><div><dt>영업현금흐름</dt><dd class="${ocf>=0?'up':'down'}">${ocf>=0?'+':''}${formatKrwSmart(ocf)}</dd></div><div><dt>투자현금흐름</dt><dd class="${icf>=0?'up':'down'}">${icf>=0?'+':''}${formatKrwSmart(icf)}</dd></div><div><dt>매출채권</dt><dd>${formatKrwSmart(my.accounts_receivable||0)}</dd></div><div><dt>매입채무</dt><dd>${formatKrwSmart(my.accounts_payable||0)}</dd></div><div class="subtotal"><dt>현금 런웨이</dt><dd>${companyCashRunway(my).months.toFixed(1)}개월</dd></div><div class="total"><dt>기말 현금</dt><dd>${formatKrwSmart(my.cash)}</dd></div></dl></article></div>${periods.length?`<details class="finance-history"><summary>최근 회계기간 비교</summary><div class="finance-table-wrap"><table><thead><tr><th>기간</th><th>매출</th><th>영업이익</th><th>순이익</th><th>기말현금</th></tr></thead><tbody>${periodsHtml}</tbody></table></div></details>`:'<div class="finance-period-note">120 경영주기가 지나 첫 결산이 끝나면 기간별 손익 추이가 기록됩니다.</div>'}</section>`;
+}
+function renderRealOperatingBrief(my){
+  if(!state.company?.realism_available)return '';
+  const ps=state.company?.products||[],active=ps.filter(p=>p.status==='ACTIVE'),ready=ps.filter(p=>p.status==='READY'),dev=ps.filter(p=>p.status==='DEVELOPMENT'),rev=active.reduce((a,p)=>a+Number(p.last_revenue||0),0),cogs=active.reduce((a,p)=>a+Number(p.last_cogs||0),0),gross=rev-cogs,inventory=Number(state.company?.supply?.inventory_value||my.inventory_value||0),ar=Number(state.company?.supply?.accounts_receivable||my.accounts_receivable||0),risk=Number(state.company?.supply?.supply_risk||my.supply_risk||0);
+  return `<section class="real-operating-brief"><div class="company-section-head"><div><small>OPERATING REALITY</small><h2>실제 영업 상태</h2></div><span>회사의 가치가 아니라 무엇을 팔고 얼마가 남는지를 먼저 봅니다.</span></div><div class="real-operating-grid"><article><small>판매 중 제품</small><b>${active.length}</b><span>개발 ${dev.length} · 출시대기 ${ready.length}</span></article><article><small>최근 제품매출</small><b>${formatKrwSmart(rev)}</b><span>경영주기 기준</span></article><article><small>매출총이익</small><b class="${gross>=0?'up':'down'}">${gross>=0?'+':''}${formatKrwSmart(gross)}</b><span>원가 ${formatKrwSmart(cogs)}</span></article><article class="${inventory>Math.max(rev*4,10000000)?'warn':''}"><small>재고자산</small><b>${formatKrwSmart(inventory)}</b><span>판매 속도 대비 과잉재고 점검</span></article><article><small>외상매출금</small><b>${formatKrwSmart(ar)}</b><span>매출과 현금의 차이</span></article><article class="${risk>35?'warn':''}"><small>공급망 위험</small><b>${risk.toFixed(1)}</b><span>${escapeHtml(state.company?.supply?.procurement_policy||'BALANCED')}</span></article></div></section>`;
+}
+function incidentTypeMeta(type){
+  return ({SUPPLY:['공급망','납기·생산'],QUALITY:['품질','고객·리콜'],HR:['인사','핵심인력'],CYBER:['정보보안','데이터·운영'],REGULATORY:['규제·준법','감사·신용']})[type]||['경영','운영'];
+}
+function renderExecutiveDecisionQueue(my){
+  if(!state.company?.realism_available)return '';
+  const rows=state.company?.incidents||[];
+  if(!rows.length)return '';
+  const cycle=Number(state.company?.world?.cycle_no||0);
+  return `<section class="executive-decision-queue"><div class="company-section-head"><div><small>EXECUTIVE APPROVAL REQUIRED</small><h2>경영진 결재 대기</h2></div><span>랜덤 보상 이벤트가 아니라 실제 운영에서 발생할 수 있는 문제입니다. 비용을 아끼면 후속 위험을 감수해야 합니다.</span></div><div class="executive-case-grid">${rows.map(x=>{const meta=incidentTypeMeta(x.incident_type),left=Math.max(0,Number(x.deadline_cycle||0)-cycle),sev=Math.max(1,Number(x.severity||1));return `<article class="executive-case severity-${sev}"><div class="case-head"><span>${meta[0]}</span><b>중요도 ${sev}/3</b></div><h3>${escapeHtml(x.title)}</h3><p>${escapeHtml(x.body)}</p><div class="case-facts"><span><small>전면 대응 예상비용</small><b>${formatKrwSmart(x.estimated_cost||0)}</b></span><span><small>결재 권고기한</small><b>${left}주기</b></span><span><small>영향 영역</small><b>${meta[1]}</b></span></div><div class="case-actions"><button data-incident-decision="${x.id}" data-incident-choice="FULL"><b>전면 대응</b><small>비용 100% · 후속 위험 최소화</small></button><button data-incident-decision="${x.id}" data-incident-choice="CONTROLLED"><b>제한 대응</b><small>비용 약 55% · 일부 위험 유지</small></button><button class="risk" data-incident-decision="${x.id}" data-incident-choice="DEFER"><b>대응 유보</b><small>즉시비용 0 · 운영/평판 위험 확대</small></button></div></article>`}).join('')}</div></section>`;
+}
+function dueDiligenceFor(targetId){
+  const cycle=Number(state.company?.world?.cycle_no||0);
+  return (state.company?.due_diligence||[]).find(x=>Number(x.target_company_id)===Number(targetId)&&Number(x.valid_until_cycle||0)>=cycle)||null;
+}
+function renderDueDiligencePanel(c,self,controlled){
+  if(self||!state.company?.realism_available)return '';
+  const d=dueDiligenceFor(c.id),cycle=Number(state.company?.world?.cycle_no||0);
+  if(!d){const fee=Math.max(15000000,Math.min(300000000,Number(c.valuation||0)*.00002));return `<div class="due-diligence-panel pending"><div><small>M&amp;A DUE DILIGENCE</small><b>인수 실사 미실시</b><span>소수지분 투자는 가능하지만 공개매수 전에 회계·법무·사업·공급망 실사가 필요합니다. 예상 실사비 ${formatKrwSmart(fee)}.</span></div><button data-company-dd="${c.id}" ${controlled?'disabled':''}>인수 실사 의뢰</button></div>`;}
+  return `<div class="due-diligence-panel complete"><div><small>M&amp;A DUE DILIGENCE</small><b>실사 보고서 유효</b><span>${escapeHtml(d.summary||'재무·법무·사업 실사를 완료했습니다.')}</span></div><div class="dd-scores"><span><small>인수 위험도</small><b class="${Number(d.risk_score)>=65?'down':Number(d.risk_score)<=35?'up':''}">${Number(d.risk_score||0).toFixed(0)}/100</b></span><span><small>예상 시너지</small><b class="${Number(d.synergy_score)>=65?'up':''}">${Number(d.synergy_score||0).toFixed(0)}/100</b></span><span><small>유효기간</small><b>${Math.max(0,Number(d.valid_until_cycle)-cycle)}주기</b></span><span><small>실사비</small><b>${formatKrwSmart(d.fee||0)}</b></span></div><button data-company-dd="${c.id}">실사 갱신</button></div>`;
+}
+
+function renderCompetitorProductIntel(){
+  const ps=state.companyAnalysis?.realism_products||[];
+  if(!ps.length)return '';
+  return `<div class="competitor-product-intel"><div class="analysis-subhead"><h3>주력 제품·사업</h3><span>${ps.filter(p=>p.status==='ACTIVE').length}개 판매 중</span></div>${ps.slice(0,4).map(p=>`<article><div><b>${escapeHtml(p.name)}</b><small>${escapeHtml(p.product_type||'제품')} · ${productStatusMeta(p.status)[0]}</small></div><span><small>판매가격</small><b>${formatKrwSmart(p.unit_price||p.target_price)}</b></span><span><small>최근 매출</small><b>${formatKrwSmart(p.last_revenue||0)}</b></span><span><small>총마진</small><b>${productGrossMargin(p).toFixed(1)}%</b></span></article>`).join('')}</div>`;
+}
+
 function renderInvestmentReturnPanel(my){
   const sum=state.company?.investment_summary||{};
   const incomes=(state.company?.investment_income||[]).slice(0,10);
   const value=Number(sum.portfolio_value||0),cost=Number(sum.portfolio_cost||0),unreal=Number(sum.unrealized_pnl??(value-cost)),real=Number(sum.realized_pnl||0),divi=Number(sum.dividend_income||0),projectReturn=Number(sum.project_return||0),globalReturn=Number(sum.global_return||0);
   const cycle=Number(state.company?.world?.cycle_no||0),nextYield=6-(cycle%6||0),nextGlobal=4-(cycle%4||0);
-  return `<section class="investment-return-panel"><div class="company-section-head"><div><small>RETURN DESK</small><h2>투자금이 어디서 돌아오는지</h2></div><span>경쟁사 지분·법인 주식의 평가손익과, 매각이익·배당·프로젝트 성과금·해외사업 현금유입을 한곳에서 보여줍니다.</span></div><div class="return-schedule"><span><b>배당·금융수익</b> 약 ${nextYield||6}주기 뒤 정산</span><span><b>해외사업 현금</b> 약 ${nextGlobal||4}주기 뒤 정산</span><span>서버는 회사별 요청이 아니라 <b>시장 전체를 한 번에 배치 정산</b>합니다.</span></div><div class="return-kpis"><article><small>전체 투자 평가액</small><b>${compactMoney(value)}원</b><span>투자원가 ${compactMoney(cost)}원</span></article><article><small>평가손익</small><b class="${unreal>=0?'up':'down'}">${unreal>=0?'+':''}${compactMoney(unreal)}원</b><span>아직 매도 전 손익</span></article><article><small>확정 매매손익</small><b class="${real>=0?'up':'down'}">${real>=0?'+':''}${compactMoney(real)}원</b><span>매도 결과가 법인현금에 반영</span></article><article><small>누적 현금유입</small><b class="up">${compactMoney(divi+projectReturn+globalReturn)}원</b><span>배당 ${compactMoney(divi)} · 프로젝트 ${compactMoney(projectReturn)} · 해외 ${compactMoney(globalReturn)}</span></article></div><div class="income-feed">${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||x.source_code||'투자')}</b><small>${escapeHtml(x.income_label||x.income_type||'현금수익')} · 주기 #${Number(x.cycle_no)||0}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong><em>${escapeHtml(x.note||'법인현금 반영')}</em></article>`).join(''):`<div class="empty compact">아직 확정된 현금수익이 없습니다. 프로젝트 성과·해외사업·배당·지분 매각이 발생하면 이곳에 실제 입금 내역이 쌓입니다.</div>`}</div></section>`;
+  return `<section class="investment-return-panel"><div class="company-section-head"><div><small>CASH REALIZATION</small><h2>확정 투자수익·현금유입</h2></div><span>경쟁사 지분·법인 주식의 매각이익·배당·해외사업 현금유입을 보여줍니다. 프로젝트 항목은 V6.2 이전에 시작된 구형 계약의 잔여 회수분만 표시될 수 있습니다.</span></div><div class="return-schedule"><span><b>배당·금융수익</b> 약 ${nextYield||6}주기 뒤 정산</span><span><b>해외사업 현금</b> 약 ${nextGlobal||4}주기 뒤 정산</span><span>서버는 회사별 요청이 아니라 <b>시장 전체를 한 번에 배치 정산</b>합니다.</span></div><div class="return-kpis"><article><small>전체 투자 평가액</small><b>${compactMoney(value)}원</b><span>투자원가 ${compactMoney(cost)}원</span></article><article><small>평가손익</small><b class="${unreal>=0?'up':'down'}">${unreal>=0?'+':''}${compactMoney(unreal)}원</b><span>아직 매도 전 손익</span></article><article><small>확정 매매손익</small><b class="${real>=0?'up':'down'}">${real>=0?'+':''}${compactMoney(real)}원</b><span>매도 결과가 법인현금에 반영</span></article><article><small>누적 현금유입</small><b class="up">${compactMoney(divi+projectReturn+globalReturn)}원</b><span>배당 ${compactMoney(divi)} · 프로젝트 ${compactMoney(projectReturn)} · 해외 ${compactMoney(globalReturn)}</span></article></div><div class="income-feed">${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||x.source_code||'투자')}</b><small>${escapeHtml(x.income_label||x.income_type||'현금수익')} · 주기 #${Number(x.cycle_no)||0}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong><em>${escapeHtml(x.note||'법인현금 반영')}</em></article>`).join(''):`<div class="empty compact">아직 확정된 투자 현금수익이 없습니다. 배당·해외사업·지분 매각과 V6.2 이전 구형 프로젝트의 잔여 성과금이 발생하면 이곳에 실제 입금 내역이 쌓입니다.</div>`}</div></section>`;
 }
 function renderPeopleFinanceDesk(my){
   const employees=Math.max(0,Number(my.employees||0));
@@ -1454,9 +1582,9 @@ function renderCompanyCommand(my){
   const advanced=[['PRICE_WAR','가격 경쟁','즉시','점유율을 빠르게 확보하지만 이익·브랜드가 흔들릴 수 있습니다.'],['COSTCUT','구조조정','즉시','현금을 확보하지만 직원 사기와 평판이 떨어질 수 있습니다.'],['DIVIDEND','주주 배당','즉시','현금을 주주에게 돌려 투자자 신뢰를 높입니다.'],['COMPLIANCE','준법·감사 프로젝트','3주기','규제·세무 위험을 낮추는 방어 프로젝트입니다.'],['LOAN','기업 대출','즉시','현금을 확보하는 대신 부채와 신용 부담이 생깁니다.'],['REPAY','부채 상환','즉시','부채를 줄여 신용과 재무 안정성을 높입니다.']];
   const cash=Number(my.cash||0),safeLow=cash*.03,safeHigh=cash*.10;
   return `<section class="corp-section ceo-command-section management-v54">
-    <div class="company-section-head"><div><small>CEO STRATEGY</small><h2>이번에는 ‘프로젝트’를 시작합니다</h2></div><span>현재 진행·회수 중 ${active}개 · 핵심 프로젝트는 최대 4개까지 동시에 운영할 수 있습니다.</span></div>
+    <div class="company-section-head"><div><small>CEO STRATEGY</small><h2>이번에는 ‘프로젝트’를 시작합니다</h2></div><span>현재 진행·구형 회수 ${active}개 · 핵심 프로젝트는 최대 4개까지 동시에 운영할 수 있습니다.</span></div>
     ${renderManagementProjectBoard(my)}
-    <div class="project-launch-box"><div><b>신규 프로젝트 예산</b><span>투자금은 즉시 빠지지만, 프로젝트가 완료되면 성과에 따라 여러 경영주기에 걸쳐 현금이 돌아옵니다. 이제는 시작 전에 <b>착수 검토</b>을 진행해 초기 효율이 달라집니다.${gm==='BEGINNER'?` 처음에는 법인현금의 약 3~10% 범위가 결과를 배우기 좋습니다.`:''}</span>${gm!=='REALISTIC'?`<div class="budget-presets"><button data-budget-preset="0.03">현금 3%</button><button data-budget-preset="0.05">5%</button><button data-budget-preset="0.10">10%</button><button data-budget-preset="0.15">15%</button></div>`:''}</div><div class="project-launch-side">${companyMoneyInput('companyActionAmount','집행금액',cash?formatKrwSmart(Math.max(10000000,Math.min(cash*.05,100000000))):'1억')} ${gm==='BEGINNER'?`<small class="budget-safe-note">현재 참고 범위 ${formatKrwSmart(safeLow)} ~ ${formatKrwSmart(safeHigh)}</small>`:''}${renderCompanyKickoffSummary()}</div></div>
+    <div class="project-launch-box"><div><b>신규 프로젝트 예산</b><span>프로젝트 사업비는 즉시 지출됩니다. 완료 후 현금을 직접 지급하지 않고 기술·품질·생산·인력·수요 같은 회사 역량을 바꿔 제품 매출과 원가에 간접 반영됩니다. 시작 전 <b>착수 검토</b>에서 실행계획을 결정합니다.${gm==='BEGINNER'?` 처음에는 법인현금의 약 3~10% 범위가 결과를 배우기 좋습니다.`:''}</span>${gm!=='REALISTIC'?`<div class="budget-presets"><button data-budget-preset="0.03">현금 3%</button><button data-budget-preset="0.05">5%</button><button data-budget-preset="0.10">10%</button><button data-budget-preset="0.15">15%</button></div>`:''}</div><div class="project-launch-side">${companyMoneyInput('companyActionAmount','집행금액',cash?formatKrwSmart(Math.max(10000000,Math.min(cash*.05,100000000))):'1억')} ${gm==='BEGINNER'?`<small class="budget-safe-note">현재 참고 범위 ${formatKrwSmart(safeLow)} ~ ${formatKrwSmart(safeHigh)}</small>`:''}${renderCompanyKickoffSummary()}</div></div>
     <div class="project-launch-grid">${core.map(k=>{const m=managementProjectMeta(k),im=companyImpactMeta(k),b=companyBudgetGuide(my,k);return `<button data-company-action="${k}" class="project-launch"><div><small>${m[1]} · 위험 ${m[2]}</small><b>${m[0]}</b></div><p>${m[3]}</p>${gm!=='REALISTIC'?`<div class="impact-tags"><i>${im[0]}</i><i>${im[1]}</i><i>${im[2]}</i></div>${gm==='BEGINNER'?`<small class="action-budget-hint">참고 예산 ${formatKrwSmart(b.low)}~${formatKrwSmart(b.high)}</small>`:''}`:''}<span>${m[4]} · 착수 검토 →</span></button>`}).join('')}</div>
     <details class="advanced-management"><summary>재무·위기 대응 결정 보기</summary><div class="corp-action-grid advanced-grid">${advanced.map(a=>{const im=companyImpactMeta(a[0]);return `<button data-company-action="${a[0]}" class="${['PRICE_WAR','LOAN','COSTCUT'].includes(a[0])?'risk':''}"><small>${a[2]}</small><b>${a[1]}</b><span>${a[3]}</span>${gm!=='REALISTIC'?`<em>${im.slice(0,3).join(' · ')}</em>`:''}</button>`}).join('')}</div></details>
   </section>`;
@@ -1546,23 +1674,24 @@ function renderAcquisitionGuide(my){
 
 function companyPressFor(id){const cutoff=Date.now()-15*60*1000;return (state.company?.press||[]).filter(x=>Number(x.company_id)===Number(id)&&(!x.created_at||new Date(x.created_at).getTime()>=cutoff));}
 function renderCompetitionBoard(my){
-  const companies=[...(state.company?.companies||[])].filter(c=>c&&c.status!=='INACTIVE');
-  const holds=state.company?.market_holdings||[];
+  const allCompanies=[...(state.company?.companies||[])].filter(c=>c&&c.status!=='INACTIVE');
+  const companies=allCompanies.filter(c=>companyRegionMatch(c,state.companyRegion));
+  const holds=state.company?.my_holdings||[];
   const press=state.company?.press||[];
   const rows=companies.map(c=>{
     const stakeRow=holds.find(h=>Number(h.holder_company_id)===Number(my.id)&&Number(h.target_company_id)===Number(c.id));
     const self=Number(c.id)===Number(my.id);
-    const own=self?Number(my.founder_stake||0):Number(stakeRow?.percent||0);
+    const own=self?ownerStakeOf(my):Number(stakeRow?.stake??stakeRow?.percent??0);
     const news=press.find(a=>Number(a.company_id)===Number(c.id));
     return {c,self,own,news};
   }).sort((a,b)=>Number(b.c.valuation)-Number(a.c.valuation));
   const total=rows.length;const ownCount=rows.filter(r=>r.own>0).length;
   return `<section class="corp-section company-browser-section clean-company-market">
-    <div class="company-section-head"><div><small>COMPETITION · M&A</small><h2>기업 브라우저</h2></div><span>시가총액 상위 회사를 분석하고, 지분 매입·공개매수·경영권 방어 흐름을 실제 경영처럼 다룹니다.</span></div>
+    <div class="company-section-head"><div><small>COMPETITION · M&A</small><h2>기업 브라우저</h2></div><span>국가별 시장을 나눠 실제 경쟁사와 지분·주가·기업가치를 비교합니다. 국가 버튼을 누르면 해당 시장의 회사만 즉시 표시됩니다.</span></div>
     <div class="company-region-tabs">${['국내','미국','중국','유럽','일본'].map(region=>`<button data-company-region="${region}" class="${state.companyRegion===region?'on':''}">${region}</button>`).join('')}</div>
-    <div class="company-browser-summary"><strong>${total}개 기업</strong><span>보유지분 ${ownCount}개사 · 현재 지역 ${state.companyRegion}</span><small>이제 내 지분이 회사 카드 안에서 바로 보여, 옆으로 스크롤하지 않아도 핵심 상태를 파악할 수 있습니다.</small></div>
+    <div class="company-browser-summary"><strong>${total}개 기업</strong><span>보유지분 ${ownCount}개사 · 현재 시장 ${state.companyRegion}</span><small>${state.companyRegion==='유럽'?'독일·영국 기업을 통합 표시합니다.':'해당 국가에 등록된 기업만 표시합니다.'}</small></div>
     <div class="company-analysis-layout clean-analysis-layout">
-      <div class="company-browser clean-company-browser">${rows.map((row,idx)=>{const c=row.c;const chg=Number(c.daily_change_pct||0);const market=companyMarketValueText(c),share=companySharePriceText(c);const news=row.news?`${escapeHtml(row.news.headline||'최근 보도 있음')}`:'최근 15분 보도 없음';const stage=row.own>50?'자회사':row.own>=15?'경영 참여권':row.own>0?'소수지분':'미보유';return `<button data-company-analyze="${c.id}" class="company-browser-row clean-company-row ${Number(state.companyAnalysisId)===Number(c.id)?'on':''}"><strong class="company-row-rank">${row.self?'MY':`#${idx+1}`}</strong><span class="company-row-identity"><b>${escapeHtml(c.name)}</b><small>${row.self?'내 회사':(c.is_bot?'BOT 회사':'시장 상장사')} ${escapeHtml(c.home_country)} · ${escapeHtml(c.sector)}</small><em>${news}</em></span><span class="company-row-stake company-row-stake-hero ${row.own>50?'control':row.own>=15?'major':row.own>0?'minor':'empty'}"><small>${row.self?'창업자 지분':'내 지분'}</small><b>${row.own.toFixed(1)}%</b><em>${stage}</em></span><div class="company-row-finance"><span class="company-row-value"><small>기업가치</small><b>${market.main}</b><em>${market.sub}</em></span><span class="company-row-quote"><small>현재 주가</small><b>${share.main}</b><em class="${chg>=0?'up':'down'}">${pct(chg)}</em></span></div><i class="company-row-open">분석</i></button>`}).join('')}</div>
+      <div class="company-browser clean-company-browser">${rows.length?rows.map((row,idx)=>{const c=row.c;const chg=Number(c.daily_change_pct??c.last_return_pct??0);const market=companyMarketValueText(c),marketSub=companyMarketValueSubText(c),share=companySharePriceText(c);const news=row.news?`${escapeHtml(row.news.headline||'최근 보도 있음')}`:'최근 15분 보도 없음';const stage=row.own>50?'자회사':row.own>=15?'경영 참여권':row.own>0?'소수지분':'미보유';return `<button data-company-analyze="${c.id}" class="company-browser-row clean-company-row ${Number(state.companyAnalysisId)===Number(c.id)?'on':''}"><strong class="company-row-rank">${row.self?'MY':`#${idx+1}`}</strong><span class="company-row-identity"><b>${escapeHtml(c.name)}</b><small>${row.self?'내 회사':(c.is_bot?'BOT 회사':'시장 상장사')} ${escapeHtml(c.home_country)} · ${escapeHtml(c.sector)}</small><em>${news}</em></span><span class="company-row-stake company-row-stake-hero ${row.own>50?'control':row.own>=15?'major':row.own>0?'minor':'empty'}"><small>${row.self?'창업자 지분':'내 지분'}</small><b>${row.own.toFixed(1)}%</b><em>${stage}</em></span><div class="company-row-finance"><span class="company-row-value"><small>기업가치</small><b>${market}</b><em>${marketSub}</em></span><span class="company-row-quote"><small>현재 주가</small><b>${share}</b><em class="${chg>=0?'up':'down'}">${pct(chg)}</em></span></div><i class="company-row-open">분석</i></button>`}).join(''):`<div class="empty project-empty">${escapeHtml(state.companyRegion)} 시장에 표시할 기업이 없습니다.</div>`}</div>
       <div class="company-analysis-slot" id="companyAnalysisSlot">${state.companyAnalysis?renderCompanyAnalysisPanel(my):renderCompanyAnalysisPlaceholder()}</div>
     </div>
   </section>`;
@@ -1586,8 +1715,10 @@ function renderCompanyAnalysisPanel(my){
     <div class="analysis-profile-head"><div><span class="analysis-country">${escapeHtml(c.home_country||'')}</span>${companyTypeBadge(c)}<h2>${escapeHtml(c.name)}${self?' <em class="me-chip">내 회사</em>':''}</h2><p>${escapeHtml(c.sector)} · ${companyOwnerLabel(c)}</p></div><div class="analysis-value-box"><small>기업가치</small><b>${companyMarketValueText(c)}</b><span>${c.home_country!=='대한민국'?`원화 환산 ${compactMoney(c.valuation)}원`:self?'내 회사':`내 회사 대비 ${gap>=1?`${gap.toFixed(gap>99?0:1)}배`:`${(gap*100).toFixed(0)}%`}`}</span></div></div>
     <div class="analysis-stat-grid"><article><small>현재 주가</small><b>${companySharePriceText(c)}</b><span class="${ret>=0?'up':'down'}">${ret>=0?'+':''}${ret.toFixed(2)}%</span></article><article><small>시장 수급</small><b class="${flow>=0?'up':'down'}">${flow>=0?'+':''}${compactMoney(flow)}원</b><span>공용 서버 수급</span></article><article><small>변동성</small><b>${Number(c.volatility||1.5).toFixed(2)}%</b><span>최근 가격 변동폭</span></article><article><small>${self?'내 경영진·우호 지분':'내 보유 지분'}</small><b>${stake.toFixed(2)}%</b><span>${self?`외부 ${Number(my.incoming_stake||0).toFixed(2)}%`:stage.label}</span></article></div>
     <div class="company-target-chart live-company-chart clean-live-chart"><div class="mini-chart-head"><div><b>공용 실시간 주가</b><small>모든 유저가 같은 서버 가격·캔들을 봅니다. 새 캔들이 생길 때 차트가 왼쪽으로 흐릅니다.</small></div><span class="live-dot">SHARED</span></div><canvas id="companyTargetChart"></canvas><div class="chart-decision-note"><span><small>매출</small><b>${compactMoney(c.revenue)}원</b></span><span><small>영업이익</small><b>${compactMoney(c.profit)}원</b></span><span><small>투자심리</small><b>${Number(c.investor_sentiment||50).toFixed(0)}</b></span><span><small>수급 방향</small><b class="${flow>=0?'up':'down'}">${flow>=0?'순매수':'순매도'}</b></span></div></div>
+    ${renderCompetitorProductIntel()}
+    ${renderDueDiligencePanel(c,self,controlled)}
     <div class="analysis-news"><div class="analysis-subhead"><h3>최근 15분 관련 뉴스</h3><span>${press.length}건</span></div>${press.length?press.slice(0,4).map(a=>`<article><small>${escapeHtml(a.outlet_name||'경제뉴스')}</small><b>${escapeHtml(a.headline)}</b><p>${escapeHtml(a.article_body||'')}</p></article>`).join(''):`<div class="empty compact">최근 15분 안에 보도된 기사가 없습니다.</div>`}</div>
-    ${self?`<div class="self-ownership-panel"><div><small>내 경영진·우호 지분</small><b>${stake.toFixed(2)}%</b><span>외부 세력 합계 ${Number(my.incoming_stake||0).toFixed(2)}% · 적대적 지분이 늘수록 이 비율이 낮아집니다.</span></div><button data-company-section-jump="competition" class="section-link">경영권 방어 현황 보기</button></div>`:`<div class="analysis-acquire"><div><small>현재 단계</small><b>${stage.label}</b><span>${controlled?'경영권 확보 완료':stage.desc}</span></div>${companyMoneyInput(`takeBudget_${c.id}`,'인수 예산','1억')}<button data-company-buy="${c.id}" ${controlled?'disabled':''}>장내 지분 매수</button><button data-company-tender="${c.id}" class="tender" ${stake<15||controlled?'disabled':''}>공개매수</button></div>`}
+    ${self?`<div class="self-ownership-panel"><div><small>내 경영진·우호 지분</small><b>${stake.toFixed(2)}%</b><span>외부 세력 합계 ${Number(my.incoming_stake||0).toFixed(2)}% · 적대적 지분이 늘수록 이 비율이 낮아집니다.</span></div><button data-company-section-jump="competition" class="section-link">경영권 방어 현황 보기</button></div>`:`<div class="analysis-acquire"><div><small>현재 단계</small><b>${stage.label}</b><span>${controlled?'경영권 확보 완료':stage.desc}</span></div>${companyMoneyInput(`takeBudget_${c.id}`,'인수 예산','1억')}<button data-company-buy="${c.id}" ${controlled?'disabled':''}>장내 지분 매수</button><button data-company-tender="${c.id}" class="tender" ${stake<15||controlled||!dueDiligenceFor(c.id)?'disabled':''}>${stake>=15&&!controlled&&!dueDiligenceFor(c.id)?'실사 후 공개매수':'공개매수'}</button></div>`}
   </aside>`;
 }
 
@@ -1664,8 +1795,8 @@ function renderCompanyOnlineRequired(){
       <div class="connection-repair-copy"><small>ONLINE COMPANY SERVER</small><h1>회사 서버 연결을 복구해 주세요</h1><p>${err}</p></div>
       <button data-company-retry class="company-primary">연결 다시 확인</button>
     </div>
-    <div class="repair-steps"><article><b>1</b><span><strong>이번 패치의 SQL 실행</strong><small><code>KX_CORPORATE_RUN_ONLY_THIS_V59.sql</code> 전체를 Supabase SQL Editor에서 한 번 실행합니다.</small></span></article><article><b>2</b><span><strong>페이지 새로고침 없이 확인</strong><small>위의 ‘연결 다시 확인’을 누르면 통합 온라인 API를 바로 다시 검사합니다.</small></span></article><article><b>3</b><span><strong>온라인 모드만 사용</strong><small>로컬 BOT 모드로 전환하지 않으며 모든 회사 데이터는 서버에 저장됩니다.</small></span></article></div>
-    <div class="repair-detail"><b>현재 오류</b><code>${err}</code><span>이 복구 SQL은 회사 서버 API만 보강하며 기존 회사·유저·주식·은행 데이터는 삭제하지 않습니다.</span></div>
+    <div class="repair-steps"><article><b>1</b><span><strong>DB 설치 순서 확인</strong><small>기본 회사 API가 이미 있다면 <code>RUN_THIS_IN_SUPABASE_V6.2.sql</code>만 실행합니다. 기본 API도 없다면 V6.1.2 기본 SQL부터 적용합니다.</small></span></article><article><b>2</b><span><strong>페이지 새로고침 없이 확인</strong><small>위의 ‘연결 다시 확인’을 누르면 통합 온라인 API를 바로 다시 검사합니다.</small></span></article><article><b>3</b><span><strong>온라인 모드만 사용</strong><small>로컬 BOT 모드로 전환하지 않으며 모든 회사 데이터는 서버에 저장됩니다.</small></span></article></div>
+    <div class="repair-detail"><b>현재 오류</b><code>${err}</code><span>V6.2 SQL은 제품·공급망·관리회계·인수실사 확장용이며 기존 회사·유저·주식·은행 데이터는 삭제하지 않습니다.</span></div>
   </section></main>`;
 }
 
@@ -1674,7 +1805,10 @@ function renderCompanySubnav(){
 }
 function renderExecutiveAgenda(my){
   const issues=[];
+  const openIncidents=state.company?.incidents||[];
+  if(openIncidents.length)issues.push(['critical','경영진 결재 대기',`${openIncidents.length}건의 실제 운영 리스크에 대응 결재가 필요합니다.`,'operations']);
   const t=state.company?.control_case;if(t)issues.push(['critical','경영권 방어 비상',`${escapeHtml(t.attacker_name||'경쟁사')} 지분 ${Number(t.stake||0).toFixed(1)}% · 즉시 이사회 대응 필요`,'competition']);
+  if(state.company?.realism_available){const ps=state.company?.products||[],active=ps.filter(p=>p.status==='ACTIVE'),ready=ps.filter(p=>p.status==='READY'),inventory=Number(state.company?.supply?.inventory_value||0),rev=active.reduce((a,p)=>a+Number(p.last_revenue||0),0),risk=Number(state.company?.supply?.supply_risk||0);if(!active.length)issues.push(['critical','판매 중인 제품 없음','회사에 매출을 만들어낼 ACTIVE 제품이 없습니다. 개발 완료 제품을 출시하거나 신규 제품을 개발해야 합니다.','operations']);if(ready.length)issues.push(['opportunity','출시 승인 대기',`${ready.length}개 제품의 개발이 끝났습니다. 가격·공급량을 검토하고 출시 여부를 결정하세요.`,'operations']);if(inventory>Math.max(30000000,rev*5))issues.push(['warn','재고자산 과다',`재고 ${formatKrwSmart(inventory)} · 최근 판매속도 대비 운전자본이 재고에 과도하게 묶일 수 있습니다.`,'operations']);if(risk>38)issues.push(['warn','공급망 불안',`공급망 위험 ${risk.toFixed(1)} · 조달정책과 원가·납기 안정성의 균형을 재검토하세요.`,'operations']);}
   if(Number(my.tax_due||0)+Number(my.tax_arrears||0)>0)issues.push(['warn','법인세 의사결정',`납부·미납/추징 대상 ${compactMoney(Number(my.tax_due||0)+Number(my.tax_arrears||0))}원`,'risk']);
   if(Number(my.employee_morale||60)<45)issues.push(['warn','핵심 인력 이탈 위험',`직원 사기 ${Number(my.employee_morale||0).toFixed(0)} · 복지/보상 또는 조직투자 필요`,'operations']);
   if(Number(my.product_quality||50)<52)issues.push(['warn','제품 품질 리스크',`제품력 ${Number(my.product_quality||0).toFixed(0)} · 리콜과 고객 신뢰 하락 가능성`,'operations']);
@@ -1716,14 +1850,14 @@ function renderDashboardProgress(my){
   const paybackCount=allProjects.filter(p=>String(p.status)==='PAYBACK').length;
   const realized=incomes.reduce((sum,x)=>sum+Number(x.amount||0),0);
   const totalReturn=projects.reduce((sum,p)=>sum+Number(p.realized_return||0),0);
-  return `<section class="dashboard-progress refined-progress-panel"><div class="company-section-head"><div><small>WHAT IS HAPPENING NOW</small><h2>내 결정이 지금 어떻게 진행되고 있나</h2></div><button data-company-section-jump="operations" class="section-link">사업 운영 전체 보기</button></div><div class="dashboard-progress-summary"><article><small>실행 중 프로젝트</small><b>${activeCount}개</b><span>현재 돈을 쓰며 진행 중인 과제</span></article><article><small>회수 단계</small><b>${paybackCount}개</b><span>완료 후 수익을 돌려받는 단계</span></article><article><small>최근 확정 수익</small><b class="${realized>=0?'up':'down'}">${realized>=0?'+':''}${compactMoney(realized)}원</b><span>최근 기록된 법인현금 유입 합계</span></article><article><small>누적 회수 금액</small><b>${compactMoney(totalReturn)}원</b><span>현재 화면의 프로젝트에서 확인되는 회수 금액</span></article></div><div class="dashboard-progress-grid"><div class="dashboard-projects"><h3>진행 중 프로젝트</h3>${projects.length?projects.map(p=>{const d=Math.max(1,Number(p.duration_cycles)||1),n=Math.min(d,Number(p.progress_cycles)||0),pc=p.status==='PAYBACK'?100:Math.round(n/d*100);return `<article><span><b>${escapeHtml(p.title||p.project_type)}</b><small>${projectStatusLabel(p)} · ${p.status==='PAYBACK'?`회수 ${Number(p.payout_cycles_remaining||0)}회 남음`:`${n}/${d}주기 진행`}</small></span><div><i style="width:${pc}%"></i></div><strong>${compactMoney(p.realized_return||0)}원 회수</strong></article>`}).join(''):`<div class="empty compact">진행 중 프로젝트가 없습니다.</div>`}</div><div class="dashboard-income"><h3>최근 법인현금 유입</h3>${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||'투자수익')}</b><small>${escapeHtml(x.income_label||x.income_type)}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong></article>`).join(''):`<div class="empty compact">아직 확정된 투자 수익이 없습니다.</div>`}</div></div></section>`;
+  return `<section class="dashboard-progress refined-progress-panel"><div class="company-section-head"><div><small>WHAT IS HAPPENING NOW</small><h2>내 결정이 지금 어떻게 진행되고 있나</h2></div><button data-company-section-jump="operations" class="section-link">사업 운영 전체 보기</button></div><div class="dashboard-progress-summary"><article><small>실행 중 프로젝트</small><b>${activeCount}개</b><span>현재 돈을 쓰며 진행 중인 과제</span></article><article><small>성과 현금 발생</small><b>${paybackCount}개</b><span>V6.2 이전 프로젝트의 잔여 성과금 회수</span></article><article><small>최근 확정 수익</small><b class="${realized>=0?'up':'down'}">${realized>=0?'+':''}${compactMoney(realized)}원</b><span>최근 기록된 법인현금 유입 합계</span></article><article><small>구형 프로젝트 현금</small><b>${compactMoney(totalReturn)}원</b><span>V6.2 이전 계약의 누적 현금유입</span></article></div><div class="dashboard-progress-grid"><div class="dashboard-projects"><h3>진행 중 프로젝트</h3>${projects.length?projects.map(p=>{const d=Math.max(1,Number(p.duration_cycles)||1),n=Math.min(d,Number(p.progress_cycles)||0),pc=p.status==='PAYBACK'?100:Math.round(n/d*100);return `<article><span><b>${escapeHtml(p.title||p.project_type)}</b><small>${projectStatusLabel(p)} · ${p.status==='PAYBACK'?`회수 ${Number(p.payout_cycles_remaining||0)}회 남음`:`${n}/${d}주기 진행`}</small></span><div><i style="width:${pc}%"></i></div><strong>${compactMoney(p.realized_return||0)}원 성과현금</strong></article>`}).join(''):`<div class="empty compact">진행 중 프로젝트가 없습니다.</div>`}</div><div class="dashboard-income"><h3>최근 법인현금 유입</h3>${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||'투자수익')}</b><small>${escapeHtml(x.income_label||x.income_type)}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong></article>`).join(''):`<div class="empty compact">아직 확정된 투자 수익이 없습니다.</div>`}</div></div></section>`;
 }
 function renderCompanyWorkspace(my){
   const section=state.companySection||'dashboard',beginner=guidanceMode()==='BEGINNER';
-  if(section==='operations')return `${renderCompanyDecisionCoach(my)}${renderCompanyCommand(my)}<details class="operations-module" ${beginner?'open':''}><summary><b>인사·급여</b><span>채용, 월급, 성과급, 감원, 고정비</span></summary>${renderPeopleFinanceDesk(my)}</details><details class="operations-module"><summary><b>투자금 회수·현금유입</b><span>프로젝트·배당·해외사업에서 돈이 돌아오는 과정</span></summary>${renderInvestmentReturnPanel(my)}</details><details class="operations-module"><summary><b>법인 투자 포트폴리오</b><span>회사 자금으로 국내·해외 주식 운용</span></summary>${renderCorporateMarket(my)}</details><details class="operations-module"><summary><b>해외시장 진출</b><span>국가별 진출과 현지 매출 성장</span></summary>${renderGlobalExpansion(my)}</details><details class="management-details"><summary>회사 세부 상태 보기</summary>${renderCompanyPulse(my)}</details>`;
+  if(section==='operations')return `${renderExecutiveDecisionQueue(my)}${renderCompanyDecisionCoach(my)}${renderMacroEnvironment()}${renderProductSalesDesk(my)}${renderCompanyCommand(my)}<details class="operations-module" open><summary><b>공급망·운전자본</b><span>조달정책, 재고, 외상매출·매입</span></summary>${renderSupplyChainDesk(my)}</details><details class="operations-module" open><summary><b>재무제표·관리회계</b><span>손익, 재무상태, 현금흐름</span></summary>${renderFinancialStatements(my)}</details><details class="operations-module" ${beginner?'open':''}><summary><b>인사·급여</b><span>채용, 월급, 성과급, 감원, 고정비</span></summary>${renderPeopleFinanceDesk(my)}</details><details class="operations-module"><summary><b>확정 투자수익·현금유입</b><span>배당·해외사업·구형 프로젝트 회수</span></summary>${renderInvestmentReturnPanel(my)}</details><details class="operations-module"><summary><b>법인 투자 포트폴리오</b><span>회사 자금으로 국내·해외 주식 운용</span></summary>${renderCorporateMarket(my)}</details><details class="operations-module"><summary><b>해외시장 진출</b><span>국가별 진출과 현지 매출 성장</span></summary>${renderGlobalExpansion(my)}</details><details class="management-details"><summary>회사 세부 상태 보기</summary>${renderCompanyPulse(my)}</details>`;
   if(section==='competition')return `${renderCompanyDecisionCoach(my)}${renderTakeoverCrisis(my)}${renderCompetitionBoard(my)}<details class="management-details"><summary>내 지분·경영권 현황 보기</summary>${renderTakeoverDesk(my)}</details>`;
   if(section==='risk')return `${renderCompanyDecisionCoach(my)}${renderMediaDesk(my)}<details class="management-details" ${Number(my.tax_due||0)+Number(my.tax_arrears||0)>0?'open':''}><summary>세금·준법 관리</summary>${renderTaxOffice(my)}</details>`;
-  return `${renderTakeoverCrisis(my)}${renderCompanyDecisionCoach(my)}${renderCompanyGrowthPanel(my)}${renderDashboardProgress(my)}${renderExecutiveAgenda(my)}${renderCompanyLatestNews(my)}`;
+  return `${renderTakeoverCrisis(my)}${renderExecutiveDecisionQueue(my)}${renderCompanyDecisionCoach(my)}${renderMacroEnvironment()}${renderRealOperatingBrief(my)}${renderCompanyGrowthPanel(my)}${renderDashboardProgress(my)}${renderExecutiveAgenda(my)}${renderCompanyLatestNews(my)}`;
 }
 
 function renderCompanySubnav(my){
@@ -1734,7 +1868,7 @@ function renderCompanySubnav(my){
   const taxIssue=Number(my.tax_due||0)+Number(my.tax_arrears||0);
   const items=[
     ['dashboard','경영 홈','핵심 지표와 안건'],
-    ['operations','사업 운영',active?`프로젝트 ${active}개 진행 중`:'새 프로젝트 시작'],
+    ['operations','사업 운영',(state.company?.incidents||[]).length?`결재 ${(state.company?.incidents||[]).length}건 대기`:active?`프로젝트 ${active}개 진행 중`:'제품·사업 운영'],
     ['competition','투자·M&A',threat>=15?`경영권 위험 ${threat.toFixed(1)}%`:'경쟁사 분석'],
     ['risk','뉴스·리스크',taxIssue>0?`세무 이슈 ${compactMoney(taxIssue)}원`:newsCount?`최근 뉴스 ${newsCount}건`:'IR·세무 점검']
   ];
@@ -1750,7 +1884,7 @@ function renderCompanySectionIntro(my){
   const holdings=(state.company?.my_holdings||[]).length;
   const articles=(state.company?.press||[]).length;
   const map={
-    operations:['BUSINESS COMMAND','사업 운영 · 해외 확장','R&D·설비·인재·품질 프로젝트와 해외사업을 관리합니다. 투자금이 어디에 쓰이고 언제 수익으로 돌아오는지 이 화면에서 확인하세요.',`진행 프로젝트 ${projects}개`],
+    operations:['BUSINESS COMMAND','사업 운영 · 해외 확장','제품·R&D·설비·인력·공급망·회계와 해외사업을 관리합니다. 매출과 현금흐름이 왜 달라지는지 이 화면에서 확인하세요.',`진행 프로젝트 ${projects}개`],
     competition:['INVESTMENT & M&A','기업 분석 · 투자 · 인수','회사명·국가·업종으로 경쟁사를 찾고 주가 차트·뉴스·실적을 확인한 뒤 투자나 인수를 결정합니다.',`투자 기업 ${holdings}개`],
     risk:['NEWSROOM & RISK','뉴스 보도 · IR · 리스크','언론사를 선택하면 그 매체가 회사 상태를 바탕으로 기사를 자체 작성합니다. 비용이 싼 매체는 과장 보도와 역풍 위험이 더 큽니다.',`최근 15분 기사 ${articles}건`]
   };
@@ -1787,7 +1921,7 @@ function renderCompanyRoom(){
       </section>
       <aside class="company-briefing-card">
         <small>오늘의 브리핑</small><h3>지금 가장 먼저 볼 것</h3>
-        <ul><li><b>사업 운영</b><span>진행 중 ${activeProjects}개 · 회수 단계 ${paybackProjects}개</span></li><li><b>현금 상태</b><span>${health}</span></li><li><b>최근 수익</b><span>${latestIncome?`${escapeHtml(latestIncome.source_name||'투자수익')} ${Number(latestIncome.amount)>=0?'+':''}${compactMoney(latestIncome.amount)}원`:'아직 확정 수익이 없습니다.'}</span></li><li><b>최근 뉴스</b><span>${shortHeadline}</span></li></ul>
+        <ul><li><b>사업 운영</b><span>진행 중 ${activeProjects}개 · 구형 회수 ${paybackProjects}개</span></li><li><b>현금 상태</b><span>${health}</span></li><li><b>최근 수익</b><span>${latestIncome?`${escapeHtml(latestIncome.source_name||'투자수익')} ${Number(latestIncome.amount)>=0?'+':''}${compactMoney(latestIncome.amount)}원`:'아직 확정 수익이 없습니다.'}</span></li><li><b>최근 뉴스</b><span>${shortHeadline}</span></li></ul>
         <div class="briefing-shortcuts"><button data-company-section="operations">사업 보기</button><button data-company-section="competition">M&A 보기</button><button data-company-section="risk">뉴스 보기</button></div>
       </aside>
     </div>`;
@@ -2066,7 +2200,7 @@ function renderTerminal(preserve=false){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 5.12'}</span></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 6.2'}</span></div>
       ${topNav()}
       <div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
@@ -2278,6 +2412,27 @@ function bind(){
     }
   };
 
+  const companyRealismRun=async(action,body,question)=>{
+    if(question&&!confirm(question))return null;
+    try{
+      const d=await companyRealismApi(action,body||{});if(d?.ok===false)throw new Error(d.message||'현실경영 결정을 처리하지 못했습니다.');
+      state.companyNotice=d?.message||'경영 결정이 제품·재무 데이터에 반영되었습니다.';playCompanySfx('success');
+      await loadCompanyLayer(false,false);renderTerminal(true);return d;
+    }catch(err){state.companyNotice='처리 실패: '+err.message;const msg=document.getElementById('companyMsg');if(msg)msg.textContent=state.companyNotice;else alert(state.companyNotice);return null;}
+  };
+
+  document.querySelectorAll('[data-product-develop]').forEach(b=>b.onclick=()=>{
+    const name=String(document.getElementById('newProductName')?.value||'').trim(),type=String(document.getElementById('newProductType')?.value||'').trim();
+    const price=Math.max(100,parseCompanyMoney(document.getElementById('newProductPrice')?.value,0)),budget=Math.max(10000000,parseCompanyMoney(document.getElementById('newProductBudget')?.value,100000000)),capacity=Math.max(.01,Number(document.getElementById('newProductCapacity')?.value)||1);
+    companyRealismRun('DEVELOP_PRODUCT',{p_name:name,p_type:type,p_target_price:price,p_budget:budget,p_capacity:capacity},`${name||'신제품'} 개발에 ${formatKrwSmart(budget)}을 집행할까요? 개발비는 원금 회수형 투자가 아니라 실제 비용이며, 개발 완료 뒤 출시 승인이 필요합니다.`);
+  });
+  document.querySelectorAll('[data-product-launch]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.productLaunch),p=(state.company?.products||[]).find(x=>Number(x.id)===id);companyRealismRun('LAUNCH_PRODUCT',{p_product_id:id},`${p?.name||'제품'} 출시를 승인할까요? 출시 후 가격·수요·생산·재고에 따라 실제 매출과 원가가 발생합니다.`)});
+  document.querySelectorAll('[data-product-price]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.productPrice),price=Math.max(100,parseCompanyMoney(document.getElementById(`productPrice_${id}`)?.value,0));companyRealismRun('SET_PRODUCT_PRICE',{p_product_id:id,p_price:price},`판매가격을 ${formatKrwSmart(price)}으로 변경할까요? 가격을 올리면 단위마진은 커질 수 있지만 수요가 감소할 수 있습니다.`)});
+  document.querySelectorAll('[data-product-capacity]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.productCapacity),budget=Math.max(10000000,parseCompanyMoney(document.getElementById(`productCapacityBudget_${id}`)?.value,50000000));companyRealismRun('EXPAND_PRODUCT_CAPACITY',{p_product_id:id,p_budget:budget},`${formatKrwSmart(budget)}을 설비·생산능력에 투자할까요? 현금은 즉시 지출되고 이후 생산능력에 반영됩니다.`)});
+  document.querySelectorAll('[data-product-marketing]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.productMarketing),budget=Math.max(5000000,parseCompanyMoney(document.getElementById(`productMarketingBudget_${id}`)?.value,30000000));companyRealismRun('PRODUCT_MARKETING',{p_product_id:id,p_budget:budget},`${formatKrwSmart(budget)}의 제품 마케팅을 집행할까요? 수요는 증가할 수 있지만 실제 판매는 가격과 경쟁사 대응에도 영향을 받습니다.`)});
+  document.querySelectorAll('[data-product-retire]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.productRetire),p=(state.company?.products||[]).find(x=>Number(x.id)===id);companyRealismRun('RETIRE_PRODUCT',{p_product_id:id},`${p?.name||'제품'}을 단종할까요? 남은 재고가 있다면 재고자산은 즉시 사라지지 않습니다.`)});
+  document.querySelectorAll('[data-procurement-policy]').forEach(b=>b.onclick=()=>{const policy=b.dataset.procurementPolicy,label={LOW_COST:'저가 단일조달',BALANCED:'균형 조달',PREMIUM:'프리미엄 공급망',DUAL_SOURCE:'이원화 조달'}[policy]||policy;companyRealismRun('PROCUREMENT_POLICY',{p_policy:policy},`조달정책을 '${label}'(으)로 변경할까요? 원가·품질·납기 안정성이 함께 달라집니다.`)});
+
   document.querySelectorAll('[data-project-decision]').forEach(b=>b.onclick=()=>{
     const projectId=Number(b.dataset.projectDecision),choice=b.dataset.projectChoice||'STEADY';
     const label=choice==='BOOST'?'추가 투자':choice==='SCALE_DOWN'?'범위 축소':'기존 계획 유지';
@@ -2320,10 +2475,23 @@ function bind(){
     companyRun('kx_company_buy_shares',{p_target_company_id:id,p_budget:amount},`${formatKrwSmart(amount)} 한도에서 이 회사 지분을 매입할까요? 지분이 50%를 넘으면 자회사로 편입됩니다.`);
   });
 
+  document.querySelectorAll('[data-company-dd]').forEach(b=>b.onclick=()=>{
+    const id=Number(b.dataset.companyDd||0);
+    if(!id)return;
+    companyRealismRun('DUE_DILIGENCE',{p_target_company_id:id},'회계·법무·사업·공급망 실사를 의뢰할까요? 실사비는 대상 기업 규모에 따라 산정되며 법인현금에서 지출됩니다.');
+  });
+
+  document.querySelectorAll('[data-incident-decision]').forEach(b=>b.onclick=()=>{
+    const id=Number(b.dataset.incidentDecision||0),choice=b.dataset.incidentChoice||'CONTROLLED';
+    const names={FULL:'전면 대응',CONTROLLED:'제한 대응',DEFER:'대응 유보'};
+    companyRealismRun('INCIDENT_DECISION',{p_incident_id:id,p_choice:choice},`${names[choice]||'대응'}으로 결재할까요? 비용 절감과 후속 운영위험이 서로 교환관계에 있습니다.`);
+  });
+
   document.querySelectorAll('[data-company-tender]').forEach(b=>b.onclick=()=>{
     const id=Number(b.dataset.companyTender);
+    if(!dueDiligenceFor(id)){alert('공개매수 전에 유효한 인수 실사 보고서가 필요합니다. 먼저 인수 실사를 진행해 주세요.');return;}
     const amount=Math.max(50000000,parseCompanyMoney(document.getElementById(`takeBudget_${id}`)?.value,300000000));
-    companyRun('kx_company_tender_offer',{p_target_company_id:id,p_budget:amount,p_premium_pct:15},`${formatKrwSmart(amount)} 한도로 공개매수를 시작할까요? 시장가에 15% 프리미엄을 지급해 더 많은 지분을 확보하지만 상대 회사의 경영권 방어 때문에 실제 매입량이 줄 수 있습니다.`);
+    companyRun('kx_company_tender_offer',{p_target_company_id:id,p_budget:amount,p_premium_pct:15},`${formatKrwSmart(amount)} 한도로 공개매수를 시작할까요? 실사 결과를 확인한 뒤 시장가에 15% 프리미엄을 지급합니다. 상대 회사의 경영권 방어 때문에 실제 매입량이 줄 수 있습니다.`);
   });
 
   document.querySelectorAll('[data-company-sell]').forEach(b=>b.onclick=()=>{
@@ -2358,6 +2526,7 @@ function bind(){
     try{
       const profile=await companyApi('PROFILE',{p_company_id:id});
       if(!profile?.company)throw new Error(profile?.message||'기업 프로필 응답이 비어 있습니다.');
+      try{const rp=await companyRealismApi('PROFILE',{p_company_id:id});profile.realism_products=Array.isArray(rp?.products)?rp.products:[]}catch(_realismProfileErr){profile.realism_products=[]}
       state.companyAnalysis=profile;
       const currentSlot=document.getElementById('companyAnalysisSlot');
       if(currentSlot){
@@ -2418,7 +2587,7 @@ function bind(){
     await loadCompanyLayer(false,true);
     state.companyNotice=state.companyAvailable
       ?'온라인 회사 경영 서버가 연결되었습니다. BOT과 다른 유저 회사가 같은 시장에서 경쟁합니다.'
-      :'온라인 연결에 실패했습니다. KX_CORPORATE_RUN_ONLY_THIS_V59.sql 실행 결과에서 api_exists=true인지 확인해 주세요.';
+      :'온라인 연결에 실패했습니다. 기본 kx_company_api_v1 설치 여부와 V6.2 SQL 실행 결과를 함께 확인해 주세요.';
     renderTerminal();
   });
 
