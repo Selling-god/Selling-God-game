@@ -1,69 +1,23 @@
-# 판매의 신 / KX CORPORATE - Serious Realism Hotfix v6.1
+# Selling God Serious Realism Hotfix v6.1.1
 
-이 패치는 v6.0에서 추가된 게임쇼/랭크 느낌의 요소를 제거하고, 극현실 회사 경영 시뮬레이션 분위기로 복구하는 핫픽스입니다.
+## 수정한 오류
+브라우저 콘솔의 아래 오류를 수정했습니다.
+
+- `ReferenceError: renderCompanyPulse is not defined`
+- M&A 분석 화면에서 발생할 수 있던 `renderCompanyAnalysisLoading is not defined`
+- 기업 목록 첫 진입 시 발생할 수 있던 `renderCompanyAnalysisPlaceholder is not defined`
+- `companyRiskLabel`, `companyMood` 누락 복구
 
 ## 적용 방법
-기존 프로젝트에서 아래 파일을 같은 위치에 덮어씁니다.
+기존 프로젝트에서 아래 두 파일만 교체하세요.
 
-- `app.js`
-- `styles.css`
-- `public/app.js`
-- `public/styles.css`
+- `/app.js`
+- `/public/app.js`
 
-Supabase SQL이나 기존 데이터 테이블은 수정하지 않습니다.
-
-## 핵심 수정
-
-### 1. 극현실 분위기 복구
-아래 v6.0 요소를 화면에서 완전히 제거했습니다.
-
-- CEO SEASON / C, B, A, S 등급
-- 시즌 점수
-- DAILY CHALLENGE
-- RIVAL TARGET 게임 카드
-- AUTO HIGHLIGHT REEL / 이번 런의 영상감
-- CAREER OBJECTIVES / CEO LEVEL / XP
-- 방송 HUD / 영상용 요약 버튼
-- 화면 상단의 게임식 도움 레벨 표시
-
-기업의 실제 순위, 기업가치, 매출, 영업이익, 시장점유율, 현금 런웨이, 경영권 위험 등 현실적인 회사 지표는 유지됩니다.
-
-### 2. 버튼/탭 반응 문제 수정
-상단 메뉴를 눌렀을 때 서버 응답을 기다린 뒤 화면이 바뀌던 구조를 수정했습니다.
-
-이제는:
-1. 버튼을 누르는 즉시 화면이 먼저 전환됩니다.
-2. 필요한 온라인 데이터는 뒤에서 갱신됩니다.
-3. 네트워크가 느리거나 순간적으로 오류가 나도 메뉴가 멈춘 것처럼 보이지 않습니다.
-
-회사 내부의 `경영 / 사업 / M&A / 뉴스` 전환도 즉시 동작하도록 보강했습니다.
-
-### 3. 프로젝트 상호작용은 유지하되 진지하게 변경
-기존의 선택형 프로젝트 요소는 삭제하지 않았습니다. 대신 표현을 게임식 미니게임에서 실제 CEO 착수 회의 형태로 변경했습니다.
-
-- `PROJECT MINI GAME` -> `PROJECT KICKOFF REVIEW`
-- 프로젝트 착수 시 CEO가 3개의 핵심 의사결정을 직접 진행
-- 선택 결과가 초기 집행비용에 반영
-- 결과 표현: `최적 착수 / 정상 착수 / 조건부 착수 / 착수 차질`
-- 시즌 점수, 하이라이트, 이사회 보너스와의 연결 제거
-
-즉, 플레이어가 직접 개입하는 재미는 남기되 실제 기업 의사결정처럼 보이게 수정했습니다.
-
-### 4. 기존 기능 유지
-다음 기능은 유지됩니다.
-
-- 회사 설립 및 경영
-- 직원 채용 / 급여 / 고정비
-- 세금
-- 프로젝트
-- 국내/해외 사업
-- 기업 투자 / M&A / 공개매수
-- 내 지분 표시
-- 기업 순위
-- 뉴스 / 국내·해외 언론 홍보
-- 주식시장 / 은행 / 자산관리
+`styles.css`나 Supabase SQL은 건드릴 필요가 없습니다.
 
 ## 검증
 - `node --check app.js` 통과
+- `node --check public/app.js` 통과
 - `npm run build` 통과
-- root / public / out / dist / build / site 빌드 검증 완료
+- root / public / out / dist / build / site 모두 READY 확인
