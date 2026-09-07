@@ -1,45 +1,10 @@
-# Selling God Extreme Realism v6.2.2 - 경영권 방어 흐름 핫픽스
+# V6.3 패치 적용법
 
-## 적용
-기존 프로젝트에서 아래 4개 파일만 교체하세요.
+1. 기존 프로젝트를 백업합니다.
+2. 패치 ZIP의 `app.js`, `styles.css`를 프로젝트 루트에 덮어씁니다.
+3. `public/app.js`, `public/styles.css`도 동일하게 덮어씁니다.
+4. Supabase SQL Editor에서 `RUN_THIS_IN_SUPABASE_V6.3.sql` 전체를 **한 번** 실행합니다.
+5. Render/GitHub Pages 등 기존 방식으로 재배포합니다.
+6. 브라우저에서 `Ctrl + Shift + R`로 강력 새로고침합니다.
 
-- `app.js`
-- `styles.css`
-- `public/app.js`
-- `public/styles.css`
-
-Supabase SQL은 다시 실행할 필요가 없습니다.
-
-## 수정 핵심
-
-### 1. `경영권 방어 현황 보기`가 실제로 화면을 열도록 수정
-기존 버튼은 이미 `기업/M&A` 화면에 있을 때 같은 화면을 다시 렌더링하기만 해서 아무 변화가 없는 것처럼 보였습니다.
-
-이제 버튼을 누르면:
-1. 기업/M&A 화면으로 이동
-2. 회사 상세분석 패널을 닫음
-3. 경영권 방어 센터 또는 지분 현황을 자동으로 찾음
-4. 해당 위치까지 자동 스크롤
-5. 선택한 방어 영역을 잠시 강조 표시
-
-### 2. 인수전 기록이 없어도 실제 외부 지분이 있으면 방어 가능
-기존 프런트는 `control_case`가 없으면 방어 UI 자체를 표시하지 않았습니다.
-하지만 서버에는 외부 회사 지분이 실제로 남아 있을 수 있습니다.
-
-v6.2.2는 `incoming_holdings`와 `incoming_stake`를 함께 검사합니다.
-따라서 외부지분이 55.75%처럼 이미 50%를 넘은 상태라도:
-- 가장 큰 외부주주를 자동 식별
-- 긴급 이사회 방어 센터 표시
-- 자사주 매입 / 지분협상 / 백기사 / 포이즌필 / 유상증자 / 역인수 사용 가능
-
-### 3. 외부 지분 합계 fallback
-서버의 `incoming_stake`가 비어 있어도 실제 `incoming_holdings` 합계를 계산해서 우호지분과 위협도를 표시합니다.
-
-### 4. 경영권 현황 상세 자동 펼침
-외부 세력 지분이 15% 이상이면 `내 지분·경영권 현황`이 기본으로 펼쳐집니다.
-
-## 검증
-- `node --check app.js` 통과
-- `node --check public/app.js` 통과
-- `npm run build` 통과
-- root / public / out / dist / build / site 모두 READY
+기존 V6.2 SQL을 다시 실행할 필요는 없습니다.

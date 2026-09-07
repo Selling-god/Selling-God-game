@@ -1,5 +1,5 @@
 (()=>{
-const KX_COMPANY_BUILD='6.2.0-EXTREME-REALISM';
+const KX_COMPANY_BUILD='6.3.0-TALENT-MEDIA';
 window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
@@ -38,8 +38,8 @@ let state={
   account:null,positions:[],orders:[],trades:[],ranking:[],
   bankDeposits:[],bankLoans:[],bankMeta:{},chartRanges:{},
   game:{events:[],predictions:[],shorts:[],ipos:[],subscriptions:[],dividends:[],short_adjustments:[],prediction_stats:{total:0,correct:0}},gameAvailable:true,gameError:'',
-  company:{my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],media_campaigns:[],tax_records:[],events:[],press:[],my_history:[],projects:[],investment_income:[],investment_summary:{},products:[],finance_periods:[],incidents:[],due_diligence:[],macro:{},supply:{},finance_live:{},realism_available:false,realism_error:'',world:null,control_case:null},
-  companyAvailable:true,companyMode:'REMOTE',companyRpcMode:'AUTO',companyError:'',companyRegion:'국내',companyNotice:'',companySection:'dashboard',companyAnalysisId:null,companyAnalysis:null,companyMetric:'valuation',companySearch:'',companyMediaRegion:'ALL',companyKickoff:null,companyKickoffLast:null,
+  company:{my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],media_campaigns:[],tax_records:[],events:[],press:[],my_history:[],projects:[],investment_income:[],investment_summary:{},products:[],finance_periods:[],incidents:[],due_diligence:[],macro:{},supply:{},finance_live:{},recruit_pool:[],talents:[],poach_targets:[],talent_summary:{},talent_day:1,talent_hired_today:0,talent_daily_limit:5,talent_available:false,talent_error:'',realism_available:false,realism_error:'',world:null,control_case:null},
+  companyAvailable:true,companyMode:'REMOTE',companyRpcMode:'AUTO',companyError:'',companyRegion:'국내',companyNotice:'',companySection:'dashboard',companyAnalysisId:null,companyAnalysis:null,companyMetric:'valuation',companySearch:'',companyMediaRegion:'ALL',companyMediaTone:'PROMOTE',companyMediaTargetId:null,companyKickoff:null,companyKickoffLast:null,
   companyDraft:{name:'',sector:'AI·반도체'},
   side:'BUY',type:'LIMIT',tif:'DAY',tab:'company',tradeTab:'book',
   orderQty:1,orderPrice:null,pendingOrder:null,chartPeriod:'1M',marketFilter:'ALL'
@@ -75,6 +75,12 @@ async function companyOpsV511(action,payload={}){
 }
 async function companyRealismApi(action,payload={}){
   return rpc('kx_company_realism_v620',{p_action:String(action||'').toUpperCase(),p_payload:payload||{}},true);
+}
+async function companyTalentApi(action,payload={}){
+  return rpc('kx_company_talent_v630',{p_action:String(action||'').toUpperCase(),p_payload:payload||{}},true);
+}
+async function companyMediaV630(outlet,targetCompanyId,tone='PROMOTE'){
+  return rpc('kx_company_media_v630',{p_outlet:String(outlet||'ECON_DAILY').toUpperCase(),p_target_company_id:Number(targetCompanyId||0),p_tone:String(tone||'PROMOTE').toUpperCase()},true);
 }
 function companyTaxRateText(my){
   const r=Number(my?.tax_rate_effective||0);
@@ -270,9 +276,11 @@ function showCompanyPressFlash(a){
   dismissNewsFlash();
   const el=document.createElement('aside');el.id='kxNewsFlash';el.className='kx-news-flash breaking company-press-flash';
   const amount=Number(a?.bot_flow||0),when=a?.created_at?new Date(a.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):'방금';
+  const sourceCompany=(state.company?.companies||[]).find(c=>Number(c.id)===Number(a?.source_company_id||0));
+  const sourceText=sourceCompany&&Number(sourceCompany.id)!==Number(a?.company_id)?` · 견제/의뢰 ${sourceCompany.name}`:'';
   el.innerHTML=`<button class="news-flash-close" aria-label="닫기">×</button>
-    <div class="news-flash-top"><span>기업 뉴스</span><time>${when}</time></div>
-    <div class="news-flash-source">${escapeHtml(a?.outlet_name||'KX BUSINESS NEWS')} · ${escapeHtml(a?.company_name||'기업시장')}</div>
+    <div class="news-flash-top"><span>${a?.news_tone==='CRITICAL'?'경쟁·검증 뉴스':'기업 뉴스'}</span><time>${when}</time></div>
+    <div class="news-flash-source">${escapeHtml(a?.outlet_name||'KX BUSINESS NEWS')} · ${escapeHtml(a?.company_name||'기업시장')}${escapeHtml(sourceText)}</div>
     <h2>${escapeHtml(a?.headline||'기업 보도')}</h2>
     <p>${escapeHtml(a?.article_body||'새 기업 뉴스가 시장에 반영되었습니다.')}</p>
     <div class="company-news-flash-impact"><b class="${amount>=0?'up':'down'}">BOT 수급 ${amount>=0?'+':''}${compactMoney(amount)}원</b><span>클릭해서 기업 분석·뉴스 확인</span></div>`;
@@ -291,7 +299,7 @@ function processCompanyPress(rows){
   const ids=rows.map(a=>Number(a.id)||0),maxId=Math.max(...ids,0);
   if(!companyPressBaselineReady){companyPressBaselineReady=true;lastCompanyPressId=maxId;return;}
   const myId=Number(state.company?.my_company?.id||0);
-  const unseen=rows.filter(a=>(Number(a.id)||0)>lastCompanyPressId&&Number(a.company_id||0)!==myId).sort((a,b)=>(Number(a.id)||0)-(Number(b.id)||0));
+  const unseen=rows.filter(a=>{const fresh=(Number(a.id)||0)>lastCompanyPressId,target=Number(a.company_id||0),source=Number(a.source_company_id||0);return fresh&&(target!==myId||(target===myId&&String(a.news_tone||'').toUpperCase()==='CRITICAL'&&source!==myId));}).sort((a,b)=>(Number(a.id)||0)-(Number(b.id)||0));
   if(unseen.length)showCompanyPressFlash(unseen[unseen.length-1]);
   lastCompanyPressId=Math.max(lastCompanyPressId,maxId);
 }
@@ -522,7 +530,7 @@ function recordOrderMeta(body,order,s){
   saveMeta();
 }
 function emptyGame(){return {events:[],predictions:[],shorts:[],ipos:[],subscriptions:[],dividends:[],short_adjustments:[],prediction_stats:{total:0,correct:0}}}
-function emptyCompany(){return {my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],media_campaigns:[],tax_records:[],events:[],press:[],my_history:[],projects:[],investment_income:[],investment_summary:{},products:[],finance_periods:[],incidents:[],due_diligence:[],macro:{},supply:{},finance_live:{},realism_available:false,realism_error:'',world:null,control_case:null}}
+function emptyCompany(){return {my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],media_campaigns:[],tax_records:[],events:[],press:[],my_history:[],projects:[],investment_income:[],investment_summary:{},products:[],finance_periods:[],incidents:[],due_diligence:[],macro:{},supply:{},finance_live:{},recruit_pool:[],talents:[],poach_targets:[],talent_summary:{},talent_day:1,talent_hired_today:0,talent_daily_limit:5,talent_available:false,talent_error:'',realism_available:false,realism_error:'',world:null,control_case:null}}
 const LOCAL_COMPANY_KEY='kx_company_local_v4';
 function clamp(v,min=0,max=100){return Math.max(min,Math.min(max,Number(v)||0))}
 function localBotSeed(){
@@ -980,6 +988,10 @@ async function loadCompanyLayer(runSync=false,force=false){
         state.company.macro=realism.macro||{};state.company.supply=realism.supply||{};state.company.finance_live=realism.finance_live||{};
         state.company.realism_available=true;state.company.realism_error='';
       }
+      try{
+        const talent=await companyTalentApi('SNAPSHOT',{});
+        if(talent?.ok){state.company.recruit_pool=Array.isArray(talent.candidates)?talent.candidates:[];state.company.talents=Array.isArray(talent.my_talents)?talent.my_talents:[];state.company.poach_targets=Array.isArray(talent.poach_targets)?talent.poach_targets:[];state.company.talent_summary=talent.summary||{};state.company.talent_day=Number(talent.day_no||1);state.company.talent_hired_today=Number(talent.hired_today||0);state.company.talent_daily_limit=Number(talent.daily_limit||5);state.company.talent_available=true;state.company.talent_error='';}
+      }catch(talentErr){state.company.talent_available=false;state.company.talent_error=missingRpcError(talentErr)?'V6.3 인재시장 SQL이 아직 적용되지 않았습니다.':'인재시장 데이터를 불러오지 못했습니다: '+String(talentErr?.message||talentErr);}
     }catch(realismErr){
       state.company.realism_available=false;
       state.company.realism_error=missingRpcError(realismErr)?'V6.2 현실경영 SQL이 아직 적용되지 않았습니다.':'현실경영 데이터를 불러오지 못했습니다: '+String(realismErr?.message||realismErr);
@@ -1069,6 +1081,26 @@ function localPriceText(s){
 function stockMarketBadge(s){return `<span class="market-badge ${marketArea(s)==='해외'?'foreign':'domestic'}">${marketArea(s)} · ${escapeHtml(marketCountry(s))}</span>`}
 function stockVisible(s){return !s?.listing_tick||Number(state.clock?.tick_no||0)>=Number(s.listing_tick)}
 
+function stockFavoriteKey(){return `kx_stock_favorites_v1_${session?.user?.id||'guest'}`}
+function stockFavoriteSet(){try{return new Set(JSON.parse(localStorage.getItem(stockFavoriteKey())||'[]'))}catch{return new Set()}}
+function isStockFavorite(ticker){return stockFavoriteSet().has(String(ticker||''))}
+function toggleStockFavorite(ticker){
+  const key=stockFavoriteKey(),set=stockFavoriteSet(),t=String(ticker||'');if(!t)return false;
+  if(set.has(t))set.delete(t);else set.add(t);
+  localStorage.setItem(key,JSON.stringify([...set]));return set.has(t);
+}
+function stockMatchesMarketFilter(x){
+  const f=state.marketFilter||'ALL',country=marketCountry(x),area=marketArea(x);
+  if(f==='ALL')return true;
+  if(f==='국내')return area==='국내'||['대한민국','한국','KR'].includes(country);
+  if(f==='미국')return ['미국','USA','US','United States'].includes(country);
+  if(f==='중국')return ['중국','CN','China'].includes(country);
+  if(f==='일본')return ['일본','JP','Japan'].includes(country);
+  if(f==='유럽')return ['독일','영국','프랑스','이탈리아','스페인','네덜란드','유럽','DE','GB','UK','FR','EU','Germany','United Kingdom','France'].includes(country);
+  if(f==='해외')return area==='해외';
+  return true;
+}
+
 function topNav(){
   const items=[
     ['company','경영홈','dashboard'],
@@ -1081,15 +1113,20 @@ function topNav(){
 }
 
 function renderStockPicker(s){
-  const filtered=state.stocks.filter(stockVisible).filter(x=>state.marketFilter==='ALL'||marketArea(x)===state.marketFilter);
-  const pool=filtered.length?filtered:state.stocks;
-  const sorted=[...pool].sort((a,b)=>Math.abs(changeOf(b))-Math.abs(changeOf(a)));
-  const watch=[...(pool.some(x=>x.ticker===s.ticker)?[s]:[]),...sorted.filter(x=>x.ticker!==s.ticker)].slice(0,10);
+  const filtered=state.stocks.filter(stockVisible).filter(stockMatchesMarketFilter);
+  const pool=filtered.length?filtered:state.stocks.filter(stockVisible);
+  const favSet=stockFavoriteSet();
+  const favorites=[...pool].filter(x=>favSet.has(x.ticker)).sort((a,b)=>String(a.name).localeCompare(String(b.name),'ko'));
+  const sorted=[...pool].filter(x=>!favSet.has(x.ticker)).sort((a,b)=>Math.abs(changeOf(b))-Math.abs(changeOf(a)));
+  const normal=[...(pool.some(x=>x.ticker===s.ticker)&&!favSet.has(s.ticker)?[s]:[]),...sorted.filter(x=>x.ticker!==s.ticker)].slice(0,10);
+  const selectRows=[...favorites,...pool.filter(x=>!favSet.has(x.ticker))];
+  const row=x=>{const c=changeOf(x),fav=favSet.has(x.ticker);return `<article class="watch-row-shell ${x.ticker===s.ticker?'on':''}"><button data-ticker="${x.ticker}" class="watch-row-main"><span><b>${escapeHtml(x.name)}</b><small>${escapeHtml(marketCountry(x))} · ${escapeHtml(x.sector)}</small></span><strong>${nf.format(x.last_price)}</strong><em class="${c>=0?'up':'down'}">${pct(c)}</em>${marketArea(x)==='해외'?`<small class="local-quote">${localPriceText(x)}</small>`:''}</button><button type="button" class="stock-favorite-btn ${fav?'on':''}" data-stock-favorite="${x.ticker}" title="${fav?'즐겨찾기 해제':'즐겨찾기'}">${fav?'★':'☆'}</button></article>`};
   return `<aside class="watchlist-panel">
-    <div class="watchlist-head"><div><small>WATCHLIST</small><b>종목 찾기</b></div><span>${pool.length} / ${state.stocks.length}</span></div>
-    <div class="market-filter-tabs"><button data-market-filter="ALL" class="${state.marketFilter==='ALL'?'on':''}">전체</button><button data-market-filter="국내" class="${state.marketFilter==='국내'?'on':''}">국내</button><button data-market-filter="해외" class="${state.marketFilter==='해외'?'on':''}">해외</button></div>
-    <label class="stock-search-select"><span>종목 바로가기</span><select id="stockSelect">${pool.map(x=>`<option value="${x.ticker}" ${x.ticker===s.ticker?'selected':''}>${marketArea(x)==='해외'?'[해외] ':'[국내] '}${escapeHtml(x.name)} · ${x.ticker}</option>`).join('')}</select></label>
-    <div class="watchlist-list">${watch.map(x=>{const c=changeOf(x);return `<button data-ticker="${x.ticker}" class="watch-row ${x.ticker===s.ticker?'on':''}"><span><b>${escapeHtml(x.name)}</b><small>${marketArea(x)} · ${escapeHtml(x.sector)}</small></span><strong>${nf.format(x.last_price)}</strong><em class="${c>=0?'up':'down'}">${pct(c)}</em>${marketArea(x)==='해외'?`<small class="local-quote">${localPriceText(x)}</small>`:''}</button>`}).join('')}</div>
+    <div class="watchlist-head"><div><small>WATCHLIST</small><b>종목 찾기</b></div><span>즐겨찾기 ${favorites.length} · ${pool.length}/${state.stocks.length}</span></div>
+    <div class="market-filter-tabs country-tabs">${['ALL','국내','미국','중국','유럽','일본'].map(k=>`<button data-market-filter="${k}" class="${state.marketFilter===k?'on':''}">${k==='ALL'?'전체':k}</button>`).join('')}</div>
+    <label class="stock-search-select"><span>종목 바로가기 · ★ 즐겨찾기는 상단 고정</span><select id="stockSelect">${selectRows.map(x=>`<option value="${x.ticker}" ${x.ticker===s.ticker?'selected':''}>${favSet.has(x.ticker)?'★ ':''}${escapeHtml(marketCountry(x))} · ${escapeHtml(x.name)} · ${x.ticker}</option>`).join('')}</select></label>
+    ${favorites.length?`<div class="favorite-watchlist"><div class="favorite-watchlist-title"><b>★ 즐겨찾기</b><span>순위와 무관하게 항상 먼저 표시</span></div>${favorites.map(row).join('')}</div>`:''}
+    <div class="watchlist-list"><div class="favorite-watchlist-title subtle"><b>${favorites.length?'관심 종목':'주요 종목'}</b><span>변동률 기준</span></div>${normal.map(row).join('')}</div>
   </aside>`;
 }
 
@@ -1117,7 +1154,7 @@ function renderChartPanel(s,ch){
     <div class="stockhead balanced-head">
       <div>
         <div class="stock-code">${s.ticker} · ${escapeHtml(s.sector)} ${stockMarketBadge(s)}</div>
-        <h1>${escapeHtml(s.name)}</h1>
+        <div class="stock-title-line"><h1>${escapeHtml(s.name)}</h1><button type="button" class="stock-favorite-head ${isStockFavorite(s.ticker)?'on':''}" data-stock-favorite="${s.ticker}">${isStockFavorite(s.ticker)?'★ 즐겨찾기':'☆ 즐겨찾기'}</button></div>
         <p>${escapeHtml(s.description)}</p>
       </div>
       <div class="quote"><b>${nf.format(s.last_price)}원</b><strong class="${ch>=0?'up':'down'}">${pct(ch)}</strong>${marketArea(s)==='해외'?`<small class="foreign-local-price">현지 ${localPriceText(s)} · 원화 환산 거래</small>`:''}</div>
@@ -1497,12 +1534,32 @@ function renderInvestmentReturnPanel(my){
   const cycle=Number(state.company?.world?.cycle_no||0),nextYield=6-(cycle%6||0),nextGlobal=4-(cycle%4||0);
   return `<section class="investment-return-panel"><div class="company-section-head"><div><small>CASH REALIZATION</small><h2>확정 투자수익·현금유입</h2></div><span>경쟁사 지분·법인 주식의 매각이익·배당·해외사업 현금유입을 보여줍니다. 프로젝트 항목은 V6.2 이전에 시작된 구형 계약의 잔여 회수분만 표시될 수 있습니다.</span></div><div class="return-schedule"><span><b>배당·금융수익</b> 약 ${nextYield||6}주기 뒤 정산</span><span><b>해외사업 현금</b> 약 ${nextGlobal||4}주기 뒤 정산</span><span>서버는 회사별 요청이 아니라 <b>시장 전체를 한 번에 배치 정산</b>합니다.</span></div><div class="return-kpis"><article><small>전체 투자 평가액</small><b>${compactMoney(value)}원</b><span>투자원가 ${compactMoney(cost)}원</span></article><article><small>평가손익</small><b class="${unreal>=0?'up':'down'}">${unreal>=0?'+':''}${compactMoney(unreal)}원</b><span>아직 매도 전 손익</span></article><article><small>확정 매매손익</small><b class="${real>=0?'up':'down'}">${real>=0?'+':''}${compactMoney(real)}원</b><span>매도 결과가 법인현금에 반영</span></article><article><small>누적 현금유입</small><b class="up">${compactMoney(divi+projectReturn+globalReturn)}원</b><span>배당 ${compactMoney(divi)} · 프로젝트 ${compactMoney(projectReturn)} · 해외 ${compactMoney(globalReturn)}</span></article></div><div class="income-feed">${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||x.source_code||'투자')}</b><small>${escapeHtml(x.income_label||x.income_type||'현금수익')} · 주기 #${Number(x.cycle_no)||0}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong><em>${escapeHtml(x.note||'법인현금 반영')}</em></article>`).join(''):`<div class="empty compact">아직 확정된 투자 현금수익이 없습니다. 배당·해외사업·지분 매각과 V6.2 이전 구형 프로젝트의 잔여 성과금이 발생하면 이곳에 실제 입금 내역이 쌓입니다.</div>`}</div></section>`;
 }
+
+function talentGradeRank(g){return ({'천재':4,'수재':3,'경력직':2,'신입':1})[g]||1}
+function talentGradeBadge(g){return `<span class="talent-grade grade-${talentGradeRank(g)}">${escapeHtml(g||'신입')}</span>`}
+function talentDepartmentShort(d){return ({ENGINEERING:'기술·R&D',SALES:'영업·마케팅',OPERATIONS:'생산·운영',FINANCE:'재무·준법',MANAGEMENT:'경영지원'})[d]||d||'조직'}
+function renderTalentMarket(my){
+  if(!state.company?.talent_available)return `<section class="talent-market unavailable"><div class="company-section-head mini"><div><small>DAILY TALENT MARKET</small><h3>핵심인재 채용시장</h3></div><span>${escapeHtml(state.company?.talent_error||'V6.3 SQL을 적용하면 매일 10명의 후보와 경쟁사 인재 영입 기능이 열립니다.')}</span></div></section>`;
+  const candidates=state.company?.recruit_pool||[],talents=state.company?.talents||[],targets=state.company?.poach_targets||[],sum=state.company?.talent_summary||{};
+  const hired=Number(state.company?.talent_hired_today||0),limit=Number(state.company?.talent_daily_limit||5),day=Number(state.company?.talent_day||1);
+  const available=candidates.filter(x=>x.status==='AVAILABLE');
+  return `<section class="talent-market">
+    <div class="company-section-head"><div><small>DAILY TALENT MARKET · DAY ${day}</small><h2>오늘의 핵심인재 채용</h2></div><span>매 게임 일자마다 후보 10명이 한 번 갱신됩니다. 그중 최대 ${limit}명만 채용할 수 있어 연봉·사인보너스·역량을 비교해야 합니다.</span></div>
+    <div class="talent-market-summary"><article><small>오늘 채용</small><b>${hired} / ${limit}</b><span>남은 자리 ${Math.max(0,limit-hired)}명</span></article><article><small>보유 핵심인재</small><b>${Number(sum.count||talents.length)}명</b><span>평균 역량 ${Number(sum.avg_skill||0).toFixed(1)}</span></article><article><small>수재·천재</small><b>${Number(sum.gifted||0)+Number(sum.genius||0)}명</b><span>천재 ${Number(sum.genius||0)} · 수재 ${Number(sum.gifted||0)}</span></article><article><small>핵심인재 월급</small><b>${formatKrwSmart(Number(sum.monthly_salary||0))}</b><span>일반 인력 급여와 별도 계약조건</span></article></div>
+    <div class="talent-rule-note"><b>등급은 경력이 아니라 시장 희소성과 종합 역량을 함께 반영합니다.</b><span>신입 → 경력직 → 수재 → 천재 순으로 희소합니다. 좋은 인재는 기술·영업·운영·내부통제 지표를 장기적으로 개선하지만 높은 월급과 사인보너스가 발생합니다.</span></div>
+    <div class="candidate-grid">${candidates.map(c=>{const hiredOne=c.status==='HIRED';return `<article class="candidate-card ${hiredOne?'hired':''}"><div class="candidate-top"><span>${talentGradeBadge(c.grade)}<small>#${Number(c.slot_no)||0}</small></span><b>${escapeHtml(c.name)}</b><em>${escapeHtml(talentDepartmentShort(c.department))} · ${escapeHtml(c.specialty)}</em></div><div class="candidate-score"><strong>${Number(c.skill_score||0).toFixed(1)}</strong><span>종합역량</span></div><div class="talent-stats"><span>혁신 <b>${Number(c.innovation||0).toFixed(0)}</b></span><span>영업 <b>${Number(c.sales_skill||0).toFixed(0)}</b></span><span>운영 <b>${Number(c.operations_skill||0).toFixed(0)}</b></span><span>리더십 <b>${Number(c.leadership||0).toFixed(0)}</b></span></div><div class="candidate-pay"><span>희망 월급 <b>${formatKrwSmart(c.monthly_salary)}</b></span><span>사인보너스 <b>${formatKrwSmart(c.signing_bonus)}</b></span></div><button type="button" data-talent-hire="${c.id}" ${hiredOne||hired>=limit?'disabled':''}>${hiredOne?'채용 완료':hired>=limit?'오늘 채용 한도 도달':'이 조건으로 채용'}</button></article>`}).join('')}</div>
+    <details class="talent-roster" open><summary><b>재직 핵심인재 ${talents.length}명</b><span>등급·부서·급여·충성도 확인</span></summary><div class="talent-roster-grid">${talents.length?talents.map(t=>`<article><div><span>${talentGradeBadge(t.grade)}</span><b>${escapeHtml(t.name)}</b><small>${escapeHtml(talentDepartmentShort(t.department))} · ${escapeHtml(t.specialty)}</small></div><strong>${Number(t.skill_score||0).toFixed(1)}</strong><dl><span>월급 <b>${formatKrwSmart(t.monthly_salary)}</b></span><span>충성도 <b>${Number(t.loyalty||0).toFixed(0)}</b></span></dl></article>`).join(''):`<div class="empty compact">아직 등록된 핵심인재가 없습니다.</div>`}</div></details>
+    <details class="talent-poach"><summary><b>경쟁사 인재 스카우트</b><span>다른 회사의 핵심인재에게 더 높은 연봉과 사인보너스를 제시</span></summary><div class="poach-warning"><b>헤드헌팅은 확정 영입이 아닙니다.</b><span>연봉 프리미엄, 사인보너스, 우리 회사 브랜드·직원사기, 상대 회사의 근무환경과 인재 등급에 따라 수락확률이 달라집니다. 실패해도 헤드헌터 착수비는 지출됩니다.</span></div><div class="poach-grid">${targets.slice(0,24).map(t=>{const offer=Math.round(Number(t.monthly_salary||0)*1.20/10000)*10000,bonus=Math.round(Number(t.monthly_salary||0)*4/10000)*10000;return `<article class="poach-card"><div class="poach-company"><span class="${t.company_type==='PLAYER'?'player':'bot'}">${t.company_type==='PLAYER'?'유저 회사':'BOT 회사'}</span><b>${escapeHtml(t.company_name)}</b><small>${escapeHtml(t.company_country)} · ${escapeHtml(t.company_sector)}</small></div><div class="poach-person"><span>${talentGradeBadge(t.grade)}</span><b>${escapeHtml(t.name)}</b><small>${escapeHtml(talentDepartmentShort(t.department))} · ${escapeHtml(t.specialty)} · 역량 ${Number(t.skill_score||0).toFixed(1)}</small></div><div class="poach-current">현재 월급 <b>${formatKrwSmart(t.monthly_salary)}</b> · 충성도 ${Number(t.loyalty||0).toFixed(0)}</div><label>제시 월급<input id="poachSalary_${t.id}" value="${formatKrwSmart(offer)}"></label><label>사인보너스<input id="poachBonus_${t.id}" value="${formatKrwSmart(bonus)}"></label><button type="button" data-talent-poach="${t.id}">영입 제안 보내기</button></article>`}).join('')}</div></details>
+  </section>`;
+}
+
 function renderPeopleFinanceDesk(my){
   const employees=Math.max(0,Number(my.employees||0));
   const salary=Math.max(0,Number(my.avg_monthly_salary||0));
   const payroll=Math.max(0,Number(my.monthly_payroll||employees*salary));
   const fixed=Math.max(0,Number(my.monthly_fixed_cost||0));
-  const runRate=payroll+fixed;
+  const talentPremium=Math.max(0,Number(my.talent_monthly_premium||0));
+  const runRate=payroll+fixed+talentPremium;
   const estCorp=Math.max(0,Number(my.estimated_corporate_tax||0));
   const estLocal=Math.max(0,Number(my.estimated_local_tax||0));
   const due=Math.max(0,Number(my.tax_due||0)+Number(my.tax_arrears||0));
@@ -1516,18 +1573,20 @@ function renderPeopleFinanceDesk(my){
     ['MANAGEMENT','경영지원',Number(my.hr_management||0)]
   ];
   return `<section class="corp-section people-finance-desk">
-    <div class="company-section-head"><div><small>PEOPLE · PAYROLL · CASHFLOW</small><h2>인사·급여·고정비</h2></div><span>직원을 채용하면 인건비가 계속 발생하고, 급여 수준은 사기·생산성·이직률에 영향을 줍니다. 게임에서는 120경영주기를 한 회계 정산기간으로 압축합니다.</span></div>
+    <div class="company-section-head"><div><small>PEOPLE · PAYROLL · CASHFLOW</small><h2>인사·급여·고정비</h2></div><span>일반 인력은 부서별 총원으로 관리하고, 핵심인재는 개인별 등급·역량·연봉으로 관리합니다. 게임에서는 120경영주기를 한 회계 정산기간으로 압축합니다.</span></div>
     <div class="people-finance-kpis">
       <article><small>재직 인원</small><b>${nf.format(employees)}명</b><span>직원 사기 ${Number(my.employee_morale||0).toFixed(0)}</span></article>
       <article><small>평균 월급</small><b>${formatKrwSmart(salary||0)}</b><span>1인 기준</span></article>
-      <article><small>월 급여 총액</small><b>${formatKrwSmart(payroll)}</b><span>경영주기마다 분할 지출</span></article>
+      <article><small>월 급여 총액</small><b>${formatKrwSmart(payroll)}</b><span>일반 인력 기준</span></article>
+      <article><small>핵심인재 추가 월급</small><b>${formatKrwSmart(talentPremium)}</b><span>평균급여를 초과하는 개인계약 프리미엄</span></article>
       <article><small>월 고정 운영비</small><b>${formatKrwSmart(fixed)}</b><span>임차·서버·관리·유지비</span></article>
       <article><small>월 고정비 합계</small><b>${formatKrwSmart(runRate)}</b><span>현금이 자동으로 감소</span></article>
       <article class="${due>0?'warn':''}"><small>세금</small><b>${due>0?formatKrwSmart(due):`예상 ${formatKrwSmart(estCorp+estLocal)}`}</b><span>${due>0?'현재 납부·미납 세액':`실효세율 ${companyTaxRateText(my)}`}</span></article>
     </div>
+    ${renderTalentMarket(my)}
     <div class="department-board">${depts.map(d=>`<article><span>${d[1]}</span><b>${nf.format(d[2])}명</b><small>${employees?`${(d[2]/employees*100).toFixed(1)}%`:'0%'}</small></article>`).join('')}</div>
     <div class="hr-action-layout">
-      <form class="hr-action-card" id="companyHireForm"><div><small>RECRUIT</small><h3>직원 채용</h3><p>채용비용과 이후 월급이 실제 법인현금에서 나갑니다.</p></div><label>부서<select id="companyHireDepartment">${depts.map(d=>`<option value="${d[0]}">${d[1]}</option>`).join('')}</select></label><label>채용 인원<input id="companyHireCount" type="number" min="1" max="5000" value="10"></label>${companyMoneyInput('companyHireSalary','1인 월급','400만','예: 400만, 650만')}<button type="button" data-company-hr="HIRE">채용 진행</button></form>
+      <form class="hr-action-card" id="companyHireForm"><div><small>GENERAL WORKFORCE</small><h3>일반 인력 일괄 채용</h3><p>대규모 부서 인력 충원입니다. 개인 등급이 있는 핵심인재는 위의 일일 채용시장에서 별도로 채용합니다.</p></div><label>부서<select id="companyHireDepartment">${depts.map(d=>`<option value="${d[0]}">${d[1]}</option>`).join('')}</select></label><label>채용 인원<input id="companyHireCount" type="number" min="1" max="5000" value="10"></label>${companyMoneyInput('companyHireSalary','1인 월급','400만','예: 400만, 650만')}<button type="button" data-company-hr="HIRE">채용 진행</button></form>
       <form class="hr-action-card" id="companySalaryForm"><div><small>COMPENSATION</small><h3>급여 정책</h3><p>전 직원 평균 월급을 조정합니다. 급여 인상은 사기와 채용 경쟁력을 높이지만 고정비가 커집니다.</p></div>${companyMoneyInput('companySalaryAmount','새 평균 월급',salary?formatKrwSmart(salary):'400만','예: 450만, 700만')}<button type="button" data-company-hr="SET_SALARY">급여 정책 변경</button>${companyMoneyInput('companyBonusAmount','성과급 총액','3000만','예: 3000만, 1억')}<button type="button" data-company-hr="BONUS" class="secondary">성과급 지급</button></form>
       <form class="hr-action-card danger-card" id="companyLayoffForm"><div><small>WORKFORCE</small><h3>인력 조정</h3><p>감원은 고정비를 줄이지만 퇴직비용과 직원 사기·평판 하락이 발생할 수 있습니다.</p></div><label>부서<select id="companyLayoffDepartment">${depts.map(d=>`<option value="${d[0]}">${d[1]}</option>`).join('')}</select></label><label>감원 인원<input id="companyLayoffCount" type="number" min="1" max="5000" value="5"></label><button type="button" data-company-hr="LAYOFF" class="risk">인력 조정 실행</button></form>
     </div>
@@ -1708,6 +1767,7 @@ function renderCompanyPulse(my){
     <div class="pulse-grid">
       <article><small>투자자 심리</small><b>${sent.toFixed(0)}</b><span>${companyMood(sent)} · 최근 순매수 ${flow>=0?'+':''}${compactMoney(flow)}원</span></article>
       <article><small>직원 사기</small><b>${morale.toFixed(0)}</b><span>${companyMood(morale)} · 생산성과 인재이탈에 영향</span></article>
+      <article><small>핵심인재 지수</small><b>${Number(my.talent_index||50).toFixed(0)}</b><span>수재·천재 ${Number(my.elite_talent_count||0)}명 · 장기 기술·영업·운영에 영향</span></article>
       <article><small>고객 신뢰</small><b>${trust.toFixed(0)}</b><span>${companyMood(trust)} · 매출·브랜드·리콜에 영향</span></article>
       <article class="${comp<45?'danger':''}"><small>준법 수준</small><b>${comp.toFixed(0)}</b><span>규제·세무조사·신용평가에 영향</span></article>
       <article class="${taxDue+arrears>0?'warn':''}"><small>납부할 세금</small><b>${compactMoney(taxDue+arrears)}원</b><span>현재 고지 ${compactMoney(taxDue)} · 미납/추징대상 ${compactMoney(arrears)}</span></article>
@@ -1723,18 +1783,35 @@ function renderMediaDesk(my){
   const press=(state.company?.press||[]).filter(a=>!a.created_at||new Date(a.created_at).getTime()>=cutoff);
   const campaigns=state.company?.media_campaigns||[];
   const outlets=[
-    {key:'KX_DAILY_PREMIUM',apiCode:'ECON_DAILY',campaign:'STANDARD',region:'국내',regionLabel:'국내 언론',name:'KX 경제일보',kind:'경제 전문지',cost:90000000,trust:'매우 높음',risk:'낮음',reach:'기관·경제지 독자층',tone:'실적·공시·사업 전략을 정석적으로 다루는 신뢰형 보도입니다.'},
-    {key:'BIZ24_FEATURE',apiCode:'BIZ_TV',campaign:'STANDARD',region:'국내',regionLabel:'국내 언론',name:'비즈니스24',kind:'대중 경제방송',cost:65000000,trust:'높음',risk:'보통',reach:'대중 투자자·일반 시청자',tone:'대중 노출이 높아 단기 관심과 검색량을 끌어올리기 좋습니다.'},
-    {key:'EDGE_FAST',apiCode:'EDGE_MEDIA',campaign:'STANDARD',region:'국내',regionLabel:'국내 언론',name:'EDGE 미디어',kind:'온라인 경제매체',cost:35000000,trust:'보통',risk:'높음',reach:'온라인 경제 커뮤니티',tone:'비용은 합리적이지만 자극적인 헤드라인이 붙을 가능성이 있습니다.'},
-    {key:'QUICK_FLASH',apiCode:'QUICK_BUZZ',campaign:'AGGRESSIVE_SPIN',region:'국내',regionLabel:'국내 언론',name:'퀵버즈 경제',kind:'초저가 온라인 매체',cost:15000000,trust:'낮음',risk:'매우 높음',reach:'클릭형 이슈 독자층',tone:'가볍게 화제를 만들 수 있지만 과장·오보 리스크가 큽니다.'},
-    {key:'GLOBAL_WIRE_PREMIUM',apiCode:'GLOBAL_WIRE',campaign:'STANDARD',region:'해외',regionLabel:'해외 언론',name:'Global Finance Wire',kind:'글로벌 금융통신',cost:160000000,trust:'매우 높음',risk:'낮음',reach:'북미·유럽 기관투자자',tone:'해외 기관투자자와 펀드 매니저에게 가장 강한 신뢰를 주는 프리미엄 보도입니다.'},
+    {key:'KX_DAILY_PREMIUM',apiCode:'ECON_DAILY',region:'국내',regionLabel:'국내 언론',name:'KX 경제일보',kind:'경제 전문지',cost:90000000,trust:'매우 높음',risk:'낮음',reach:'기관·경제지 독자층',tone:'실적·공시·사업 전략을 정석적으로 다루는 신뢰형 보도입니다.'},
+    {key:'BIZ24_FEATURE',apiCode:'BIZ_TV',region:'국내',regionLabel:'국내 언론',name:'비즈니스24',kind:'대중 경제방송',cost:65000000,trust:'높음',risk:'보통',reach:'대중 투자자·일반 시청자',tone:'대중 노출이 높아 단기 관심과 검색량을 끌어올리기 좋습니다.'},
+    {key:'EDGE_FAST',apiCode:'EDGE_MEDIA',region:'국내',regionLabel:'국내 언론',name:'EDGE 미디어',kind:'온라인 경제매체',cost:35000000,trust:'보통',risk:'높음',reach:'온라인 경제 커뮤니티',tone:'비용은 합리적이지만 자극적인 편집과 역풍 가능성이 있습니다.'},
+    {key:'QUICK_FLASH',apiCode:'QUICK_BUZZ',region:'국내',regionLabel:'국내 언론',name:'퀵버즈 경제',kind:'초저가 온라인 매체',cost:15000000,trust:'낮음',risk:'매우 높음',reach:'클릭형 이슈 독자층',tone:'화제성은 높지만 과장·반론·신뢰성 리스크가 큽니다.'},
+    {key:'GLOBAL_WIRE_PREMIUM',apiCode:'GLOBAL_WIRE',region:'해외',regionLabel:'해외 언론',name:'Global Finance Wire',kind:'글로벌 금융통신',cost:160000000,trust:'매우 높음',risk:'낮음',reach:'북미·유럽 기관투자자',tone:'해외 기관투자자와 펀드 매니저의 주목도가 높은 프리미엄 보도입니다.'}
   ];
-  const region=state.companyMediaRegion||'ALL';
+  const region=state.companyMediaRegion||'ALL',tone=state.companyMediaTone||'PROMOTE';
   const filtered=outlets.filter(o=>region==='ALL'||o.region===region);
-  const targets=[...(state.company?.companies||[])].filter(c=>c&&c.status!=='INACTIVE').sort((a,b)=>Number(b.valuation)-Number(a.valuation));
-  return `<section class="corp-section media-desk-section newsroom-management clean-newsroom-management auto-newsroom"><div class="company-section-head"><div><small>NEWS · IR</small><h2>회사만 고르고, 기사는 언론사에 맡기세요</h2></div><span>기사 제목이나 내용을 직접 고르지 않습니다. 먼저 보도할 회사를 선택한 뒤 언론사를 고르면, 그 매체가 선택한 회사의 실적·기술·평판을 보고 자체적으로 기사를 작성합니다.</span></div>${renderMarketingGuide(my)}<div class="media-target-shell"><div><small>보도 대상 회사</small><b>어느 회사를 기사화할까요?</b><span>내 회사를 홍보할 수도 있고 경쟁사를 기사화할 수도 있습니다. 결과의 방향은 언론사 품질과 실제 회사 상태에 따라 달라집니다.</span></div><label><span>회사 선택</span><select id="companyMediaTarget">${targets.map(c=>`<option value="${c.id}" ${Number(c.id)===Number(my.id)?'selected':''}>${Number(c.id)===Number(my.id)?'[내 회사] ':''}${escapeHtml(c.name)} · ${escapeHtml(c.home_country)} · ${escapeHtml(c.sector)}</option>`).join('')}</select></label></div><div class="auto-news-explain"><div><b>국내 언론과 해외 언론의 성격이 다릅니다.</b><span>국내 언론은 브랜드·대중 노출과 국내 투자심리 자극에 강하고, 해외 언론은 기관투자자·글로벌 자금 유입에 유리하지만 훨씬 비쌉니다.</span></div><div class="auto-news-current"><span>내 투자자 심리 <b>${Number(my.investor_sentiment||50).toFixed(0)}</b></span><span>내 미디어 평판 <b>${Number(my.media_reputation||50).toFixed(0)}</b></span><span>내 최근 수급 <b class="${Number(my.investor_flow||0)>=0?'up':'down'}">${Number(my.investor_flow||0)>=0?'+':''}${compactMoney(my.investor_flow||0)}원</b></span></div></div><div class="media-region-tabs"><button data-company-media-region="ALL" class="${region==='ALL'?'on':''}">전체</button><button data-company-media-region="국내" class="${region==='국내'?'on':''}">국내 언론</button><button data-company-media-region="해외" class="${region==='해외'?'on':''}">해외 언론</button></div><div class="media-budget-note"><span><b>비용 감각</b> 현재 서버 실제 차감액 기준으로 국내는 1,500만~9,000만원대, 해외 프리미엄은 1억 6,000만원입니다.</span><span><b>선택 팁</b> 단기 화제는 저가 매체, 장기 신뢰와 글로벌 자금은 고가 해외/전문지 쪽이 유리합니다.</span></div><div class="auto-outlet-grid">${filtered.map(o=>`<article class="auto-outlet-card risk-${o.risk==='극단적'?'extreme':o.risk==='매우 높음'?'very-high':o.risk==='높음'?'high':'normal'}"><div><span class="media-region-chip ${o.region==='해외'?'global':'domestic'}">${o.regionLabel}</span><small>${o.kind}</small><h3>${o.name}</h3><p>${o.tone}</p></div><dl><div><dt>보도 비용</dt><dd>${formatKrwSmart(o.cost)}</dd></div><div><dt>도달 범위</dt><dd>${o.reach}</dd></div><div><dt>신뢰도</dt><dd>${o.trust}</dd></div><div><dt>역풍 위험</dt><dd>${o.risk}</dd></div></dl><button data-company-media="${o.key}" data-media-api-code="${o.apiCode}" data-media-campaign="${o.campaign}" data-media-cost="${o.cost}" data-media-name="${o.name}" data-media-region="${o.region}">선택한 회사를 이 언론사에 맡기기</button></article>`).join('')}</div><div class="published-news clean-published-news"><div class="company-section-head mini"><div><small>LIVE BUSINESS WIRE · 15 MIN</small><h3>최근 15분 기업 뉴스</h3></div><span>15분이 지난 뉴스는 서버에서도 자동 삭제되어 오래 쌓이지 않습니다.</span></div><div class="clean-news-list">${press.length?press.slice(0,24).map(a=>`<article class="press-article clean-press-article ${Number(a.sentiment_impact||0)<0?'negative':''}"><div class="press-meta"><b>${escapeHtml(a.outlet_name||'경제뉴스')}</b><span>${escapeHtml(a.company_name||'시장')}</span><time>${a.created_at?new Date(a.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></div><h3>${escapeHtml(a.headline)}</h3><p>${escapeHtml(a.article_body||'')}</p><footer><span>${escapeHtml(a.country||'')}</span><em class="${Number(a.bot_flow||0)>=0?'up':'down'}">시장 수급 ${Number(a.bot_flow||0)>=0?'+':''}${compactMoney(a.bot_flow||0)}원</em></footer></article>`).join(''):`<div class="empty">최근 15분 안에 보도된 기업 뉴스가 없습니다.</div>`}</div></div><details class="media-history"><summary>내 회사 언론 집행 기록</summary>${campaigns.length?campaigns.slice(0,8).map(c=>`<article><span><b>${escapeHtml(c.outlet_name)}</b><small>${c.backlash?'역풍 발생':'보도 완료'}</small></span><strong>${formatKrwSmart(c.budget)}</strong></article>`).join(''):`<div class="empty compact">아직 기록이 없습니다.</div>`}</details></section>`;
+  const allTargets=[...(state.company?.companies||[])].filter(c=>c&&c.status!=='INACTIVE');
+  const myId=Number(my.id||0);if(!state.companyMediaTargetId||!allTargets.some(c=>Number(c.id)===Number(state.companyMediaTargetId)))state.companyMediaTargetId=myId;
+  const targetId=Number(state.companyMediaTargetId||myId);
+  const meTargets=allTargets.filter(c=>Number(c.id)===myId),playerTargets=allTargets.filter(c=>companyOperatorType(c)==='PLAYER'&&Number(c.id)!==myId).sort((a,b)=>Number(b.valuation)-Number(a.valuation)),botTargets=allTargets.filter(c=>companyOperatorType(c)==='BOT').sort((a,b)=>Number(b.valuation)-Number(a.valuation));
+  const target=(allTargets.find(c=>Number(c.id)===targetId)||my);
+  const sourceName=id=>{if(!id)return null;const c=allTargets.find(x=>Number(x.id)===Number(id));return c?.name||null};
+  const options=`${meTargets.length?`<optgroup label="내 회사">${meTargets.map(c=>`<option value="${c.id}" ${Number(c.id)===targetId?'selected':''}>[내 회사] ${escapeHtml(c.name)}</option>`).join('')}</optgroup>`:''}${playerTargets.length?`<optgroup label="실제 유저 회사">${playerTargets.map(c=>`<option class="player-company-option" value="${c.id}" ${Number(c.id)===targetId?'selected':''}>[유저] ${escapeHtml(c.name)} · ${escapeHtml(c.home_country)} · ${escapeHtml(c.sector)}</option>`).join('')}</optgroup>`:''}<optgroup label="BOT 회사">${botTargets.map(c=>`<option value="${c.id}" ${Number(c.id)===targetId?'selected':''}>${escapeHtml(c.name)} · ${escapeHtml(c.home_country)} · ${escapeHtml(c.sector)}</option>`).join('')}</optgroup>`;
+  return `<section class="corp-section media-desk-section newsroom-management clean-newsroom-management auto-newsroom">
+    <div class="company-section-head"><div><small>NEWS · IR · COMPETITIVE COMMUNICATION</small><h2>언론·IR 데스크</h2></div><span>보도는 최근 프로젝트·제품출시·인사·M&A·해외진출 같은 실제 회사 활동을 우선 반영합니다. 최근 활동이 없을 때도 재무·품질·인재·공급망·시장경쟁 등 다양한 주제로 편집됩니다.</span></div>
+    ${renderMarketingGuide(my)}
+    <div class="media-target-shell"><div><small>기사 대상</small><b>${companyOperatorType(target)==='PLAYER'&&Number(target.id)!==myId?'실제 유저 회사 선택됨':Number(target.id)===myId?'내 회사 선택됨':'BOT 회사 선택됨'} · ${escapeHtml(target?.name||'')}</b><span>타사를 선택하면 사실 중심 기사뿐 아니라 비판·검증 보도를 의뢰할 수 있습니다. 비판 보도는 근거가 약하면 역풍과 추가 비용이 발생할 수 있습니다.</span></div><label><span>회사 선택</span><select id="companyMediaTarget">${options}</select></label></div>
+    ${playerTargets.length?`<div class="media-player-targets"><div><b>실제 유저 회사 빠른 선택</b><span>BOT와 구분되도록 강조 표시됩니다.</span></div>${playerTargets.slice(0,8).map(c=>`<button type="button" data-media-target-quick="${c.id}" class="${Number(c.id)===targetId?'on':''}"><small>USER COMPANY</small><b>${escapeHtml(c.name)}</b><span>${escapeHtml(c.owner_nickname||'PLAYER')}</span></button>`).join('')}</div>`:''}
+    <div class="media-tone-panel"><div><small>EDITORIAL DIRECTION</small><b>기사 방향</b><span>언론사가 회사의 실제 지표와 최근 활동을 바탕으로 작성하되, 의뢰 목적에 따라 취재·편집 방향이 달라집니다.</span></div><div class="media-tone-buttons"><button type="button" data-media-tone="PROMOTE" class="${tone==='PROMOTE'?'on':''}"><b>긍정 홍보</b><span>강점과 최근 활동을 적극적으로 알림</span></button><button type="button" data-media-tone="NEUTRAL" class="${tone==='NEUTRAL'?'on':''}"><b>사실 중심</b><span>성과와 위험을 균형 있게 보도</span></button><button type="button" data-media-tone="CRITICAL" class="critical ${tone==='CRITICAL'?'on':''}" ${targetId===myId?'disabled':''}><b>비판·검증</b><span>${targetId===myId?'타사 선택 시 사용 가능':'타사의 비용·성과·리스크를 검증'}</span></button></div></div>
+    <div class="auto-news-explain"><div><b>언론은 정해진 문구를 반복하지 않습니다.</b><span>최근 경영 이벤트가 있으면 그 활동을 기사 주제로 우선 사용하고, 아무 활동이 없으면 실적·현금·기술·품질·인재·공급망·해외·지배구조·시장경쟁 등에서 편집 주제를 고릅니다.</span></div><div class="auto-news-current"><span>내 투자자 심리 <b>${Number(my.investor_sentiment||50).toFixed(0)}</b></span><span>내 미디어 평판 <b>${Number(my.media_reputation||50).toFixed(0)}</b></span><span>현재 대상 <b>${escapeHtml(target?.name||'')}</b></span></div></div>
+    <div class="media-region-tabs"><button data-company-media-region="ALL" class="${region==='ALL'?'on':''}">전체</button><button data-company-media-region="국내" class="${region==='국내'?'on':''}">국내 언론</button><button data-company-media-region="해외" class="${region==='해외'?'on':''}">해외 언론</button></div>
+    <div class="media-budget-note"><span><b>비용</b> 국내 1,500만~9,000만원대, 해외 금융통신 1억 6,000만원. 비판·검증 보도는 취재·법무 검증비로 기본비용이 약 15% 높아집니다.</span><span><b>경쟁사도 움직입니다.</b> 회사가 시장에서 눈에 띄면 BOT 경쟁사도 실제 활동을 근거로 견제성 비판기사를 낼 수 있습니다.</span></div>
+    <div class="auto-outlet-grid">${filtered.map(o=>`<article class="auto-outlet-card"><div><span class="media-region-chip ${o.region==='해외'?'global':'domestic'}">${o.regionLabel}</span><small>${o.kind}</small><h3>${o.name}</h3><p>${o.tone}</p></div><dl><div><dt>기본 비용</dt><dd>${formatKrwSmart(o.cost)}</dd></div><div><dt>도달 범위</dt><dd>${o.reach}</dd></div><div><dt>신뢰도</dt><dd>${o.trust}</dd></div><div><dt>역풍 위험</dt><dd>${o.risk}</dd></div></dl><button data-company-media="${o.key}" data-media-api-code="${o.apiCode}" data-media-cost="${o.cost}" data-media-name="${o.name}" data-media-region="${o.region}">${tone==='CRITICAL'?'비판·검증 취재 의뢰':tone==='NEUTRAL'?'사실 중심 취재 의뢰':'홍보 보도 의뢰'}</button></article>`).join('')}</div>
+    <div class="published-news clean-published-news"><div class="company-section-head mini"><div><small>LIVE BUSINESS WIRE · 15 MIN</small><h3>최근 15분 기업 뉴스</h3></div><span>경쟁사 BOT의 견제성 보도도 같은 뉴스 피드에 나타납니다.</span></div><div class="clean-news-list">${press.length?press.slice(0,28).map(a=>{const src=sourceName(a.source_company_id),toneClass=String(a.news_tone||'NEUTRAL').toLowerCase(),srcCompany=allTargets.find(x=>Number(x.id)===Number(a.source_company_id));return `<article class="press-article clean-press-article ${Number(a.sentiment_impact||0)<0?'negative':''} tone-${toneClass}"><div class="press-meta"><b>${escapeHtml(a.outlet_name||'경제뉴스')}</b><span>${escapeHtml(a.company_name||'시장')}</span><time>${a.created_at?new Date(a.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):''}</time></div><div class="press-tags"><span>${a.news_tone==='CRITICAL'?'비판·검증':a.news_tone==='PROMOTE'?'홍보':'사실 중심'}</span>${a.activity_title?`<span>최근활동 연계</span>`:''}${src&&Number(a.source_company_id)!==Number(a.company_id)?`<span class="press-source ${companyOperatorType(srcCompany)==='BOT'?'bot':'player'}">의뢰·견제 ${escapeHtml(src)}</span>`:''}</div><h3>${escapeHtml(a.headline)}</h3><p>${escapeHtml(a.article_body||'')}</p><footer><span>${escapeHtml(a.country||'')}</span><em class="${Number(a.bot_flow||0)>=0?'up':'down'}">시장 수급 ${Number(a.bot_flow||0)>=0?'+':''}${compactMoney(a.bot_flow||0)}원</em></footer></article>`}).join(''):`<div class="empty">최근 15분 안에 보도된 기업 뉴스가 없습니다.</div>`}</div></div>
+    <details class="media-history"><summary>내 회사 언론 집행 기록</summary>${campaigns.length?campaigns.slice(0,10).map(c=>`<article><span><b>${escapeHtml(c.outlet_name)}</b><small>${escapeHtml(c.campaign_label||c.campaign_type||'보도')} · ${c.backlash?'역풍 발생':'보도 완료'}</small></span><strong>${formatKrwSmart(c.budget)}</strong></article>`).join(''):`<div class="empty compact">아직 기록이 없습니다.</div>`}</details>
+  </section>`;
 }
-
 function renderTaxOffice(my){
   const due=Number(my.tax_due||0),arrears=Number(my.tax_arrears||0),risk=Number(my.audit_risk||0);
   const estCorp=Number(my.estimated_corporate_tax||0),estLocal=Number(my.estimated_local_tax||0),rate=Number(my.tax_rate_effective||0);
@@ -2410,10 +2487,11 @@ function bind(){
   document.querySelectorAll('[data-market-filter]').forEach(b=>b.onclick=()=>{
     rememberOrderInputs();
     state.marketFilter=b.dataset.marketFilter||'ALL';
-    const pool=state.stocks.filter(stockVisible).filter(x=>state.marketFilter==='ALL'||marketArea(x)===state.marketFilter);
+    const pool=state.stocks.filter(stockVisible).filter(stockMatchesMarketFilter);
     if(pool.length&&!pool.some(x=>x.ticker===state.ticker)){state.ticker=pool[0].ticker;state.orderPrice=null;}
     renderTerminal();
   });
+  document.querySelectorAll('[data-stock-favorite]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();const on=toggleStockFavorite(b.dataset.stockFavorite);state.companyNotice=on?'즐겨찾기에 추가했습니다. 해당 종목은 목록 최상단에 고정됩니다.':'즐겨찾기에서 해제했습니다.';renderTerminal(true);});
   document.querySelectorAll('[data-ticker]').forEach(b=>b.onclick=async()=>{rememberOrderInputs();state.ticker=b.dataset.ticker;state.orderPrice=null;await loadPublicSnapshot(false,false);renderTerminal();});
   const ss=document.getElementById('stockSelect');if(ss)ss.onchange=async()=>{rememberOrderInputs();state.ticker=ss.value;state.orderPrice=null;await loadPublicSnapshot(false,false);renderTerminal();};
   document.querySelectorAll('[data-trade-tab]').forEach(b=>b.onclick=()=>{rememberOrderInputs();state.tradeTab=b.dataset.tradeTab;renderTerminal();});
@@ -2656,14 +2734,41 @@ function bind(){
 
 
   document.querySelectorAll('[data-company-media-region]').forEach(b=>b.onclick=()=>{state.companyMediaRegion=b.dataset.companyMediaRegion||'ALL';renderTerminal(true);});
+  document.querySelectorAll('[data-media-tone]').forEach(b=>b.onclick=()=>{if(b.disabled)return;state.companyMediaTone=b.dataset.mediaTone||'PROMOTE';renderTerminal(true);});
+  const mediaTarget=document.getElementById('companyMediaTarget');if(mediaTarget)mediaTarget.onchange=()=>{state.companyMediaTargetId=Number(mediaTarget.value)||Number(state.company?.my_company?.id)||0;if(state.companyMediaTone==='CRITICAL'&&state.companyMediaTargetId===Number(state.company?.my_company?.id))state.companyMediaTone='PROMOTE';renderTerminal(true);};
+  document.querySelectorAll('[data-media-target-quick]').forEach(b=>b.onclick=()=>{state.companyMediaTargetId=Number(b.dataset.mediaTargetQuick)||Number(state.company?.my_company?.id)||0;renderTerminal(true);});
 
   document.querySelectorAll('[data-company-media]').forEach(b=>b.onclick=async()=>{
-    const outlet=b.dataset.mediaApiCode||b.dataset.companyMedia,cost=Math.max(0,Number(b.dataset.mediaCost)||0),name=b.dataset.mediaName||'언론사',campaign=b.dataset.mediaCampaign||'STANDARD',region=b.dataset.mediaRegion||'';
-    const targetId=Math.max(0,Number(document.getElementById('companyMediaTarget')?.value)||Number(state.company?.my_company?.id)||0);
+    const outlet=b.dataset.mediaApiCode||b.dataset.companyMedia,cost=Math.max(0,Number(b.dataset.mediaCost)||0),name=b.dataset.mediaName||'언론사',region=b.dataset.mediaRegion||'',tone=state.companyMediaTone||'PROMOTE';
+    const targetId=Math.max(0,Number(document.getElementById('companyMediaTarget')?.value)||Number(state.companyMediaTargetId)||Number(state.company?.my_company?.id)||0);
     const target=(state.company?.companies||[]).find(c=>Number(c.id)===targetId)||state.company?.my_company;
-    const risk=['QUICK_BUZZ','RUMOR_POST'].includes(outlet)?'저가 매체는 과장·오보로 역효과가 날 가능성이 큽니다. ':outlet==='EDGE_MEDIA'?'저렴한 온라인 매체라 자극적인 기사 위험이 있습니다. ':region==='해외'?'해외 언론은 비싸지만 기관·글로벌 투자자 반응이 더 직접적입니다. ':'';
-    const result=await companyRun('kx_company_media_v52',{p_outlet:outlet,p_target_company_id:targetId},`${risk}${name}에 ${formatKrwSmart(cost)}을 지불하고 ${target?.name||'선택한 회사'} 보도를 맡길까요? 기사 제목과 내용은 언론사가 해당 회사 상태를 보고 자체 작성합니다.`);
-    if(result?.headline){showCompanyPressFlash({headline:result.headline,article_body:result.article_body,outlet_name:result.outlet_name||name,bot_flow:result.bot_flow,company_id:result.target_company_id||targetId});addCompanyHighlight('NEWS','언론 헤드라인 발생',`${result.outlet_name||name} · ${result.headline}`,80);playCompanySfx('news');}
+    if(tone==='CRITICAL'&&targetId===Number(state.company?.my_company?.id)){alert('자사 대상 비판 기사는 지원하지 않습니다. 타사 또는 다른 유저 회사를 선택해 주세요.');return;}
+    const expected=tone==='CRITICAL'?cost*1.15:cost;
+    const direction=tone==='CRITICAL'?'비판·검증':tone==='NEUTRAL'?'사실 중심':'긍정 홍보';
+    const warning=tone==='CRITICAL'?'비판 보도는 상대 회사의 실제 지표가 강하거나 기사 근거가 약하면 역풍·법무비용이 발생할 수 있습니다. ':region==='해외'?'해외 언론은 비용이 높지만 글로벌 투자자 노출이 큽니다. ':'';
+    if(!confirm(`${warning}${name}에 약 ${formatKrwSmart(expected)}을 집행해 ${target?.name||'선택한 회사'}에 대한 [${direction}] 기사를 의뢰할까요? 최근 프로젝트·제품·인사·M&A 등 실제 활동이 있으면 그 내용이 기사에 우선 반영됩니다.`))return;
+    try{
+      const result=await companyMediaV630(outlet,targetId,tone);if(result?.ok===false)throw new Error(result?.message||'기사를 처리하지 못했습니다.');
+      state.companyNotice=result?.message||'기사가 보도되었습니다.';
+      if(result?.headline)showCompanyPressFlash({headline:result.headline,article_body:result.article_body,outlet_name:result.outlet_name||name,bot_flow:result.bot_flow,company_id:result.target_company_id||targetId});
+      playCompanySfx('news');await loadCompanyLayer(false,false);renderTerminal(true);
+    }catch(err){state.companyNotice='언론 처리 실패: '+err.message;const msg=document.getElementById('companyMsg');if(msg)msg.textContent=state.companyNotice;else alert(state.companyNotice);}
+  });
+
+  document.querySelectorAll('[data-talent-hire]').forEach(b=>b.onclick=async()=>{
+    const id=Number(b.dataset.talentHire||0),candidate=(state.company?.recruit_pool||[]).find(x=>Number(x.id)===id);if(!candidate)return;
+    if(!confirm(`${candidate.grade} ${candidate.name}을 채용할까요?
+월급 ${formatKrwSmart(candidate.monthly_salary)} · 사인보너스 ${formatKrwSmart(candidate.signing_bonus)}
+오늘 채용 한도 ${state.company.talent_hired_today}/${state.company.talent_daily_limit}`))return;
+    try{b.disabled=true;const d=await companyTalentApi('HIRE_CANDIDATE',{p_candidate_id:id});if(!d?.ok)throw new Error(d?.message||'채용에 실패했습니다.');state.companyNotice=d.message;playCompanySfx('success');await loadCompanyLayer(false,true);renderTerminal(true);}catch(err){state.companyNotice='채용 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
+  });
+  document.querySelectorAll('[data-talent-poach]').forEach(b=>b.onclick=async()=>{
+    const id=Number(b.dataset.talentPoach||0),talent=(state.company?.poach_targets||[]).find(x=>Number(x.id)===id);if(!talent)return;
+    const salary=parseCompanyMoney(document.getElementById(`poachSalary_${id}`)?.value,Number(talent.monthly_salary||0)*1.2),bonus=parseCompanyMoney(document.getElementById(`poachBonus_${id}`)?.value,Number(talent.monthly_salary||0)*4);
+    if(!confirm(`${talent.company_name}의 ${talent.grade} ${talent.name}에게 이직을 제안할까요?
+제시 월급 ${formatKrwSmart(salary)} · 사인보너스 ${formatKrwSmart(bonus)}
+실패하더라도 헤드헌터 착수비가 발생합니다.`))return;
+    try{b.disabled=true;b.textContent='제안 협상 중…';const d=await companyTalentApi('POACH',{p_talent_id:id,p_offer_salary:salary,p_signing_bonus:bonus});if(!d?.ok)throw new Error(d?.message||'영입 제안을 처리하지 못했습니다.');state.companyNotice=`${d.message}${d.success_chance!=null?` · 제안 당시 수락확률 ${Number(d.success_chance).toFixed(1)}%`:''}`;playCompanySfx(d.success?'success':'alert');await loadCompanyLayer(false,true);renderTerminal(true);}catch(err){state.companyNotice='헤드헌팅 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
   });
 
   document.querySelectorAll('[data-company-hr]').forEach(b=>b.onclick=async()=>{
