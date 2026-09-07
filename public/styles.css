@@ -1355,3 +1355,33 @@ body.tutorial-active{overflow:hidden}
 @media(max-width:1180px){.chairman-incentive-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.chairman-head{flex-direction:column}.chairman-autonomy{width:100%;box-sizing:border-box;text-align:left;flex-basis:auto}.chairman-delegation-strip,.chairman-proposal-grid{grid-template-columns:1fr}.proposal-facts{grid-template-columns:1fr 1fr}.chairman-incentive-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.chairman-talent-bonus article{grid-template-columns:1fr 105px}.chairman-talent-bonus article button{grid-column:1/-1}}
 @media(max-width:640px){.chairman-command-center{padding:13px}.chairman-head h2{font-size:22px}.chairman-incentive-grid,.proposal-facts{grid-template-columns:1fr}.proposal-actions{grid-template-columns:1fr}.proposal-actions button.secondary{min-height:36px}.chairman-incentive-box>summary{align-items:flex-start;flex-direction:column}.chairman-talent-bonus article{grid-template-columns:1fr}.chairman-talent-bonus article input,.chairman-talent-bonus article button{grid-column:auto}}
+
+/* ========================================================================== */
+/* V6.5.1 - takeover response visibility + grade-filtered employee roster      */
+/* ========================================================================== */
+.employee-roster-quick.grade-roster{overflow:hidden}
+.employee-grade-tabs{display:flex;gap:7px;flex-wrap:wrap;padding:11px 14px;border-bottom:1px solid #203247;background:#09131e}
+.employee-grade-tabs button{min-height:34px;padding:0 11px;border:1px solid #2a4057;border-radius:9px;background:#0d1926;color:#9db2c7;font-size:9.5px;font-weight:800;cursor:pointer;white-space:nowrap}
+.employee-grade-tabs button b{margin-left:5px;color:#dce8f4;font-size:9px}
+.employee-grade-tabs button.on{border-color:#557ca5;background:#18314a;color:#f3f8fd;box-shadow:inset 0 0 0 1px rgba(116,157,199,.12)}
+.grade-roster .employee-roster-row{grid-template-columns:minmax(210px,1.4fr) minmax(110px,.72fr) minmax(120px,.72fr) minmax(125px,.72fr) minmax(100px,.58fr) minmax(220px,1fr)}
+.employee-roster-actions{display:grid!important;grid-template-columns:1fr 1fr;gap:5px!important;align-items:center}
+.employee-roster-actions button{min-width:0;min-height:32px;padding:5px 7px;border:1px solid #35516f;border-radius:8px;background:#11243a;color:#dceaf7;font-size:8.5px;font-weight:800;cursor:pointer;white-space:nowrap}
+.employee-roster-actions .employee-fire-btn{grid-column:1/-1;border-color:#6b3d45;background:#28171c;color:#ffb9bf}
+.dashboard-takeover-alert{align-items:center}
+.dashboard-takeover-copy em{display:block;margin-top:5px;color:#d7b87c;font-style:normal;line-height:1.45}
+.dashboard-takeover-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.dashboard-takeover-actions button{min-height:40px;padding:0 13px;border:1px solid #405f7e;border-radius:10px;background:#152a40;color:#eaf3fb;font-weight:900;white-space:nowrap;cursor:pointer}
+.dashboard-takeover-actions button:first-child{border-color:#86515a;background:#2b171d;color:#ffc2c7}
+.chairman-proposal.critical h3:before{content:'긴급 결재';display:inline-flex;margin-right:7px;padding:2px 6px;border-radius:999px;background:#32171d;color:#ffb9c0;font-size:7px;font-weight:900;vertical-align:middle}
+
+@media(max-width:1100px){
+  .grade-roster .employee-roster-table{overflow-x:auto;display:block}
+  .grade-roster .employee-roster-row{min-width:980px}
+}
+@media(max-width:700px){
+  .employee-grade-tabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:9px}
+  .employee-grade-tabs button{flex:0 0 auto}
+  .dashboard-takeover-actions{width:100%}
+  .dashboard-takeover-actions button{flex:1 1 150px}
+}

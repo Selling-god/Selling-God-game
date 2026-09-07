@@ -1,5 +1,5 @@
 (()=>{
-const KX_COMPANY_BUILD='6.5.0-CHAIRMAN-DELEGATION';
+const KX_COMPANY_BUILD='6.5.1-DEFENSE-GRADE-ROSTER';
 window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
@@ -39,7 +39,7 @@ let state={
   bankDeposits:[],bankLoans:[],bankMeta:{},chartRanges:{},
   game:{events:[],predictions:[],shorts:[],ipos:[],subscriptions:[],dividends:[],short_adjustments:[],prediction_stats:{total:0,correct:0}},gameAvailable:true,gameError:'',
   company:{my_company:null,companies:[],my_markets:[],my_holdings:[],incoming_holdings:[],market_holdings:[],stock_options:[],media_campaigns:[],tax_records:[],events:[],press:[],my_history:[],projects:[],investment_income:[],investment_summary:{},products:[],finance_periods:[],incidents:[],due_diligence:[],macro:{},supply:{},finance_live:{},recruit_pool:[],talents:[],poach_targets:[],talent_offers:[],talent_summary:{},talent_day:1,talent_hired_today:0,talent_daily_limit:5,talent_available:false,talent_error:'',realism_available:false,realism_error:'',world:null,control_case:null},
-  companyAvailable:true,companyMode:'REMOTE',companyRpcMode:'AUTO',companyError:'',companyRegion:'국내',companyNotice:'',companySection:'dashboard',companyAnalysisId:null,companyAnalysis:null,companyMetric:'valuation',companySearch:'',companyMediaRegion:'ALL',companyMediaTone:'PROMOTE',companyMediaTargetId:null,companyMediaSearch:'',companyOpsTab:'products',companyKickoff:null,companyKickoffLast:null,
+  companyAvailable:true,companyMode:'REMOTE',companyRpcMode:'AUTO',companyError:'',companyRegion:'국내',companyNotice:'',companySection:'dashboard',companyAnalysisId:null,companyAnalysis:null,companyMetric:'valuation',companySearch:'',companyMediaRegion:'ALL',companyMediaTone:'PROMOTE',companyMediaTargetId:null,companyMediaSearch:'',companyOpsTab:'products',companyKickoff:null,companyKickoffLast:null,companyTalentGradeFilter:'ALL',
   companyDraft:{name:'',sector:'AI·반도체'},
   side:'BUY',type:'LIMIT',tif:'DAY',tab:'company',tradeTab:'book',
   orderQty:1,orderPrice:null,pendingOrder:null,chartPeriod:'1M',marketFilter:'ALL'
@@ -701,10 +701,20 @@ function companyGrowth(c){return Number(c?.previous_revenue)>0?((Number(c.revenu
 function companyProfitMargin(c){return Number(c?.revenue)>0?Number(c.profit)/Number(c.revenue)*100:0}
 function companyDebtRatio(c){return Number(c?.valuation)>0?Number(c.debt)/Number(c.valuation)*100:0}
 function companyStakeAgainstMe(){
-  const direct=Number(state.company?.my_company?.incoming_stake||0);
-  if(direct>0)return direct;
-  const incoming=state.company?.incoming_holdings||[];
-  return incoming.reduce((sum,h)=>sum+Math.max(0,Number(h?.stake||0)),0);
+  const live=state.company?.control_case;
+  const incoming=[...(state.company?.incoming_holdings||[])].filter(h=>Number(h?.stake||0)>0);
+  // A live server takeover case must always remain actionable. Filtering it out made the UI show
+  // a high risk number while hiding every defense control.
+  if(live&&String(live.status||'ACTIVE').toUpperCase()!=='DEFENDED'){
+    const aid=Number(live.attacker_company_id||0);
+    const holder=incoming.find(h=>Number(h?.holder_company_id||0)===aid);
+    const direct=Number(state.company?.my_company?.incoming_stake||0);
+    return Math.max(0,Number(live.aggregate_stake||0),Number(live.stake||0),Number(holder?.stake||0),direct);
+  }
+  // Without a server takeover case, only holdings with an actual rivalry trigger are treated as
+  // hostile. Ordinary outside shareholders are not shown as a takeover attack.
+  const hostile=incoming.filter(h=>companyRivalryReason(Number(h?.holder_company_id||0)));
+  return hostile.reduce((sum,h)=>sum+Math.max(0,Number(h?.stake||0)),0);
 }
 function companyRankMap(){
   const rows=[...(state.company?.companies||[])].filter(c=>c&&c.status!=='INACTIVE').sort((a,b)=>Number(b.valuation||0)-Number(a.valuation||0)||Number(a.id||0)-Number(b.id||0));
@@ -734,36 +744,21 @@ function localRivalryReason(d,attacker){
 function activeTakeoverThreat(){
   const live=state.company?.control_case;
   const myHoldings=state.company?.my_holdings||[];
-  if(live){
-    const rivalry=live.trigger_reason?{code:'SERVER',label:String(live.trigger_reason)}:companyRivalryReason(live.attacker_company_id);
-    if(!rivalry)return null;
-    const actualCounter=myHoldings.find(h=>Number(h.target_company_id)===Number(live.attacker_company_id));
-    return {...live,synthetic:false,rivalry_reason:rivalry.label,counter_stake:Math.max(Number(live.counter_stake||0),Number(actualCounter?.stake||0))};
-  }
   const incoming=[...(state.company?.incoming_holdings||[])].filter(h=>Number(h?.stake||0)>0).sort((a,b)=>Number(b.stake||0)-Number(a.stake||0));
-  const qualified=incoming.map(h=>({h,reason:companyRivalryReason(Number(h?.holder_company_id||0))})).find(x=>x.reason);
-  const top=qualified?.h||null;
-  if(!top)return null;
-  const aggregate=incoming.filter(h=>companyRivalryReason(Number(h?.holder_company_id||0))).reduce((sum,h)=>sum+Math.max(0,Number(h?.stake||0)),0);
-  const stake=Math.max(0,Number(top?.stake||0));
-  const attackerId=Number(top?.holder_company_id||0);
-  const counter=myHoldings.find(h=>Number(h.target_company_id)===attackerId);
-  return {
-    synthetic:true,
-    attacker_company_id:attackerId||null,
-    attacker_name:top?.holder_name||'최대 외부주주',
-    attacker_ticker:top?.holder_ticker||'',
-    attacker_country:top?.holder_country||top?.country||'',
-    attacker_type:top?.holder_type||'외부 주주',
-    rivalry_reason:qualified?.reason?.label||'',
-    stake,
-    aggregate_stake:aggregate,
-    stage:localTakeoverStage(stake),
-    cycles_left:null,
-    counter_stake:Number(counter?.stake||0),
-    used_poison_pill:false,
-    used_rights_issue:false
-  };
+  if(live&&String(live.status||'ACTIVE').toUpperCase()!=='DEFENDED'){
+    const rivalry=live.trigger_reason?{code:'SERVER',label:String(live.trigger_reason)}:companyRivalryReason(live.attacker_company_id);
+    const actualCounter=myHoldings.find(h=>Number(h.target_company_id)===Number(live.attacker_company_id));
+    const holder=incoming.find(h=>Number(h?.holder_company_id||0)===Number(live.attacker_company_id));
+    const liveStake=Math.max(Number(live.stake||0),Number(holder?.stake||0));
+    const aggregate=Math.max(Number(live.aggregate_stake||0),liveStake);
+    return {...live,synthetic:false,rivalry_reason:rivalry?.label||'서버에서 감지된 진행 중 경영권 공격',stake:liveStake,aggregate_stake:aggregate,counter_stake:Math.max(Number(live.counter_stake||0),Number(actualCounter?.stake||0))};
+  }
+  const qualified=incoming.map(h=>({h,reason:companyRivalryReason(Number(h?.holder_company_id||0))})).filter(x=>x.reason);
+  if(!qualified.length)return null;
+  const top=qualified[0].h,reason=qualified[0].reason;
+  const aggregate=qualified.reduce((sum,x)=>sum+Math.max(0,Number(x.h?.stake||0)),0);
+  const attackerId=Number(top?.holder_company_id||0),counter=myHoldings.find(h=>Number(h.target_company_id)===attackerId);
+  return {synthetic:true,attacker_company_id:attackerId||null,attacker_name:top?.holder_name||'최대 외부주주',attacker_ticker:top?.holder_ticker||'',attacker_country:top?.holder_country||top?.country||'',attacker_type:top?.holder_type||'외부 주주',rivalry_reason:reason?.label||'직접 경쟁 관계',stake:Math.max(0,Number(top?.stake||0)),aggregate_stake:aggregate,stage:localTakeoverStage(Math.max(0,Number(top?.stake||0))),cycles_left:null,counter_stake:Number(counter?.stake||0),used_poison_pill:false,used_rights_issue:false};
 }
 function scrollToTakeoverDefenseCenter(){
   const details=document.getElementById('takeoverOwnershipDetails');
@@ -1577,11 +1572,24 @@ function openCompanyInterviewDesk(data=state.company){const meta=loadCompanyTale
 function renderInterviewSourceLabel(src='recruit'){return src==='poach'?'스카우트 대상':'오늘의 채용시장'}
 function renderTalentAutomationDesk(data,summary,desk){const uses=Math.max(0,Number(desk?.interviewCount)||0),fee=companyInterviewFee(data,uses),surcharge=companyInterviewSurcharge(uses+1),level=summary.grade?.[1]||'직접 관리';return `<section class="talent-automation-panel"><article class="talent-automation-card"><div class="talent-automation-head"><div><small>AUTOPILOT</small><h3>핵심인재 자동 운영</h3></div><b>${escapeHtml(level)}</b></div><p>좋은 직원을 많이 확보할수록 회사가 자동으로 더 안정적으로 굴러갑니다. 매출 실행, 운영 안정성, 방어력이 함께 보정됩니다.</p><div class="talent-automation-grid"><div><span>자동 운영 지수</span><b>${summary.automationIndex.toFixed(1)}</b></div><div><span>예상 매출 보조</span><b>+${summary.revenueBoost.toFixed(1)}%</b></div><div><span>운영 안정성</span><b>+${summary.efficiencyBoost.toFixed(1)}%</b></div><div><span>방어력 보조</span><b>+${summary.defenseBoost.toFixed(1)}</b></div></div><ul class="talent-automation-points"><li>운영·리더십이 높을수록 회사가 스스로 굴러가는 힘이 커집니다.</li><li>영업·혁신이 높을수록 자동 매출 보조가 커집니다.</li><li>좋은 직원을 채용할수록 인사 탭의 효율 지표도 함께 올라갑니다.</li></ul></article><article class="interview-desk-card"><div class="interview-desk-head"><div><small>PAID INTERVIEW DESK</small><h3>유료 면접 데스크</h3><p>하루 기본 지급 외에 추가로 좋은 직원을 찾는 방법입니다. 같은 날 너무 자주 열면 시장 기대연봉이 올라갑니다.</p></div><button type="button" data-talent-interview="open">${uses?`면접 다시 열기 · ${formatKrwSmart(fee)}`:`면접 열기 · ${formatKrwSmart(fee)}`}</button></div><div class="interview-desk-meta"><span>오늘 진행 ${uses}회</span><span>다음 면접 과열도 ${surcharge}%</span><span>기준 DAY ${Math.max(1,Number(data?.talent_day||liveCompanyClock().day)||1)}</span></div>${desk?.shortlist?.length?`<div class="interview-shortlist">${desk.shortlist.map(c=>`<article class="interview-candidate"><div><small>${renderInterviewSourceLabel(c.source)}</small><b>${escapeHtml(c.name)}</b><span>${escapeHtml(talentDepartmentShort(c.department||''))} · ${escapeHtml(c.specialty||c.role||'-')}</span></div><div class="interview-candidate-kpis"><span>자동운영 <b>${c.auto.toFixed(1)}</b></span><span>적합도 <b>${c.fit}%</b></span><span>수락 가능성 <b>${c.accept}%</b></span></div><div class="interview-candidate-pay"><span>월급 ${formatKrwSmart(c.salary)}</span>${c.signBonus?`<span>사인보너스 ${formatKrwSmart(c.signBonus)}</span>`:''}</div><button type="button" data-talent-jump="${escapeHtml(c.refId)}">후보 위치로 이동</button></article>`).join('')}</div>`:`<div class="interview-empty">아직 오늘 면접을 열지 않았습니다. 좋은 직원을 찾고 싶다면 유료 면접 데스크를 열어보세요.</div>`}</article></section>`}
 
+function talentGradeKey(t){
+  const title=String(talentCareerTitle(t)||t?.grade||'신입');
+  if(title.startsWith('거장'))return '거장';
+  return title;
+}
+function talentGradeSortValue(g){return ({'신입':1,'주니어':2,'경력직':3,'시니어':4,'전문가':5,'수재':6,'핵심인재':7,'천재':8,'마스터':9,'거장':10})[g]||99}
+function filteredCompanyTalents(){
+  const talents=(state.company?.talents||[]).filter(Boolean),filter=String(state.companyTalentGradeFilter||'ALL');
+  return filter==='ALL'?talents:talents.filter(t=>talentGradeKey(t)===filter);
+}
 function renderEmployeeQuickRoster(my){
   const talents=(state.company?.talents||[]).filter(Boolean);
-  if(!talents.length)return `<section class="employee-roster-quick"><div class="employee-roster-head"><div><small>QUICK ROSTER</small><h3>재직 인원 간편보기</h3></div><span>이름이 있는 핵심인재가 아직 없습니다.</span></div></section>`;
-  const rows=[...talents].sort((a,b)=>Number(b.skill_score||0)-Number(a.skill_score||0));
-  return `<section class="employee-roster-quick"><div class="employee-roster-head"><div><small>QUICK ROSTER</small><h3>재직 인원 간편보기</h3><p>이름이 있는 핵심인재를 한 번에 비교하고 바로 해고할 수 있습니다. 일반 인력은 아래 부서별 인력 조정에서 관리합니다.</p></div><span>${rows.length}명</span></div><div class="employee-roster-table"><div class="employee-roster-row header"><span>직원</span><span>부서</span><span>역량 / 잠재력</span><span>월급</span><span>자동운영</span><span>조치</span></div>${rows.map(t=>`<div class="employee-roster-row"><span class="employee-name">${talentGradeBadge(t)}<b>${escapeHtml(t.name)}</b><small>${escapeHtml(t.specialty||'-')}</small></span><span>${escapeHtml(talentDepartmentShort(t.department))}</span><span><b>${Number(t.skill_score||0).toFixed(1)}</b><small>${Number(t.potential||50).toFixed(0)}</small></span><span>${formatKrwSmart(t.monthly_salary||0)}</span><span>+${talentAutopilotContribution(t).toFixed(1)}</span><span><button type="button" class="employee-fire-btn" data-talent-fire="${t.id}">해고</button></span></div>`).join('')}</div></section>`;
+  if(!talents.length)return `<section class="employee-roster-quick"><div class="employee-roster-head"><div><small>EMPLOYEE ROSTER</small><h3>재직 핵심인재</h3></div><span>아직 이름이 있는 핵심인재가 없습니다.</span></div></section>`;
+  const counts={};for(const t of talents){const g=talentGradeKey(t);counts[g]=(counts[g]||0)+1}
+  const grades=Object.keys(counts).sort((a,b)=>talentGradeSortValue(a)-talentGradeSortValue(b));
+  let filter=String(state.companyTalentGradeFilter||'ALL');if(filter!=='ALL'&&!counts[filter]){filter='ALL';state.companyTalentGradeFilter='ALL'}
+  const rows=[...talents].filter(t=>filter==='ALL'||talentGradeKey(t)===filter).sort((a,b)=>talentGradeSortValue(talentGradeKey(b))-talentGradeSortValue(talentGradeKey(a))||Number(b.skill_score||0)-Number(a.skill_score||0));
+  return `<section class="employee-roster-quick grade-roster"><div class="employee-roster-head"><div><small>EMPLOYEE ROSTER</small><h3>재직 핵심인재</h3><p>등급별로 인재를 골라 보고, 같은 화면에서 연수·해고까지 처리합니다. 아래에 별도의 중복 재직 카드 목록은 표시하지 않습니다.</p></div><span>${rows.length}/${talents.length}명</span></div><div class="employee-grade-tabs"><button type="button" data-talent-grade-filter="ALL" class="${filter==='ALL'?'on':''}">전체 <b>${talents.length}</b></button>${grades.map(g=>`<button type="button" data-talent-grade-filter="${escapeHtml(g)}" class="${filter===g?'on':''}">${escapeHtml(g)} <b>${counts[g]}</b></button>`).join('')}</div><div class="employee-roster-table"><div class="employee-roster-row header"><span>직원</span><span>부서</span><span>역량 / 잠재력</span><span>월급</span><span>자동운영</span><span>관리</span></div>${rows.map(t=>`<div class="employee-roster-row"><span class="employee-name">${talentGradeBadge(t)}<b>${escapeHtml(t.name)}</b><small>${escapeHtml(t.specialty||'-')} · Lv.${Number(t.career_level||1)}</small></span><span>${escapeHtml(talentDepartmentShort(t.department))}</span><span><b>${Number(t.skill_score||0).toFixed(1)}</b><small>잠재력 ${Number(t.potential||50).toFixed(0)}</small></span><span>${formatKrwSmart(t.monthly_salary||0)}</span><span>+${talentAutopilotContribution(t).toFixed(1)}</span><span class="employee-roster-actions"><button type="button" data-talent-train="${t.id}" data-training-type="BALANCED">종합 연수</button><button type="button" data-talent-train="${t.id}" data-training-type="SPECIALTY">전문 연수</button><button type="button" class="employee-fire-btn" data-talent-fire="${t.id}">해고</button></span></div>`).join('')}</div></section>`;
 }
 
 function renderTalentMarket(my){
@@ -1595,7 +1603,6 @@ function renderTalentMarket(my){
     ${offers.length?`<section class="inbound-offers"><div class="compact-section-title"><b>경쟁사 이직 제안 ${offers.length}건</b><span>맞제안하거나 이직을 허용할 수 있습니다.</span></div>${offers.map(o=>`<article><div><small>${escapeHtml(o.buyer_company_name||'경쟁사')} 제안</small><b>${escapeHtml(o.talent_name)}</b><span>${talentGradeBadge({career_title:o.career_title,career_level:o.career_level,grade:o.grade})} · 현재 ${formatKrwSmart(o.current_salary)} → 제시 ${formatKrwSmart(o.offer_salary)}</span></div><div><label>맞제안 월급<input id="matchSalary_${o.id}" value="${formatKrwSmart(Math.max(Number(o.offer_salary||0),Number(o.current_salary||0)*1.08))}"></label><button type="button" data-talent-match="${o.id}">맞제안</button><button type="button" class="secondary" data-talent-release="${o.id}">이직 허용</button></div></article>`).join('')}</section>`:''}
     <details class="talent-block" open><summary><b>오늘의 채용시장 ${candidates.length}명</b><span>기본 지급 후보 · 최대 ${limit}명 채용</span></summary><div class="candidate-grid">${candidates.length?candidates.map(c=>{const done=c.hired||/HIRED/i.test(String(c.status||''));return `<article class="candidate-card ${done?'hired':''}" id="candidate-card-${c.id}"><div class="candidate-top">${talentGradeBadge(c)}<b>${escapeHtml(c.name)}</b><em>${escapeHtml(talentDepartmentShort(c.department))} · ${escapeHtml(c.role||c.specialty||'-')} · ${escapeHtml(c.specialty||c.role||'-')}</em></div><div class="candidate-dual-score"><div><strong>${Number(c.skill_score||0).toFixed(1)}</strong><span>현재 역량</span></div><div><strong>${Number(c.potential||50).toFixed(0)}</strong><span>잠재력 · ${talentPotentialLabel(c.potential)}</span></div></div><div class="talent-stats"><span>혁신 <b>${Number(c.innovation||0).toFixed(0)}</b></span><span>영업 <b>${Number(c.sales_skill||0).toFixed(0)}</b></span><span>운영 <b>${Number(c.operations_skill||0).toFixed(0)}</b></span><span>리더십 <b>${Number(c.leadership||0).toFixed(0)}</b></span></div><div class="candidate-pay"><span>월급 <b>${formatKrwSmart(c.monthly_salary||c.salary_monthly)}</b></span><span>사인보너스 <b>${formatKrwSmart(c.signing_bonus||c.sign_bonus)}</b></span><span>자동운영 기여 <b>${talentAutopilotContribution(c).toFixed(1)}</b></span></div><button type="button" data-talent-hire="${c.id}" ${done||hired>=limit?'disabled':''}>${done?'채용 완료':'채용'}</button></article>`}).join(''):`<div class="empty compact">오늘은 후보가 없습니다. 다음 DAY에 새 인재가 입장합니다.</div>`}</div></details>
     <details class="talent-block"><summary><b>경쟁사 인재 영입 ${targets.length}명</b><span>직접 조건 제시로 스카우트</span></summary><div class="poach-warning">과한 스카우트는 비용과 평판 리스크가 커질 수 있습니다.</div><div class="poach-grid">${targets.length?targets.slice(0,30).map(t=>{const offer=Math.round(Number(t.monthly_salary||t.current_salary||0)*1.2/10000)*10000,bonus=Math.round(Number(t.monthly_salary||t.current_salary||0)*4/10000)*10000;return `<article class="poach-card" id="poach-card-${t.id}"><div class="poach-company"><span class="${t.company_type==='PLAYER'?'player':'bot'}">${t.company_type==='PLAYER'?'유저 회사':'BOT 회사'}</span><b>${escapeHtml(t.company_name||t.source_company_name||'-')}</b></div><div class="poach-person">${talentGradeBadge(t)}<b>${escapeHtml(t.name)}</b><small>${escapeHtml(t.specialty||'-')} · 역량 ${Number(t.skill_score||0).toFixed(1)} · 자동운영 ${talentAutopilotContribution(t).toFixed(1)}</small></div><label>제시 월급<input id="poachSalary_${t.id}" value="${formatKrwSmart(t.ask_salary||offer)}"></label><label>사인보너스<input id="poachBonus_${t.id}" value="${formatKrwSmart((t.ask_bonus||0)||bonus)}"></label><button type="button" data-talent-poach="${t.id}">이직 제안</button></article>`}).join(''):`<div class="empty compact">현재 스카우트 대상이 없습니다.</div>`}</div></details>
-    <details class="talent-block" open><summary><b>재직 핵심인재 ${talents.length}명</b><span>성장·연수·자동 운영 관리</span></summary><div class="talent-roster-grid v640">${talents.length?talents.map(t=>`<article class="talent-person-card"><div class="talent-person-head"><div>${talentGradeBadge(t)}<b>${escapeHtml(t.name)}</b><small>${escapeHtml(talentDepartmentShort(t.department))} · ${escapeHtml(t.specialty||'-')}</small></div><strong>Lv.${Number(t.career_level||1)}</strong></div><div class="talent-person-scores"><span>역량 <b>${Number(t.skill_score||0).toFixed(1)}</b></span><span>잠재력 <b>${Number(t.potential||50).toFixed(0)}</b> <small>${talentPotentialLabel(t.potential)}</small></span><span>충성도 <b>${Number(t.loyalty||0).toFixed(0)}</b></span><span>성장 XP <b>${Number(t.growth_xp||0).toFixed(0)}</b></span></div><div class="talent-stats"><span>혁신 <b>${Number(t.innovation||0).toFixed(0)}</b></span><span>영업 <b>${Number(t.sales_skill||0).toFixed(0)}</b></span><span>운영 <b>${Number(t.operations_skill||0).toFixed(0)}</b></span><span>리더십 <b>${Number(t.leadership||0).toFixed(0)}</b></span></div><div class="talent-person-actions"><span>월급 ${formatKrwSmart(t.monthly_salary)} · 자동운영 +${talentAutopilotContribution(t).toFixed(1)}</span><button type="button" data-talent-train="${t.id}" data-training-type="BALANCED">종합 연수</button><button type="button" data-talent-train="${t.id}" data-training-type="SPECIALTY">전문 연수</button></div></article>`).join(''):`<div class="empty compact">아직 핵심인재가 없습니다.</div>`}</div></details>
   </section>`;
 }
 
@@ -2066,11 +2073,12 @@ function renderOperationsWorkspace(my){
 function renderDashboardTakeoverAlert(my){
   const threat=activeTakeoverThreat();
   if(!threat)return '';
-  const stake=Math.max(Number(threat?.stake||0),Number(threat?.aggregate_stake||0));
+  const stake=Math.max(Number(threat?.stake||0),Number(threat?.aggregate_stake||0),companyStakeAgainstMe());
   if(stake<=0)return '';
-  const attacker=threat?.attacker_name||'경쟁사';
-  const owner=ownerStakeOf(my),meta=takeoverStageMeta(threat?.stage,stake);
-  return `<section class="dashboard-takeover-alert ${stake>=35?'danger':stake>=15?'warn':'watch'}"><div class="dashboard-takeover-copy"><small>CONTROL ALERT</small><b>${escapeHtml(meta[0])}</b><span>${escapeHtml(attacker)} · 외부 보유 ${stake.toFixed(2)}% · 내 우호지분 ${owner.toFixed(2)}%</span><em>발생 사유: ${escapeHtml(threat.rivalry_reason||threat.trigger_reason||'직접 경쟁 관계')}</em></div><div class="dashboard-takeover-mini"><span><small>공격자 지분</small><b>${stake.toFixed(2)}%</b></span><span><small>내 우호 지분</small><b>${owner.toFixed(2)}%</b></span></div><button type="button" data-company-section-jump="competition">기업/M&amp;A에서 대응</button></section>`;
+  const attacker=threat?.attacker_name||'경쟁사',owner=ownerStakeOf(my),meta=takeoverStageMeta(threat?.stage,stake);
+  const officer=chairmanProposalOfficer('FINANCE')||chairmanProposalOfficer('MANAGEMENT')||[...(state.company?.talents||[])].sort((a,b)=>(Number(b.leadership||0)+Number(b.skill_score||0))-(Number(a.leadership||0)+Number(a.skill_score||0)))[0]||null;
+  const advice=stake>=50?'자사주 매입만으로는 부족할 수 있습니다. 백기사·유상증자·역인수를 함께 검토해야 합니다.':stake>=35?'자사주 매입과 지분 협상, 백기사 확보를 병행하는 방안을 권고합니다.':'지금 단계에서 자사주 매입이나 지분 협상을 시작하면 방어 비용을 줄일 수 있습니다.';
+  return `<section class="dashboard-takeover-alert ${stake>=35?'danger':stake>=15?'warn':'watch'}"><div class="dashboard-takeover-copy"><small>CONTROL ALERT · 직원 긴급보고</small><b>${escapeHtml(meta[0])}</b><span>${escapeHtml(attacker)} · 외부 위협지분 ${stake.toFixed(2)}% · 내 우호지분 ${owner.toFixed(2)}%</span><em>${officer?escapeHtml(officer.name)+' ('+escapeHtml(talentDepartmentShort(officer.department))+')':'재무·경영지원팀'}: ${escapeHtml(advice)}</em></div><div class="dashboard-takeover-mini"><span><small>위협 지분</small><b>${stake.toFixed(2)}%</b></span><span><small>내 우호 지분</small><b>${owner.toFixed(2)}%</b></span></div><div class="dashboard-takeover-actions"><button type="button" data-open-defense-overview>방어 수단 보기</button><button type="button" data-company-section-jump="competition">기업/M&amp;A 전체</button></div></section>`;
 }
 
 
@@ -2107,38 +2115,31 @@ function companyNeighborRival(my){
 }
 function buildChairmanProposals(my){
   if(!my)return [];
-  const out=[],products=state.company?.products||[],auto=companyAutomationSummary(state.company),perf=talentDepartmentPerformance(state.company),cycle=Math.max(1,Number(liveCompanyClock().cycle)||1),cash=Math.max(0,Number(my.cash||0)),valuation=Math.max(1,Number(my.valuation||1));
+  const out=[],products=state.company?.products||[],perf=talentDepartmentPerformance(state.company),cycle=Math.max(1,Number(liveCompanyClock().cycle)||1),cash=Math.max(0,Number(my.cash||0)),valuation=Math.max(1,Number(my.valuation||1));
   const push=p=>{if(!chairmanHandled(p.id))out.push(p)};
+  const threat=activeTakeoverThreat();
+  if(threat){
+    const stake=Math.max(Number(threat.stake||0),Number(threat.aggregate_stake||0),companyStakeAgainstMe());
+    const fin=perf.find(x=>x.code==='FINANCE'),mgmt=perf.find(x=>x.code==='MANAGEMENT');
+    const crisisOfficer=fin?.top||mgmt?.top||[...(state.company?.talents||[])].sort((a,b)=>(Number(b.leadership||0)+Number(b.skill_score||0))-(Number(a.leadership||0)+Number(a.skill_score||0)))[0]||null;
+    const budget=Math.max(100000000,Math.min(cash*.22,valuation*.015));
+    push({id:`defense-buyback-${Number(threat.attacker_company_id||0)}-${Math.floor(cycle/8)}`,kind:'DEFENSE_BUYBACK',priority:'critical',department:'FINANCE',officer:crisisOfficer,title:'긴급 자사주 매입 방어안',summary:`${crisisOfficer?crisisOfficer.name+'이(가) ':'재무팀이 '}공격 지분 ${stake.toFixed(2)}%를 보고 즉시 자사주 매입을 상신했습니다.`,budget,impact:'공격자 보유지분 직접 축소 · 방어력 상승'});
+    if(stake>=20)push({id:`defense-negotiate-${Number(threat.attacker_company_id||0)}-${Math.floor(cycle/10)}`,kind:'DEFENSE_NEGOTIATE',priority:'critical',department:'FINANCE',officer:crisisOfficer,title:'공격자 지분 매각 협상안',summary:'프리미엄을 지급해 공격자가 보유한 우리 회사 지분을 직접 되사는 협상안입니다.',budget:Math.max(100000000,Math.min(cash*.18,valuation*.012)),impact:'공격자 지분 직접 감소 · 현금 지출'});
+    if(stake>=35)push({id:`defense-white-${Number(threat.attacker_company_id||0)}-${Math.floor(cycle/12)}`,kind:'DEFENSE_WHITE_KNIGHT',priority:'critical',department:'MANAGEMENT',officer:mgmt?.top||crisisOfficer,title:'백기사 우호지분 확보안',summary:'경영지원팀이 우호 주주를 끌어들여 의결권 방어력을 높이자고 제안했습니다.',budget:Math.max(100000000,Math.min(cash*.14,valuation*.01)),impact:'방어력 대폭 강화 · 우호 의결권 확보'});
+    if(stake>=45)push({id:`defense-rights-${Number(threat.attacker_company_id||0)}-${Math.floor(cycle/12)}`,kind:'DEFENSE_RIGHTS_ISSUE',priority:'critical',department:'FINANCE',officer:crisisOfficer,title:'긴급 유상증자 희석안',summary:'경영권선이 가까워 재무팀이 신주 발행으로 공격자 지분을 희석하는 비상안을 상신했습니다.',budget:Math.max(100000000,Math.min(Math.max(cash*.18,valuation*.012),valuation*.025)),impact:'공격자 지분 희석 · 신규 현금 조달 · 기존 주주 희석'});
+    if(Number(threat.attacker_company_id||0)>0&&cash>120000000)push({id:`defense-counter-${Number(threat.attacker_company_id)}-${Math.floor(cycle/14)}`,kind:'DEFENSE_COUNTER',priority:'warn',department:'MANAGEMENT',officer:mgmt?.top||crisisOfficer,title:'역인수·맞지분 확보안',summary:'상대 회사 지분을 역으로 매입해 협상력을 확보하자는 제안입니다.',budget:Math.max(120000000,Math.min(cash*.18,valuation*.012)),impact:'상대 회사 맞지분 확보 · 협상 압력'});
+  }
   for(const p of products.filter(x=>String(x.status)==='READY').slice(0,2)){
     const officer=chairmanProposalOfficer('ENGINEERING')||chairmanProposalOfficer('MANAGEMENT');
     push({id:`launch-${p.id}`,kind:'PRODUCT_LAUNCH',priority:'critical',department:'ENGINEERING',officer,title:`${p.name} 출시 승인 요청`,summary:'개발이 끝난 제품입니다. 출시 여부는 회장 결재가 필요합니다.',budget:Math.max(5000000,Number(p.development_budget||p.budget||0)*.03||5000000),productId:Number(p.id),impact:'판매 개시 · 재고/수요/마진 발생'});
   }
-  const developing=products.some(p=>['DEVELOPMENT','READY'].includes(String(p.status))),active=products.filter(p=>String(p.status)==='ACTIVE').length;
-  const eng=perf.find(x=>x.code==='ENGINEERING');
-  if(!developing&&active<3&&(Number(my.technology||0)>=55||Number(eng?.score||0)>=62)&&cash>120000000){
-    const preset=sectorProductPreset(my.sector),budget=Math.max(100000000,Math.min(cash*.09,Math.max(100000000,valuation*.012)));
-    push({id:`new-product-${Math.floor(cycle/24)}`,kind:'PRODUCT_DEVELOP',priority:'opportunity',department:'ENGINEERING',officer:eng?.top,title:'신제품 개발안 상신',summary:`기술팀이 ${preset.name} 개발을 제안했습니다. 승인 시 개발비가 즉시 집행됩니다.`,budget,productName:preset.name,productType:preset.type,targetPrice:preset.price,capacity:preset.capacity,impact:'기술·제품 포트폴리오 확대'});
-  }
-  const threat=activeTakeoverThreat();
-  if(threat){
-    const stake=Math.max(Number(threat.stake||0),Number(threat.aggregate_stake||0));
-    const fin=perf.find(x=>x.code==='FINANCE')||perf.find(x=>x.code==='MANAGEMENT');
-    const budget=Math.max(100000000,Math.min(cash*.22,valuation*.015));
-    push({id:`defense-buyback-${Number(threat.attacker_company_id||0)}-${Math.floor(cycle/12)}`,kind:'DEFENSE_BUYBACK',priority:'critical',department:'FINANCE',officer:fin?.top,title:'경영권 방어 자사주 매입안',summary:`공격자 지분 ${stake.toFixed(2)}%. 재무팀이 즉시 자사주 매입 방어를 권고했습니다.`,budget,impact:'공격자 지분 압박 완화 · 방어력 강화'});
-    if(Number(threat.attacker_company_id||0)>0&&cash>budget*1.4)push({id:`defense-counter-${Number(threat.attacker_company_id)}-${Math.floor(cycle/18)}`,kind:'DEFENSE_COUNTER',priority:'warn',department:'MANAGEMENT',officer:chairmanProposalOfficer('MANAGEMENT'),title:'역인수·맞지분 확보안',summary:'상대 회사 주식을 역으로 매입해 협상력을 확보하자는 제안입니다.',budget:Math.max(120000000,Math.min(cash*.18,valuation*.012)),impact:'상대 회사 맞지분 확보 · 협상 압력'});
-  }else{
-    const rival=companyNeighborRival(my),fin=perf.find(x=>x.code==='FINANCE'),mgmt=perf.find(x=>x.code==='MANAGEMENT');
-    if(rival&&cash>250000000&&Math.max(Number(fin?.score||0),Number(mgmt?.score||0))>=58){
-      const budget=Math.max(100000000,Math.min(cash*.07,Number(rival.valuation||0)*.006));
-      push({id:`stake-${rival.id}-${Math.floor(cycle/36)}`,kind:'STRATEGIC_STAKE',priority:'normal',department:'FINANCE',officer:fin?.top||mgmt?.top,title:`${rival.name} 전략지분 매입 검토`,summary:'재무팀이 순위 인접 경쟁사에 대한 소수지분 확보를 제안했습니다.',budget,targetCompanyId:Number(rival.id),impact:'정보·협상력 확보 · 향후 M&A 선택지 확대'});
-    }
-  }
+  const developing=products.some(p=>['DEVELOPMENT','READY'].includes(String(p.status))),active=products.filter(p=>String(p.status)==='ACTIVE').length,eng=perf.find(x=>x.code==='ENGINEERING');
+  if(!developing&&active<3&&(Number(my.technology||0)>=55||Number(eng?.score||0)>=62)&&cash>120000000){const preset=sectorProductPreset(my.sector),budget=Math.max(100000000,Math.min(cash*.09,Math.max(100000000,valuation*.012)));push({id:`new-product-${Math.floor(cycle/24)}`,kind:'PRODUCT_DEVELOP',priority:'opportunity',department:'ENGINEERING',officer:eng?.top,title:'신제품 개발안 상신',summary:`기술팀이 ${preset.name} 개발을 제안했습니다. 승인 시 개발비가 즉시 집행됩니다.`,budget,productName:preset.name,productType:preset.type,targetPrice:preset.price,capacity:preset.capacity,impact:'기술·제품 포트폴리오 확대'});}
+  if(!threat){const rival=companyNeighborRival(my),fin=perf.find(x=>x.code==='FINANCE'),mgmt=perf.find(x=>x.code==='MANAGEMENT');if(rival&&cash>250000000&&Math.max(Number(fin?.score||0),Number(mgmt?.score||0))>=58){const budget=Math.max(100000000,Math.min(cash*.07,Number(rival.valuation||0)*.006));push({id:`stake-${rival.id}-${Math.floor(cycle/36)}`,kind:'STRATEGIC_STAKE',priority:'normal',department:'FINANCE',officer:fin?.top||mgmt?.top,title:`${rival.name} 전략지분 매입 검토`,summary:'재무팀이 순위 인접 경쟁사에 대한 소수지분 확보를 제안했습니다.',budget,targetCompanyId:Number(rival.id),impact:'정보·협상력 확보 · 향후 M&A 선택지 확대'});}}
   const best=[...perf].filter(x=>x.count>0).sort((a,b)=>b.score-a.score)[0];
-  if(best&&best.score>=66&&cash>50000000){
-    const amount=Math.max(20000000,Math.min(cash*.025,Math.max(20000000,Number(my.monthly_payroll||0)*.08)));
-    push({id:`incentive-${best.code}-${Math.floor(cycle/24)}`,kind:'DEPT_INCENTIVE',priority:'opportunity',department:best.code,officer:best.top,title:`${best.label} 성과 인센티브안`,summary:`최근 부서 성과 ${best.score.toFixed(1)}점. 성과를 보상하면 충성도와 성장 XP가 올라가고 자동 운영력이 강화됩니다.`,budget:amount,impact:'부서 사기·성장·자동운영 효율 상승'});
-  }
-  return out.slice(0,6);
+  if(best&&best.score>=66&&cash>50000000){const amount=Math.max(20000000,Math.min(cash*.025,Math.max(20000000,Number(my.monthly_payroll||0)*.08)));push({id:`incentive-${best.code}-${Math.floor(cycle/24)}`,kind:'DEPT_INCENTIVE',priority:'opportunity',department:best.code,officer:best.top,title:`${best.label} 성과 인센티브안`,summary:`최근 부서 성과 ${best.score.toFixed(1)}점. 성과를 보상하면 충성도와 성장 XP가 올라가고 자동 운영력이 강화됩니다.`,budget:amount,impact:'부서 사기·성장·자동운영 효율 상승'});}
+  const weight={critical:0,warn:1,opportunity:2,normal:3};
+  return out.sort((a,b)=>(weight[a.priority]??9)-(weight[b.priority]??9)).slice(0,6);
 }
 function chairmanPriorityLabel(p){return p==='critical'?'긴급':p==='warn'?'주의':p==='opportunity'?'기회':'검토'}
 function renderChairmanCommandCenter(my){
@@ -2727,6 +2728,9 @@ function bind(){
       else if(p.kind==='PRODUCT_DEVELOP')result=await companyRealismRun('DEVELOP_PRODUCT',{p_name:p.productName,p_type:p.productType,p_target_price:p.targetPrice,p_budget:p.budget,p_capacity:p.capacity});
       else if(p.kind==='STRATEGIC_STAKE')result=await companyRun('kx_company_buy_shares',{p_target_company_id:p.targetCompanyId,p_budget:p.budget});
       else if(p.kind==='DEFENSE_BUYBACK'){result=await companyDefenseV640('BUYBACK',p.budget);if(result?.ok===false)throw new Error(result.message||'방어 집행 실패');state.companyNotice=result?.message||'자사주 매입 방어를 집행했습니다.';await loadCompanyLayer(false,true);renderTerminal(true);}
+      else if(p.kind==='DEFENSE_NEGOTIATE'){result=await companyDefenseV640('NEGOTIATE',p.budget);if(result?.ok===false)throw new Error(result.message||'지분 협상 실패');state.companyNotice=result?.message||'공격자 지분 매각 협상을 집행했습니다.';await loadCompanyLayer(false,true);renderTerminal(true);}
+      else if(p.kind==='DEFENSE_WHITE_KNIGHT'){result=await companyDefenseV640('WHITE_KNIGHT',p.budget);if(result?.ok===false)throw new Error(result.message||'백기사 확보 실패');state.companyNotice=result?.message||'백기사 우호지분 확보안을 집행했습니다.';await loadCompanyLayer(false,true);renderTerminal(true);}
+      else if(p.kind==='DEFENSE_RIGHTS_ISSUE'){result=await companyDefenseV640('RIGHTS_ISSUE',p.budget);if(result?.ok===false)throw new Error(result.message||'긴급 유상증자 실패');state.companyNotice=result?.message||'긴급 유상증자로 공격자 지분을 희석했습니다.';await loadCompanyLayer(false,true);renderTerminal(true);}
       else if(p.kind==='DEFENSE_COUNTER'){result=await companyDefenseV640('COUNTER_TAKEOVER',p.budget);if(result?.ok===false)throw new Error(result.message||'역인수 집행 실패');state.companyNotice=result?.message||'역인수·맞지분 확보를 집행했습니다.';await loadCompanyLayer(false,true);renderTerminal(true);}
       else if(p.kind==='DEPT_INCENTIVE'){result=await companyIncentiveV650('DEPARTMENT',p.department,p.budget);if(result?.ok===false)throw new Error(result.message||'인센티브 집행 실패');state.companyNotice=result?.message||'부서 인센티브가 반영되었습니다.';await loadCompanyLayer(false,true);renderTerminal(true);}
       if(result){markChairmanHandled(id,p.kind.startsWith('DEFENSE')?10:36);playCompanySfx('success');}
@@ -2899,6 +2903,7 @@ function bind(){
     }catch(err){state.companyNotice='언론 처리 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
   });
 
+  document.querySelectorAll('[data-talent-grade-filter]').forEach(b=>b.onclick=()=>{state.companyTalentGradeFilter=String(b.dataset.talentGradeFilter||'ALL');renderTerminal(true)});
   document.querySelectorAll('[data-talent-interview]').forEach(b=>b.onclick=()=>{openCompanyInterviewDesk(state.company);renderTerminal()});
   document.querySelectorAll('[data-talent-jump]').forEach(b=>b.onclick=()=>{const el=document.getElementById(String(b.dataset.talentJump||''));if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('focus-pulse');setTimeout(()=>el.classList.remove('focus-pulse'),1200)}});
   document.querySelectorAll('[data-talent-hire]').forEach(b=>b.onclick=async()=>{
