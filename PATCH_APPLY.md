@@ -1,9 +1,24 @@
-# V6.4 적용 방법
+# V6.4.1 UI / 버튼 오류 핫픽스
 
-1. 기존 프로젝트를 백업합니다.
-2. 패치 ZIP의 `app.js`, `styles.css`를 프로젝트 루트에 덮어씁니다.
-3. `public/app.js`, `public/styles.css`도 같은 위치에 덮어씁니다.
-4. Supabase SQL Editor에서 `RUN_THIS_IN_SUPABASE_V6.4.sql` 전체를 한 번 실행합니다.
-5. Render/GitHub에 배포한 뒤 브라우저 강력 새로고침(Ctrl+Shift+R)을 합니다.
+현재 V6.4.0에 적용하는 패치입니다.
 
-V6.4 SQL은 V6.3까지 적용된 DB를 전제로 하는 추가 마이그레이션입니다. 기존 데이터를 삭제하지 않습니다.
+## 교체 파일
+- app.js
+- styles.css
+- public/app.js
+- public/styles.css
+
+같은 경로의 기존 파일을 위 파일로 교체하세요.
+
+## Supabase
+이번 패치는 프런트 UI/렌더링 오류 수정이므로 SQL을 다시 실행할 필요가 없습니다.
+
+## 수정 내용
+1. `renderCompanyCompactContext is not defined` 오류 수정
+2. 경영/사업/직원/M&A/뉴스 메뉴 이동 시 화면이 멈추던 문제 수정
+3. 경영권 방어 화면의 과도한 세로 여백 제거
+4. 공격자 지분·우호 지분·방어력·맞지분·1% 지분가치를 5개 KPI 카드로 정리
+5. 방어 수단 버튼 높이와 설명을 압축해 한 화면에서 더 많이 보이도록 조정
+6. 비판 기사 / 회사 분석·인수 버튼이 렌더 오류 때문에 실행되지 않던 문제 해결
+
+Render에서 `npm run build`를 사용하면 새 app.js/styles.css 기준으로 asset version이 자동 갱신됩니다.

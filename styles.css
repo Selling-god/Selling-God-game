@@ -899,3 +899,64 @@ body.tutorial-active{overflow:hidden}
 .compact-management-nav{display:flex;flex-wrap:nowrap!important;gap:4px;overflow-x:auto;scrollbar-width:none}.compact-management-nav::-webkit-scrollbar{display:none}.compact-management-nav button{white-space:nowrap!important;flex:0 0 auto!important;padding-left:11px!important;padding-right:11px!important}
 .management-mobile-nav{overflow-x:auto;justify-content:flex-start!important}.management-mobile-nav button{min-width:72px;flex:0 0 auto}
 .company-notice.muted{display:none!important}.company-hero-grid{grid-template-columns:1fr!important}.company-briefing-card{display:none!important}
+
+
+/* ========================================================================== */
+/* KX CORPORATE V6.4.1 - navigation crash + compact takeover readability      */
+/* ========================================================================== */
+.company-compact-context{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  margin:0 0 14px;padding:12px 14px;border:1px solid #243850;border-radius:14px;
+  background:#0a1522;min-height:72px
+}
+.company-compact-identity{display:flex;align-items:center;gap:13px;min-width:0}
+.company-compact-identity>small{flex:0 0 auto;padding:5px 8px;border:1px solid #304a66;border-radius:8px;background:#101e2e;color:#8fb1d1;font-size:9px;font-weight:900;letter-spacing:.08em}
+.company-compact-identity>div{display:grid;gap:2px;min-width:0}
+.company-compact-identity strong{font-size:20px;line-height:1.15;color:#f2f6fa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.company-compact-identity span{font-size:11px;color:#8198ae;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.company-compact-kpis{display:grid;grid-template-columns:repeat(4,minmax(96px,1fr));gap:7px;flex:0 1 560px}
+.company-compact-kpis article{display:grid;gap:3px;min-height:48px;margin:0!important;padding:8px 10px!important;border:1px solid #20344a;border-radius:10px;background:#09131e;align-content:center}
+.company-compact-kpis article small{font-size:9px;color:#7e95ab}
+.company-compact-kpis article b{font-size:14px;color:#edf3f8;line-height:1.15}
+.company-compact-kpis article.danger{border-color:#68404a;background:#171116}.company-compact-kpis article.danger b{color:#ff9aa2}
+
+.corporate-ui-refresh .compact-defense{padding:16px!important;overflow:visible}
+.corporate-ui-refresh .compact-defense .takeover-crisis-head{display:flex!important;justify-content:space-between!important;align-items:center!important;gap:14px!important;margin:0 0 12px!important}
+.corporate-ui-refresh .compact-defense .takeover-crisis-head>div:first-child{display:grid;gap:2px;min-width:0}
+.corporate-ui-refresh .compact-defense .takeover-crisis-head small{font-size:10px;color:#94aac0;font-weight:800}
+.corporate-ui-refresh .compact-defense .takeover-crisis-head h2{margin:0!important;font-size:24px!important;line-height:1.15}
+.corporate-ui-refresh .takeover-pressure-grid.compact{
+  display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  gap:8px!important;margin:0 0 12px!important;padding:0!important
+}
+.corporate-ui-refresh .takeover-pressure-grid.compact article{
+  display:grid!important;align-content:center!important;gap:4px!important;
+  min-width:0!important;min-height:68px!important;height:auto!important;
+  margin:0!important;padding:10px 12px!important;border:1px solid #263b52!important;
+  border-radius:11px!important;background:#0a1521!important
+}
+.corporate-ui-refresh .takeover-pressure-grid.compact article.danger{border-color:#6a3c46!important;background:#171116!important}
+.corporate-ui-refresh .takeover-pressure-grid.compact article small{display:block!important;margin:0!important;font-size:9px!important;color:#869db4!important;line-height:1.2!important}
+.corporate-ui-refresh .takeover-pressure-grid.compact article b{display:block!important;margin:0!important;font-size:20px!important;line-height:1.15!important;color:#f1f5f8!important;white-space:nowrap!important}
+.corporate-ui-refresh .takeover-pressure-grid.compact article.danger b{color:#ff9aa2!important}
+.corporate-ui-refresh .defense-budget-box{margin:10px 0 12px!important;gap:10px!important;align-items:stretch!important}
+.corporate-ui-refresh .defense-budget-box>span{display:flex;align-items:center;min-height:44px;padding:9px 11px!important;font-size:11px!important;line-height:1.35!important}
+.corporate-ui-refresh .compact-defense .takeover-defense-grid{gap:8px!important}
+.corporate-ui-refresh .compact-defense .takeover-defense-btn{min-height:104px!important;padding:11px 12px!important;gap:3px!important}
+.corporate-ui-refresh .compact-defense .takeover-defense-btn small{font-size:9px!important}
+.corporate-ui-refresh .compact-defense .takeover-defense-btn b{margin:3px 0!important;font-size:14px!important}
+.corporate-ui-refresh .compact-defense .takeover-defense-btn span{font-size:10px!important;line-height:1.35!important}
+.corporate-ui-refresh .compact-defense .takeover-defense-btn em{margin-top:4px!important;font-size:9px!important;line-height:1.3!important}
+
+@media(max-width:1050px){
+  .company-compact-context{align-items:flex-start;flex-direction:column}
+  .company-compact-kpis{width:100%;flex-basis:auto}
+  .corporate-ui-refresh .takeover-pressure-grid.compact{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+}
+@media(max-width:700px){
+  .company-compact-context{padding:10px}
+  .company-compact-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .corporate-ui-refresh .compact-defense .takeover-crisis-head{align-items:flex-start!important;flex-direction:column!important}
+  .corporate-ui-refresh .takeover-pressure-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .corporate-ui-refresh .compact-defense .takeover-defense-btn{min-height:90px!important}
+}

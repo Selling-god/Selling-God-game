@@ -2040,6 +2040,24 @@ function renderCompanySubnav(my){
   ];
   return `<nav class="company-section-switcher compact-switcher">${items.map(([k,title,badge])=>`<button type="button" data-company-section="${k}" class="${section===k?'on':''}"><b>${title}</b>${badge?`<span>${badge}</span>`:''}</button>`).join('')}</nav>`;
 }
+function renderCompanyCompactContext(my,myRank,companies){
+  const section=state.companySection||'dashboard';
+  const labels={operations:['BUSINESS OPERATIONS','사업 운영'],people:['PEOPLE','직원·인재'],competition:['COMPETITION · M&A','투자·M&A'],risk:['NEWS · RISK','뉴스·리스크'],dashboard:['CEO OFFICE','경영 홈']};
+  const meta=labels[section]||labels.dashboard;
+  const threat=companyStakeAgainstMe();
+  const activeProjects=(state.company?.projects||[]).filter(p=>String(p.status)==='ACTIVE').length;
+  const totalCompanies=Array.isArray(companies)?companies.length:0;
+  return `<section class="company-compact-context" aria-label="현재 회사 요약">
+    <div class="company-compact-identity"><small>${meta[0]}</small><div><strong>${escapeHtml(my.name)}</strong><span>${escapeHtml(my.sector||'')} · 전체 ${totalCompanies}개 중 #${myRank||'-'} · ${meta[1]}</span></div></div>
+    <div class="company-compact-kpis">
+      <article><small>법인 현금</small><b>${formatKrwSmart(my.cash)}</b></article>
+      <article><small>회사 가치</small><b>${formatKrwSmart(my.valuation)}</b></article>
+      <article class="${threat>=35?'danger':''}"><small>외부 지분</small><b>${threat.toFixed(1)}%</b></article>
+      <article><small>진행 프로젝트</small><b>${activeProjects}개</b></article>
+    </div>
+  </section>`;
+}
+
 function renderCompanyRoom(){
   if(state.companyAvailable===false)return renderCompanyOnlineRequired();
   const my=state.company?.my_company;
