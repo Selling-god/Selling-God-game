@@ -1272,8 +1272,54 @@ function renderTakeoverCrisis(my){
     </div>
     <div class="takeover-progress"><div class="takeover-progress-label"><span>${escapeHtml(c.attacker_name||'공격 기업')} 지분</span><b>${stake.toFixed(2)}% / 50%</b></div><div class="takeover-progress-track"><i style="width:${progress}%"></i><em></em></div><small>방어를 하지 않으면 BOT이 인수전 마감 시 프리미엄을 붙인 최종 공개매수를 시도할 수 있습니다.</small></div>
     <div class="takeover-board-note"><b>긴급 이사회</b><span>한 라운드에 하나의 방어 결정만 실행할 수 있습니다. 모든 선택에는 현금, 브랜드, 지분 희석 등 서로 다른 대가가 있습니다.</span>${companyMoneyInput('takeoverDefenseBudget','이번 대응 예산','1억 5000만')}</div>
-    <div class="takeover-defense-grid">${actions.map(a=>{const used=(a[0]==='POISON_PILL'&&c.used_poison_pill)||(a[0]==='RIGHTS_ISSUE'&&c.used_rights_issue);return `<button data-company-defense="${a[0]}" ${used?'disabled':''}><small>${a[3]}</small><b>${a[1]}</b><span>${used?'이번 인수전에서 이미 사용함':a[2]}</span></button>`}).join('')}</div>
+    <div class="takeover-defense-grid">${actions.map(a=>{const used=(a[0]==='POISON_PILL'&&c.used_poison_pill)||(a[0]==='RIGHTS_ISSUE'&&c.used_rights_issue);return `<button type="button" class="takeover-defense-btn" data-company-defense="${a[0]}" ${used?'disabled':''}><small>${a[3]}</small><b>${a[1]}</b><span>${used?'이번 인수전에서 이미 사용함':a[2]}</span></button>`}).join('')}</div>
   </section>`;
+}
+
+async function executeTakeoverDefense(action,triggerEl=null){
+  const control=state.company?.control_case;
+  if(!control){
+    state.companyNotice='현재 처리할 경영권 인수전이 없습니다. 최신 데이터를 다시 불러온 뒤 확인해 주세요.';
+    const msg=document.getElementById('companyMsg');if(msg)msg.textContent=state.companyNotice;
+    return;
+  }
+  const normalized=String(action||'').toUpperCase();
+  const labels={BUYBACK:'긴급 자사주 매입',NEGOTIATE:'공격 기업과 지분 매각 협상',WHITE_KNIGHT:'백기사 우호지분 확보',POISON_PILL:'포이즌필 발동',RIGHTS_ISSUE:'긴급 유상증자',COUNTER_TAKEOVER:'역인수·맞지분 전략'};
+  const warnings={POISON_PILL:'강력한 방어 효과가 있지만 브랜드와 운영에 단기 부담이 생깁니다. ',RIGHTS_ISSUE:'신주 발행으로 공격자 지분이 희석되지만 기존 주주도 함께 희석됩니다. ',COUNTER_TAKEOVER:'상대 회사를 공격하는 만큼 많은 현금이 묶일 수 있습니다. '};
+  if(!labels[normalized]){
+    state.companyNotice='지원하지 않는 경영권 방어 전략입니다.';
+    const msg=document.getElementById('companyMsg');if(msg)msg.textContent=state.companyNotice;
+    return;
+  }
+  const amount=Math.max(40000000,parseCompanyMoney(document.getElementById('takeoverDefenseBudget')?.value,150000000));
+  const cash=Number(state.company?.my_company?.cash||0);
+  if(normalized!=='RIGHTS_ISSUE'&&amount>cash){
+    state.companyNotice=`경영권 방어 예산이 부족합니다. 현재 법인현금 ${formatKrwSmart(cash)} · 입력 예산 ${formatKrwSmart(amount)}`;
+    const msg=document.getElementById('companyMsg');if(msg)msg.textContent=state.companyNotice;
+    return;
+  }
+  const question=`${warnings[normalized]||''}${labels[normalized]}을 실행할까요?\n\n대응 예산 ${formatKrwSmart(amount)} · 공격 기업 ${control.attacker_name||'-'} · 상대 지분 ${Number(control.stake||0).toFixed(2)}%`;
+  if(!confirm(question))return;
+  const originalText=triggerEl?.innerHTML||'';
+  try{
+    if(triggerEl){triggerEl.disabled=true;triggerEl.classList.add('processing');triggerEl.innerHTML='<small>이사회 처리 중</small><b>방어 결정 집행 중...</b><span>서버에 경영권 방어 명령을 전송하고 있습니다.</span>';}
+    state.companyNotice=`${labels[normalized]} 처리 중...`;
+    const msg=document.getElementById('companyMsg');if(msg)msg.textContent=state.companyNotice;
+    const d=await companyApi('DEFENSE',{p_action:normalized,p_budget:amount});
+    if(d?.ok===false)throw new Error(d.message||'경영권 방어 결정을 처리하지 못했습니다.');
+    state.companyNotice=d?.message||`${labels[normalized]} 전략을 실행했습니다.`;
+    playCompanySfx('alert');
+    try{recordCompanyGameAction('defenses',normalized)}catch{}
+    await loadCompanyLayer(false,false);
+    renderTerminal(true);
+    return d;
+  }catch(err){
+    state.companyNotice='경영권 방어 처리 실패: '+(err?.message||String(err));
+    const msg=document.getElementById('companyMsg');
+    if(msg)msg.textContent=state.companyNotice;else alert(state.companyNotice);
+    if(triggerEl&&document.contains(triggerEl)){triggerEl.disabled=false;triggerEl.classList.remove('processing');triggerEl.innerHTML=originalText;}
+    return null;
+  }
 }
 
 function managementProjectMeta(type){
@@ -1718,7 +1764,7 @@ function renderCompanyAnalysisPanel(my){
     ${renderCompetitorProductIntel()}
     ${renderDueDiligencePanel(c,self,controlled)}
     <div class="analysis-news"><div class="analysis-subhead"><h3>최근 15분 관련 뉴스</h3><span>${press.length}건</span></div>${press.length?press.slice(0,4).map(a=>`<article><small>${escapeHtml(a.outlet_name||'경제뉴스')}</small><b>${escapeHtml(a.headline)}</b><p>${escapeHtml(a.article_body||'')}</p></article>`).join(''):`<div class="empty compact">최근 15분 안에 보도된 기사가 없습니다.</div>`}</div>
-    ${self?`<div class="self-ownership-panel"><div><small>내 경영진·우호 지분</small><b>${stake.toFixed(2)}%</b><span>외부 세력 합계 ${Number(my.incoming_stake||0).toFixed(2)}% · 적대적 지분이 늘수록 이 비율이 낮아집니다.</span></div><button data-company-section-jump="competition" class="section-link">경영권 방어 현황 보기</button></div>`:`<div class="analysis-acquire"><div><small>현재 단계</small><b>${stage.label}</b><span>${controlled?'경영권 확보 완료':stage.desc}</span></div>${companyMoneyInput(`takeBudget_${c.id}`,'인수 예산','1억')}<button data-company-buy="${c.id}" ${controlled?'disabled':''}>장내 지분 매수</button><button data-company-tender="${c.id}" class="tender" ${stake<15||controlled||!dueDiligenceFor(c.id)?'disabled':''}>${stake>=15&&!controlled&&!dueDiligenceFor(c.id)?'실사 후 공개매수':'공개매수'}</button></div>`}
+    ${self?`<div class="self-ownership-panel"><div><small>내 경영진·우호 지분</small><b>${stake.toFixed(2)}%</b><span>외부 세력 합계 ${Number(my.incoming_stake||0).toFixed(2)}% · 적대적 지분이 늘수록 이 비율이 낮아집니다.</span></div><button type="button" data-company-section-jump="competition" class="section-link takeover-status-link">경영권 방어 현황 보기</button></div>`:`<div class="analysis-acquire"><div><small>현재 단계</small><b>${stage.label}</b><span>${controlled?'경영권 확보 완료':stage.desc}</span></div>${companyMoneyInput(`takeBudget_${c.id}`,'인수 예산','1억')}<button data-company-buy="${c.id}" ${controlled?'disabled':''}>장내 지분 매수</button><button data-company-tender="${c.id}" class="tender" ${stake<15||controlled||!dueDiligenceFor(c.id)?'disabled':''}>${stake>=15&&!controlled&&!dueDiligenceFor(c.id)?'실사 후 공개매수':'공개매수'}</button></div>`}
   </aside>`;
 }
 
@@ -2364,8 +2410,11 @@ function bind(){
   }
 
   document.querySelectorAll('[data-company-section],[data-company-section-jump]').forEach(b=>b.onclick=(e)=>{
-    e?.preventDefault?.();
-    state.companySection=b.dataset.companySection||b.dataset.companySectionJump||'dashboard';state.tab='company';renderTerminal(true);
+    e?.preventDefault?.();e?.stopPropagation?.();
+    const nextSection=b.dataset.companySection||b.dataset.companySectionJump||'dashboard';
+    state.companySection=nextSection;state.tab='company';
+    state.companyNotice=nextSection==='competition'?'M&A·경영권 화면으로 이동했습니다. 외부 지분과 현재 인수전 상태를 확인하세요.':state.companyNotice;
+    renderTerminal(true);
   });
   document.querySelectorAll('[data-guide-mode]').forEach(b=>b.onclick=()=>{
     setGuidanceMode(b.dataset.guideMode||'BEGINNER');state.companyNotice=`플레이 도움 모드를 ${guidanceInfo().label}(으)로 변경했습니다.`;playCompanySfx('click');renderTerminal(true);
@@ -2455,12 +2504,9 @@ function bind(){
     companyRun('kx_company_action',{p_action:action,p_amount:amount},`${risky}${labels[action]||'경영 결정'}을 실행할까요?${context}`);
   });
 
-  document.querySelectorAll('[data-company-defense]').forEach(b=>b.onclick=()=>{
-    const action=b.dataset.companyDefense;
-    const amount=Math.max(40000000,parseCompanyMoney(document.getElementById('takeoverDefenseBudget')?.value,150000000));
-    const labels={BUYBACK:'긴급 자사주 매입',NEGOTIATE:'공격 기업과 지분 매각 협상',WHITE_KNIGHT:'백기사 우호지분 확보',POISON_PILL:'포이즌필 발동',RIGHTS_ISSUE:'긴급 유상증자',COUNTER_TAKEOVER:'역인수·맞지분 전략'};
-    const warnings={POISON_PILL:'강력한 방어 효과가 있지만 브랜드와 운영에 단기 부담이 생깁니다. ',RIGHTS_ISSUE:'신주 발행으로 공격자 지분이 희석되지만 기존 주주도 함께 희석됩니다. ',COUNTER_TAKEOVER:'상대 회사를 공격하는 만큼 많은 현금이 묶일 수 있습니다. '};
-    companyRun('kx_company_defense',{p_action:action,p_budget:amount},`${warnings[action]||''}${labels[action]||'경영권 방어'}을 실행할까요? 인수전에서는 한 경영 라운드에 하나의 방어 결정만 할 수 있습니다.`);
+  document.querySelectorAll('[data-company-defense]').forEach(b=>b.onclick=(e)=>{
+    e.preventDefault();e.stopPropagation();
+    executeTakeoverDefense(b.dataset.companyDefense,b);
   });
 
   document.querySelectorAll('[data-company-expand]').forEach(b=>b.onclick=()=>{
