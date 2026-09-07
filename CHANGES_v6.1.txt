@@ -1,0 +1,13 @@
+SERIOUS REALISM HOTFIX v6.1
+
+- Removed CEO season letter grade UI
+- Removed season score / daily challenge / rival target
+- Removed auto highlight reel
+- Removed career XP / objective panel
+- Disabled creator HUD display
+- Removed game-like guide badge from header
+- Restored serious corporate-management tone
+- Made main navigation switch immediately before network refresh
+- Made company section navigation react immediately
+- Kept interactive project decisions, rewritten as corporate kickoff review
+- Removed board-event/season bonuses from project kickoff calculations
