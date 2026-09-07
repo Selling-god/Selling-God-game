@@ -683,7 +683,61 @@ function localCompanyAction(name,body={}){
 function companyGrowth(c){return Number(c?.previous_revenue)>0?((Number(c.revenue)-Number(c.previous_revenue))/Number(c.previous_revenue))*100:0}
 function companyProfitMargin(c){return Number(c?.revenue)>0?Number(c.profit)/Number(c.revenue)*100:0}
 function companyDebtRatio(c){return Number(c?.valuation)>0?Number(c.debt)/Number(c.valuation)*100:0}
-function companyStakeAgainstMe(){return Number(state.company?.my_company?.incoming_stake||0)}
+function companyStakeAgainstMe(){
+  const direct=Number(state.company?.my_company?.incoming_stake||0);
+  if(direct>0)return direct;
+  const incoming=state.company?.incoming_holdings||[];
+  return incoming.reduce((sum,h)=>sum+Math.max(0,Number(h?.stake||0)),0);
+}
+function activeTakeoverThreat(){
+  const live=state.company?.control_case;
+  if(live)return {...live,synthetic:false};
+  const incoming=[...(state.company?.incoming_holdings||[])].filter(h=>Number(h?.stake||0)>0).sort((a,b)=>Number(b.stake||0)-Number(a.stake||0));
+  const top=incoming[0]||null;
+  const aggregate=companyStakeAgainstMe();
+  if(!top&&aggregate<=0)return null;
+  const stake=Math.max(0,Number(top?.stake||aggregate||0));
+  return {
+    synthetic:true,
+    attacker_company_id:top?.holder_company_id||null,
+    attacker_name:top?.holder_name||'최대 외부주주',
+    attacker_ticker:top?.holder_ticker||'',
+    attacker_country:top?.holder_country||top?.country||'',
+    attacker_type:top?.holder_type||'외부 주주',
+    stake,
+    aggregate_stake:aggregate,
+    stage:localTakeoverStage(stake),
+    cycles_left:null,
+    counter_stake:0,
+    used_poison_pill:false,
+    used_rights_issue:false
+  };
+}
+function scrollToTakeoverDefenseCenter(){
+  const details=document.getElementById('takeoverOwnershipDetails');
+  if(details)details.open=true;
+  const target=document.getElementById('takeoverDefenseCenter')||document.getElementById('takeoverOwnershipDesk')||details;
+  if(!target)return false;
+  try{target.scrollIntoView({behavior:'smooth',block:'start'});}catch(_e){target.scrollIntoView();}
+  target.classList?.add?.('defense-focus-flash');
+  setTimeout(()=>target.classList?.remove?.('defense-focus-flash'),1400);
+  return true;
+}
+function openTakeoverDefenseOverview(){
+  state.tab='company';
+  state.companySection='competition';
+  state.companyAnalysisId=null;
+  state.companyAnalysis=null;
+  state.companyNotice='경영권 방어 현황을 열었습니다. 외부 지분과 방어 수단을 확인하세요.';
+  renderTerminal(true);
+  requestAnimationFrame(()=>setTimeout(()=>{
+    if(!scrollToTakeoverDefenseCenter()){
+      const msg=document.getElementById('companyMsg');
+      if(msg)msg.textContent='경영권 현황 화면을 열었지만 표시할 외부 지분이 없습니다.';
+    }
+  },60));
+}
+
 function compactMoney(v){
   v=Number(v)||0;
   if(Math.abs(v)>=1000000000000)return `${(v/1000000000000).toFixed(1)}조`;
@@ -1245,9 +1299,11 @@ function takeoverStageMeta(stage,stake){
 }
 
 function renderTakeoverCrisis(my){
-  const c=state.company?.control_case;
+  const c=activeTakeoverThreat();
   if(!c)return '';
-  const stake=Number(c.stake||0),left=Math.max(0,Number(c.cycles_left||0));
+  const stake=Number(c.stake||0),aggregate=Math.max(stake,Number(c.aggregate_stake||companyStakeAgainstMe()||0));
+  const hasDeadline=Number.isFinite(Number(c.cycles_left))&&c.cycles_left!==null&&c.cycles_left!=='';
+  const left=hasDeadline?Math.max(0,Number(c.cycles_left||0)):null;
   const defense=Number(my.defense_power||c.defense_power||0),counter=Number(c.counter_stake||0);
   const meta=takeoverStageMeta(c.stage,stake);
   const progress=Math.min(100,Math.max(2,stake/50*100));
@@ -1259,28 +1315,28 @@ function renderTakeoverCrisis(my){
     ['RIGHTS_ISSUE','긴급 유상증자','신주를 발행해 공격 기업의 지분율을 희석하고 동시에 현금을 확보합니다.','희석 / 1회'],
     ['COUNTER_TAKEOVER','역인수·맞지분','오히려 공격 기업의 지분을 사들여 협상 카드를 만들고 상대를 압박합니다.','공격적 방어']
   ];
-  return `<section class="takeover-crisis ${meta[1]}">
+  return `<section id="takeoverDefenseCenter" class="takeover-crisis ${meta[1]}">
     <div class="takeover-crisis-head">
       <div><small>BOARD EMERGENCY · HOSTILE TAKEOVER</small><h2>${meta[0]}</h2><p>${escapeHtml(meta[2])}</p></div>
       <div class="takeover-alarm"><span>공격 기업</span><b>${escapeHtml(c.attacker_name||'-')}</b><small>${escapeHtml(c.attacker_country||'')} · ${escapeHtml(c.attacker_type||'')} · ${escapeHtml(c.attacker_ticker||'')}</small></div>
     </div>
     <div class="takeover-pressure-grid">
       <article><small>상대 확보 지분</small><b>${stake.toFixed(2)}%</b><span>50% 이상이면 경영권 인수</span></article>
-      <article><small>남은 대응 라운드</small><b>${left}</b><span>${left<=4?'최종 공개매수 임박':left<=8?'대응을 서둘러야 합니다':'아직 방어전략을 고를 시간이 있습니다'}</span></article>
+      <article><small>${hasDeadline?'남은 대응 라운드':'외부 세력 합계'}</small><b>${hasDeadline?left:aggregate.toFixed(2)+'%'}</b><span>${hasDeadline?(left<=4?'최종 공개매수 임박':left<=8?'대응을 서둘러야 합니다':'아직 방어전략을 고를 시간이 있습니다'):(aggregate>=50?'이미 50%를 넘어 독립 회복 조치가 필요합니다.':aggregate>=35?'경영권 방어가 필요한 수준입니다.':'최대 외부주주 중심으로 방어할 수 있습니다.')}</span></article>
       <article><small>경영권 방어력</small><b>${defense.toFixed(0)}</b><span>높을수록 상대의 추가 매입 효율 감소</span></article>
       <article><small>상대 회사 맞지분</small><b>${counter.toFixed(2)}%</b><span>10% 이상이면 역인수 협상 압박 효과</span></article>
     </div>
     <div class="takeover-progress"><div class="takeover-progress-label"><span>${escapeHtml(c.attacker_name||'공격 기업')} 지분</span><b>${stake.toFixed(2)}% / 50%</b></div><div class="takeover-progress-track"><i style="width:${progress}%"></i><em></em></div><small>방어를 하지 않으면 BOT이 인수전 마감 시 프리미엄을 붙인 최종 공개매수를 시도할 수 있습니다.</small></div>
-    <div class="takeover-board-note"><b>긴급 이사회</b><span>한 라운드에 하나의 방어 결정만 실행할 수 있습니다. 모든 선택에는 현금, 브랜드, 지분 희석 등 서로 다른 대가가 있습니다.</span>${companyMoneyInput('takeoverDefenseBudget','이번 대응 예산','1억 5000만')}</div>
+    <div class="takeover-board-note"><b>긴급 이사회</b><span>${c.synthetic?'현재 서버의 외부지분 현황을 기준으로 최대 외부주주를 상대로 방어합니다. ':''}한 라운드에 하나의 방어 결정만 실행할 수 있습니다. 모든 선택에는 현금, 브랜드, 지분 희석 등 서로 다른 대가가 있습니다.</span>${companyMoneyInput('takeoverDefenseBudget','이번 대응 예산','1억 5000만')}</div>
     <div class="takeover-defense-grid">${actions.map(a=>{const used=(a[0]==='POISON_PILL'&&c.used_poison_pill)||(a[0]==='RIGHTS_ISSUE'&&c.used_rights_issue);return `<button type="button" class="takeover-defense-btn" data-company-defense="${a[0]}" ${used?'disabled':''}><small>${a[3]}</small><b>${a[1]}</b><span>${used?'이번 인수전에서 이미 사용함':a[2]}</span></button>`}).join('')}</div>
   </section>`;
 }
 
 async function executeTakeoverDefense(action,triggerEl=null){
-  const control=state.company?.control_case;
+  const control=activeTakeoverThreat();
   if(!control){
-    state.companyNotice='현재 처리할 경영권 인수전이 없습니다. 최신 데이터를 다시 불러온 뒤 확인해 주세요.';
-    const msg=document.getElementById('companyMsg');if(msg)msg.textContent=state.companyNotice;
+    state.companyNotice='현재 내 회사 지분을 보유한 외부 세력이 없어 실행할 경영권 방어가 없습니다.';
+    const msg=document.getElementById('companyMsg');if(msg)msg.textContent=state.companyNotice;else alert(state.companyNotice);
     return;
   }
   const normalized=String(action||'').toUpperCase();
@@ -1764,7 +1820,7 @@ function renderCompanyAnalysisPanel(my){
     ${renderCompetitorProductIntel()}
     ${renderDueDiligencePanel(c,self,controlled)}
     <div class="analysis-news"><div class="analysis-subhead"><h3>최근 15분 관련 뉴스</h3><span>${press.length}건</span></div>${press.length?press.slice(0,4).map(a=>`<article><small>${escapeHtml(a.outlet_name||'경제뉴스')}</small><b>${escapeHtml(a.headline)}</b><p>${escapeHtml(a.article_body||'')}</p></article>`).join(''):`<div class="empty compact">최근 15분 안에 보도된 기사가 없습니다.</div>`}</div>
-    ${self?`<div class="self-ownership-panel"><div><small>내 경영진·우호 지분</small><b>${stake.toFixed(2)}%</b><span>외부 세력 합계 ${Number(my.incoming_stake||0).toFixed(2)}% · 적대적 지분이 늘수록 이 비율이 낮아집니다.</span></div><button type="button" data-company-section-jump="competition" class="section-link takeover-status-link">경영권 방어 현황 보기</button></div>`:`<div class="analysis-acquire"><div><small>현재 단계</small><b>${stage.label}</b><span>${controlled?'경영권 확보 완료':stage.desc}</span></div>${companyMoneyInput(`takeBudget_${c.id}`,'인수 예산','1억')}<button data-company-buy="${c.id}" ${controlled?'disabled':''}>장내 지분 매수</button><button data-company-tender="${c.id}" class="tender" ${stake<15||controlled||!dueDiligenceFor(c.id)?'disabled':''}>${stake>=15&&!controlled&&!dueDiligenceFor(c.id)?'실사 후 공개매수':'공개매수'}</button></div>`}
+    ${self?`<div class="self-ownership-panel"><div><small>내 경영진·우호 지분</small><b>${stake.toFixed(2)}%</b><span>외부 세력 합계 ${Number(my.incoming_stake||0).toFixed(2)}% · 적대적 지분이 늘수록 이 비율이 낮아집니다.</span></div><button type="button" data-open-defense-overview class="section-link takeover-status-link">경영권 방어 현황 보기</button></div>`:`<div class="analysis-acquire"><div><small>현재 단계</small><b>${stage.label}</b><span>${controlled?'경영권 확보 완료':stage.desc}</span></div>${companyMoneyInput(`takeBudget_${c.id}`,'인수 예산','1억')}<button data-company-buy="${c.id}" ${controlled?'disabled':''}>장내 지분 매수</button><button data-company-tender="${c.id}" class="tender" ${stake<15||controlled||!dueDiligenceFor(c.id)?'disabled':''}>${stake>=15&&!controlled&&!dueDiligenceFor(c.id)?'실사 후 공개매수':'공개매수'}</button></div>`}
   </aside>`;
 }
 
@@ -1788,7 +1844,7 @@ function renderTakeoverDesk(my){
   const mine=state.company?.my_holdings||[];
   const incoming=state.company?.incoming_holdings||[];
   const threat=companyStakeAgainstMe();
-  return `<section class="corp-section takeover-section">
+  return `<section id="takeoverOwnershipDesk" class="corp-section takeover-section">
     <div class="company-section-head"><div><small>04 · M&A / CONTROL</small><h2>지분 인수와 경영권</h2></div><span>한 기업이 50% 이상을 확보하면 해당 회사가 자회사로 편입됩니다.</span></div>
     <div class="takeover-summary">
       <article class="owner-stake-card"><small>내 경영진·우호 지분</small><b>${ownerStakeOf(my).toFixed(2)}%</b><span>외부 세력이 지분을 사면 이 비율이 내려갑니다. 경영권 방어의 핵심 지표입니다.</span></article>
@@ -1901,7 +1957,7 @@ function renderDashboardProgress(my){
 function renderCompanyWorkspace(my){
   const section=state.companySection||'dashboard',beginner=guidanceMode()==='BEGINNER';
   if(section==='operations')return `${renderExecutiveDecisionQueue(my)}${renderCompanyDecisionCoach(my)}${renderMacroEnvironment()}${renderProductSalesDesk(my)}${renderCompanyCommand(my)}<details class="operations-module" open><summary><b>공급망·운전자본</b><span>조달정책, 재고, 외상매출·매입</span></summary>${renderSupplyChainDesk(my)}</details><details class="operations-module" open><summary><b>재무제표·관리회계</b><span>손익, 재무상태, 현금흐름</span></summary>${renderFinancialStatements(my)}</details><details class="operations-module" ${beginner?'open':''}><summary><b>인사·급여</b><span>채용, 월급, 성과급, 감원, 고정비</span></summary>${renderPeopleFinanceDesk(my)}</details><details class="operations-module"><summary><b>확정 투자수익·현금유입</b><span>배당·해외사업·구형 프로젝트 회수</span></summary>${renderInvestmentReturnPanel(my)}</details><details class="operations-module"><summary><b>법인 투자 포트폴리오</b><span>회사 자금으로 국내·해외 주식 운용</span></summary>${renderCorporateMarket(my)}</details><details class="operations-module"><summary><b>해외시장 진출</b><span>국가별 진출과 현지 매출 성장</span></summary>${renderGlobalExpansion(my)}</details><details class="management-details"><summary>회사 세부 상태 보기</summary>${renderCompanyPulse(my)}</details>`;
-  if(section==='competition')return `${renderCompanyDecisionCoach(my)}${renderTakeoverCrisis(my)}${renderCompetitionBoard(my)}<details class="management-details"><summary>내 지분·경영권 현황 보기</summary>${renderTakeoverDesk(my)}</details>`;
+  if(section==='competition')return `${renderCompanyDecisionCoach(my)}${renderTakeoverCrisis(my)}${renderCompetitionBoard(my)}<details id="takeoverOwnershipDetails" class="management-details" ${companyStakeAgainstMe()>=15?'open':''}><summary>내 지분·경영권 현황 보기</summary>${renderTakeoverDesk(my)}</details>`;
   if(section==='risk')return `${renderCompanyDecisionCoach(my)}${renderMediaDesk(my)}<details class="management-details" ${Number(my.tax_due||0)+Number(my.tax_arrears||0)>0?'open':''}><summary>세금·준법 관리</summary>${renderTaxOffice(my)}</details>`;
   return `${renderTakeoverCrisis(my)}${renderExecutiveDecisionQueue(my)}${renderCompanyDecisionCoach(my)}${renderMacroEnvironment()}${renderRealOperatingBrief(my)}${renderCompanyGrowthPanel(my)}${renderDashboardProgress(my)}${renderExecutiveAgenda(my)}${renderCompanyLatestNews(my)}`;
 }
@@ -2408,6 +2464,11 @@ function bind(){
       }catch(err){if(msg)msg.textContent=err.message;if(btn)btn.disabled=false}
     };
   }
+
+  document.querySelectorAll('[data-open-defense-overview]').forEach(b=>b.onclick=(e)=>{
+    e?.preventDefault?.();e?.stopPropagation?.();
+    openTakeoverDefenseOverview();
+  });
 
   document.querySelectorAll('[data-company-section],[data-company-section-jump]').forEach(b=>b.onclick=(e)=>{
     e?.preventDefault?.();e?.stopPropagation?.();
