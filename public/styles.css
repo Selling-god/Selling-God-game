@@ -960,3 +960,81 @@ body.tutorial-active{overflow:hidden}
   .corporate-ui-refresh .takeover-pressure-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .corporate-ui-refresh .compact-defense .takeover-defense-btn{min-height:90px!important}
 }
+
+/* ==== v6.4.2 UI refinement patch ==== */
+.clean-company-browser{grid-template-columns:minmax(0,1.28fr) minmax(280px,.82fr);gap:18px;align-items:start}
+.clean-company-list,.competition-market-panel{min-width:0}
+.clean-company-row{grid-template-columns:72px minmax(0,1.18fr) minmax(170px,220px) minmax(210px,.9fr);gap:18px;align-items:center}
+.company-row-identity,.company-row-value,.company-row-stake,.company-row-quote{min-width:0}
+.company-row-identity h4,.company-row-identity small,.company-row-quote small{white-space:normal;word-break:keep-all;overflow-wrap:anywhere}
+.company-row-value,.company-row-stake{align-self:stretch;display:flex;flex-direction:column;justify-content:center}
+.talent-market-summary.board.four,.people-finance-kpis{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.talent-automation-panel{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);gap:18px;margin:16px 0 22px}
+.talent-automation-card,.interview-desk-card{background:rgba(6,14,30,.78);border:1px solid rgba(97,136,199,.24);border-radius:22px;padding:20px;display:grid;gap:14px;box-shadow:0 20px 44px rgba(3,8,20,.24)}
+.talent-automation-head,.interview-desk-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.talent-automation-head b{font-size:1rem;color:#d9ebff;padding:.45rem .8rem;border-radius:999px;background:rgba(84,134,233,.16);border:1px solid rgba(105,150,236,.24)}
+.talent-automation-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.talent-automation-grid>div,.interview-candidate,.candidate-card,.poach-card,.talent-person-card{background:rgba(7,17,34,.7);border:1px solid rgba(96,132,190,.22);border-radius:18px}
+.talent-automation-grid>div{padding:14px}
+.talent-automation-grid span,.interview-desk-meta span,.candidate-pay span,.talent-person-actions span,.interview-candidate-pay span,.accounting-runway span,.hr-card-note{color:#8eadde;font-size:.86rem}
+.talent-automation-grid b{display:block;font-size:1.2rem;color:#f5fbff;margin-top:4px}
+.talent-automation-points{margin:0;padding-left:1.1rem;color:#9fbbe5;display:grid;gap:6px}
+.interview-desk-head button{white-space:nowrap}
+.interview-desk-meta{display:flex;flex-wrap:wrap;gap:10px 14px}
+.interview-shortlist{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.interview-candidate{padding:14px;display:grid;gap:10px}
+.interview-candidate>div:first-child b,.candidate-top b,.talent-person-head b,.poach-person b{display:block;margin-top:4px;font-size:1.14rem;white-space:normal;overflow-wrap:anywhere}
+.interview-candidate>div:first-child span,.candidate-top em,.talent-person-head small,.poach-person small{display:block;margin-top:4px;color:#94b0da;font-style:normal;white-space:normal;overflow-wrap:anywhere}
+.interview-candidate-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;font-size:.88rem;color:#a9c3ea}
+.interview-candidate-pay{display:flex;flex-wrap:wrap;gap:10px 14px}
+.interview-empty{padding:16px 18px;border-radius:16px;background:rgba(10,18,34,.6);border:1px dashed rgba(109,144,201,.25);color:#9db8e1}
+.candidate-grid,.poach-grid,.talent-roster-grid.v640{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.candidate-card,.poach-card,.talent-person-card{padding:16px;min-width:0;overflow:hidden;display:grid;gap:12px}
+.candidate-dual-score,.talent-person-scores{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.candidate-dual-score>div,.talent-person-scores span{padding:12px 14px;border-radius:14px;background:rgba(10,20,40,.74);border:1px solid rgba(102,138,195,.18)}
+.candidate-dual-score strong,.talent-person-scores b{display:block;font-size:1.8rem;line-height:1;color:#f7fbff}
+.candidate-dual-score span,.talent-person-scores small{display:block;color:#94b0db;margin-top:4px}
+.candidate-pay,.talent-person-actions{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.candidate-card>button,.poach-card>button,.talent-person-actions button,.interview-candidate button,.hr-action-card button{width:100%}
+.talent-person-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.talent-person-head>div{min-width:0}
+.talent-person-head strong{flex:0 0 auto;padding:10px 14px;border-radius:16px;background:rgba(18,34,61,.8);border:1px solid rgba(98,138,199,.24);font-size:1rem;color:#e7f2ff}
+.talent-person-scores span{font-size:.92rem;color:#a9c3ea}
+.talent-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.talent-stats span{padding:10px 12px;border-radius:14px;background:rgba(10,20,40,.74);border:1px solid rgba(102,138,195,.18);color:#99b6df;font-size:.9rem}
+.talent-stats b{display:block;margin-top:4px;color:#f4fbff;font-size:1.05rem}
+.poach-company,.poach-person{display:grid;gap:4px}
+.poach-company span{display:inline-flex;align-items:center;width:max-content;padding:4px 10px;border-radius:999px;border:1px solid rgba(112,146,201,.26);background:rgba(14,24,43,.78);color:#b8cff1;font-size:.78rem}
+.poach-company span.player{background:rgba(78,120,214,.16);border-color:rgba(109,145,228,.32);color:#e1efff}
+.poach-warning{margin:10px 0 14px;color:#9cb8e2}
+.people-finance-desk .department-board{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.hr-action-layout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
+.hr-action-card{background:rgba(7,16,32,.82);border:1px solid rgba(100,136,193,.24);border-radius:22px;padding:20px;display:grid;gap:14px;min-width:0}
+.hr-card-head{display:grid;gap:6px}
+.hr-card-head small{color:#7ba2dc;letter-spacing:.14em;font-weight:700}
+.hr-card-head h3{margin:0;font-size:1.5rem}
+.hr-card-head p{margin:0;color:#9fbbe5;line-height:1.55}
+.hr-action-card label{display:grid;gap:8px;color:#d6e7ff;font-weight:600}
+.hr-action-card .money-input,.hr-action-card select,.hr-action-card input{width:100%}
+.hr-card-note{padding:12px 14px;border-radius:14px;background:rgba(14,25,45,.78);border:1px solid rgba(102,138,195,.18)}
+.danger-card{border-color:rgba(196,86,86,.28)}
+.danger-card .risk{background:linear-gradient(135deg,rgba(111,37,42,.92),rgba(87,21,26,.9));border-color:rgba(201,108,112,.3);color:#ffe2e2}
+.accounting-runway{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:18px}
+.accounting-runway span{display:grid;gap:4px;padding:14px 16px;border-radius:16px;background:rgba(9,18,36,.72);border:1px solid rgba(98,133,191,.2)}
+.accounting-runway b{color:#dcecff}
+.focus-pulse{animation:focusPulse 1.2s ease}
+@keyframes focusPulse{0%{box-shadow:0 0 0 0 rgba(132,182,255,.45)}70%{box-shadow:0 0 0 12px rgba(132,182,255,0)}100%{box-shadow:0 0 0 0 rgba(132,182,255,0)}}
+@media (max-width:1400px){
+  .clean-company-browser{grid-template-columns:1fr}
+  .competition-market-panel{order:-1}
+}
+@media (max-width:1100px){
+  .talent-automation-panel,.hr-action-layout{grid-template-columns:1fr}
+  .clean-company-row{grid-template-columns:72px minmax(0,1fr)}
+  .company-row-value,.company-row-stake,.company-row-quote{grid-column:2}
+}
+@media (max-width:780px){
+  .candidate-grid,.poach-grid,.talent-roster-grid.v640,.interview-shortlist{grid-template-columns:1fr}
+  .talent-automation-grid,.interview-candidate-kpis,.talent-stats,.candidate-dual-score,.talent-person-scores{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .talent-person-head,.interview-desk-head{flex-direction:column}
+}
