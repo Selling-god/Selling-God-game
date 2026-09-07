@@ -79,6 +79,9 @@ async function companyRealismApi(action,payload={}){
 async function companyTalentApi(action,payload={}){
   return rpc('kx_company_talent_v640',{p_action:String(action||'').toUpperCase(),p_payload:payload||{}},true);
 }
+async function companyTalentTerminateV645(talentId){
+  return rpc('kx_company_talent_terminate_v645',{p_talent_id:Number(talentId||0)},true);
+}
 async function companyMediaV640(outlet,targetCompanyId,tone='PROMOTE'){
   return rpc('kx_company_media_v640',{p_outlet:String(outlet||'ECON_DAILY').toUpperCase(),p_target_company_id:Number(targetCompanyId||0),p_tone:String(tone||'PROMOTE').toUpperCase()},true);
 }
@@ -617,7 +620,7 @@ function localTick(d){
     c.defense_power=Math.max(0,Number(c.defense_power||0)-1.5);
     if(d.world.cycle_no%12===0&&Number(c.tax_due||0)<=0){c.tax_due=Math.max(0,c.profit*.25*.22);localEvent(d,'TAX','분기 법인세 고지',`이번 분기 법인세 ${won(c.tax_due)}이 고지되었습니다.`)}
     if(Number(c.tax_arrears||0)>0){c.audit_risk=clamp(Number(c.audit_risk||0)+1.1);if(Math.random()<Math.min(.18,.015+c.audit_risk/700)){const hit=c.tax_arrears*(1.35+Math.random()*.35);c.cash=Math.max(0,c.cash-hit);c.debt+=Math.max(0,hit-c.cash);c.tax_arrears=0;c.audit_risk=18;c.compliance=clamp(c.compliance-14);c.brand=clamp(c.brand-6);c.media_reputation=clamp(c.media_reputation-10);c.investor_sentiment=clamp(c.investor_sentiment-14);localEvent(d,'AUDIT','세무조사 적발·추징',`신고 누락분이 적발되어 약 ${won(hit)}의 추징·가산 부담과 평판 하락이 발생했습니다.`)}}
-    if(!d.control_case&&d.world.cycle_no>3&&Math.random()<.07){const candidates=d.companies.filter(x=>x.is_bot&&x.valuation>c.valuation*.85);if(candidates.length){const a=candidates[Math.floor(Math.random()*candidates.length)],stake=12+Math.random()*7;d.control_case={id:Date.now(),status:'ACTIVE',stage:'WATCH',started_cycle:d.world.cycle_no,deadline_cycle:d.world.cycle_no+12,cycles_left:12,attacker_company_id:a.id,attacker_name:a.name,attacker_ticker:a.ticker,attacker_country:a.home_country,attacker_type:'BOT',attacker_style:a.ai_style,stake,counter_stake:0,used_rights_issue:false,used_poison_pill:false};localEvent(d,'TAKEOVER','적대적 지분 매집 포착',`${a.name}이 장내·우호지분을 통해 우리 회사 지분을 모으기 시작했습니다.`)}}
+    if(!d.control_case&&d.world.cycle_no>3&&Math.random()<.07){const candidates=d.companies.filter(x=>x.is_bot&&localRivalryReason(d,x));if(candidates.length){const a=candidates[Math.floor(Math.random()*candidates.length)],reason=localRivalryReason(d,a),stake=3+Math.random()*5;d.control_case={id:Date.now(),status:'ACTIVE',stage:'WATCH',started_cycle:d.world.cycle_no,deadline_cycle:d.world.cycle_no+12,cycles_left:12,attacker_company_id:a.id,attacker_name:a.name,attacker_ticker:a.ticker,attacker_country:a.home_country,attacker_type:'BOT',attacker_style:a.ai_style,trigger_reason:reason,stake,counter_stake:0,used_rights_issue:false,used_poison_pill:false};localEvent(d,'TAKEOVER','경쟁사 지분 매집 포착',`${a.name}이 ${reason}을 계기로 우리 회사 지분 매집을 시작했습니다.`)}}
     if(d.control_case){const t=d.control_case;t.cycles_left=Math.max(0,Number(t.deadline_cycle)-d.world.cycle_no);const pressure=Math.max(.4,1-Number(c.defense_power||0)/115);t.stake=Math.min(55,Number(t.stake||0)+(1.2+Math.random()*2.4)*pressure);t.stage=localTakeoverStage(t.stake);if(t.stake>=50){c.parent_name=t.attacker_name;c.last_event='경영권 인수';localEvent(d,'CONTROL','경영권 인수',`${t.attacker_name}의 보유지분이 50%를 넘어 경영권이 넘어갔습니다. 다시 지분을 낮추면 독립을 회복할 수 있습니다.`)} }
     if(c.product_quality<48&&Math.random()<.04){const cost=Math.max(10000000,c.revenue*.012);c.cash=Math.max(0,c.cash-cost);c.customer_trust=clamp(c.customer_trust-7);c.brand=clamp(c.brand-3);localEvent(d,'RECALL','품질 문제·리콜',`품질관리 부족으로 리콜이 발생해 ${won(cost)}의 비용과 고객신뢰 하락이 발생했습니다.`)}
     if(c.employee_morale<38&&Math.random()<.05){c.employees=Math.max(15,Math.round(c.employees*.94));c.technology=clamp(c.technology-2);localEvent(d,'HR','핵심인력 이탈','낮은 직원 사기로 핵심 인력이 퇴사했습니다. 복지·보상과 조직관리가 필요합니다.')}
@@ -700,18 +703,46 @@ function companyStakeAgainstMe(){
   const incoming=state.company?.incoming_holdings||[];
   return incoming.reduce((sum,h)=>sum+Math.max(0,Number(h?.stake||0)),0);
 }
+function companyRankMap(){
+  const rows=[...(state.company?.companies||[])].filter(c=>c&&c.status!=='INACTIVE').sort((a,b)=>Number(b.valuation||0)-Number(a.valuation||0)||Number(a.id||0)-Number(b.id||0));
+  const map=new Map();rows.forEach((c,i)=>map.set(Number(c.id),i+1));return map;
+}
+function companyRivalryReason(attackerId){
+  const my=state.company?.my_company;if(!my||!attackerId)return null;
+  const aid=Number(attackerId),mid=Number(my.id);
+  const holdings=state.company?.my_holdings||[];
+  const touched=holdings.find(h=>Number(h.target_company_id)===aid&&Number(h.stake||h.percent||0)>=0.25);
+  if(touched)return {code:'TOUCHED_FIRST',label:`내가 먼저 ${Number(touched.stake||touched.percent||0).toFixed(2)}% 지분을 확보`};
+  const press=(state.company?.press||[]).find(a=>Number(a.source_company_id)===mid&&Number(a.company_id)===aid&&String(a.news_tone||'').toUpperCase()==='CRITICAL');
+  if(press)return {code:'CRITICAL_NEWS',label:'내 회사가 먼저 비판·검증 기사를 발행'};
+  const ranks=companyRankMap(),mine=ranks.get(mid),theirs=ranks.get(aid);
+  if(mine&&theirs&&Math.abs(mine-theirs)===1)return {code:'RANK_RIVAL',label:`기업순위 인접 경쟁 (#${mine} ↔ #${theirs})`};
+  return null;
+}
+function localRivalryReason(d,attacker){
+  const my=d?.my_company;if(!my||!attacker)return null;
+  const touched=(d.my_holdings||[]).find(h=>Number(h.target_company_id)===Number(attacker.id)&&Number(h.stake||h.percent||0)>=0.25);
+  if(touched)return '내 회사가 먼저 상대 지분을 매입함';
+  const rows=[...(d.companies||[])].filter(c=>c&&c.status!=='INACTIVE').sort((a,b)=>Number(b.valuation||0)-Number(a.valuation||0));
+  const mine=rows.findIndex(c=>Number(c.id)===Number(my.id)),theirs=rows.findIndex(c=>Number(c.id)===Number(attacker.id));
+  if(mine>=0&&theirs>=0&&Math.abs(mine-theirs)===1)return '기업순위 인접 경쟁';
+  return null;
+}
 function activeTakeoverThreat(){
   const live=state.company?.control_case;
   const myHoldings=state.company?.my_holdings||[];
   if(live){
+    const rivalry=live.trigger_reason?{code:'SERVER',label:String(live.trigger_reason)}:companyRivalryReason(live.attacker_company_id);
+    if(!rivalry)return null;
     const actualCounter=myHoldings.find(h=>Number(h.target_company_id)===Number(live.attacker_company_id));
-    return {...live,synthetic:false,counter_stake:Math.max(Number(live.counter_stake||0),Number(actualCounter?.stake||0))};
+    return {...live,synthetic:false,rivalry_reason:rivalry.label,counter_stake:Math.max(Number(live.counter_stake||0),Number(actualCounter?.stake||0))};
   }
   const incoming=[...(state.company?.incoming_holdings||[])].filter(h=>Number(h?.stake||0)>0).sort((a,b)=>Number(b.stake||0)-Number(a.stake||0));
-  const top=incoming[0]||null;
-  const aggregate=companyStakeAgainstMe();
-  if(!top&&aggregate<=0)return null;
-  const stake=Math.max(0,Number(top?.stake||aggregate||0));
+  const qualified=incoming.map(h=>({h,reason:companyRivalryReason(Number(h?.holder_company_id||0))})).find(x=>x.reason);
+  const top=qualified?.h||null;
+  if(!top)return null;
+  const aggregate=incoming.filter(h=>companyRivalryReason(Number(h?.holder_company_id||0))).reduce((sum,h)=>sum+Math.max(0,Number(h?.stake||0)),0);
+  const stake=Math.max(0,Number(top?.stake||0));
   const attackerId=Number(top?.holder_company_id||0);
   const counter=myHoldings.find(h=>Number(h.target_company_id)===attackerId);
   return {
@@ -721,6 +752,7 @@ function activeTakeoverThreat(){
     attacker_ticker:top?.holder_ticker||'',
     attacker_country:top?.holder_country||top?.country||'',
     attacker_type:top?.holder_type||'외부 주주',
+    rivalry_reason:qualified?.reason?.label||'',
     stake,
     aggregate_stake:aggregate,
     stage:localTakeoverStage(stake),
@@ -1365,6 +1397,7 @@ function renderTakeoverCrisis(my){
   ];
   return `<section id="takeoverDefenseCenter" class="takeover-crisis compact-defense">
     <div class="takeover-crisis-head"><div><small>경영권 방어</small><h2>${escapeHtml(c.attacker_name||'외부 주주')} 대응</h2></div><div class="threat-shortcuts"><button type="button" data-threat-media="${Number(c.attacker_company_id)||0}">비판 기사</button><button type="button" data-threat-analyze="${Number(c.attacker_company_id)||0}">회사 분석·인수</button></div></div>
+    <div class="takeover-trigger-reason"><small>공격 배경</small><b>${escapeHtml(c.rivalry_reason||c.trigger_reason||'직접 경쟁 관계')}</b><span>이제 이유 없는 무작위 공격은 경영권 위협으로 처리하지 않습니다.</span></div>
     <div class="takeover-pressure-grid compact"><article class="danger"><small>공격자 지분</small><b>${stake.toFixed(2)}%</b></article><article><small>내 우호 지분</small><b>${owner.toFixed(2)}%</b></article><article><small>방어력</small><b>${defense.toFixed(0)}</b></article><article><small>상대 회사 맞지분</small><b>${counter.toFixed(2)}%</b></article><article><small>내 회사 1% 지분가치</small><b>${formatKrwSmart(onePctCost)}</b></article></div>
     <div class="defense-budget-box">${companyMoneyInput('takeoverDefenseBudget','이번 대응 예산',formatKrwSmart(budgetDefault))}<span>투입금액이 실제 매입·희석 규모에 비례합니다. 1억과 100억은 같은 효과가 아닙니다.</span></div>
     <div class="takeover-defense-grid">${actions.map(a=>{let preview='';if(a[0]==='BUYBACK'||a[0]==='NEGOTIATE'){const d=Math.min(stake,budgetDefault/marketCap*100*a[4]);preview=`기본예산 기준 약 ${d.toFixed(2)}%p 감소`;}else if(a[0]==='COUNTER_TAKEOVER'){preview=`기본예산 기준 상대 지분 약 ${(budgetDefault/attackerCap*100).toFixed(2)}% 확보`;}else if(a[0]==='RIGHTS_ISSUE'){preview='조달 규모에 따라 지분 희석';}else if(a[0]==='WHITE_KNIGHT'){preview='예산이 클수록 방어력 증가';}else preview='추가매입 비용·효율 악화';return `<button type="button" class="takeover-defense-btn" data-company-defense="${a[0]}"><small>${a[2]}</small><b>${a[1]}</b><span>${a[3]}</span><em>${preview}</em></button>`}).join('')}</div>
@@ -1541,12 +1574,20 @@ function openCompanyInterviewDesk(data=state.company){const meta=loadCompanyTale
 function renderInterviewSourceLabel(src='recruit'){return src==='poach'?'스카우트 대상':'오늘의 채용시장'}
 function renderTalentAutomationDesk(data,summary,desk){const uses=Math.max(0,Number(desk?.interviewCount)||0),fee=companyInterviewFee(data,uses),surcharge=companyInterviewSurcharge(uses+1),level=summary.grade?.[1]||'직접 관리';return `<section class="talent-automation-panel"><article class="talent-automation-card"><div class="talent-automation-head"><div><small>AUTOPILOT</small><h3>핵심인재 자동 운영</h3></div><b>${escapeHtml(level)}</b></div><p>좋은 직원을 많이 확보할수록 회사가 자동으로 더 안정적으로 굴러갑니다. 매출 실행, 운영 안정성, 방어력이 함께 보정됩니다.</p><div class="talent-automation-grid"><div><span>자동 운영 지수</span><b>${summary.automationIndex.toFixed(1)}</b></div><div><span>예상 매출 보조</span><b>+${summary.revenueBoost.toFixed(1)}%</b></div><div><span>운영 안정성</span><b>+${summary.efficiencyBoost.toFixed(1)}%</b></div><div><span>방어력 보조</span><b>+${summary.defenseBoost.toFixed(1)}</b></div></div><ul class="talent-automation-points"><li>운영·리더십이 높을수록 회사가 스스로 굴러가는 힘이 커집니다.</li><li>영업·혁신이 높을수록 자동 매출 보조가 커집니다.</li><li>좋은 직원을 채용할수록 인사 탭의 효율 지표도 함께 올라갑니다.</li></ul></article><article class="interview-desk-card"><div class="interview-desk-head"><div><small>PAID INTERVIEW DESK</small><h3>유료 면접 데스크</h3><p>하루 기본 지급 외에 추가로 좋은 직원을 찾는 방법입니다. 같은 날 너무 자주 열면 시장 기대연봉이 올라갑니다.</p></div><button type="button" data-talent-interview="open">${uses?`면접 다시 열기 · ${formatKrwSmart(fee)}`:`면접 열기 · ${formatKrwSmart(fee)}`}</button></div><div class="interview-desk-meta"><span>오늘 진행 ${uses}회</span><span>다음 면접 과열도 ${surcharge}%</span><span>기준 DAY ${Math.max(1,Number(data?.talent_day||liveCompanyClock().day)||1)}</span></div>${desk?.shortlist?.length?`<div class="interview-shortlist">${desk.shortlist.map(c=>`<article class="interview-candidate"><div><small>${renderInterviewSourceLabel(c.source)}</small><b>${escapeHtml(c.name)}</b><span>${escapeHtml(talentDepartmentShort(c.department||''))} · ${escapeHtml(c.specialty||c.role||'-')}</span></div><div class="interview-candidate-kpis"><span>자동운영 <b>${c.auto.toFixed(1)}</b></span><span>적합도 <b>${c.fit}%</b></span><span>수락 가능성 <b>${c.accept}%</b></span></div><div class="interview-candidate-pay"><span>월급 ${formatKrwSmart(c.salary)}</span>${c.signBonus?`<span>사인보너스 ${formatKrwSmart(c.signBonus)}</span>`:''}</div><button type="button" data-talent-jump="${escapeHtml(c.refId)}">후보 위치로 이동</button></article>`).join('')}</div>`:`<div class="interview-empty">아직 오늘 면접을 열지 않았습니다. 좋은 직원을 찾고 싶다면 유료 면접 데스크를 열어보세요.</div>`}</article></section>`}
 
+function renderEmployeeQuickRoster(my){
+  const talents=(state.company?.talents||[]).filter(Boolean);
+  if(!talents.length)return `<section class="employee-roster-quick"><div class="employee-roster-head"><div><small>QUICK ROSTER</small><h3>재직 인원 간편보기</h3></div><span>이름이 있는 핵심인재가 아직 없습니다.</span></div></section>`;
+  const rows=[...talents].sort((a,b)=>Number(b.skill_score||0)-Number(a.skill_score||0));
+  return `<section class="employee-roster-quick"><div class="employee-roster-head"><div><small>QUICK ROSTER</small><h3>재직 인원 간편보기</h3><p>이름이 있는 핵심인재를 한 번에 비교하고 바로 해고할 수 있습니다. 일반 인력은 아래 부서별 인력 조정에서 관리합니다.</p></div><span>${rows.length}명</span></div><div class="employee-roster-table"><div class="employee-roster-row header"><span>직원</span><span>부서</span><span>역량 / 잠재력</span><span>월급</span><span>자동운영</span><span>조치</span></div>${rows.map(t=>`<div class="employee-roster-row"><span class="employee-name">${talentGradeBadge(t)}<b>${escapeHtml(t.name)}</b><small>${escapeHtml(t.specialty||'-')}</small></span><span>${escapeHtml(talentDepartmentShort(t.department))}</span><span><b>${Number(t.skill_score||0).toFixed(1)}</b><small>${Number(t.potential||50).toFixed(0)}</small></span><span>${formatKrwSmart(t.monthly_salary||0)}</span><span>+${talentAutopilotContribution(t).toFixed(1)}</span><span><button type="button" class="employee-fire-btn" data-talent-fire="${t.id}">해고</button></span></div>`).join('')}</div></section>`;
+}
+
 function renderTalentMarket(my){
   if(!state.company?.talent_available)return `<section class="talent-market unavailable"><div class="company-section-head mini"><div><h3>핵심인재 시스템</h3></div><span>${escapeHtml(state.company?.talent_error||'V6.4 SQL을 적용해 주세요.')}</span></div></section>`;
   const data=state.company||{},candidates=data.recruit_pool||[],talents=data.talents||[],targets=data.poach_targets||[],offers=data.talent_offers||[],sum=data.talent_summary||{},hired=Number(data.talent_hired_today||0),limit=Number(data.talent_daily_limit||5),day=Math.max(1,Number(data.talent_day||1)||1),summary=companyAutomationSummary(data),desk=loadCompanyTalentDeskMeta(data);
   return `<section class="talent-market talent-v640">
     <div class="talent-command-head"><div><small>PEOPLE & TALENT · DAY ${day}</small><h2>핵심인재실</h2><span>하루 기본 채용 + 유료 면접 + 스카우트로 인재를 확보하세요. 좋은 인재일수록 회사 자동 운영력이 올라갑니다.</span></div><div><b>${talents.length}명</b><span>오늘 채용 ${hired}/${limit}</span></div></div>
     <div class="talent-market-summary board four"><article><small>재직 인재</small><b>${talents.length}명</b><span>평균 역량 ${Number(sum.avg_skill||summary.avgSkill||0).toFixed(1)}</span></article><article><small>월 인건비</small><b>${formatKrwSmart(Number(sum.monthly_salary||summary.payroll||0))}</b><span>개인계약 포함</span></article><article><small>핵심인재 지수</small><b>${Number(sum.talent_index||my.talent_index||50).toFixed(1)}</b><span>평균 잠재력 ${Number(sum.avg_potential||0).toFixed(1)}</span></article><article><small>자동 운영</small><b>${summary.grade[0]}</b><span>지수 ${summary.automationIndex.toFixed(1)} · 방어 +${summary.defenseBoost.toFixed(1)}</span></article></div>
+    ${renderEmployeeQuickRoster(my)}
     ${renderTalentAutomationDesk(data,summary,desk)}
     ${offers.length?`<section class="inbound-offers"><div class="compact-section-title"><b>경쟁사 이직 제안 ${offers.length}건</b><span>맞제안하거나 이직을 허용할 수 있습니다.</span></div>${offers.map(o=>`<article><div><small>${escapeHtml(o.buyer_company_name||'경쟁사')} 제안</small><b>${escapeHtml(o.talent_name)}</b><span>${talentGradeBadge({career_title:o.career_title,career_level:o.career_level,grade:o.grade})} · 현재 ${formatKrwSmart(o.current_salary)} → 제시 ${formatKrwSmart(o.offer_salary)}</span></div><div><label>맞제안 월급<input id="matchSalary_${o.id}" value="${formatKrwSmart(Math.max(Number(o.offer_salary||0),Number(o.current_salary||0)*1.08))}"></label><button type="button" data-talent-match="${o.id}">맞제안</button><button type="button" class="secondary" data-talent-release="${o.id}">이직 허용</button></div></article>`).join('')}</section>`:''}
     <details class="talent-block" open><summary><b>오늘의 채용시장 ${candidates.length}명</b><span>기본 지급 후보 · 최대 ${limit}명 채용</span></summary><div class="candidate-grid">${candidates.length?candidates.map(c=>{const done=c.hired||/HIRED/i.test(String(c.status||''));return `<article class="candidate-card ${done?'hired':''}" id="candidate-card-${c.id}"><div class="candidate-top">${talentGradeBadge(c)}<b>${escapeHtml(c.name)}</b><em>${escapeHtml(talentDepartmentShort(c.department))} · ${escapeHtml(c.role||c.specialty||'-')} · ${escapeHtml(c.specialty||c.role||'-')}</em></div><div class="candidate-dual-score"><div><strong>${Number(c.skill_score||0).toFixed(1)}</strong><span>현재 역량</span></div><div><strong>${Number(c.potential||50).toFixed(0)}</strong><span>잠재력 · ${talentPotentialLabel(c.potential)}</span></div></div><div class="talent-stats"><span>혁신 <b>${Number(c.innovation||0).toFixed(0)}</b></span><span>영업 <b>${Number(c.sales_skill||0).toFixed(0)}</b></span><span>운영 <b>${Number(c.operations_skill||0).toFixed(0)}</b></span><span>리더십 <b>${Number(c.leadership||0).toFixed(0)}</b></span></div><div class="candidate-pay"><span>월급 <b>${formatKrwSmart(c.monthly_salary||c.salary_monthly)}</b></span><span>사인보너스 <b>${formatKrwSmart(c.signing_bonus||c.sign_bonus)}</b></span><span>자동운영 기여 <b>${talentAutopilotContribution(c).toFixed(1)}</b></span></div><button type="button" data-talent-hire="${c.id}" ${done||hired>=limit?'disabled':''}>${done?'채용 완료':'채용'}</button></article>`}).join(''):`<div class="empty compact">오늘은 후보가 없습니다. 다음 DAY에 새 인재가 입장합니다.</div>`}</div></details>
@@ -1830,20 +1871,23 @@ function renderCompetitionBoard(my){
   const companies=allCompanies.filter(c=>companyRegionMatch(c,state.companyRegion));
   const holds=state.company?.my_holdings||[];
   const press=state.company?.press||[];
-  const rows=companies.map(c=>{
+  const ranked=companies.map(c=>{
     const stakeRow=holds.find(h=>Number(h.holder_company_id)===Number(my.id)&&Number(h.target_company_id)===Number(c.id));
     const self=Number(c.id)===Number(my.id);
     const own=self?ownerStakeOf(my):Number(stakeRow?.stake??stakeRow?.percent??0);
     const news=press.find(a=>Number(a.company_id)===Number(c.id));
     return {c,self,own,news};
-  }).sort((a,b)=>Number(b.c.valuation)-Number(a.c.valuation));
-  const total=rows.length;const ownCount=rows.filter(r=>r.own>0).length;
-  return `<section class="corp-section company-browser-section clean-company-market">
-    <div class="company-section-head"><div><small>COMPETITION · M&A</small><h2>기업 브라우저</h2></div><span>국가별 시장을 나눠 실제 경쟁사와 지분·주가·기업가치를 비교합니다. 국가 버튼을 누르면 해당 시장의 회사만 즉시 표시됩니다.</span></div>
-    <div class="company-region-tabs">${['국내','미국','중국','유럽','일본'].map(region=>`<button data-company-region="${region}" class="${state.companyRegion===region?'on':''}">${region}</button>`).join('')}</div>
-    <div class="company-browser-summary"><strong>${total}개 기업</strong><span>보유지분 ${ownCount}개사 · 현재 시장 ${state.companyRegion}</span><small>${state.companyRegion==='유럽'?'독일·영국 기업을 통합 표시합니다.':'해당 국가에 등록된 기업만 표시합니다.'}</small></div>
-    <div class="company-analysis-layout clean-analysis-layout">
-      <div class="company-browser clean-company-browser">${rows.length?rows.map((row,idx)=>{const c=row.c;const chg=Number(c.daily_change_pct??c.last_return_pct??0);const market=companyMarketValueText(c),marketSub=companyMarketValueSubText(c),share=companySharePriceText(c);const news=row.news?`${escapeHtml(row.news.headline||'최근 보도 있음')}`:'최근 15분 보도 없음';const stage=row.own>50?'자회사':row.own>=15?'경영 참여권':row.own>0?'소수지분':'미보유';return `<button data-company-analyze="${c.id}" class="company-browser-row clean-company-row ${Number(state.companyAnalysisId)===Number(c.id)?'on':''}"><strong class="company-row-rank">${row.self?'MY':`#${idx+1}`}</strong><span class="company-row-identity"><b>${escapeHtml(c.name)}</b><small>${row.self?'내 회사':(c.is_bot?'BOT 회사':'시장 상장사')} ${escapeHtml(c.home_country)} · ${escapeHtml(c.sector)}</small><em>${news}</em></span><span class="company-row-stake company-row-stake-hero ${row.own>50?'control':row.own>=15?'major':row.own>0?'minor':'empty'}"><small>${row.self?'창업자 지분':'내 지분'}</small><b>${row.own.toFixed(1)}%</b><em>${stage}</em></span><div class="company-row-finance"><span class="company-row-value"><small>기업가치</small><b>${market}</b><em>${marketSub}</em></span><span class="company-row-quote"><small>현재 주가</small><b>${share}</b><em class="${chg>=0?'up':'down'}">${pct(chg)}</em></span></div><i class="company-row-open">분석</i></button>`}).join(''):`<div class="empty project-empty">${escapeHtml(state.companyRegion)} 시장에 표시할 기업이 없습니다.</div>`}</div>
+  }).sort((a,b)=>Number(b.c.valuation||0)-Number(a.c.valuation||0));
+  ranked.forEach((r,i)=>r.marketRank=i+1);
+  const query=String(state.companySearch||'').trim().toLowerCase();
+  const rows=query?ranked.filter(r=>`${r.c.name||''} ${r.c.ticker||''} ${r.c.sector||''} ${r.c.home_country||''}`.toLowerCase().includes(query)):ranked;
+  const total=ranked.length,ownCount=ranked.filter(r=>r.own>0).length;
+  return `<section class="corp-section company-browser-section company-market-v645">
+    <div class="company-section-head"><div><small>COMPETITION · M&A</small><h2>기업 브라우저</h2></div><span>회사 검색 결과를 누르면 즉시 선택·분석됩니다. 지분과 기업가치를 한 줄에서 확인할 수 있습니다.</span></div>
+    <div class="company-market-toolbar-v645"><div class="company-region-tabs">${['국내','미국','중국','유럽','일본'].map(region=>`<button data-company-region="${region}" class="${state.companyRegion===region?'on':''}">${region}</button>`).join('')}</div><form id="companySearchForm" class="company-search-v645"><input id="companySearchInput" value="${escapeHtml(state.companySearch||'')}" placeholder="회사명·종목코드 검색"><button type="submit">검색·바로 선택</button>${state.companySearch?`<button type="button" id="companySearchClear" class="secondary">전체 보기</button>`:''}</form></div>
+    <div class="company-browser-summary"><strong>${total}개 기업</strong><span>보유지분 ${ownCount}개사 · 현재 시장 ${state.companyRegion}</span><small>${query?`검색결과 ${rows.length}개`:(state.companyRegion==='유럽'?'독일·영국 기업 통합':'국가별 기업 목록')}</small></div>
+    <div class="company-analysis-layout company-analysis-layout-v645">
+      <div class="company-browser company-browser-list-v645 clean-company-browser">${rows.length?rows.map(row=>{const c=row.c,chg=Number(c.daily_change_pct??c.last_return_pct??0),market=companyMarketValueText(c),share=companySharePriceText(c),news=row.news?escapeHtml(row.news.headline||'최근 보도 있음'):'최근 15분 보도 없음',stage=row.own>50?'자회사':row.own>=15?'경영 참여':row.own>0?'소수지분':'미보유';return `<button type="button" data-company-analyze="${c.id}" class="company-browser-row-v645 ${Number(state.companyAnalysisId)===Number(c.id)?'on':''}"><span class="company-v645-rank">${row.self?'MY':`#${row.marketRank}`}</span><span class="company-v645-identity"><b>${escapeHtml(c.name)}</b><small>${row.self?'내 회사':(c.is_bot?'BOT 회사':'유저 회사')} · ${escapeHtml(c.home_country||'')} · ${escapeHtml(c.sector||'')}</small><em>${news}</em></span><span class="company-v645-stake"><small>${row.self?'우호 지분':'내 지분'}</small><b>${row.own.toFixed(2)}%</b><em>${stage}</em></span><span class="company-v645-finance"><small>기업가치</small><b>${market}</b><em>주가 ${share} · <i class="${chg>=0?'up':'down'}">${pct(chg)}</i></em></span><span class="company-v645-open">분석 →</span></button>`}).join(''):`<div class="empty project-empty">${query?'검색 결과가 없습니다.':`${escapeHtml(state.companyRegion)} 시장에 표시할 기업이 없습니다.`}</div>`}</div>
       <div class="company-analysis-slot" id="companyAnalysisSlot">${state.companyAnalysis?renderCompanyAnalysisPanel(my):renderCompanyAnalysisPlaceholder()}</div>
     </div>
   </section>`;
@@ -2017,14 +2061,13 @@ function renderOperationsWorkspace(my){
   return `<section class="operations-hub"><nav>${tabs.map(([k,v])=>`<button type="button" data-company-ops-tab="${k}" class="${tab===k?'on':''}">${v}</button>`).join('')}</nav>${body}</section>`;
 }
 function renderDashboardTakeoverAlert(my){
-  const control=state.company?.control_case||null;
-  const incoming=[...(state.company?.incoming_holdings||[])].sort((a,b)=>Number(b.stake||0)-Number(a.stake||0));
-  const top=incoming[0]||null;
-  const stake=Math.max(Number(control?.stake||0),Number(top?.stake||0),companyStakeAgainstMe());
+  const threat=activeTakeoverThreat();
+  if(!threat)return '';
+  const stake=Math.max(Number(threat?.stake||0),Number(threat?.aggregate_stake||0));
   if(stake<=0)return '';
-  const attacker=control?.attacker_name||top?.holder_name||top?.company_name||'외부 주주';
-  const owner=ownerStakeOf(my),meta=takeoverStageMeta(control?.stage,stake);
-  return `<section class="dashboard-takeover-alert ${stake>=35?'danger':stake>=15?'warn':'watch'}"><div class="dashboard-takeover-copy"><small>CONTROL ALERT</small><b>${escapeHtml(meta[0])}</b><span>${escapeHtml(attacker)} · 외부 보유 ${stake.toFixed(2)}% · 내 우호지분 ${owner.toFixed(2)}%</span></div><div class="dashboard-takeover-mini"><span><small>공격자 지분</small><b>${stake.toFixed(2)}%</b></span><span><small>내 우호 지분</small><b>${owner.toFixed(2)}%</b></span></div><button type="button" data-company-section-jump="competition">기업/M&amp;A에서 대응</button></section>`;
+  const attacker=threat?.attacker_name||'경쟁사';
+  const owner=ownerStakeOf(my),meta=takeoverStageMeta(threat?.stage,stake);
+  return `<section class="dashboard-takeover-alert ${stake>=35?'danger':stake>=15?'warn':'watch'}"><div class="dashboard-takeover-copy"><small>CONTROL ALERT</small><b>${escapeHtml(meta[0])}</b><span>${escapeHtml(attacker)} · 외부 보유 ${stake.toFixed(2)}% · 내 우호지분 ${owner.toFixed(2)}%</span><em>발생 사유: ${escapeHtml(threat.rivalry_reason||threat.trigger_reason||'직접 경쟁 관계')}</em></div><div class="dashboard-takeover-mini"><span><small>공격자 지분</small><b>${stake.toFixed(2)}%</b></span><span><small>내 우호 지분</small><b>${owner.toFixed(2)}%</b></span></div><button type="button" data-company-section-jump="competition">기업/M&amp;A에서 대응</button></section>`;
 }
 
 function renderCompanyWorkspace(my){
@@ -2365,7 +2408,7 @@ function renderTerminal(preserve=false){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 6.4'}</span></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 6.4.5'}</span></div>
       ${topNav()}
       <div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
@@ -2558,7 +2601,7 @@ function bind(){
     state.companyRegion=b.dataset.companyRegion||'국내';state.companySearch='';state.companyAnalysisId=null;state.companyAnalysis=null;companyChartAxisCache={id:null,lo:null,hi:null};companyChartSeriesCache={id:null,lastCycle:null,rows:[],panStartedAt:0};renderTerminal();
   });
   const companySearchForm=document.getElementById('companySearchForm');
-  if(companySearchForm)companySearchForm.onsubmit=e=>{e.preventDefault();state.companySearch=String(document.getElementById('companySearchInput')?.value||'').trim();state.companyAnalysisId=null;state.companyAnalysis=null;companyChartAxisCache={id:null,lo:null,hi:null};companyChartSeriesCache={id:null,lastCycle:null,rows:[],panStartedAt:0};renderTerminal();};
+  if(companySearchForm)companySearchForm.onsubmit=e=>{e.preventDefault();state.companySearch=String(document.getElementById('companySearchInput')?.value||'').trim();state.companyAnalysisId=null;state.companyAnalysis=null;companyChartAxisCache={id:null,lo:null,hi:null};companyChartSeriesCache={id:null,lastCycle:null,rows:[],panStartedAt:0};renderTerminal();const first=document.querySelector('[data-company-analyze]');if(first)first.click();};
   const companySearchClear=document.getElementById('companySearchClear');
   if(companySearchClear)companySearchClear.onclick=()=>{state.companySearch='';state.companyAnalysisId=null;state.companyAnalysis=null;companyChartAxisCache={id:null,lo:null,hi:null};companyChartSeriesCache={id:null,lastCycle:null,rows:[],panStartedAt:0};renderTerminal();};
 
@@ -2724,12 +2767,12 @@ function bind(){
   document.querySelectorAll('[data-threat-media]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.threatMedia||0);if(!id)return;state.companyMediaTargetId=id;state.companyMediaTone='CRITICAL';state.companyMediaSearch='';state.companySection='risk';renderTerminal(true);});
   document.querySelectorAll('[data-threat-analyze]').forEach(b=>b.onclick=async()=>{const id=Number(b.dataset.threatAnalyze||0);const c=(state.company?.companies||[]).find(x=>Number(x.id)===id);if(!id)return;state.companySection='competition';state.companySearch=c?.name||'';state.companyAnalysisId=id;state.companyAnalysis=null;renderTerminal(true);try{const profile=await companyApi('PROFILE',{p_company_id:id});try{const rp=await companyRealismApi('PROFILE',{p_company_id:id});profile.realism_products=Array.isArray(rp?.products)?rp.products:[]}catch(_e){}state.companyAnalysis=profile;renderTerminal(true);}catch(err){state.companyNotice='공격 회사 분석 실패: '+err.message;renderTerminal(true);}});
   const mediaSearch=document.getElementById('companyMediaSearch');const mediaSearchBtn=document.getElementById('companyMediaSearchBtn');
-  const doMediaSearch=()=>{state.companyMediaSearch=String(mediaSearch?.value||'').trim();renderTerminal(true);};
+  const doMediaSearch=()=>{const q=String(mediaSearch?.value||'').trim();state.companyMediaSearch=q;const all=[...(state.company?.companies||[])].filter(c=>c&&c.status!=='INACTIVE');const matches=q?all.filter(c=>`${c.name||''} ${c.ticker||''} ${c.owner_nickname||''}`.toLowerCase().includes(q.toLowerCase())):[];if(matches.length===1){state.companyMediaTargetId=Number(matches[0].id);if(state.companyMediaTone==='CRITICAL'&&state.companyMediaTargetId===Number(state.company?.my_company?.id))state.companyMediaTone='PROMOTE';}renderTerminal(true);};
   if(mediaSearchBtn)mediaSearchBtn.onclick=doMediaSearch;if(mediaSearch)mediaSearch.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();doMediaSearch();}};
   document.querySelectorAll('[data-company-media-region]').forEach(b=>b.onclick=()=>{state.companyMediaRegion=b.dataset.companyMediaRegion||'ALL';renderTerminal(true);});
   document.querySelectorAll('[data-media-tone]').forEach(b=>b.onclick=()=>{if(b.disabled)return;state.companyMediaTone=b.dataset.mediaTone||'PROMOTE';renderTerminal(true);});
   const mediaTarget=document.getElementById('companyMediaTarget');if(mediaTarget)mediaTarget.onchange=()=>{state.companyMediaTargetId=Number(mediaTarget.value)||Number(state.company?.my_company?.id)||0;if(state.companyMediaTone==='CRITICAL'&&state.companyMediaTargetId===Number(state.company?.my_company?.id))state.companyMediaTone='PROMOTE';renderTerminal(true);};
-  document.querySelectorAll('[data-media-target-quick]').forEach(b=>b.onclick=()=>{state.companyMediaTargetId=Number(b.dataset.mediaTargetQuick)||Number(state.company?.my_company?.id)||0;renderTerminal(true);});
+  document.querySelectorAll('[data-media-target-quick]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.mediaTargetQuick)||Number(state.company?.my_company?.id)||0;const c=(state.company?.companies||[]).find(x=>Number(x.id)===id)||state.company?.my_company;state.companyMediaTargetId=id;state.companyMediaSearch=c?.name||state.companyMediaSearch||'';if(state.companyMediaTone==='CRITICAL'&&id===Number(state.company?.my_company?.id))state.companyMediaTone='PROMOTE';renderTerminal(true);});
 
   document.querySelectorAll('[data-company-media]').forEach(b=>b.onclick=async()=>{
     const outlet=b.dataset.mediaApiCode||b.dataset.companyMedia,cost=Math.max(0,Number(b.dataset.mediaCost)||0),name=b.dataset.mediaName||'언론사',region=b.dataset.mediaRegion||'',tone=state.companyMediaTone||'PROMOTE';
@@ -2764,6 +2807,13 @@ function bind(){
 제시 월급 ${formatKrwSmart(salary)} · 사인보너스 ${formatKrwSmart(bonus)}
 실패하더라도 헤드헌터 착수비가 발생합니다.`))return;
     try{b.disabled=true;b.textContent='제안 협상 중…';const d=await companyTalentApi('POACH',{p_talent_id:id,p_offer_salary:salary,p_signing_bonus:bonus});if(!d?.ok)throw new Error(d?.message||'영입 제안을 처리하지 못했습니다.');state.companyNotice=`${d.message}${d.success_chance!=null?` · 제안 당시 수락확률 ${Number(d.success_chance).toFixed(1)}%`:''}`;playCompanySfx(d.success?'success':'alert');await loadCompanyLayer(false,true);renderTerminal(true);}catch(err){state.companyNotice='헤드헌팅 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
+  });
+
+  document.querySelectorAll('[data-talent-fire]').forEach(b=>b.onclick=async()=>{
+    const id=Number(b.dataset.talentFire||0),t=(state.company?.talents||[]).find(x=>Number(x.id)===id);if(!t)return;
+    const severance=Math.max(Number(t.monthly_salary||0),Number(t.monthly_salary||0)*Math.min(4,Math.max(1,Math.ceil(Number(t.career_level||1)/8))));
+    if(!confirm(`${t.name}을 해고할까요?\n예상 퇴직비용 약 ${formatKrwSmart(severance)} · 핵심인재 자동운영 기여도 ${talentAutopilotContribution(t).toFixed(1)}가 사라집니다.`))return;
+    try{b.disabled=true;b.textContent='처리 중…';const d=await companyTalentTerminateV645(id);if(!d?.ok)throw new Error(d?.message||'해고 처리 실패');state.companyNotice=d.message||`${t.name}의 퇴직 처리가 완료되었습니다.`;playCompanySfx('alert');await loadCompanyLayer(false,true);renderTerminal(true);}catch(err){state.companyNotice='해고 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
   });
 
   document.querySelectorAll('[data-talent-train]').forEach(b=>b.onclick=async()=>{

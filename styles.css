@@ -1205,3 +1205,65 @@ body.tutorial-active{overflow:hidden}
   .candidate-dual-score,.talent-person-scores,.talent-stats,.candidate-pay{grid-template-columns:1fr 1fr!important}
   .dashboard-takeover-mini{grid-template-columns:1fr!important}
 }
+
+/* ==== v6.4.5 COMPANY BROWSER + QUICK ROSTER + RIVALRY RULES ==== */
+.company-market-v645{overflow:hidden!important}
+.company-market-toolbar-v645{display:grid;grid-template-columns:auto minmax(300px,1fr);gap:14px;align-items:center;margin:0 0 12px}
+.company-market-toolbar-v645 .company-region-tabs{margin:0!important;min-width:0}
+.company-search-v645{display:grid;grid-template-columns:minmax(180px,1fr) auto auto;gap:8px;align-items:center;min-width:0}
+.company-search-v645 input{width:100%;min-width:0;height:44px;box-sizing:border-box;border:1px solid #2d435c;border-radius:11px;background:#08131f;color:#edf5fc;padding:0 13px;font-size:13px;outline:none}
+.company-search-v645 input:focus{border-color:#6a91bb;box-shadow:0 0 0 2px rgba(106,145,187,.12)}
+.company-search-v645 button{height:44px;padding:0 14px;border:1px solid #42617f;border-radius:10px;background:#16304a;color:#eef6fd;font-size:11px;font-weight:900;white-space:nowrap;cursor:pointer}
+.company-search-v645 button.secondary{background:#0d1926;border-color:#293c50;color:#9fb2c5}
+.company-analysis-layout-v645{display:grid!important;grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr)!important;gap:16px!important;align-items:start!important;width:100%!important;max-width:100%!important;min-width:0!important}
+.company-browser-list-v645{display:flex!important;flex-direction:column!important;grid-template-columns:none!important;gap:8px!important;width:100%!important;max-width:100%!important;min-width:0!important;max-height:760px!important;overflow-y:auto!important;overflow-x:hidden!important;padding:2px 6px 2px 0!important;box-sizing:border-box!important}
+.company-browser-row-v645{appearance:none;width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;display:grid!important;grid-template-columns:60px minmax(180px,1fr) 116px minmax(170px,220px) 72px!important;gap:12px!important;align-items:center!important;padding:13px 14px!important;border:1px solid #22364c!important;border-radius:14px!important;background:#0b1724!important;color:#edf4fb!important;text-align:left!important;cursor:pointer!important;overflow:hidden!important;box-shadow:none!important}
+.company-browser-row-v645:hover{background:#102033!important;border-color:#476b91!important}
+.company-browser-row-v645.on{border-color:#d1b154!important;background:linear-gradient(90deg,rgba(98,77,28,.22),#0f1e2d 34%,#0b1724)!important;box-shadow:inset 3px 0 0 #d9ba5b!important}
+.company-v645-rank{height:42px;display:grid;place-items:center;border:1px solid #2c4259;border-radius:11px;background:#111f2f;color:#9bb2c9;font-size:13px;font-weight:900}
+.company-v645-identity,.company-v645-stake,.company-v645-finance{display:grid;gap:4px;min-width:0}
+.company-v645-identity b{font-size:16px;line-height:1.25;white-space:normal;overflow-wrap:anywhere;color:#f3f7fb}
+.company-v645-identity small{font-size:10px;color:#8ca2b8;white-space:normal;overflow-wrap:anywhere}
+.company-v645-identity em{font-style:normal;font-size:9px;color:#c1a963;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.company-v645-stake,.company-v645-finance{padding:9px 10px;border:1px solid #24384d;border-radius:11px;background:#09131e;align-self:stretch;align-content:center}
+.company-v645-stake small,.company-v645-finance small{font-size:8px;color:#7890a7}.company-v645-stake b,.company-v645-finance b{font-size:15px;color:#eef5fb;white-space:normal;overflow-wrap:anywhere}.company-v645-stake em,.company-v645-finance em{font-style:normal;font-size:9px;color:#8da3b8;white-space:normal;overflow-wrap:anywhere}.company-v645-finance i{font-style:normal}
+.company-v645-open{height:36px;display:grid;place-items:center;border:1px solid #36516e;border-radius:9px;background:#14273b;color:#d6e5f3;font-size:10px;font-weight:900;white-space:nowrap}
+.takeover-trigger-reason{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;margin:0 0 12px;padding:10px 12px;border:1px solid #5c4d34;border-radius:11px;background:#16150f}
+.takeover-trigger-reason small{font-size:9px;color:#a99562}.takeover-trigger-reason b{font-size:12px;color:#f0d887;min-width:0;white-space:normal;overflow-wrap:anywhere}.takeover-trigger-reason span{font-size:9px;color:#8f9cab;text-align:right}
+
+.employee-roster-quick{margin:16px 0;border:1px solid #2a3f55;border-radius:16px;background:#0a1521;overflow:hidden}
+.employee-roster-head{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:14px 16px;border-bottom:1px solid #213449;background:#0c1826}
+.employee-roster-head>div{min-width:0}.employee-roster-head small{font-size:8px;letter-spacing:.12em;color:#829db8;font-weight:900}.employee-roster-head h3{margin:3px 0 2px;font-size:18px}.employee-roster-head p{margin:0;font-size:9.5px;line-height:1.45;color:#869db3}.employee-roster-head>span{flex:0 0 auto;font-size:12px;font-weight:900;color:#d9e6f2}
+.employee-roster-table{display:grid;width:100%;min-width:0}
+.employee-roster-row{display:grid;grid-template-columns:minmax(210px,1.4fr) minmax(110px,.75fr) minmax(120px,.75fr) minmax(120px,.75fr) minmax(100px,.6fr) 76px;gap:10px;align-items:center;padding:10px 14px;border-top:1px solid #1d2f41;min-width:0}
+.employee-roster-row:first-child{border-top:0}.employee-roster-row.header{background:#09131e;color:#71889e;font-size:8px;font-weight:900;letter-spacing:.05em}
+.employee-roster-row:not(.header):hover{background:#0d1b29}
+.employee-roster-row>span{min-width:0;font-size:10px;color:#a9bdd0;white-space:normal;overflow-wrap:anywhere}.employee-roster-row>span>b{color:#edf4fb}.employee-roster-row>span>small{display:block;margin-top:2px;color:#748ba1}
+.employee-name{display:grid!important;grid-template-columns:auto minmax(0,1fr);gap:3px 8px;align-items:center}.employee-name .talent-grade{grid-row:1/3}.employee-name b,.employee-name small{grid-column:2;min-width:0}
+.employee-fire-btn{width:100%;height:34px;border:1px solid #6d4248;border-radius:8px;background:#241419;color:#ffb8bd;font-size:9px;font-weight:900;cursor:pointer}.employee-fire-btn:hover{background:#321a20;border-color:#92525b}
+
+@media(max-width:1350px){
+  .company-analysis-layout-v645{grid-template-columns:1fr!important}
+  .company-browser-list-v645{max-height:620px!important}
+  .company-analysis-slot{min-width:0!important;max-width:100%!important}
+}
+@media(max-width:1050px){
+  .company-market-toolbar-v645{grid-template-columns:1fr}
+  .company-browser-row-v645{grid-template-columns:52px minmax(0,1fr) 110px minmax(155px,190px)!important}
+  .company-v645-open{display:none}
+  .employee-roster-table{overflow-x:auto;display:block}
+  .employee-roster-row{min-width:820px}
+}
+@media(max-width:760px){
+  .company-search-v645{grid-template-columns:1fr 1fr}.company-search-v645 input{grid-column:1/-1}
+  .company-browser-row-v645{grid-template-columns:46px minmax(0,1fr)!important;gap:8px!important;padding:11px!important}
+  .company-v645-stake,.company-v645-finance{grid-column:2!important;display:grid!important;grid-template-columns:auto 1fr auto!important;align-items:center!important;gap:8px!important;padding:8px 10px!important}
+  .company-v645-stake small,.company-v645-finance small,.company-v645-stake b,.company-v645-finance b,.company-v645-stake em,.company-v645-finance em{margin:0!important}
+  .company-v645-identity em{white-space:normal!important}
+  .takeover-trigger-reason{grid-template-columns:1fr}.takeover-trigger-reason span{text-align:left}
+  .employee-roster-head{align-items:flex-start;flex-direction:column}.employee-roster-row{min-width:760px}
+}
+.company-market-v645 .company-analysis-panel{position:sticky;top:78px;border:1px solid #24384f;border-radius:16px;background:#0b1724;overflow:hidden;box-shadow:0 14px 38px rgba(0,0,0,.2);min-width:0;max-width:100%}
+.company-market-v645 .empty-analysis{min-height:280px;display:grid;place-items:center;padding:24px}.company-market-v645 .empty-analysis>div{text-align:center;max-width:340px}.company-market-v645 .empty-analysis b{font-size:17px}.company-market-v645 .empty-analysis p{font-size:11px;line-height:1.6;color:#8399af}
+.dashboard-takeover-copy em{font-style:normal;font-size:9px;color:#c6ad72;margin-top:2px}
+@media(max-width:1350px){.company-market-v645 .company-analysis-panel{position:static}}
