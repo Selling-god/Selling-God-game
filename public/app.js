@@ -250,7 +250,7 @@ function projectEconomics(p){
   const directProfit=['RND','QUALITY','CAPEX','HIRING','MARKETING'].includes(String(p?.project_type||'').toUpperCase());
   return {budget,realized,expected,reference,net,expectedNet,roi,expectedRoi,directProfit};
 }
-function ownerStakeOf(my){return Math.max(0,100-Number(my?.incoming_stake||0))}
+function ownerStakeOf(my){const listed=(state.company?.incoming_holdings||[]).reduce((sum,h)=>sum+holdingStakeValue(h),0);const external=Math.max(listed,companyIncomingDirectStake(my),companyStakeAgainstMe());return Math.max(0,100-external)}
 
 
 async function ensureFreshBuild(){return true}
@@ -700,21 +700,21 @@ function localCompanyAction(name,body={}){
 function companyGrowth(c){return Number(c?.previous_revenue)>0?((Number(c.revenue)-Number(c.previous_revenue))/Number(c.previous_revenue))*100:0}
 function companyProfitMargin(c){return Number(c?.revenue)>0?Number(c.profit)/Number(c.revenue)*100:0}
 function companyDebtRatio(c){return Number(c?.valuation)>0?Number(c.debt)/Number(c.valuation)*100:0}
+function holdingStakeValue(h={}){return Math.max(0,Number(h?.stake||0),Number(h?.percent||0),Number(h?.stake_pct||0),Number(h?.ownership_pct||0),Number(h?.holding_pct||0))}
+function companyIncomingDirectStake(my=state.company?.my_company){return Math.max(0,Number(my?.incoming_stake||0),Number(my?.incoming_stake_pct||0),Number(my?.external_stake||0),Number(my?.outside_stake||0))}
+function liveTakeoverStakeValue(live={}){return Math.max(0,Number(live?.stake||0),Number(live?.attacker_stake||0),Number(live?.current_stake||0),Number(live?.attacker_stake_pct||0),Number(live?.aggregate_stake||0))}
 function companyStakeAgainstMe(){
   const live=state.company?.control_case;
-  const incoming=[...(state.company?.incoming_holdings||[])].filter(h=>Number(h?.stake||0)>0);
-  // A live server takeover case must always remain actionable. Filtering it out made the UI show
-  // a high risk number while hiding every defense control.
+  const incoming=[...(state.company?.incoming_holdings||[])].filter(h=>holdingStakeValue(h)>0);
+  const listedTotal=incoming.reduce((sum,h)=>sum+holdingStakeValue(h),0);
+  const direct=companyIncomingDirectStake(state.company?.my_company);
+  let risk=Math.max(listedTotal,direct);
   if(live&&String(live.status||'ACTIVE').toUpperCase()!=='DEFENDED'){
     const aid=Number(live.attacker_company_id||0);
     const holder=incoming.find(h=>Number(h?.holder_company_id||0)===aid);
-    const direct=Number(state.company?.my_company?.incoming_stake||0);
-    return Math.max(0,Number(live.aggregate_stake||0),Number(live.stake||0),Number(holder?.stake||0),direct);
+    risk=Math.max(risk,liveTakeoverStakeValue(live),holdingStakeValue(holder));
   }
-  // Without a server takeover case, only holdings with an actual rivalry trigger are treated as
-  // hostile. Ordinary outside shareholders are not shown as a takeover attack.
-  const hostile=incoming.filter(h=>companyRivalryReason(Number(h?.holder_company_id||0)));
-  return hostile.reduce((sum,h)=>sum+Math.max(0,Number(h?.stake||0)),0);
+  return Math.max(0,Math.min(100,risk));
 }
 function companyRankMap(){
   const rows=[...(state.company?.companies||[])].filter(c=>c&&c.status!=='INACTIVE').sort((a,b)=>Number(b.valuation||0)-Number(a.valuation||0)||Number(a.id||0)-Number(b.id||0));
@@ -744,21 +744,24 @@ function localRivalryReason(d,attacker){
 function activeTakeoverThreat(){
   const live=state.company?.control_case;
   const myHoldings=state.company?.my_holdings||[];
-  const incoming=[...(state.company?.incoming_holdings||[])].filter(h=>Number(h?.stake||0)>0).sort((a,b)=>Number(b.stake||0)-Number(a.stake||0));
+  const incoming=[...(state.company?.incoming_holdings||[])].filter(h=>holdingStakeValue(h)>0).sort((a,b)=>holdingStakeValue(b)-holdingStakeValue(a));
   if(live&&String(live.status||'ACTIVE').toUpperCase()!=='DEFENDED'){
     const rivalry=live.trigger_reason?{code:'SERVER',label:String(live.trigger_reason)}:companyRivalryReason(live.attacker_company_id);
     const actualCounter=myHoldings.find(h=>Number(h.target_company_id)===Number(live.attacker_company_id));
     const holder=incoming.find(h=>Number(h?.holder_company_id||0)===Number(live.attacker_company_id));
-    const liveStake=Math.max(Number(live.stake||0),Number(holder?.stake||0));
-    const aggregate=Math.max(Number(live.aggregate_stake||0),liveStake);
-    return {...live,synthetic:false,rivalry_reason:rivalry?.label||'서버에서 감지된 진행 중 경영권 공격',stake:liveStake,aggregate_stake:aggregate,counter_stake:Math.max(Number(live.counter_stake||0),Number(actualCounter?.stake||0))};
+    const liveStake=Math.max(liveTakeoverStakeValue(live),holdingStakeValue(holder));
+    const aggregate=Math.max(companyStakeAgainstMe(),Number(live.aggregate_stake||0),liveStake);
+    return {...live,synthetic:false,rivalry_reason:rivalry?.label||'서버에서 감지된 진행 중 경영권 공격',stake:liveStake||aggregate,aggregate_stake:aggregate,stage:live.stage||localTakeoverStage(aggregate),counter_stake:Math.max(Number(live.counter_stake||0),Number(actualCounter?.stake||0))};
   }
-  const qualified=incoming.map(h=>({h,reason:companyRivalryReason(Number(h?.holder_company_id||0))})).filter(x=>x.reason);
-  if(!qualified.length)return null;
-  const top=qualified[0].h,reason=qualified[0].reason;
-  const aggregate=qualified.reduce((sum,x)=>sum+Math.max(0,Number(x.h?.stake||0)),0);
-  const attackerId=Number(top?.holder_company_id||0),counter=myHoldings.find(h=>Number(h.target_company_id)===attackerId);
-  return {synthetic:true,attacker_company_id:attackerId||null,attacker_name:top?.holder_name||'최대 외부주주',attacker_ticker:top?.holder_ticker||'',attacker_country:top?.holder_country||top?.country||'',attacker_type:top?.holder_type||'외부 주주',rivalry_reason:reason?.label||'직접 경쟁 관계',stake:Math.max(0,Number(top?.stake||0)),aggregate_stake:aggregate,stage:localTakeoverStage(Math.max(0,Number(top?.stake||0))),cycles_left:null,counter_stake:Number(counter?.stake||0),used_poison_pill:false,used_rights_issue:false};
+  const aggregate=companyStakeAgainstMe();
+  // 10%부터 경영권 리스크로 간주한다. 낮은 외부지분은 숫자에는 보이되 비상안건까지 만들지는 않는다.
+  if(aggregate<10)return null;
+  const top=incoming[0]||null;
+  const attackerId=Number(top?.holder_company_id||0);
+  const reason=attackerId?companyRivalryReason(attackerId):null;
+  const counter=myHoldings.find(h=>Number(h.target_company_id)===attackerId);
+  const topStake=holdingStakeValue(top);
+  return {synthetic:true,attacker_company_id:attackerId||null,attacker_name:top?.holder_name||'외부 주주군',attacker_ticker:top?.holder_ticker||'',attacker_country:top?.holder_country||top?.country||'',attacker_type:top?.holder_type||'외부 주주',rivalry_reason:reason?.label||(aggregate>=35?'외부지분이 경영권 위험구간까지 누적':'외부지분 집중으로 경영권 위험 상승'),stake:topStake||aggregate,aggregate_stake:aggregate,stage:localTakeoverStage(aggregate),cycles_left:null,counter_stake:Number(counter?.stake||0),used_poison_pill:false,used_rights_issue:false};
 }
 function scrollToTakeoverDefenseCenter(){
   const details=document.getElementById('takeoverOwnershipDetails');
@@ -1029,7 +1032,7 @@ async function loadCompanyLayer(runSync=false,force=false){
       }
       try{
         const talent=await companyTalentApi('SNAPSHOT',{});
-        if(talent?.ok){state.company.recruit_pool=Array.isArray(talent.candidates)?talent.candidates:[];state.company.talents=Array.isArray(talent.my_talents)?talent.my_talents:[];state.company.poach_targets=Array.isArray(talent.poach_targets)?talent.poach_targets:[];state.company.talent_offers=Array.isArray(talent.inbound_offers)?talent.inbound_offers:[];state.company.talent_summary=talent.summary||{};state.company.talent_day=Number(talent.day_no||1);state.company.talent_hired_today=Number(talent.hired_today||0);state.company.talent_daily_limit=Number(talent.daily_limit||5);state.company.talent_available=true;state.company.talent_error='';}
+        if(talent?.ok){state.company.recruit_pool=shapeRecruitPoolByEmployer(Array.isArray(talent.candidates)?talent.candidates:[],state.company.my_company,Number(talent.day_no||1));state.company.talents=Array.isArray(talent.my_talents)?talent.my_talents:[];state.company.poach_targets=shapePoachTargetCompensation(Array.isArray(talent.poach_targets)?talent.poach_targets:[]);state.company.talent_offers=Array.isArray(talent.inbound_offers)?talent.inbound_offers:[];state.company.talent_summary=talent.summary||{};state.company.talent_day=Number(talent.day_no||1);state.company.talent_hired_today=Number(talent.hired_today||0);state.company.talent_daily_limit=Number(talent.daily_limit||5);state.company.talent_available=true;state.company.talent_error='';applyLocalPoachState(state.company);applyLocalHireProfiles(state.company);applyLocalTalentTrainingState(state.company);}
       }catch(talentErr){state.company.talent_available=false;state.company.talent_error=missingRpcError(talentErr)?'V6.4 인재·육성 SQL이 아직 적용되지 않았습니다.':'인재시장 데이터를 불러오지 못했습니다: '+String(talentErr?.message||talentErr);}
     }catch(realismErr){
       state.company.realism_available=false;
@@ -1566,6 +1569,241 @@ function talentAutopilotContribution(p={}){const m=talentMetricSnapshot(p);retur
 function talentAutomationGrade(index=0){if(index>=84)return ['S','자율경영'];if(index>=76)return ['A','매우 우수'];if(index>=68)return ['B','안정 운영'];if(index>=58)return ['C','기본 운영'];return ['D','직접 관리']}
 function companyAutomationSummary(data=state.company){const roster=(data?.talents||[]).filter(Boolean),headcount=roster.length;if(!headcount)return {headcount:0,avgSkill:0,automationIndex:0,grade:['D','직접 관리'],payroll:0,revenueBoost:0,efficiencyBoost:0,defenseBoost:0,cashflowBoost:0};const totals=roster.reduce((acc,t)=>{const m=talentMetricSnapshot(t);acc.skill+=m.skillScore;acc.salary+=m.salary;acc.innovation+=m.innovation;acc.sales+=m.sales;acc.operations+=m.operations;acc.leadership+=m.leadership;acc.auto+=talentAutopilotContribution(t);return acc},{skill:0,salary:0,innovation:0,sales:0,operations:0,leadership:0,auto:0});const avgSkill=totals.skill/headcount,auto=Math.min(92,totals.auto/headcount);const revenueBoost=Math.round((Math.min(120,totals.sales/headcount*0.08+totals.innovation/headcount*0.05+headcount*0.07))*10)/10;const efficiencyBoost=Math.round((Math.min(100,totals.operations/headcount*0.09+headcount*0.08))*10)/10;const defenseBoost=Math.round((Math.min(45,totals.leadership/headcount*0.22+headcount*0.2))*10)/10;const cashflowBoost=Math.max(0,Math.round((Number(data?.my_company?.monthly_payroll||0)||totals.salary)*Math.min(.11,auto/1000)));return {headcount,avgSkill,automationIndex:auto,grade:talentAutomationGrade(auto),payroll:totals.salary,revenueBoost,efficiencyBoost,defenseBoost,cashflowBoost}}
 function companyInterviewSurcharge(uses=0){return uses<=1?0:uses===2?6:uses===3?14:Math.min(36,14+(uses-3)*8)}
+
+const COMPANY_LOCAL_TRAINING_PREFIX='kx_company_local_training_v1';
+function companyTrainingLedgerKey(companyId=(state.company?.my_company?.id||'guest')){return `${COMPANY_LOCAL_TRAINING_PREFIX}_${companyId}`}
+function normalizeCompanyTrainingLedger(raw){
+  const base=raw&&typeof raw==='object'?raw:{};
+  const talents={};
+  Object.entries(base.talents&&typeof base.talents==='object'?base.talents:{}).forEach(([id,v])=>{
+    const x=v&&typeof v==='object'?v:{};
+    talents[String(id)]={
+      skill_score:Number(x.skill_score||0)||0,
+      monthly_salary:Number(x.monthly_salary||0)||0,
+      innovation:Number(x.innovation||0)||0,
+      sales_skill:Number(x.sales_skill||0)||0,
+      operations_skill:Number(x.operations_skill||0)||0,
+      leadership:Number(x.leadership||0)||0,
+      loyalty:Number(x.loyalty||0)||0,
+      potential:Number(x.potential||0)||0,
+      career_level:Number(x.career_level||0)||0,
+      balancedCount:Number(x.balancedCount||0)||0,
+      specialtyCount:Number(x.specialtyCount||0)||0,
+      totalTrainings:Number(x.totalTrainings||0)||0,
+      totalSpent:Number(x.totalSpent||0)||0,
+      lastTrainDay:Number(x.lastTrainDay||0)||0
+    };
+  });
+  return {cashSpent:Number(base.cashSpent||0)||0,totalTrainings:Number(base.totalTrainings||0)||0,lastUpdatedAt:Number(base.lastUpdatedAt||0)||0,talents};
+}
+function loadCompanyTrainingLedger(companyId=(state.company?.my_company?.id||'guest')){try{return normalizeCompanyTrainingLedger(JSON.parse(localStorage.getItem(companyTrainingLedgerKey(companyId))||'{}'))}catch(_e){return normalizeCompanyTrainingLedger({})}}
+function saveCompanyTrainingLedger(ledger,companyId=(state.company?.my_company?.id||'guest')){const norm=normalizeCompanyTrainingLedger(ledger);try{localStorage.setItem(companyTrainingLedgerKey(companyId),JSON.stringify(norm))}catch(_e){}return norm}
+function localTalentTrainingFallbackable(err){const raw=String(err?.message||'');return missingRpcError(err)||/404|not found|could not find|schema cache|pgrst|지원하지 않|구현되지 않|train/i.test(raw)}
+function talentTrainingFocusKeys(department=''){
+  switch(String(department||'').toUpperCase()){
+    case 'ENGINEERING':return ['innovation','operations_skill'];
+    case 'SALES':return ['sales_skill','leadership'];
+    case 'OPERATIONS':return ['operations_skill','leadership'];
+    case 'FINANCE':return ['operations_skill','leadership'];
+    default:return ['leadership','innovation'];
+  }
+}
+function refreshCompanyTalentDerivedState(data=state.company){
+  const talents=(data?.talents||[]).filter(Boolean),count=talents.length;
+  const summary=companyAutomationSummary(data);
+  const avgSkill=count?talents.reduce((a,t)=>a+Number(t.skill_score||0),0)/count:0;
+  const avgPotential=count?talents.reduce((a,t)=>a+Number(t.potential||0),0)/count:0;
+  const payroll=talents.reduce((a,t)=>a+Number(t.monthly_salary||t.salary_monthly||0),0);
+  const index=Math.round((summary.automationIndex*.38+avgSkill*.42+avgPotential*.20)*10)/10;
+  const elite=talents.filter(t=>talentGradeRank(String(talentCareerTitle(t)).replace(/ Lv\..*/,''))>=5).length;
+  data.talent_summary={...(data?.talent_summary||{}),avg_skill:Math.round(avgSkill*10)/10,avg_potential:Math.round(avgPotential*10)/10,monthly_salary:payroll,talent_index:index,elite_talent_count:elite};
+  if(data?.my_company){
+    data.my_company.talent_index=index;
+    data.my_company.elite_talent_count=elite;
+    if(data.my_company.training_cash_spent==null)data.my_company.training_cash_spent=0;
+    if(data.my_company.training_count_local==null)data.my_company.training_count_local=0;
+  }
+  return data;
+}
+function applyLocalTalentTrainingState(data=state.company){
+  const companyId=(data?.my_company?.id||'guest');
+  const ledger=loadCompanyTrainingLedger(companyId);
+  const talents=(data?.talents||[]).filter(Boolean);
+  talents.forEach(t=>{
+    const entry=ledger.talents[String(t.id)];if(!entry)return;
+    t.skill_score=Math.max(0,Number(t.skill_score||0)+Number(entry.skill_score||0));
+    t.monthly_salary=Math.max(0,Number(t.monthly_salary||t.salary_monthly||0)+Number(entry.monthly_salary||0));
+    t.innovation=Math.max(0,Number(t.innovation||0)+Number(entry.innovation||0));
+    t.sales_skill=Math.max(0,Number(t.sales_skill||0)+Number(entry.sales_skill||0));
+    t.operations_skill=Math.max(0,Number(t.operations_skill||0)+Number(entry.operations_skill||0));
+    t.leadership=Math.max(0,Number(t.leadership||0)+Number(entry.leadership||0));
+    t.loyalty=Math.max(0,Number(t.loyalty||0)+Number(entry.loyalty||0));
+    t.potential=Math.max(0,Math.min(100,Number(t.potential||0)+Number(entry.potential||0)));
+    t.career_level=Math.max(1,Math.round(Number(t.career_level||1)+Number(entry.career_level||0)));
+    t._localTrainingCount=Number(entry.totalTrainings||0)||0;
+    t._localLastTrainingDay=Number(entry.lastTrainDay||0)||0;
+  });
+  if(data?.my_company){
+    data.my_company.cash=Math.max(0,Number(data.my_company.cash||0)-Number(ledger.cashSpent||0));
+    data.my_company.training_cash_spent=Number(ledger.cashSpent||0)||0;
+    data.my_company.training_count_local=Number(ledger.totalTrainings||0)||0;
+  }
+  return refreshCompanyTalentDerivedState(data);
+}
+function simulateTalentTrainingPlan(talent,type='BALANCED'){
+  const focus=talentTrainingFocusKeys(talent?.department);
+  const trained=Math.max(0,Number(talent?._localTrainingCount||0)||0);
+  const potential=Math.max(35,Number(talent?.potential||60)||60);
+  const baseSalary=Math.max(0,Number(talent?.monthly_salary||talent?.salary_monthly||0));
+  const specialty=String(type||'BALANCED').toUpperCase()==='SPECIALTY';
+  const diminishing=Math.max(0,trained-2)*0.3;
+  const skillGain=Math.round(Math.max(specialty?1.2:0.8,(potential*0.035)+(specialty?1.9:1.2)-diminishing)*10)/10;
+  const payRaise=Math.max(50000,Math.round(baseSalary*(specialty?0.018:0.012)));
+  const cost=Math.max(specialty?4000000:2500000,Math.round(baseSalary*(specialty?0.42:0.26)));
+  const delta={skill_score:skillGain,monthly_salary:payRaise,innovation:0,sales_skill:0,operations_skill:0,leadership:0,loyalty:specialty?1.3:2.1,potential:0,career_level:(trained>0&&(trained+1)%3===0)?1:0};
+  if(specialty){delta[focus[0]]=4;delta[focus[1]]=(delta[focus[1]]||0)+2;}else{['innovation','sales_skill','operations_skill','leadership'].forEach(k=>delta[k]=1);delta[focus[0]]=(delta[focus[0]]||0)+1;}
+  const focusName=focus[0]==='innovation'?'혁신':focus[0]==='sales_skill'?'영업':'운영';
+  return {cost,delta,skillGain,payRaise,focusName,levelUp:delta.career_level>0,label:specialty?'전문 연수':'종합 연수'};
+}
+function applyLocalTalentTraining(talentId,type='BALANCED',data=state.company){
+  const my=data?.my_company;const talents=(data?.talents||[]).filter(Boolean);const talent=talents.find(t=>String(t.id)===String(talentId));
+  if(!my||!talent)return {ok:false,message:'연수 대상을 찾지 못했습니다.'};
+  const companyId=(my.id||'guest');
+  const ledger=loadCompanyTrainingLedger(companyId);
+  const currentDay=Math.max(1,Number(data?.talent_day||liveCompanyClock().day||1)||1);
+  const existing=ledger.talents[String(talentId)]||{skill_score:0,monthly_salary:0,innovation:0,sales_skill:0,operations_skill:0,leadership:0,loyalty:0,potential:0,career_level:0,balancedCount:0,specialtyCount:0,totalTrainings:0,totalSpent:0,lastTrainDay:0};
+  if(Number(existing.lastTrainDay||0)===currentDay)return {ok:false,message:`${talent.name} 직원은 오늘 이미 연수를 받았습니다. 다음 DAY에 다시 진행해 주세요.`};
+  const plan=simulateTalentTrainingPlan(talent,type);
+  const availableCash=Math.max(0,Number(my.cash||0));
+  if(availableCash<plan.cost)return {ok:false,message:`법인 현금이 부족합니다. 필요 금액 ${formatKrwSmart(plan.cost)}.`};
+  Object.entries(plan.delta).forEach(([k,v])=>{existing[k]=Number(existing[k]||0)+Number(v||0)});
+  existing.totalTrainings=Number(existing.totalTrainings||0)+1;
+  existing.totalSpent=Number(existing.totalSpent||0)+plan.cost;
+  existing.lastTrainDay=currentDay;
+  if(String(type).toUpperCase()==='SPECIALTY')existing.specialtyCount=Number(existing.specialtyCount||0)+1;else existing.balancedCount=Number(existing.balancedCount||0)+1;
+  ledger.talents[String(talentId)]=existing;
+  ledger.cashSpent=Number(ledger.cashSpent||0)+plan.cost;
+  ledger.totalTrainings=Number(ledger.totalTrainings||0)+1;
+  ledger.lastUpdatedAt=Date.now();
+  saveCompanyTrainingLedger(ledger,companyId);
+  talent.skill_score=Math.max(0,Number(talent.skill_score||0)+Number(plan.delta.skill_score||0));
+  talent.monthly_salary=Math.max(0,Number(talent.monthly_salary||talent.salary_monthly||0)+Number(plan.delta.monthly_salary||0));
+  talent.innovation=Math.max(0,Number(talent.innovation||0)+Number(plan.delta.innovation||0));
+  talent.sales_skill=Math.max(0,Number(talent.sales_skill||0)+Number(plan.delta.sales_skill||0));
+  talent.operations_skill=Math.max(0,Number(talent.operations_skill||0)+Number(plan.delta.operations_skill||0));
+  talent.leadership=Math.max(0,Number(talent.leadership||0)+Number(plan.delta.leadership||0));
+  talent.loyalty=Math.max(0,Number(talent.loyalty||0)+Number(plan.delta.loyalty||0));
+  talent.potential=Math.max(0,Math.min(100,Number(talent.potential||0)+Number(plan.delta.potential||0)));
+  talent.career_level=Math.max(1,Math.round(Number(talent.career_level||1)+Number(plan.delta.career_level||0)));
+  talent._localTrainingCount=Number(existing.totalTrainings||0)||0;
+  talent._localLastTrainingDay=currentDay;
+  my.cash=Math.max(0,availableCash-plan.cost);
+  my.training_cash_spent=Number(my.training_cash_spent||0)+plan.cost;
+  my.training_count_local=Number(my.training_count_local||0)+1;
+  refreshCompanyTalentDerivedState(data);
+  return {ok:true,message:`${talent.name} ${plan.label} 완료 · 역량 +${plan.skillGain.toFixed(1)} · ${plan.focusName} 역량 강화 · 비용 ${formatKrwSmart(plan.cost)}${plan.levelUp?' · 레벨 상승':''}.`};
+}
+
+
+function clampTalent(v,lo=1,hi=99){return Math.max(lo,Math.min(hi,Number(v)||0))}
+function seededTalentNoise(seed=1){let x=Math.sin(Number(seed||1)*12.9898+78.233)*43758.5453;return (x-Math.floor(x))*2-1}
+function companyTalentEmployerAttractiveness(my=state.company?.my_company){
+  const valuation=Math.max(100000000,Number(my?.valuation||0));
+  const employees=Math.max(1,Number(my?.employees||1));
+  const avgSalary=Math.max(2500000,Number(my?.avg_monthly_salary||0)||Number(my?.monthly_payroll||0)/employees||4000000);
+  const valueScore=clampTalent(30+(Math.log10(valuation)-9)*26,15,100);
+  const salaryScore=clampTalent(30+((avgSalary-4000000)/1000000)*4,15,100);
+  const reputation=clampTalent((Number(my?.brand||50)+Number(my?.media_reputation||50)+Number(my?.employee_morale||60))/3,20,100);
+  const score=clampTalent(valueScore*.52+salaryScore*.38+reputation*.10,10,100);
+  const label=score>=88?'세계 최상위 인재 유입':score>=74?'최상급 인재 유입':score>=60?'우수 인재 유입':score>=45?'경력 인재 중심':'신입·중견 인재 중심';
+  return {score,valueScore,salaryScore,reputation,avgSalary,valuation,label};
+}
+function talentMarketMonthlySalary(skill=50){
+  skill=clampTalent(skill,35,100);
+  let v=4000000;
+  if(skill<60)v=4000000+(skill-35)*160000;
+  else if(skill<75)v=8000000+(skill-60)*600000;
+  else if(skill<85)v=17000000+(skill-75)*1800000;
+  else if(skill<92)v=35000000+(skill-85)*5000000;
+  else if(skill<97)v=70000000+(skill-92)*12000000;
+  else v=130000000+(skill-97)*18000000;
+  return Math.round(Math.max(3500000,v)/100000)*100000;
+}
+function talentTitleFromSkill(skill=50){if(skill>=98)return ['마스터',24];if(skill>=94)return ['천재',18];if(skill>=88)return ['핵심인재',14];if(skill>=80)return ['수재',10];if(skill>=72)return ['전문가',7];if(skill>=62)return ['경력직',4];return ['신입',1]}
+function shapeRecruitPoolByEmployer(pool=[],my=state.company?.my_company,day=1){
+  const attraction=companyTalentEmployerAttractiveness(my);
+  return (pool||[]).map((c,idx)=>{
+    const seed=(Number(c.id)||idx+1)*31+(Number(my?.id)||1)*17+Number(day||1)*13;
+    const noise=seededTalentNoise(seed);
+    const target=48+attraction.score*.46+noise*7;
+    const base=Number(c.skill_score||55);
+    const skill=clampTalent(base*.15+target*.85,42,99.7);
+    const potential=clampTalent(Math.max(Number(c.potential||50),skill+7+seededTalentNoise(seed+2)*5),45,100);
+    const [grade,level]=talentTitleFromSkill(skill);
+    const marketSalary=talentMarketMonthlySalary(skill);
+    const salary=Math.max(Number(c.monthly_salary||c.salary_monthly||0),marketSalary);
+    const signBonus=Math.max(Number(c.signing_bonus||c.sign_bonus||0),Math.round(salary*(skill>=92?5:skill>=82?4:3)/100000)*100000);
+    const metric=(offset)=>clampTalent(skill+seededTalentNoise(seed+offset)*8,35,100);
+    return {...c,skill_score:Math.round(skill*10)/10,potential:Math.round(potential),grade,career_title:grade,career_level:Math.max(Number(c.career_level||0),level),monthly_salary:salary,salary_monthly:salary,signing_bonus:signBonus,sign_bonus:signBonus,innovation:metric(3),sales_skill:metric(5),operations_skill:metric(7),leadership:metric(11),_employer_attraction:attraction.score};
+  });
+}
+function shapePoachTargetCompensation(pool=[]){
+  return (pool||[]).map((t,idx)=>{const skill=Math.max(35,Number(t.skill_score||55));const fair=talentMarketMonthlySalary(skill);const current=Math.max(Number(t.monthly_salary||t.current_salary||0),Math.round(fair*.78/100000)*100000);return {...t,monthly_salary:current,current_salary:current,ask_salary:Math.max(Number(t.ask_salary||0),Math.round(current*1.18/100000)*100000),ask_bonus:Math.max(Number(t.ask_bonus||0),Math.round(current*(skill>=90?5:4)/100000)*100000)}});
+}
+
+const COMPANY_LOCAL_HIRE_PROFILE_PREFIX='kx_company_local_hire_profiles_v1';
+function companyLocalHireProfilesKey(companyId=(state.company?.my_company?.id||'guest')){return `${COMPANY_LOCAL_HIRE_PROFILE_PREFIX}_${companyId}`}
+function loadLocalHireProfiles(companyId=(state.company?.my_company?.id||'guest')){try{const a=JSON.parse(localStorage.getItem(companyLocalHireProfilesKey(companyId))||'[]');return Array.isArray(a)?a:[]}catch(_e){return []}}
+function saveLocalHireProfiles(rows,companyId=(state.company?.my_company?.id||'guest')){try{localStorage.setItem(companyLocalHireProfilesKey(companyId),JSON.stringify((rows||[]).slice(-60)))}catch(_e){}}
+function rememberLocalHireProfile(candidate,my=state.company?.my_company){if(!candidate||!my)return;const rows=loadLocalHireProfiles(my.id||'guest');const profile={source_id:Number(candidate.id)||0,name:String(candidate.name||''),skill_score:Number(candidate.skill_score||0),potential:Number(candidate.potential||0),grade:candidate.grade||candidate.career_title||'',career_title:candidate.career_title||candidate.grade||'',career_level:Number(candidate.career_level||1),monthly_salary:Number(candidate.monthly_salary||candidate.salary_monthly||0),innovation:Number(candidate.innovation||0),sales_skill:Number(candidate.sales_skill||0),operations_skill:Number(candidate.operations_skill||0),leadership:Number(candidate.leadership||0),signing_bonus:Number(candidate.signing_bonus||candidate.sign_bonus||0)};const filtered=rows.filter(r=>!(Number(r.source_id)===profile.source_id&&profile.source_id)||String(r.name)!==profile.name);filtered.push(profile);saveLocalHireProfiles(filtered,my.id||'guest')}
+function applyLocalHireProfiles(data=state.company){const my=data?.my_company;if(!my)return data;const rows=loadLocalHireProfiles(my.id||'guest');if(!rows.length)return data;for(const t of data.talents||[]){const p=rows.find(r=>(Number(r.source_id)>0&&Number(r.source_id)===Number(t.id))||(r.name&&String(r.name)===String(t.name)));if(!p)continue;t.skill_score=Math.max(Number(t.skill_score||0),Number(p.skill_score||0));t.potential=Math.max(Number(t.potential||0),Number(p.potential||0));t.monthly_salary=Math.max(Number(t.monthly_salary||t.salary_monthly||0),Number(p.monthly_salary||0));t.innovation=Math.max(Number(t.innovation||0),Number(p.innovation||0));t.sales_skill=Math.max(Number(t.sales_skill||0),Number(p.sales_skill||0));t.operations_skill=Math.max(Number(t.operations_skill||0),Number(p.operations_skill||0));t.leadership=Math.max(Number(t.leadership||0),Number(p.leadership||0));t.career_level=Math.max(Number(t.career_level||1),Number(p.career_level||1));if(p.career_title)t.career_title=p.career_title;if(p.grade)t.grade=p.grade;}refreshCompanyTalentDerivedState(data);return data}
+
+const COMPANY_LOCAL_POACH_PREFIX='kx_company_local_poach_v1';
+function companyLocalPoachKey(companyId=(state.company?.my_company?.id||'guest')){return `${COMPANY_LOCAL_POACH_PREFIX}_${companyId}`}
+function loadLocalPoachLedger(companyId=(state.company?.my_company?.id||'guest')){try{const r=JSON.parse(localStorage.getItem(companyLocalPoachKey(companyId))||'{}')||{};return {poached:Array.isArray(r.poached)?r.poached:[],removedIds:Array.isArray(r.removedIds)?r.removedIds.map(Number):[],cashSpent:Number(r.cashSpent||0)||0,totalAttempts:Number(r.totalAttempts||0)||0}}catch(_e){return {poached:[],removedIds:[],cashSpent:0,totalAttempts:0}}}
+function saveLocalPoachLedger(ledger,companyId=(state.company?.my_company?.id||'guest')){try{localStorage.setItem(companyLocalPoachKey(companyId),JSON.stringify(ledger))}catch(_e){}return ledger}
+function applyLocalPoachState(data=state.company){
+  const my=data?.my_company;if(!my)return data;
+  const ledger=loadLocalPoachLedger(my.id||'guest');
+  const removed=new Set((ledger.removedIds||[]).map(Number));
+  data.poach_targets=(data.poach_targets||[]).filter(t=>!removed.has(Number(t.id)));
+  const existing=new Set((data.talents||[]).map(t=>String(t.id)));
+  for(const p of ledger.poached||[]){if(!existing.has(String(p.id))){data.talents.push({...p,_localPoached:true});existing.add(String(p.id));}}
+  my.cash=Math.max(0,Number(my.cash||0)-Number(ledger.cashSpent||0));
+  my.local_poach_spent=Number(ledger.cashSpent||0)||0;
+  refreshCompanyTalentDerivedState(data);
+  return data;
+}
+function localTalentPoachFallbackable(err){const raw=String(err?.message||'').toLowerCase();return missingRpcError(err)||raw.includes('could not find')||raw.includes('schema cache')||raw.includes('not found')||raw.includes('지원하지')||raw.includes('구현되지')}
+function sourceCompanyForPoach(t){const sid=Number(t?.company_id||t?.source_company_id||t?.employer_company_id||0);return (state.company?.companies||[]).find(c=>Number(c.id)===sid)||null}
+function applyLocalTalentPoach(talentId,offerSalary,signingBonus,data=state.company){
+  const my=data?.my_company,target=(data?.poach_targets||[]).find(t=>Number(t.id)===Number(talentId));if(!my||!target)return {ok:false,message:'이직 제안 대상을 찾지 못했습니다.'};
+  const ledger=loadLocalPoachLedger(my.id||'guest');
+  const skill=Math.max(35,Number(target.skill_score||55));
+  const current=Math.max(1,Number(target.monthly_salary||target.current_salary||talentMarketMonthlySalary(skill)));
+  offerSalary=Math.max(current,Number(offerSalary||current));signingBonus=Math.max(0,Number(signingBonus||0));
+  const ourAttr=companyTalentEmployerAttractiveness(my).score,source=sourceCompanyForPoach(target),sourceAttr=source?companyTalentEmployerAttractiveness(source).score:58;
+  const premium=Math.max(0,offerSalary/current-1),bonusMonths=signingBonus/current;
+  const chance=Math.max(8,Math.min(96,30+premium*82+Math.min(24,bonusMonths*4)+(ourAttr-sourceAttr)*.38-Math.max(0,skill-78)*.45));
+  const headhunter=Math.max(5000000,Math.round(offerSalary*.45/100000)*100000);
+  const successCost=signingBonus+headhunter,failCost=Math.max(3000000,Math.round(headhunter*.42/100000)*100000);
+  if(Number(my.cash||0)<Math.min(successCost,failCost))return {ok:false,message:`법인 현금이 부족합니다. 최소 착수비 ${formatKrwSmart(failCost)}가 필요합니다.`};
+  ledger.totalAttempts=Number(ledger.totalAttempts||0)+1;
+  const success=Math.random()*100<chance;
+  if(!success){ledger.cashSpent=Number(ledger.cashSpent||0)+failCost;saveLocalPoachLedger(ledger,my.id||'guest');my.cash=Math.max(0,Number(my.cash||0)-failCost);return {ok:true,success:false,success_chance:chance,message:`${target.name}이(가) 제안을 거절했습니다. 수락확률 ${chance.toFixed(1)}% · 헤드헌터 착수비 ${formatKrwSmart(failCost)} 지출.`};}
+  if(Number(my.cash||0)<successCost)return {ok:false,message:`제안은 매력적이지만 사인보너스·헤드헌터 비용 ${formatKrwSmart(successCost)}을 지급할 현금이 부족합니다.`};
+  const localId=-(100000000+Math.abs(Number(target.id)||ledger.totalAttempts)%70000000+ledger.totalAttempts*1000);
+  const hired={...target,id:localId,source_talent_id:Number(target.id)||0,company_name:my.name,source_company_name:target.company_name||target.source_company_name||'',monthly_salary:offerSalary,salary_monthly:offerSalary,signing_bonus:signingBonus,loyalty:Math.max(55,Number(target.loyalty||55)),_localPoached:true};
+  ledger.poached.push(hired);ledger.removedIds=[...new Set([...(ledger.removedIds||[]).map(Number),Number(target.id)])];ledger.cashSpent=Number(ledger.cashSpent||0)+successCost;saveLocalPoachLedger(ledger,my.id||'guest');
+  my.cash=Math.max(0,Number(my.cash||0)-successCost);data.poach_targets=(data.poach_targets||[]).filter(t=>Number(t.id)!==Number(target.id));data.talents=[...(data.talents||[]),hired];refreshCompanyTalentDerivedState(data);
+  return {ok:true,success:true,success_chance:chance,message:`${target.name} 영입 성공 · 수락확률 ${chance.toFixed(1)}% · 새 월급 ${formatKrwSmart(offerSalary)} · 즉시 비용 ${formatKrwSmart(successCost)}.`};
+}
+function terminateLocalPoachedTalent(talentId,severance=0,data=state.company){
+  const my=data?.my_company;if(!my)return {ok:false,message:'회사 정보를 찾지 못했습니다.'};const ledger=loadLocalPoachLedger(my.id||'guest');
+  const before=ledger.poached.length;ledger.poached=ledger.poached.filter(t=>Number(t.id)!==Number(talentId));if(ledger.poached.length===before)return {ok:false,message:'로컬 영입 직원을 찾지 못했습니다.'};
+  ledger.cashSpent=Number(ledger.cashSpent||0)+Math.max(0,Number(severance||0));saveLocalPoachLedger(ledger,my.id||'guest');my.cash=Math.max(0,Number(my.cash||0)-Math.max(0,Number(severance||0)));data.talents=(data.talents||[]).filter(t=>Number(t.id)!==Number(talentId));refreshCompanyTalentDerivedState(data);return {ok:true,message:'직원의 퇴직 처리가 완료되었습니다.'};
+}
+
 function companyInterviewFee(data=state.company,uses=0){const payroll=Math.max(Number(data?.my_company?.monthly_payroll||0)||0,Number(companyAutomationSummary(data).payroll)||0,50000000);const base=Math.max(12000000,Math.round(payroll*0.04/1000000)*1000000);const mult=uses<=0?1:uses===1?1.35:uses===2?1.8:2.45+(uses-3)*0.65;return Math.max(12000000,Math.round(base*mult/1000000)*1000000)}
 function buildCompanyInterviewShortlist(data=state.company,meta=loadCompanyTalentDeskMeta(data)){const used=Math.max(1,Number(meta?.interviewCount)||1),day=Math.max(1,Number(data?.talent_day||liveCompanyClock().day)||1);const recruits=(data?.recruit_pool||[]).filter(c=>!c?.hired&&!/HIRED/i.test(String(c?.status||''))).map(c=>({...c,_source:'recruit',_ref:`candidate-card-${c.id}`}));const poaches=(data?.poach_targets||[]).filter(Boolean).map(c=>({...c,_source:'poach',_ref:`poach-card-${c.id}`}));return [...recruits,...poaches].map((p,idx)=>{const m=talentMetricSnapshot(p),auto=talentAutopilotContribution(p),fit=Math.max(45,Math.min(98,Math.round((m.operations*0.34+m.leadership*0.28+m.sales*0.2+m.innovation*0.18)-Math.max(0,used-2)*2+((Number(p.id)||idx)+day)%7))),accept=Math.max(38,Math.min(96,Math.round((m.skillScore*0.65+auto*0.35)-Math.max(0,used-2)*3+((Number(p.id)||idx)+day)%9)));return {key:`${p._source}-${p.id}`,source:p._source,refId:p._ref,id:p.id,name:p.name,role:p.role,level:p.level,specialty:p.specialty,department:p.department,skillScore:m.skillScore,salary:m.salary,signBonus:m.signBonus,potential:m.potential,auto,fit,accept}}).sort((a,b)=>(b.auto*1.2+b.skillScore+b.fit*0.35+b.accept*0.15)-(a.auto*1.2+a.skillScore+a.fit*0.35+a.accept*0.15)).slice(0,3)}
 function openCompanyInterviewDesk(data=state.company){const meta=loadCompanyTalentDeskMeta(data),next={...meta,day:Math.max(1,Number(data?.talent_day||liveCompanyClock().day)||1),interviewCount:(Number(meta.interviewCount)||0)+1,lastOpenedAt:Date.now()};next.shortlist=buildCompanyInterviewShortlist(data,next);saveCompanyTalentDeskMeta(next);return next}
@@ -1584,19 +1822,23 @@ function filteredCompanyTalents(){
 }
 function renderEmployeeQuickRoster(my){
   const talents=(state.company?.talents||[]).filter(Boolean);
+  const localTrainCount=Number(state.company?.my_company?.training_count_local||0)||0;
+  const localTrainSpent=Number(state.company?.my_company?.training_cash_spent||0)||0;
   if(!talents.length)return `<section class="employee-roster-quick"><div class="employee-roster-head"><div><small>EMPLOYEE ROSTER</small><h3>재직 핵심인재</h3></div><span>아직 이름이 있는 핵심인재가 없습니다.</span></div></section>`;
   const counts={};for(const t of talents){const g=talentGradeKey(t);counts[g]=(counts[g]||0)+1}
   const grades=Object.keys(counts).sort((a,b)=>talentGradeSortValue(a)-talentGradeSortValue(b));
   let filter=String(state.companyTalentGradeFilter||'ALL');if(filter!=='ALL'&&!counts[filter]){filter='ALL';state.companyTalentGradeFilter='ALL'}
   const rows=[...talents].filter(t=>filter==='ALL'||talentGradeKey(t)===filter).sort((a,b)=>talentGradeSortValue(talentGradeKey(b))-talentGradeSortValue(talentGradeKey(a))||Number(b.skill_score||0)-Number(a.skill_score||0));
-  return `<section class="employee-roster-quick grade-roster"><div class="employee-roster-head"><div><small>EMPLOYEE ROSTER</small><h3>재직 핵심인재</h3><p>등급별로 인재를 골라 보고, 같은 화면에서 연수·해고까지 처리합니다. 아래에 별도의 중복 재직 카드 목록은 표시하지 않습니다.</p></div><span>${rows.length}/${talents.length}명</span></div><div class="employee-grade-tabs"><button type="button" data-talent-grade-filter="ALL" class="${filter==='ALL'?'on':''}">전체 <b>${talents.length}</b></button>${grades.map(g=>`<button type="button" data-talent-grade-filter="${escapeHtml(g)}" class="${filter===g?'on':''}">${escapeHtml(g)} <b>${counts[g]}</b></button>`).join('')}</div><div class="employee-roster-table"><div class="employee-roster-row header"><span>직원</span><span>부서</span><span>역량 / 잠재력</span><span>월급</span><span>자동운영</span><span>관리</span></div>${rows.map(t=>`<div class="employee-roster-row"><span class="employee-name">${talentGradeBadge(t)}<b>${escapeHtml(t.name)}</b><small>${escapeHtml(t.specialty||'-')} · Lv.${Number(t.career_level||1)}</small></span><span>${escapeHtml(talentDepartmentShort(t.department))}</span><span><b>${Number(t.skill_score||0).toFixed(1)}</b><small>잠재력 ${Number(t.potential||50).toFixed(0)}</small></span><span>${formatKrwSmart(t.monthly_salary||0)}</span><span>+${talentAutopilotContribution(t).toFixed(1)}</span><span class="employee-roster-actions"><button type="button" data-talent-train="${t.id}" data-training-type="BALANCED">종합 연수</button><button type="button" data-talent-train="${t.id}" data-training-type="SPECIALTY">전문 연수</button><button type="button" class="employee-fire-btn" data-talent-fire="${t.id}">해고</button></span></div>`).join('')}</div></section>`;
+  return `<section class="employee-roster-quick grade-roster"><div class="employee-roster-head"><div><small>EMPLOYEE ROSTER</small><h3>재직 핵심인재</h3><p>등급별로 인재를 골라 보고, 같은 화면에서 연수·해고까지 처리합니다. 아래에 별도의 중복 재직 카드 목록은 표시하지 않습니다.</p>${localTrainCount?`<div class="roster-training-note">연수 반영 ${nf.format(localTrainCount)}회 · 누적 사용 ${formatKrwSmart(localTrainSpent)}</div>`:''}</div><span>${rows.length}/${talents.length}명</span></div><div class="employee-grade-tabs"><button type="button" data-talent-grade-filter="ALL" class="${filter==='ALL'?'on':''}">전체 <b>${talents.length}</b></button>${grades.map(g=>`<button type="button" data-talent-grade-filter="${escapeHtml(g)}" class="${filter===g?'on':''}">${escapeHtml(g)} <b>${counts[g]}</b></button>`).join('')}</div><div class="employee-roster-table"><div class="employee-roster-row header"><span>직원</span><span>부서</span><span>역량 / 잠재력</span><span>월급</span><span>자동운영</span><span>관리</span></div>${rows.map(t=>`<div class="employee-roster-row"><span class="employee-name">${talentGradeBadge(t)}<b>${escapeHtml(t.name)}</b><small>${escapeHtml(t.specialty||'-')} · Lv.${Number(t.career_level||1)}</small></span><span>${escapeHtml(talentDepartmentShort(t.department))}</span><span><b>${Number(t.skill_score||0).toFixed(1)}</b><small>잠재력 ${Number(t.potential||50).toFixed(0)}</small></span><span>${formatKrwSmart(t.monthly_salary||0)}</span><span>+${talentAutopilotContribution(t).toFixed(1)}</span><span class="employee-roster-actions"><button type="button" data-talent-train="${t.id}" data-training-type="BALANCED">종합 연수</button><button type="button" data-talent-train="${t.id}" data-training-type="SPECIALTY">전문 연수</button><button type="button" class="employee-fire-btn" data-talent-fire="${t.id}">해고</button></span></div>`).join('')}</div></section>`;
 }
+
 
 function renderTalentMarket(my){
   if(!state.company?.talent_available)return `<section class="talent-market unavailable"><div class="company-section-head mini"><div><h3>핵심인재 시스템</h3></div><span>${escapeHtml(state.company?.talent_error||'V6.4 SQL을 적용해 주세요.')}</span></div></section>`;
   const data=state.company||{},candidates=data.recruit_pool||[],talents=data.talents||[],targets=data.poach_targets||[],offers=data.talent_offers||[],sum=data.talent_summary||{},hired=Number(data.talent_hired_today||0),limit=Number(data.talent_daily_limit||5),day=Math.max(1,Number(data.talent_day||1)||1),summary=companyAutomationSummary(data),desk=loadCompanyTalentDeskMeta(data);
   return `<section class="talent-market talent-v640">
-    <div class="talent-command-head"><div><small>PEOPLE & TALENT · DAY ${day}</small><h2>핵심인재실</h2><span>하루 기본 채용 + 유료 면접 + 스카우트로 인재를 확보하세요. 좋은 인재일수록 회사 자동 운영력이 올라갑니다.</span></div><div><b>${talents.length}명</b><span>오늘 채용 ${hired}/${limit}</span></div></div>
+    <div class="talent-command-head"><div><small>PEOPLE & TALENT · DAY ${day}</small><h2>핵심인재실</h2><span>회사 가치와 보상 수준이 높을수록 더 뛰어난 지원자가 들어옵니다. 최상위 인재는 실제 빅테크 수준처럼 매우 높은 월급·사인보너스를 요구할 수 있습니다.</span></div><div><b>${talents.length}명</b><span>오늘 채용 ${hired}/${limit}</span></div></div>
+    ${(()=>{const a=companyTalentEmployerAttractiveness(my);return `<div class="talent-attraction-strip"><div><small>채용 매력도</small><b>${a.score.toFixed(0)}/100 · ${escapeHtml(a.label)}</b></div><span>회사 가치 영향 ${a.valueScore.toFixed(0)} · 급여 경쟁력 ${a.salaryScore.toFixed(0)} · 현재 평균 월급 ${formatKrwSmart(a.avgSalary)}</span><em>능력 90+ 최상위 후보는 월 수천만~1억 원대 보상을 요구할 수 있습니다.</em></div>`})()}
     <div class="talent-market-summary board four"><article><small>재직 인재</small><b>${talents.length}명</b><span>평균 역량 ${Number(sum.avg_skill||summary.avgSkill||0).toFixed(1)}</span></article><article><small>월 인건비</small><b>${formatKrwSmart(Number(sum.monthly_salary||summary.payroll||0))}</b><span>개인계약 포함</span></article><article><small>핵심인재 지수</small><b>${Number(sum.talent_index||my.talent_index||50).toFixed(1)}</b><span>평균 잠재력 ${Number(sum.avg_potential||0).toFixed(1)}</span></article><article><small>자동 운영</small><b>${summary.grade[0]}</b><span>지수 ${summary.automationIndex.toFixed(1)} · 방어 +${summary.defenseBoost.toFixed(1)}</span></article></div>
     ${renderEmployeeQuickRoster(my)}
     ${renderTalentAutomationDesk(data,summary,desk)}
@@ -1828,7 +2070,7 @@ function renderMediaDesk(my){
     <div class="company-section-head"><div><small>NEWS / IR</small><h2>언론 대응</h2></div></div>
     <div class="media-company-search"><label>회사 검색<input id="companyMediaSearch" value="${escapeHtml(state.companyMediaSearch||'')}" placeholder="회사명·종목코드·유저명 검색"></label><button type="button" id="companyMediaSearchBtn">검색</button></div>
     ${search?`<div class="media-search-results">${searchRows.length?searchRows.map(c=>`<button type="button" data-media-target-quick="${c.id}" class="${Number(c.id)===targetId?'on':''} ${companyOperatorType(c)==='PLAYER'&&Number(c.id)!==Number(my.id)?'player-target':''} ${Number(c.id)===threatId?'threat-target':''}"><b>${escapeHtml(c.name)}</b><span>${Number(c.id)===Number(my.id)?'내 회사':Number(c.id)===threatId?'내 경영권 위협 회사':companyOperatorType(c)==='PLAYER'?'실제 유저 회사':'BOT 회사'} · ${escapeHtml(c.ticker||'')}</span></button>`).join(''):`<div class="empty compact">검색 결과가 없습니다.</div>`}</div>`:''}
-    <div class="media-target-shell compact"><div><small>현재 기사 대상</small><b class="${Number(target.id)===threatId?'danger-text':''}">${escapeHtml(target?.name||'')}</b><span>${Number(target.id)===threatId?'내 경영권을 위협 중인 회사':companyOperatorType(target)==='PLAYER'&&Number(target.id)!==Number(my.id)?'실제 유저 회사':Number(target.id)===Number(my.id)?'내 회사':'BOT 회사'}</span></div><label><span>대상 선택</span><select id="companyMediaTarget">${options}</select></label></div>
+    <div class="media-target-shell compact search-selected-target"><div><small>현재 기사 대상 · 검색 결과가 바로 적용됩니다</small><b class="${Number(target.id)===threatId?'danger-text':''}">${escapeHtml(target?.name||'')}</b><span>${Number(target.id)===threatId?'내 경영권을 위협 중인 회사':companyOperatorType(target)==='PLAYER'&&Number(target.id)!==Number(my.id)?'실제 유저 회사':Number(target.id)===Number(my.id)?'내 회사':'BOT 회사'} · ${escapeHtml(target?.ticker||'')}</span></div><button type="button" id="companyMediaTargetReset">내 회사로 변경</button></div>
     <div class="media-tone-buttons"><button type="button" data-media-tone="PROMOTE" class="${tone==='PROMOTE'?'on':''}"><b>긍정 홍보</b></button><button type="button" data-media-tone="NEUTRAL" class="${tone==='NEUTRAL'?'on':''}"><b>사실 중심</b></button><button type="button" data-media-tone="CRITICAL" class="critical ${tone==='CRITICAL'?'on':''}" ${targetId===Number(my.id)?'disabled':''}><b>비판·검증</b></button></div>
     <div class="media-region-tabs"><button data-company-media-region="ALL" class="${region==='ALL'?'on':''}">전체</button><button data-company-media-region="국내" class="${region==='국내'?'on':''}">국내</button><button data-company-media-region="해외" class="${region==='해외'?'on':''}">해외</button></div>
     <div class="auto-outlet-grid">${filtered.map(o=>`<article class="auto-outlet-card"><div><small>${o.kind}</small><h3>${o.name}</h3></div><dl><div><dt>비용</dt><dd>${formatKrwSmart(o.cost*(tone==='CRITICAL'?1.15:1))}</dd></div><div><dt>도달</dt><dd>${o.reach}</dd></div></dl><button type="button" data-company-media="${o.key}" data-media-api-code="${o.apiCode}" data-media-cost="${o.cost}" data-media-name="${o.name}" data-media-region="${o.region}">${tone==='CRITICAL'?'비판 기사 발행':tone==='NEUTRAL'?'사실 기사 발행':'홍보 기사 발행'}</button></article>`).join('')}</div>
@@ -1958,7 +2200,7 @@ function renderTakeoverDesk(my){
       <article class="${Number(my.defense_power||0)>=20?'safe':''}"><small>경영권 방어력</small><b>${Number(my.defense_power||0).toFixed(0)}</b><span>백기사·포이즌필 등으로 상승하며 시간이 지나면 서서히 약해집니다.</span></article>
     </div>
     <div class="takeover-columns">
-      <div><h3>내 회사에 들어온 지분</h3>${incoming.length?incoming.map(h=>`<div class="stake-row"><span><b>${escapeHtml(h.holder_name)}</b><small>${escapeHtml(h.holder_type)} · ${escapeHtml(h.holder_ticker)}</small></span><strong class="${Number(h.stake)>=25?'down':''}">${Number(h.stake).toFixed(2)}%</strong><em>${compactMoney(h.market_value)}원</em></div>`).join(''):`<div class="empty compact">아직 외부 기업이 내 회사 지분을 확보하지 않았습니다.</div>`}</div>
+      <div><h3>내 회사에 들어온 지분</h3>${incoming.length?incoming.map(h=>`<div class="stake-row"><span><b>${escapeHtml(h.holder_name)}</b><small>${escapeHtml(h.holder_type)} · ${escapeHtml(h.holder_ticker)}</small></span><strong class="${holdingStakeValue(h)>=25?'down':''}">${holdingStakeValue(h).toFixed(2)}%</strong><em>${compactMoney(h.market_value)}원</em></div>`).join(''):`<div class="empty compact">아직 외부 기업이 내 회사 지분을 확보하지 않았습니다.</div>`}</div>
       <div><h3>내 회사가 보유한 경쟁사 지분</h3>${mine.length?mine.map(h=>`<div class="stake-row owned"><span><b>${escapeHtml(h.target_name)}</b><small>${escapeHtml(h.target_ticker)} · ${escapeHtml(h.target_country)}</small></span><strong>${Number(h.stake).toFixed(2)}%</strong><em>${compactMoney(h.market_value)}원</em><button data-company-sell="${h.target_company_id}">일부 매각</button></div>`).join(''):`<div class="empty compact">아직 인수한 경쟁사 지분이 없습니다.</div>`}</div>
     </div>
   </section>`;
@@ -2347,62 +2589,73 @@ function renderInvestmentGuide(){
   </section></main>`;
 }
 
-function tutorialSteps(){
-  return [
-    {selector:'.ceo-game-center',kicker:'01 · 목표',title:'처음에는 CEO 미션 3개만 따라가세요',text:'모든 기능을 한 번에 배울 필요가 없습니다. 미션이 프로젝트, 홍보, M&A, 해외진출을 순서대로 경험하게 해줍니다.'},
-    {selector:'.ceo-coach',kicker:'02 · 우선순위',title:'현재 회사의 약점을 먼저 해결합니다',text:'현금·세금·직원·품질·경영권을 읽어 지금 가장 중요한 행동을 추천합니다. 극현실 모드에서는 이 보조판이 사라집니다.'},
-    {selector:'[data-company-section-nav="operations"]',kicker:'03 · 사업 운영',title:'프로젝트를 고르고 예산을 배분합니다',text:'R&D, 품질, 설비, 채용, 마케팅, 복지는 서로 다른 지표를 움직입니다. 초보 모드에서는 예상효과와 참고예산을 같이 보여줍니다.'},
-    {selector:'[data-company-section-nav="risk"]',kicker:'04 · 홍보',title:'마케팅과 언론 홍보를 구분해 사용합니다',text:'마케팅은 고객 수요와 점유율, 언론 홍보는 투자자 심리와 미디어 평판에 더 직접적으로 작용합니다.'},
-    {selector:'[data-company-section-nav="competition"]',kicker:'05 · M&A',title:'분석 → 소수지분 → 공개매수 순서로 갑니다',text:'경쟁사를 먼저 분석하고 5% 전략지분부터 확보해 보세요. 15% 이후 공개매수가 열리고 50%를 넘으면 자회사로 편입됩니다.'},
-    {selector:'[data-main-tab="ranking"]',kicker:'06 · 장기 목표',title:'기업 순위는 장기적인 경영 결과입니다',text:'단기 수익만 보는 대신 회사 가치, 현금흐름, 조직, 글로벌 사업을 함께 키워 전체 기업 순위를 올리는 것은 장기적인 경영 성과 중 하나입니다.'}
-  ];
-}
-
-function closeTutorial(){
-  document.getElementById('kxTutorial')?.remove();
-  document.body.classList.remove('tutorial-active');
-  window.removeEventListener('resize',window.__kxTourResize||(()=>{}));
-  window.removeEventListener('scroll',window.__kxTourResize||(()=>{}),true);
-  window.__kxTourResize=null;
-}
-function startGuidedTour(startIndex=0){
-  closeTutorial();
-  const steps=tutorialSteps();let index=Math.max(0,Math.min(steps.length-1,Number(startIndex)||0));
-  const root=document.createElement('div');root.id='kxTutorial';root.className='guided-tour';
-  root.innerHTML=`<div class="tour-focus"></div><section class="tour-bubble" role="dialog" aria-live="polite"><button class="tour-close" aria-label="튜토리얼 닫기">×</button><div class="tour-step"></div><div class="tour-actions"><button data-tour-prev>이전</button><button data-tour-next>다음</button></div></section>`;
-  document.body.appendChild(root);document.body.classList.add('tutorial-active');
-  const focus=root.querySelector('.tour-focus'),bubble=root.querySelector('.tour-bubble'),stepBox=root.querySelector('.tour-step');
-  function visibleTarget(selector){return [...document.querySelectorAll(selector)].find(el=>{const r=el.getBoundingClientRect();return r.width>2&&r.height>2})||document.querySelector(selector)}
-  function place(){
-    const step=steps[index],target=visibleTarget(step.selector);if(!target)return;
-    const r=target.getBoundingClientRect(),pad=7;
-    const left=Math.max(6,r.left-pad),top=Math.max(6,r.top-pad),right=Math.min(innerWidth-6,r.right+pad),bottom=Math.min(innerHeight-6,r.bottom+pad);
-    focus.style.left=`${left}px`;focus.style.top=`${top}px`;focus.style.width=`${Math.max(20,right-left)}px`;focus.style.height=`${Math.max(20,bottom-top)}px`;
-    const bw=Math.min(390,innerWidth-24);bubble.style.width=`${bw}px`;
-    const bh=bubble.offsetHeight||210;let bx=Math.min(Math.max(12,left),innerWidth-bw-12);let by=bottom+14;
-    if(by+bh>innerHeight-12)by=Math.max(12,top-bh-14);
-    if(r.width>innerWidth*.72){bx=Math.max(12,(innerWidth-bw)/2);}
-    bubble.style.left=`${bx}px`;bubble.style.top=`${by}px`;
-  }
-  function draw(){
-    const step=steps[index];
-    stepBox.innerHTML=`<small>${step.kicker} · ${index+1}/${steps.length}</small><h2>${step.title}</h2><p>${step.text}</p>`;
-    root.querySelector('[data-tour-prev]').disabled=index===0;
-    root.querySelector('[data-tour-next]').textContent=index===steps.length-1?'튜토리얼 끝내기':'다음';
-    const target=visibleTarget(step.selector);if(target){target.scrollIntoView({block:'nearest',inline:'nearest'});setTimeout(place,40)}else setTimeout(place,40);
-  }
-  root.querySelector('.tour-close').onclick=closeTutorial;
-  root.querySelector('[data-tour-prev]').onclick=()=>{if(index>0){index--;draw()}};
-  root.querySelector('[data-tour-next]').onclick=()=>{if(index<steps.length-1){index++;draw()}else closeTutorial()};
-  window.__kxTourResize=place;window.addEventListener('resize',place);window.addEventListener('scroll',place,true);
-  draw();
-}
 function openTutorial(startIndex=0){
-  if(state.tab!=='company'){
-    state.tab='company';state.companySection='dashboard';renderTerminal();setTimeout(()=>startGuidedTour(startIndex),80);return;
-  }
+  state.tab='company';
+  if(!state.companySection)state.companySection='dashboard';
+  renderTerminal(true);
   startGuidedTour(startIndex);
 }
+function startGuidedTour(startIndex=0){
+  const old=document.getElementById('guidedTourRoot');if(old)old.remove();
+  document.body.classList.add('tutorial-active');
+  const root=document.createElement('div');root.id='guidedTourRoot';root.className='guided-tour';
+  const mask=document.createElement('div');mask.className='tour-focus';
+  const bubble=document.createElement('div');bubble.className='tour-bubble';
+  root.appendChild(mask);root.appendChild(bubble);document.body.appendChild(root);
+  const steps=[
+    {selector:'#tutorialBtn',kicker:'01 · 도움말',title:'튜토리얼 버튼',text:'이 버튼을 누르면 지금처럼 화면 위에 테두리를 띄우고, 각 버튼이 무슨 용도인지 차례대로 설명합니다. 길을 잃었을 때 언제든 다시 열 수 있습니다.',tab:'company',section:'dashboard'},
+    {selector:'[data-company-section-nav="dashboard"]',kicker:'02 · 경영 홈',title:'현재 회사 상태를 먼저 확인하세요',text:'법인 현금, 회사 가치, 외부 지분 위협, 진행 중 프로젝트 같은 핵심 지표를 가장 먼저 보는 곳입니다. 매 주기마다 여기서 전체 흐름을 파악하면 됩니다.',tab:'company',section:'dashboard'},
+    {selector:'[data-company-section-jump="operations"], [data-company-section-nav="operations"]',kicker:'03 · 사업 운영',title:'사업 버튼',text:'신규 프로젝트를 시작하고 예산을 넣는 곳입니다. 제품, 생산, 마케팅, 설비, 해외 사업처럼 돈을 써서 회사를 키우는 결정은 대부분 여기서 합니다.',tab:'company',section:'dashboard'},
+    {selector:'[data-company-action], [data-company-ops-tab="projects"], [data-company-section-nav="operations"]',kicker:'04 · 실행 버튼',title:'사업 운영 화면의 핵심 버튼',text:'프로젝트 시작 버튼을 눌러 실제 사업 결정을 실행합니다. 버튼 설명에 효과와 위험도가 적혀 있으니, 현금 여력과 회사 상황을 같이 보고 선택하면 됩니다.',tab:'company',section:'operations'},
+    {selector:'[data-company-section-nav="people"]',kicker:'05 · 직원',title:'직원 버튼',text:'인재 채용, 일반 직원 관리, 급여, 연수, 해고를 처리하는 곳입니다. 회사 자동 운영 수준도 같이 확인할 수 있어, 조직 관리의 중심 화면입니다.',tab:'company',section:'people'},
+    {selector:'[data-talent-hire], [data-talent-interview="open"], [data-company-hr="HIRE"]',kicker:'06 · 채용',title:'직원 채용 버튼',text:'후보를 바로 뽑거나, 일반 인력을 부서별로 채용하는 버튼입니다. 성장 속도를 높이고 싶을 때 먼저 사람부터 확보하면 운영이 훨씬 안정됩니다.',tab:'company',section:'people'},
+    {selector:'[data-talent-train][data-training-type="BALANCED"]',kicker:'07 · 종합 연수',title:'종합 연수 버튼',text:'직원의 전체 능력을 고르게 올리는 연수입니다. 역량, 자동운영 기여도, 충성도가 함께 조금씩 상승하므로 기본 육성용으로 쓰기 좋습니다.',tab:'company',section:'people'},
+    {selector:'[data-talent-train][data-training-type="SPECIALTY"]',kicker:'08 · 전문 연수',title:'전문 연수 버튼',text:'직원의 부서 특성에 맞는 핵심 능력을 집중 강화하는 연수입니다. 기술·영업·운영처럼 필요한 분야를 빠르게 키우고 싶을 때 사용하면 됩니다.',tab:'company',section:'people'},
+    {selector:'[data-company-section-nav="competition"]',kicker:'09 · 기업/M&A',title:'기업/M&A 버튼',text:'경쟁사를 분석하고 지분을 확보하거나, 공개매수와 방어 전략을 다루는 공간입니다. 회사를 키운 뒤 더 큰 판을 노릴 때 사용하는 고급 경영 메뉴입니다.',tab:'company',section:'competition'},
+    {selector:'[data-company-dd], [data-company-defense], [data-open-defense-overview], [data-company-section-nav="competition"]',kicker:'10 · 경쟁/방어',title:'인수·방어 실행 버튼',text:'실사 의뢰, 지분 매입, 방어 수단 보기 같은 버튼으로 실제 M&A 행동을 실행합니다. 큰돈이 드는 만큼 뉴스와 현금 사정을 먼저 확인하는 것이 좋습니다.',tab:'company',section:'competition'},
+    {selector:'[data-company-section-nav="risk"]',kicker:'11 · 뉴스/IR',title:'뉴스/IR 버튼',text:'시장 뉴스, 리스크, 언론 홍보와 평판 흐름을 보는 곳입니다. 단순 장식이 아니라 주가, 회사 가치, 투자 심리에 영향을 주는 정보 화면입니다.',tab:'company',section:'risk'},
+    {selector:'[data-main-tab="ranking"]',kicker:'12 · 순위',title:'기업 순위 버튼',text:'지금까지의 경영 결과가 최종적으로 어떻게 반영됐는지 보는 곳입니다. 단기 수익보다 회사 가치, 현금흐름, 조직, 투자 성과를 함께 키워야 순위가 올라갑니다.',tab:'ranking'}
+  ];
+  let index=Math.max(0,Math.min(startIndex,steps.length-1));
+  let activeTarget=null;
+  const clearTarget=()=>{if(activeTarget){activeTarget.classList.remove('tour-targeted','focus-pulse');activeTarget=null;}};
+  const visibleTarget=(selector)=>{const els=[...document.querySelectorAll(selector)].filter(el=>{const r=el.getBoundingClientRect();const s=window.getComputedStyle(el);return r.width>4&&r.height>4&&s.visibility!=='hidden'&&s.display!=='none'});return els[0]||null};
+  const close=()=>{clearTarget();document.body.classList.remove('tutorial-active');root.remove();window.removeEventListener('resize',draw);window.removeEventListener('scroll',draw,true)};
+  const alignBubble=(target)=>{
+    const r=target.getBoundingClientRect();
+    const bw=Math.min(380,window.innerWidth-24);
+    bubble.style.width=`${bw}px`;
+    const bh=Math.max(140,Math.min(bubble.offsetHeight||180,window.innerHeight-24));
+    let left=Math.min(window.innerWidth-bw-12,r.right+18);
+    if(left<12||left+bw>window.innerWidth-12)left=Math.max(12,Math.min(window.innerWidth-bw-12,r.left+r.width/2-bw/2));
+    let top=Math.max(12,Math.min(window.innerHeight-bh-12,r.bottom+16));
+    if(top+bh>window.innerHeight-12)top=Math.max(12,r.top-bh-16);
+    bubble.style.left=`${left}px`;bubble.style.top=`${top}px`;
+  };
+  const ensureContext=(step)=>{
+    let changed=false;
+    if(step.tab&&state.tab!==step.tab){state.tab=step.tab;changed=true;}
+    if(step.tab==='company'&&step.section&&state.companySection!==step.section){state.companySection=step.section;changed=true;}
+    if(changed){renderTerminal(true);return true}
+    return false;
+  };
+  const draw=()=>{
+    const step=steps[index];
+    bubble.innerHTML=`<button class="tour-close" aria-label="닫기">×</button><div class="tour-step"><small>${step.kicker} · ${index+1}/${steps.length}</small><h2>${step.title}</h2><p>${step.text}</p></div><div class="tour-actions"><button type="button" ${index===0?'disabled':''} data-tour-nav="prev">이전</button><button type="button" data-tour-nav="next">${index===steps.length-1?'완료':'다음'}</button></div>`;
+    bubble.querySelector('.tour-close').onclick=close;
+    bubble.querySelector('[data-tour-nav="prev"]').onclick=()=>{if(index>0){index-=1;draw()}};
+    bubble.querySelector('[data-tour-nav="next"]').onclick=()=>{if(index>=steps.length-1)close();else{index+=1;draw()}};
+    if(ensureContext(step)){setTimeout(draw,90);return;}
+    const target=visibleTarget(step.selector);
+    clearTarget();
+    if(!target){mask.style.left='50%';mask.style.top='50%';mask.style.width='1px';mask.style.height='1px';bubble.style.left='12px';bubble.style.top='12px';return;}
+    activeTarget=target;activeTarget.classList.add('tour-targeted');
+    target.scrollIntoView({block:'center',inline:'center',behavior:'smooth'});
+    setTimeout(()=>{if(!document.body.contains(target))return;const r=target.getBoundingClientRect();mask.style.left=`${Math.max(8,r.left-8)}px`;mask.style.top=`${Math.max(8,r.top-8)}px`;mask.style.width=`${Math.max(36,r.width+16)}px`;mask.style.height=`${Math.max(28,r.height+16)}px`;alignBubble(target);activeTarget&&activeTarget.classList.add('focus-pulse');setTimeout(()=>activeTarget&&activeTarget.classList.remove('focus-pulse'),700);},80);
+  };
+  window.addEventListener('resize',draw);window.addEventListener('scroll',draw,true);draw();
+}
+
 function drawCompanyGrowthChart(){
   const canvas=document.getElementById('companyGrowthChart');if(!canvas)return;
   const metric=state.companyMetric||'valuation';
@@ -2879,16 +3132,16 @@ function bind(){
   document.querySelectorAll('[data-threat-media]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.threatMedia||0);if(!id)return;state.companyMediaTargetId=id;state.companyMediaTone='CRITICAL';state.companyMediaSearch='';state.companySection='risk';renderTerminal(true);});
   document.querySelectorAll('[data-threat-analyze]').forEach(b=>b.onclick=async()=>{const id=Number(b.dataset.threatAnalyze||0);const c=(state.company?.companies||[]).find(x=>Number(x.id)===id);if(!id)return;state.companySection='competition';state.companySearch=c?.name||'';state.companyAnalysisId=id;state.companyAnalysis=null;renderTerminal(true);try{const profile=await companyApi('PROFILE',{p_company_id:id});try{const rp=await companyRealismApi('PROFILE',{p_company_id:id});profile.realism_products=Array.isArray(rp?.products)?rp.products:[]}catch(_e){}state.companyAnalysis=profile;renderTerminal(true);}catch(err){state.companyNotice='공격 회사 분석 실패: '+err.message;renderTerminal(true);}});
   const mediaSearch=document.getElementById('companyMediaSearch');const mediaSearchBtn=document.getElementById('companyMediaSearchBtn');
-  const doMediaSearch=()=>{const q=String(mediaSearch?.value||'').trim();state.companyMediaSearch=q;const all=[...(state.company?.companies||[])].filter(c=>c&&c.status!=='INACTIVE');const matches=q?all.filter(c=>`${c.name||''} ${c.ticker||''} ${c.owner_nickname||''}`.toLowerCase().includes(q.toLowerCase())):[];if(matches.length===1){state.companyMediaTargetId=Number(matches[0].id);if(state.companyMediaTone==='CRITICAL'&&state.companyMediaTargetId===Number(state.company?.my_company?.id))state.companyMediaTone='PROMOTE';}renderTerminal(true);};
+  const doMediaSearch=()=>{const q=String(mediaSearch?.value||'').trim();state.companyMediaSearch=q;const all=[...(state.company?.companies||[])].filter(c=>c&&c.status!=='INACTIVE');const ql=q.toLowerCase(),matches=q?all.filter(c=>`${c.name||''} ${c.ticker||''} ${c.owner_nickname||''}`.toLowerCase().includes(ql)):[];const exact=matches.find(c=>String(c.name||'').toLowerCase()===ql||String(c.ticker||'').toLowerCase()===ql||String(c.owner_nickname||'').toLowerCase()===ql);const chosen=exact||(matches.length===1?matches[0]:null);if(chosen){state.companyMediaTargetId=Number(chosen.id);if(state.companyMediaTone==='CRITICAL'&&state.companyMediaTargetId===Number(state.company?.my_company?.id))state.companyMediaTone='PROMOTE';}renderTerminal(true);};
   if(mediaSearchBtn)mediaSearchBtn.onclick=doMediaSearch;if(mediaSearch)mediaSearch.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();doMediaSearch();}};
   document.querySelectorAll('[data-company-media-region]').forEach(b=>b.onclick=()=>{state.companyMediaRegion=b.dataset.companyMediaRegion||'ALL';renderTerminal(true);});
   document.querySelectorAll('[data-media-tone]').forEach(b=>b.onclick=()=>{if(b.disabled)return;state.companyMediaTone=b.dataset.mediaTone||'PROMOTE';renderTerminal(true);});
-  const mediaTarget=document.getElementById('companyMediaTarget');if(mediaTarget)mediaTarget.onchange=()=>{state.companyMediaTargetId=Number(mediaTarget.value)||Number(state.company?.my_company?.id)||0;if(state.companyMediaTone==='CRITICAL'&&state.companyMediaTargetId===Number(state.company?.my_company?.id))state.companyMediaTone='PROMOTE';renderTerminal(true);};
+  const mediaTargetReset=document.getElementById('companyMediaTargetReset');if(mediaTargetReset)mediaTargetReset.onclick=()=>{state.companyMediaTargetId=Number(state.company?.my_company?.id)||0;state.companyMediaSearch='';if(state.companyMediaTone==='CRITICAL')state.companyMediaTone='PROMOTE';renderTerminal(true);};
   document.querySelectorAll('[data-media-target-quick]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.mediaTargetQuick)||Number(state.company?.my_company?.id)||0;const c=(state.company?.companies||[]).find(x=>Number(x.id)===id)||state.company?.my_company;state.companyMediaTargetId=id;state.companyMediaSearch=c?.name||state.companyMediaSearch||'';if(state.companyMediaTone==='CRITICAL'&&id===Number(state.company?.my_company?.id))state.companyMediaTone='PROMOTE';renderTerminal(true);});
 
   document.querySelectorAll('[data-company-media]').forEach(b=>b.onclick=async()=>{
     const outlet=b.dataset.mediaApiCode||b.dataset.companyMedia,cost=Math.max(0,Number(b.dataset.mediaCost)||0),name=b.dataset.mediaName||'언론사',region=b.dataset.mediaRegion||'',tone=state.companyMediaTone||'PROMOTE';
-    const targetId=Math.max(0,Number(document.getElementById('companyMediaTarget')?.value)||Number(state.companyMediaTargetId)||Number(state.company?.my_company?.id)||0);
+    const targetId=Math.max(0,Number(state.companyMediaTargetId)||Number(state.company?.my_company?.id)||0);
     const target=(state.company?.companies||[]).find(c=>Number(c.id)===targetId)||state.company?.my_company;
     if(tone==='CRITICAL'&&targetId===Number(state.company?.my_company?.id)){alert('자사 대상 비판 기사는 지원하지 않습니다. 타사 또는 다른 유저 회사를 선택해 주세요.');return;}
     const expected=tone==='CRITICAL'?cost*1.15:cost;
@@ -2911,28 +3164,42 @@ function bind(){
     if(!confirm(`${candidate.grade} ${candidate.name}을 채용할까요?
 월급 ${formatKrwSmart(candidate.monthly_salary)} · 사인보너스 ${formatKrwSmart(candidate.signing_bonus)}
 오늘 채용 한도 ${state.company.talent_hired_today}/${state.company.talent_daily_limit}`))return;
-    try{b.disabled=true;const d=await companyTalentApi('HIRE_CANDIDATE',{p_candidate_id:id});if(!d?.ok)throw new Error(d?.message||'채용에 실패했습니다.');state.companyNotice=d.message;playCompanySfx('success');await loadCompanyLayer(false,true);renderTerminal(true);}catch(err){state.companyNotice='채용 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
+    try{b.disabled=true;const d=await companyTalentApi('HIRE_CANDIDATE',{p_candidate_id:id});if(!d?.ok)throw new Error(d?.message||'채용에 실패했습니다.');rememberLocalHireProfile(candidate,state.company?.my_company);state.companyNotice=d.message;playCompanySfx('success');await loadCompanyLayer(false,true);renderTerminal(true);}catch(err){state.companyNotice='채용 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
   });
   document.querySelectorAll('[data-talent-poach]').forEach(b=>b.onclick=async()=>{
     const id=Number(b.dataset.talentPoach||0),talent=(state.company?.poach_targets||[]).find(x=>Number(x.id)===id);if(!talent)return;
     const salary=parseCompanyMoney(document.getElementById(`poachSalary_${id}`)?.value,Number(talent.monthly_salary||0)*1.2),bonus=parseCompanyMoney(document.getElementById(`poachBonus_${id}`)?.value,Number(talent.monthly_salary||0)*4);
-    if(!confirm(`${talent.company_name}의 ${talent.grade} ${talent.name}에게 이직을 제안할까요?
-제시 월급 ${formatKrwSmart(salary)} · 사인보너스 ${formatKrwSmart(bonus)}
-실패하더라도 헤드헌터 착수비가 발생합니다.`))return;
-    try{b.disabled=true;b.textContent='제안 협상 중…';const d=await companyTalentApi('POACH',{p_talent_id:id,p_offer_salary:salary,p_signing_bonus:bonus});if(!d?.ok)throw new Error(d?.message||'영입 제안을 처리하지 못했습니다.');state.companyNotice=`${d.message}${d.success_chance!=null?` · 제안 당시 수락확률 ${Number(d.success_chance).toFixed(1)}%`:''}`;playCompanySfx(d.success?'success':'alert');await loadCompanyLayer(false,true);renderTerminal(true);}catch(err){state.companyNotice='헤드헌팅 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
+    if(!confirm(`${talent.company_name||talent.source_company_name||'경쟁사'}의 ${talent.grade||talentCareerTitle(talent)} ${talent.name}에게 이직을 제안할까요?\n제시 월급 ${formatKrwSmart(salary)} · 사인보너스 ${formatKrwSmart(bonus)}\n실패하더라도 헤드헌터 착수비가 발생합니다.`))return;
+    try{
+      b.disabled=true;b.textContent='제안 협상 중…';
+      const d=await companyTalentApi('POACH',{p_talent_id:id,p_offer_salary:salary,p_signing_bonus:bonus});
+      if(!d?.ok)throw new Error(d?.message||'영입 제안을 처리하지 못했습니다.');
+      state.companyNotice=`${d.message}${d.success_chance!=null?` · 제안 당시 수락확률 ${Number(d.success_chance).toFixed(1)}%`:''}`;playCompanySfx(d.success?'success':'alert');await loadCompanyLayer(false,true);renderTerminal(true);
+    }catch(err){
+      if(localTalentPoachFallbackable(err)){
+        const d=applyLocalTalentPoach(id,salary,bonus,state.company);if(!d?.ok){state.companyNotice='헤드헌팅 실패: '+d.message;alert(state.companyNotice);renderTerminal(true);return;}
+        state.companyNotice=`${d.message} (서버 영입 API 미동작으로 게임 내 보완 로직 적용)`;playCompanySfx(d.success?'success':'alert');renderTerminal(true);return;
+      }
+      state.companyNotice='헤드헌팅 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);
+    }
   });
 
   document.querySelectorAll('[data-talent-fire]').forEach(b=>b.onclick=async()=>{
     const id=Number(b.dataset.talentFire||0),t=(state.company?.talents||[]).find(x=>Number(x.id)===id);if(!t)return;
     const severance=Math.max(Number(t.monthly_salary||0),Number(t.monthly_salary||0)*Math.min(4,Math.max(1,Math.ceil(Number(t.career_level||1)/8))));
     if(!confirm(`${t.name}을 해고할까요?\n예상 퇴직비용 약 ${formatKrwSmart(severance)} · 핵심인재 자동운영 기여도 ${talentAutopilotContribution(t).toFixed(1)}가 사라집니다.`))return;
-    try{b.disabled=true;b.textContent='처리 중…';const d=await companyTalentTerminateV645(id);if(!d?.ok)throw new Error(d?.message||'해고 처리 실패');state.companyNotice=d.message||`${t.name}의 퇴직 처리가 완료되었습니다.`;playCompanySfx('alert');await loadCompanyLayer(false,true);renderTerminal(true);}catch(err){state.companyNotice='해고 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
+    try{
+      b.disabled=true;b.textContent='처리 중…';
+      if(t._localPoached){const d=terminateLocalPoachedTalent(id,severance,state.company);if(!d?.ok)throw new Error(d?.message||'해고 처리 실패');state.companyNotice=d.message;playCompanySfx('alert');renderTerminal(true);return;}
+      const d=await companyTalentTerminateV645(id);if(!d?.ok)throw new Error(d?.message||'해고 처리 실패');state.companyNotice=d.message||`${t.name}의 퇴직 처리가 완료되었습니다.`;playCompanySfx('alert');await loadCompanyLayer(false,true);renderTerminal(true);
+    }catch(err){state.companyNotice='해고 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
   });
 
   document.querySelectorAll('[data-talent-train]').forEach(b=>b.onclick=async()=>{
     const id=Number(b.dataset.talentTrain||0),type=b.dataset.trainingType||'BALANCED',t=(state.company?.talents||[]).find(x=>Number(x.id)===id);if(!t)return;
-    if(!confirm(`${t.name}에게 ${type==='SPECIALTY'?'전문':'종합'} 연수를 진행할까요?\n잠재력이 높아도 성장 성공은 보장되지 않습니다.`))return;
-    try{b.disabled=true;b.textContent='연수 중…';const d=await companyTalentApi('TRAIN',{p_talent_id:id,p_training_type:type});if(!d?.ok)throw new Error(d?.message||'연수 실패');state.companyNotice=d.message;playCompanySfx(d.grew?'success':'alert');await loadCompanyLayer(false,true);renderTerminal(true);}catch(err){state.companyNotice='연수 처리 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
+    if(!confirm(`${t.name}에게 ${type==='SPECIALTY'?'전문':'종합'} 연수를 진행할까요?
+잠재력이 높아도 성장 성공은 보장되지 않습니다.`))return;
+    try{b.disabled=true;b.textContent='연수 중…';const d=await companyTalentApi('TRAIN',{p_talent_id:id,p_training_type:type});if(!d?.ok)throw new Error(d?.message||'연수 실패');state.companyNotice=d.message||'직원 연수를 진행했습니다.';playCompanySfx(d.grew?'success':'alert');await loadCompanyLayer(false,true);renderTerminal(true)}catch(err){if(localTalentTrainingFallbackable(err)){const local=applyLocalTalentTraining(id,type,state.company);if(!local?.ok)throw new Error(local?.message||'직원 연수 실패');state.companyNotice=`${local.message} (로컬 연수 시스템 적용)`;playCompanySfx('success');renderTerminal(true);return;}state.companyNotice='연수 처리 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
   });
   document.querySelectorAll('[data-talent-match]').forEach(b=>b.onclick=async()=>{
     const id=Number(b.dataset.talentMatch||0),salary=parseCompanyMoney(document.getElementById(`matchSalary_${id}`)?.value,0);if(!confirm('경쟁사의 이직 제안에 맞제안할까요? 보상 비용이 법인현금에 반영됩니다.'))return;
