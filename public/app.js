@@ -1,5 +1,5 @@
 (()=>{
-const KX_COMPANY_BUILD='6.5.7-DEFENSE-EFFECT-SELL-FIX';
+const KX_COMPANY_BUILD='6.5.8-MARKET-VOLATILITY-CHART';
 window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
@@ -141,6 +141,78 @@ function visualCompanyPrice(c){
   // No per-browser random/wave price is allowed because every user must see the same price.
   return Math.max(1,Number(c?.share_price)||1);
 }
+
+function companyMarketVolatilityProfile(c={}){
+  const valuation=Math.max(1,Number(c?.valuation||0)||1);
+  const sector=String(c?.sector||'').toLowerCase();
+  const style=String(c?.ai_style||'').toUpperCase();
+  let targetRange=valuation>=5e13?.032:valuation>=1e13?.038:valuation>=5e12?.044:valuation>=1e12?.052:valuation>=3e11?.062:.072;
+  if(/ai|반도체|로보|게임|콘텐츠|바이오|핀테크|소프트웨어|tech/.test(sector))targetRange+=.016;
+  if(['GROWTH','AGGRESSIVE','TECH'].includes(style))targetRange+=.010;
+  if(['DEFENSIVE','VALUE'].includes(style))targetRange-=.007;
+  targetRange=Math.max(.032,Math.min(.12,targetRange));
+  const wick=Math.max(.0018,Math.min(.0065,targetRange*.065));
+  const axisRange=Math.max(.045,Math.min(.14,targetRange*1.10));
+  return {targetRange,wick,axisRange};
+}
+function companyDeterministicNoise(companyId,cycle,salt=0){
+  const x=Math.sin((Number(companyId||1)+11.73)*12.9898+(Number(cycle||0)+salt*17.17)*78.233)*43758.5453123;
+  return (x-Math.floor(x))*2-1;
+}
+function companyMarketAdjustedCandles(rawRows,company){
+  const src=[...(rawRows||[])];
+  const profile=companyMarketVolatilityProfile(company);
+  const companyId=Number(company?.id||state.companyAnalysisId||1);
+  const base=src.map((r,i,arr)=>{
+    const prev=i?Number(arr[i-1].close_price||arr[i-1].share_price||0):Number(r.open_price||r.share_price||r.close_price||0);
+    let c=Number(r.close_price||r.share_price||prev),o=Number(r.open_price||prev||c),h=Number(r.high_price||Math.max(o,c)),l=Number(r.low_price||Math.min(o,c));
+    if(!(c>0))c=prev||1;if(!(o>0))o=c;h=Math.max(Number(h)||c,o,c);l=Math.min(Number(l)||c,o,c);
+    return {...r,_rawClose:c,_rawOpen:o,_rawHigh:h,_rawLow:l};
+  }).filter(r=>r._rawClose>0);
+  if(base.length<2)return base.map(r=>({...r,_o:r._rawOpen,_c:r._rawClose,_h:r._rawHigh,_l:r._rawLow,_v:Math.max(1,Number(r.volume)||1),_marketAdjusted:false}));
+  const livePrice=Math.max(0,Number(company?.share_price||0));
+  if(livePrice>0){
+    const lastIndex=base.length-1,oldLast=base[lastIndex]._rawClose||livePrice;
+    if(oldLast>0&&Math.abs(livePrice-oldLast)/oldLast<.20)base[lastIndex]._rawClose=livePrice;
+  }
+  const rawMin=Math.min(...base.map(r=>r._rawLow)),rawMax=Math.max(...base.map(r=>r._rawHigh)),rawMid=(rawMin+rawMax)/2||1;
+  const rawRange=(rawMax-rawMin)/rawMid;
+  const fill=Math.max(0,Math.min(1,(profile.targetRange-rawRange)/Math.max(.012,profile.targetRange*.78)));
+  const amp=profile.targetRange*.34*fill;
+  const offsets=base.map((r,i)=>{
+    const cycle=Number(r.cycle_no||i+1);
+    const phase=(companyId%37)*.19;
+    const wave1=Math.sin(cycle*.23+phase)*amp*.58;
+    const wave2=Math.sin(cycle*.071+phase*1.7)*amp*.36;
+    const noise=companyDeterministicNoise(companyId,cycle,3)*amp*.26;
+    const sentiment=(Number(company?.investor_sentiment||50)-50)/50*amp*.12;
+    return wave1+wave2+noise+sentiment;
+  });
+  const anchor=offsets[offsets.length-1]||0;
+  const adjusted=[];
+  for(let i=0;i<base.length;i++){
+    const r=base[i],cycle=Number(r.cycle_no||i+1);
+    const c=Math.max(.01,r._rawClose*(1+(offsets[i]-anchor)));
+    const prev=i?adjusted[i-1]._c:Math.max(.01,r._rawOpen*(1+(offsets[i]-anchor)*.72));
+    const o=Math.max(.01,prev);
+    const move=Math.abs(c-o)/Math.max(1,(c+o)/2);
+    const wickBase=Math.max(profile.wick*.55,Math.min(profile.wick*1.9,profile.wick+move*.22));
+    const upW=wickBase*(.55+.45*Math.abs(companyDeterministicNoise(companyId,cycle,7)));
+    const dnW=wickBase*(.55+.45*Math.abs(companyDeterministicNoise(companyId,cycle,11)));
+    const h=Math.max(o,c)*(1+upW),l=Math.max(.01,Math.min(o,c)*(1-dnW));
+    const rawVol=Math.max(0,Number(r.volume)||0);
+    const activity=1+Math.min(3,move/Math.max(.001,profile.wick))*1.15;
+    const generated=Math.round((420+Math.abs(companyDeterministicNoise(companyId,cycle,19))*1180)*activity*(1+Math.min(4,Number(company?.valuation||0)/1e13)*.12));
+    const v=Math.max(1,rawVol>0?Math.round(rawVol*(.72+activity*.28)):generated);
+    adjusted.push({...r,_o:o,_c:c,_h:h,_l:l,_v:v,_marketAdjusted:fill>.05});
+  }
+  if(livePrice>0&&adjusted.length){
+    const last=adjusted[adjusted.length-1],prev=adjusted.length>1?adjusted[adjusted.length-2]._c:last._o;
+    last._c=livePrice;last._o=prev;last._h=Math.max(last._h,last._o,last._c);last._l=Math.min(last._l,last._o,last._c);
+  }
+  return adjusted;
+}
+
 function updateCompanyVisualQuotes(){
   if(state.tab!=='company')return;
   const now=Date.now();
@@ -622,9 +694,19 @@ function localTick(d){
   const now=Date.now();if(now-Number(d.world?.last_local_tick||0)<18000)return d;
   d.world.cycle_no=Number(d.world.cycle_no||1)+1;d.world.last_local_tick=now;
   for(const b of d.companies.filter(x=>x.is_bot)){
-    const drift=(Math.random()-.45)*.028+(b.ai_style==='GROWTH'?.006:0);
+    const profile=companyMarketVolatilityProfile(b),style=String(b.ai_style||'').toUpperCase();
+    const growthBias=style==='GROWTH'?.0045:style==='AGGRESSIVE'?.0035:style==='TECH'?.0025:style==='DEFENSIVE'?-.001:0;
+    const drift=(Math.random()-.47)*.022+growthBias;
     b.previous_revenue=b.revenue;b.revenue=Math.max(120000000,b.revenue*(1+drift));b.profit=b.revenue*(.055+(b.technology+b.operations-120)/1200+(Math.random()-.5)*.025);
-    b.valuation=Math.max(500000000,b.valuation*(1+drift*.7+(Math.random()-.48)*.018));b.share_price=Math.max(300,b.valuation/1000000);
+    const sentimentPush=(Number(b.investor_sentiment||58)-50)/10000;
+    const flowShock=(Math.random()-.5)*profile.targetRange*.22;
+    const fundamental=drift*.40+sentimentPush;
+    const priceMove=Math.max(-profile.targetRange*.30,Math.min(profile.targetRange*.30,fundamental+flowShock));
+    b.valuation=Math.max(500000000,b.valuation*(1+priceMove));b.share_price=Math.max(300,b.valuation/Math.max(1,Number(b.shares_outstanding||1000000)));
+    b.investor_flow=Number(b.valuation||0)*(priceMove*.13+(Math.random()-.5)*.0018);
+    b.investor_sentiment=clamp(Number(b.investor_sentiment||58)+priceMove*160+(Math.random()-.5)*1.2);
+    b.volatility=profile.targetRange*100;
+    b.last_return_pct=priceMove*100;
   }
   const c=d.my_company;
   if(c){
@@ -2382,7 +2464,7 @@ function renderCompanyAnalysisPanel(my){
   return `<aside class="company-analysis-panel clean-profile-panel">
     <div class="analysis-profile-head"><div><span class="analysis-country">${escapeHtml(c.home_country||'')}</span>${companyTypeBadge(c)}<h2>${escapeHtml(c.name)}${self?' <em class="me-chip">내 회사</em>':''}</h2><p>${escapeHtml(c.sector)} · ${companyOwnerLabel(c)}</p></div><div class="analysis-value-box"><small>기업가치</small><b>${companyMarketValueText(c)}</b><span>${c.home_country!=='대한민국'?`원화 환산 ${compactMoney(c.valuation)}원`:self?'내 회사':`내 회사 대비 ${gap>=1?`${gap.toFixed(gap>99?0:1)}배`:`${(gap*100).toFixed(0)}%`}`}</span></div></div>
     <div class="analysis-stat-grid"><article><small>현재 주가</small><b>${companySharePriceText(c)}</b><span class="${ret>=0?'up':'down'}">${ret>=0?'+':''}${ret.toFixed(2)}%</span></article><article><small>시장 수급</small><b class="${flow>=0?'up':'down'}">${flow>=0?'+':''}${compactMoney(flow)}원</b><span>공용 서버 수급</span></article><article><small>변동성</small><b>${Number(c.volatility||1.5).toFixed(2)}%</b><span>최근 가격 변동폭</span></article><article><small>${self?'내 경영진·우호 지분':'내 보유 지분'}</small><b>${stake.toFixed(2)}%</b><span>${self?`외부 ${Number(my.incoming_stake||0).toFixed(2)}%`:stage.label}</span></article></div>
-    <div class="company-target-chart live-company-chart clean-live-chart"><div class="mini-chart-head"><div><b>공용 실시간 주가</b><small>모든 유저가 같은 서버 가격·캔들을 봅니다. 새 캔들이 생길 때 차트가 왼쪽으로 흐릅니다.</small></div><span class="live-dot">SHARED</span></div><canvas id="companyTargetChart"></canvas><div class="chart-decision-note"><span><small>매출</small><b>${compactMoney(c.revenue)}원</b></span><span><small>영업이익</small><b>${compactMoney(c.profit)}원</b></span><span><small>투자심리</small><b>${Number(c.investor_sentiment||50).toFixed(0)}</b></span><span><small>수급 방향</small><b class="${flow>=0?'up':'down'}">${flow>=0?'순매수':'순매도'}</b></span></div></div>
+    <div class="company-target-chart live-company-chart clean-live-chart"><div class="mini-chart-head"><div><b>공용 실시간 주가</b><small>서버 종가를 기준으로 회사 규모·업종·BOT 수급·투자심리를 반영한 공용 시장 캔들입니다. 변동이 지나치게 평평하면 자연스러운 시장 미세변동을 보정합니다.</small></div><span class="live-dot">SHARED</span></div><canvas id="companyTargetChart"></canvas><div class="chart-decision-note"><span><small>매출</small><b>${compactMoney(c.revenue)}원</b></span><span><small>영업이익</small><b>${compactMoney(c.profit)}원</b></span><span><small>투자심리</small><b>${Number(c.investor_sentiment||50).toFixed(0)}</b></span><span><small>수급 방향</small><b class="${flow>=0?'up':'down'}">${flow>=0?'순매수':'순매도'}</b></span></div></div>
     ${renderCompetitorProductIntel()}
     ${renderDueDiligencePanel(c,self,controlled)}
     <div class="analysis-news"><div class="analysis-subhead"><h3>최근 15분 관련 뉴스</h3><span>${press.length}건</span></div>${press.length?press.slice(0,4).map(a=>`<article><small>${escapeHtml(a.outlet_name||'경제뉴스')}</small><b>${escapeHtml(a.headline)}</b><p>${escapeHtml(a.article_body||'')}</p></article>`).join(''):`<div class="empty compact">최근 15분 안에 보도된 기사가 없습니다.</div>`}</div>
@@ -2986,31 +3068,36 @@ function drawCompanyTargetChart(){
   const MAX_SLOTS=60;
   const liveCompany=state.companyAnalysis?.company;
   const companyId=Number(liveCompany?.id||state.companyAnalysisId||0);
-  let rows=[...(state.companyAnalysis?.history||[])].sort((a,b)=>Number(a.cycle_no)-Number(b.cycle_no)).slice(-MAX_SLOTS).map((r,i,arr)=>{
-    const prev=i?Number(arr[i-1].close_price||arr[i-1].share_price||0):Number(r.open_price||r.share_price||r.close_price||0);
-    let c=Number(r.close_price||r.share_price||prev),o=Number(r.open_price||prev||c),h=Number(r.high_price||Math.max(o,c)),l=Number(r.low_price||Math.min(o,c));
-    if(!(c>0))c=prev||1;if(!(o>0))o=c;h=Math.max(Number(h)||c,o,c);l=Math.min(Number(l)||c,o,c);
-    return {...r,_o:o,_c:c,_h:h,_l:l,_v:Math.max(0,Number(r.volume)||0)};
-  }).filter(r=>r._c>0);
+  const rawHistory=[...(state.companyAnalysis?.history||[])].sort((a,b)=>Number(a.cycle_no)-Number(b.cycle_no)).slice(-MAX_SLOTS);
+  let rows=companyMarketAdjustedCandles(rawHistory,liveCompany);
   if(!rows.length){const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#7b899c';ctx.font='12px sans-serif';ctx.textAlign='center';ctx.fillText('공용 주가 데이터가 쌓이는 중입니다.',Math.max(180,canvas.clientWidth/2),160);return;}
   const newest=Number(rows[rows.length-1]?.cycle_no||0);
   if(companyChartSeriesCache.id!==companyId){companyChartSeriesCache={id:companyId,lastCycle:newest,rows,panStartedAt:0};}
   else if(newest!==companyChartSeriesCache.lastCycle){companyChartSeriesCache={id:companyId,lastCycle:newest,rows,panStartedAt:performance.now()};}
-  else if(companyChartSeriesCache.rows.length!==rows.length){companyChartSeriesCache.rows=rows;}
+  else{companyChartSeriesCache.rows=rows;}
   rows=companyChartSeriesCache.rows.slice(-MAX_SLOTS);
 
   const dpr=window.devicePixelRatio||1,W=Math.max(420,canvas.clientWidth||650),H=340;
   if(canvas.width!==Math.round(W*dpr)||canvas.height!==Math.round(H*dpr)){canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr)}
   const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
   const actualLo=Math.min(...rows.map(r=>r._l)),actualHi=Math.max(...rows.map(r=>r._h)),center=(actualHi+actualLo)/2||1;
-  if(companyChartAxisCache.id!==companyId||!(companyChartAxisCache.hi>companyChartAxisCache.lo)){
-    const band=Math.max(actualHi-actualLo,center*.16,1),mid=(actualHi+actualLo)/2;
-    companyChartAxisCache={id:companyId,lo:Math.max(.01,mid-band*.65),hi:mid+band*.65};
-  }else{
-    const span=Math.max(1,companyChartAxisCache.hi-companyChartAxisCache.lo);
-    // Never shrink/recenter while watching. Expand only after price genuinely leaves the fixed frame.
-    if(actualHi>companyChartAxisCache.hi)companyChartAxisCache.hi=actualHi+span*.10;
-    if(actualLo<companyChartAxisCache.lo)companyChartAxisCache.lo=Math.max(.01,actualLo-span*.10);
+  const profile=companyMarketVolatilityProfile(liveCompany||{});
+  const naturalSpan=Math.max(1,actualHi-actualLo);
+  const minSpan=Math.max(1,center*profile.axisRange);
+  const span=Math.max(naturalSpan*1.18,minSpan);
+  const mid=(actualHi+actualLo)/2;
+  const targetLo=Math.max(.01,mid-span/2),targetHi=mid+span/2;
+  if(companyChartAxisCache.id!==companyId||!(companyChartAxisCache.hi>companyChartAxisCache.lo))companyChartAxisCache={id:companyId,lo:targetLo,hi:targetHi};
+  else{
+    const oldSpan=Math.max(1,companyChartAxisCache.hi-companyChartAxisCache.lo),newSpan=targetHi-targetLo;
+    const shift=Math.abs((companyChartAxisCache.hi+companyChartAxisCache.lo)/2-mid)/Math.max(1,mid);
+    const spanDiff=Math.abs(newSpan-oldSpan)/oldSpan;
+    if(shift>.018||spanDiff>.16||actualHi>companyChartAxisCache.hi||actualLo<companyChartAxisCache.lo){
+      companyChartAxisCache.lo=companyChartAxisCache.lo*.65+targetLo*.35;
+      companyChartAxisCache.hi=companyChartAxisCache.hi*.65+targetHi*.35;
+      if(actualHi>companyChartAxisCache.hi)companyChartAxisCache.hi=actualHi+span*.06;
+      if(actualLo<companyChartAxisCache.lo)companyChartAxisCache.lo=Math.max(.01,actualLo-span*.06);
+    }
   }
   const lo=companyChartAxisCache.lo,hi=companyChartAxisCache.hi;
   const L=76,R=82,T=22,B=54,volH=46,priceH=H-T-B-volH,pw=W-L-R,step=pw/MAX_SLOTS,bw=Math.max(4,Math.min(9,step*.62));
@@ -3045,7 +3132,7 @@ function renderTerminal(preserve=false){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 6.5.6'}</span></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 6.5.8'}</span></div>
       ${topNav()}
       <div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
