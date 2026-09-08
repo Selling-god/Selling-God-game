@@ -1,5 +1,5 @@
 (()=>{
-const KX_COMPANY_BUILD='6.5.5-TRAINING-FAIR-TAKEOVER';
+const KX_COMPANY_BUILD='6.5.6-CASH-SPEND-CORRECTION';
 window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
@@ -30,6 +30,7 @@ let companyClockAnchorTotalMinutes=0;
 let companyChartAxisCache={id:null,lo:null,hi:null};
 let companyChartSeriesCache={id:null,lastCycle:null,rows:[],panStartedAt:0};
 let companyServerOffsetMs=0;
+let pendingDefenseCashSpend=null;
 let uiLastInteractionAt=0;
 const COMPANY_SERVER_SYNC_MS=12000;
 const COMPANY_VISUAL_TICK_MS=1000;
@@ -91,7 +92,13 @@ async function companyMediaV640(outlet,targetCompanyId,tone='PROMOTE'){
   return rpc('kx_company_media_v640',{p_outlet:String(outlet||'ECON_DAILY').toUpperCase(),p_target_company_id:Number(targetCompanyId||0),p_tone:String(tone||'PROMOTE').toUpperCase()},true);
 }
 async function companyDefenseV640(action,budget){
-  return rpc('kx_company_defense_v640',{p_action:String(action||'').toUpperCase(),p_budget:Number(budget||0)},true);
+  const a=String(action||'').toUpperCase(),spend=Math.max(0,Number(budget||0));
+  const my=state.company?.my_company,beforeCash=Math.max(0,Number(my?.cash||0));
+  const paidActions=new Set(['BUYBACK','NEGOTIATE','WHITE_KNIGHT','POISON_PILL','RIGHTS_ISSUE','COUNTER_TAKEOVER']);
+  if(paidActions.has(a)&&spend>beforeCash)throw new Error(`경영권 방어 예산이 부족합니다. 보유 ${formatKrwSmart(beforeCash)} / 필요 ${formatKrwSmart(spend)}`);
+  const result=await rpc('kx_company_defense_v640',{p_action:a,p_budget:spend},true);
+  if(result?.ok!==false&&my&&paidActions.has(a))pendingDefenseCashSpend={companyId:String(my.id||'guest'),action:a,budget:spend,beforeCash,targetCash:Math.max(0,beforeCash-spend),createdAt:Date.now()};
+  return result;
 }
 function companyTaxRateText(my){
   const r=Number(my?.tax_rate_effective||0);
@@ -688,12 +695,12 @@ function localCompanyAction(name,body={}){
     for(const x of d.market_holdings){const now=state.stocks.find(z=>z.ticker===x.ticker);if(now){x.name=now.name;x.sector=now.sector;x.market_area=now.market_area;x.market_country=now.market_country;x.market_value=x.shares*Number(now.last_price);x.pnl=(Number(now.last_price)-Number(x.avg_price))*x.shares}}
     const pv=d.market_holdings.reduce((a,x)=>a+Number(x.market_value||0),0);c.treasury_risk=clamp(pv/Math.max(1,c.valuation)*110);localEvent(d,'TREASURY','법인 전략투자',msg);
   }else if(name==='kx_company_defense'){
-    const t=d.control_case;if(!t)throw new Error('현재 진행 중인 경영권 인수전이 없습니다.');const budget=Math.max(40000000,amt||150000000),a=body.p_action;if(a!=='RIGHTS_ISSUE'&&c.cash<budget)throw new Error('경영권 방어 예산이 부족합니다.');if(a!=='RIGHTS_ISSUE')c.cash-=budget;
+    const t=d.control_case;if(!t)throw new Error('현재 진행 중인 경영권 인수전이 없습니다.');const budget=Math.max(takeoverDefenseMinimum(c),amt||150000000),a=body.p_action;if(c.cash<budget)throw new Error('경영권 방어 예산이 부족합니다.');c.cash-=budget;
     if(a==='BUYBACK'){t.stake=Math.max(0,t.stake-(4+budget/c.valuation*100));msg='긴급 자사주 매입으로 공격 기업의 실질 지분 압박을 낮췄습니다.'}
     if(a==='NEGOTIATE'){t.stake=Math.max(0,t.stake-(6+budget/c.valuation*120));msg='프리미엄 협상으로 공격 기업 지분 일부를 되샀습니다.'}
     if(a==='WHITE_KNIGHT'){c.defense_power=clamp(c.defense_power+30);t.stake=Math.max(0,t.stake-2);msg='백기사를 확보해 우호 의결권과 방어력이 크게 상승했습니다.'}
     if(a==='POISON_PILL'){if(t.used_poison_pill)throw new Error('이번 인수전에서 이미 포이즌필을 사용했습니다.');t.used_poison_pill=true;c.defense_power=clamp(c.defense_power+52);c.brand=clamp(c.brand-3);c.operations=clamp(c.operations-2);msg='포이즌필을 발동해 추가 인수 비용을 크게 높였습니다.'}
-    if(a==='RIGHTS_ISSUE'){if(t.used_rights_issue)throw new Error('이번 인수전에서 이미 유상증자를 사용했습니다.');t.used_rights_issue=true;c.shares_outstanding*=1.22;t.stake=t.stake/1.22;c.cash+=budget*.65;c.investor_sentiment=clamp(c.investor_sentiment-3);msg='긴급 유상증자로 공격자 지분을 희석하고 추가 자금을 확보했습니다.'}
+    if(a==='RIGHTS_ISSUE'){if(t.used_rights_issue)throw new Error('이번 인수전에서 이미 유상증자를 사용했습니다.');t.used_rights_issue=true;c.shares_outstanding*=1.22;t.stake=t.stake/1.22;c.investor_sentiment=clamp(c.investor_sentiment-3);msg='긴급 유상증자로 공격자 지분을 희석했습니다. 게임에서는 발행·주관·할인 비용을 방어 예산으로 지출합니다.'}
     if(a==='COUNTER_TAKEOVER'){t.stake=Math.max(0,t.stake-3);t.counter_stake=Number(t.counter_stake||0)+Math.min(12,budget/Math.max(1,d.companies.find(x=>x.id===t.attacker_company_id)?.valuation||1)*100);msg='공격 기업의 지분을 역으로 확보해 협상 압력을 높였습니다.'}
     t.stage=localTakeoverStage(t.stake);if(t.stake<10){localEvent(d,'DEFENSE','경영권 방어 성공',`${t.attacker_name}의 인수 시도를 사실상 무력화했습니다.`);c.last_takeover_end_cycle=Number(d.world?.cycle_no||0);d.control_case=null;c.parent_name=null}else{localEvent(d,'DEFENSE','긴급 이사회 방어조치',msg)}localIncomingSync(d);
   }
@@ -705,6 +712,34 @@ function companyDebtRatio(c){return Number(c?.valuation)>0?Number(c.debt)/Number
 function holdingStakeValue(h={}){return Math.max(0,Number(h?.stake||0),Number(h?.percent||0),Number(h?.stake_pct||0),Number(h?.ownership_pct||0),Number(h?.holding_pct||0))}
 function companyIncomingDirectStake(my=state.company?.my_company){return Math.max(0,Number(my?.incoming_stake||0),Number(my?.incoming_stake_pct||0),Number(my?.external_stake||0),Number(my?.outside_stake||0))}
 function liveTakeoverStakeValue(live={}){return Math.max(0,Number(live?.stake||0),Number(live?.attacker_stake||0),Number(live?.current_stake||0),Number(live?.attacker_stake_pct||0),Number(live?.aggregate_stake||0))}
+
+
+const DEFENSE_CASH_LEDGER_PREFIX='kx_defense_cash_spend_v656';
+function defenseCashLedgerKey(companyId=(state.company?.my_company?.id||'guest')){return `${DEFENSE_CASH_LEDGER_PREFIX}_${companyId}`}
+function loadDefenseCashLedger(companyId=(state.company?.my_company?.id||'guest')){
+  try{const x=JSON.parse(localStorage.getItem(defenseCashLedgerKey(companyId))||'{}')||{};return {offset:Number(x.offset||0)||0,totalSpent:Number(x.totalSpent||0)||0,lastAction:String(x.lastAction||''),lastBudget:Number(x.lastBudget||0)||0,lastCorrectedAt:Number(x.lastCorrectedAt||0)||0}}catch(_e){return {offset:0,totalSpent:0,lastAction:'',lastBudget:0,lastCorrectedAt:0}}
+}
+function saveDefenseCashLedger(x,companyId=(state.company?.my_company?.id||'guest')){try{localStorage.setItem(defenseCashLedgerKey(companyId),JSON.stringify(x||{}))}catch(_e){}return x}
+function applyDefenseCashSpendState(data=state.company){
+  const my=data?.my_company;if(!my)return data;
+  const companyId=String(my.id||'guest'),ledger=loadDefenseCashLedger(companyId),serverCash=Math.max(0,Number(my.cash||0));
+  let displayCash=Math.max(0,serverCash+Number(ledger.offset||0));
+  const pending=pendingDefenseCashSpend&&String(pendingDefenseCashSpend.companyId)===companyId?pendingDefenseCashSpend:null;
+  if(pending){
+    const target=Math.max(0,Number(pending.targetCash||0));
+    // 방어 행동은 매각/대출과 달리 회사 돈을 쓰는 행동이다. 서버가 현금을 올려 보내더라도 화면/후속 계산은 최소한 승인 예산만큼 감소시킨다.
+    displayCash=Math.min(displayCash,target);
+    ledger.offset=displayCash-serverCash;
+    ledger.totalSpent=Math.max(0,Number(ledger.totalSpent||0))+Math.max(0,Number(pending.budget||0));
+    ledger.lastAction=String(pending.action||'');ledger.lastBudget=Math.max(0,Number(pending.budget||0));ledger.lastCorrectedAt=Date.now();
+    saveDefenseCashLedger(ledger,companyId);pendingDefenseCashSpend=null;
+  }
+  my._server_cash_before_defense_correction=serverCash;
+  my._defense_cash_offset=Number(ledger.offset||0);
+  my._defense_cash_spent_total=Number(ledger.totalSpent||0);
+  my.cash=Math.max(0,serverCash+Number(ledger.offset||0));
+  return data;
+}
 
 const TAKEOVER_FAIRPLAY_PREFIX='kx_takeover_fairplay_v655';
 function takeoverFairplayKey(companyId=(state.company?.my_company?.id||'guest')){return `${TAKEOVER_FAIRPLAY_PREFIX}_${companyId}`}
@@ -1081,7 +1116,7 @@ async function loadCompanyLayer(runSync=false,force=false){
       state.companyError='로그인 세션이 만료되었습니다. 로그아웃 후 다시 로그인해 주세요.';return;
     }
     if(!d||typeof d!=='object'||d.ok===false)throw new Error(d?.message||'회사 데이터를 불러오지 못했습니다.');
-    state.companyRpcMode='V59';state.company={...emptyCompany(),...d};applyTakeoverFairPlayState(state.company);
+    state.companyRpcMode='V59';state.company={...emptyCompany(),...d};applyDefenseCashSpendState(state.company);applyTakeoverFairPlayState(state.company);
     try{
       const realism=await companyRealismApi('SNAPSHOT',{});
       if(realism?.ok){
@@ -1446,7 +1481,7 @@ function renderTakeoverCrisis(my){
   const stake=Number(c.stake||0),aggregate=Math.max(stake,Number(c.aggregate_stake||companyStakeAgainstMe()||0));
   const defense=Number(my.defense_power||c.defense_power||0),counter=Number(c.counter_stake||0),owner=Math.max(0,100-aggregate);
   const marketCap=Math.max(1,Number(my.share_price||0)*Number(my.shares_outstanding||0),Number(my.valuation||1));
-  const budgetDefault=Math.max(100000000,Math.round(marketCap*.01/10000000)*10000000);
+  const budgetDefault=Math.max(takeoverDefenseMinimum(my),Math.round(Math.min(marketCap*.003,Math.max(takeoverDefenseMinimum(my),Number(my.cash||0)*.08))/1000000)*1000000);
   const onePctCost=marketCap*.01;
   const attacker=(state.company?.companies||[]).find(x=>Number(x.id)===Number(c.attacker_company_id));
   const attackerCap=Math.max(1,Number(attacker?.share_price||0)*Number(attacker?.shares_outstanding||0),Number(attacker?.valuation||1));
@@ -1463,7 +1498,7 @@ function renderTakeoverCrisis(my){
     <div class="takeover-trigger-reason"><small>공격 배경</small><b>${escapeHtml(c.rivalry_reason||c.trigger_reason||'직접 경쟁 관계')}</b><span>이제 이유 없는 무작위 공격은 경영권 위협으로 처리하지 않습니다.</span></div>
     <div class="takeover-pressure-grid compact"><article class="danger"><small>공격자 지분</small><b>${stake.toFixed(2)}%</b></article><article><small>내 우호 지분</small><b>${owner.toFixed(2)}%</b></article><article><small>방어력</small><b>${defense.toFixed(0)}</b></article><article><small>상대 회사 맞지분</small><b>${counter.toFixed(2)}%</b></article><article><small>내 회사 1% 지분가치</small><b>${formatKrwSmart(onePctCost)}</b></article></div>
     <div class="defense-budget-box">${companyMoneyInput('takeoverDefenseBudget','이번 대응 예산',formatKrwSmart(budgetDefault))}<span>투입금액이 실제 매입·희석 규모에 비례합니다. 1억과 100억은 같은 효과가 아닙니다.</span></div>
-    <div class="takeover-defense-grid">${actions.map(a=>{let preview='';if(a[0]==='BUYBACK'||a[0]==='NEGOTIATE'){const d=Math.min(stake,budgetDefault/marketCap*100*a[4]);preview=`기본예산 기준 약 ${d.toFixed(2)}%p 감소`;}else if(a[0]==='COUNTER_TAKEOVER'){preview=`기본예산 기준 상대 지분 약 ${(budgetDefault/attackerCap*100).toFixed(2)}% 확보`;}else if(a[0]==='RIGHTS_ISSUE'){preview='조달 규모에 따라 지분 희석';}else if(a[0]==='WHITE_KNIGHT'){preview='예산이 클수록 방어력 증가';}else preview='추가매입 비용·효율 악화';return `<button type="button" class="takeover-defense-btn" data-company-defense="${a[0]}"><small>${a[2]}</small><b>${a[1]}</b><span>${a[3]}</span><em>${preview}</em></button>`}).join('')}</div>
+    <div class="takeover-defense-grid">${actions.map(a=>{let preview='';if(a[0]==='BUYBACK'||a[0]==='NEGOTIATE'){const d=Math.min(stake,budgetDefault/marketCap*100*a[4]);preview=`기본예산 기준 약 ${d.toFixed(2)}%p 감소`;}else if(a[0]==='COUNTER_TAKEOVER'){preview=`기본예산 기준 상대 지분 약 ${(budgetDefault/attackerCap*100).toFixed(2)}% 확보`;}else if(a[0]==='RIGHTS_ISSUE'){preview='신주 희석 · 방어예산은 현금 지출';}else if(a[0]==='WHITE_KNIGHT'){preview='예산이 클수록 방어력 증가';}else preview='추가매입 비용·효율 악화';return `<button type="button" class="takeover-defense-btn" data-company-defense="${a[0]}"><small>${a[2]}</small><b>${a[1]}</b><span>${a[3]}</span><em>${preview} · 현금 -${formatKrwSmart(budgetDefault)}</em></button>`}).join('')}</div>
   </section>`;
 }
 
@@ -1475,16 +1510,16 @@ async function executeTakeoverDefense(action,triggerEl=null){
   if(!labels[normalized])return;
   const amount=Math.max(10000000,parseCompanyMoney(document.getElementById('takeoverDefenseBudget')?.value,100000000));
   const cash=Number(state.company?.my_company?.cash||0);
-  if(normalized!=='RIGHTS_ISSUE'&&amount>cash){state.companyNotice=`법인현금 부족 · 보유 ${formatKrwSmart(cash)} / 필요 ${formatKrwSmart(amount)}`;renderTerminal(true);return;}
+  if(amount>cash){state.companyNotice=`법인현금 부족 · 보유 ${formatKrwSmart(cash)} / 필요 ${formatKrwSmart(amount)}`;renderTerminal(true);return;}
   const beforeStake=Number(control.stake||0),beforeCounter=Number(control.counter_stake||0);
-  if(!confirm(`${labels[normalized]} 실행\n\n예산 ${formatKrwSmart(amount)}\n공격자 지분 ${beforeStake.toFixed(2)}%`))return;
+  if(!confirm(`${labels[normalized]} 실행\n\n방어 비용 ${formatKrwSmart(amount)} (법인현금에서 차감)\n공격자 지분 ${beforeStake.toFixed(2)}%\n예상 잔액 ${formatKrwSmart(Math.max(0,cash-amount))}`))return;
   const originalText=triggerEl?.innerHTML||'';
   try{
     if(triggerEl){triggerEl.disabled=true;triggerEl.classList.add('processing');triggerEl.innerHTML='<b>처리 중…</b>';}
     const d=await companyDefenseV640(normalized,amount);
     if(!d?.ok)throw new Error(d?.message||'방어 전략을 처리하지 못했습니다.');
     const after=Number(d.attacker_stake_after??beforeStake),counterAfter=Number(d.counter_stake_after??beforeCounter);
-    state.companyNotice=`${d.message||labels[normalized]} · 공격자 ${beforeStake.toFixed(2)}% → ${after.toFixed(2)}%${normalized==='COUNTER_TAKEOVER'?` · 맞지분 ${beforeCounter.toFixed(2)}% → ${counterAfter.toFixed(2)}%`:''}`;
+    state.companyNotice=`${d.message||labels[normalized]} · 방어비 ${formatKrwSmart(amount)} 지출 · 공격자 ${beforeStake.toFixed(2)}% → ${after.toFixed(2)}%${normalized==='COUNTER_TAKEOVER'?` · 맞지분 ${beforeCounter.toFixed(2)}% → ${counterAfter.toFixed(2)}%`:''}`;
     playCompanySfx('alert');
     await loadCompanyLayer(false,true);renderTerminal(true);
   }catch(err){state.companyNotice='경영권 방어 실패: '+(err?.message||String(err));alert(state.companyNotice);if(triggerEl&&document.contains(triggerEl)){triggerEl.disabled=false;triggerEl.innerHTML=originalText;}}
@@ -2458,11 +2493,11 @@ function buildChairmanProposals(my){
     const fin=perf.find(x=>x.code==='FINANCE'),mgmt=perf.find(x=>x.code==='MANAGEMENT');
     const crisisOfficer=fin?.top||mgmt?.top||[...(state.company?.talents||[])].sort((a,b)=>(Number(b.leadership||0)+Number(b.skill_score||0))-(Number(a.leadership||0)+Number(a.skill_score||0)))[0]||null;
     const floor=takeoverDefenseMinimum(my);const budget=Math.max(floor,Math.min(cash*.12,valuation*.006));
-    push({id:`defense-buyback-${Number(threat.attacker_company_id||0)}-${Math.floor(cycle/8)}`,kind:'DEFENSE_BUYBACK',priority:'critical',department:'FINANCE',officer:crisisOfficer,title:'긴급 자사주 매입 방어안',summary:`${crisisOfficer?crisisOfficer.name+'이(가) ':'재무팀이 '}공격 지분 ${stake.toFixed(2)}%를 보고 즉시 자사주 매입을 상신했습니다.`,budget,impact:'공격자 보유지분 직접 축소 · 방어력 상승'});
-    if(stake>=20)push({id:`defense-negotiate-${Number(threat.attacker_company_id||0)}-${Math.floor(cycle/10)}`,kind:'DEFENSE_NEGOTIATE',priority:'critical',department:'FINANCE',officer:crisisOfficer,title:'공격자 지분 매각 협상안',summary:'프리미엄을 지급해 공격자가 보유한 우리 회사 지분을 직접 되사는 협상안입니다.',budget:Math.max(floor,Math.min(cash*.10,valuation*.005)),impact:'공격자 지분 직접 감소 · 현금 지출'});
-    if(stake>=35)push({id:`defense-white-${Number(threat.attacker_company_id||0)}-${Math.floor(cycle/12)}`,kind:'DEFENSE_WHITE_KNIGHT',priority:'critical',department:'MANAGEMENT',officer:mgmt?.top||crisisOfficer,title:'백기사 우호지분 확보안',summary:'경영지원팀이 우호 주주를 끌어들여 의결권 방어력을 높이자고 제안했습니다.',budget:Math.max(floor,Math.min(cash*.09,valuation*.0045)),impact:'방어력 대폭 강화 · 우호 의결권 확보'});
-    if(stake>=45)push({id:`defense-rights-${Number(threat.attacker_company_id||0)}-${Math.floor(cycle/12)}`,kind:'DEFENSE_RIGHTS_ISSUE',priority:'critical',department:'FINANCE',officer:crisisOfficer,title:'긴급 유상증자 희석안',summary:'경영권선이 가까워 재무팀이 신주 발행으로 공격자 지분을 희석하는 비상안을 상신했습니다.',budget:Math.max(floor,Math.min(Math.max(cash*.10,valuation*.006),valuation*.014)),impact:'공격자 지분 희석 · 신규 현금 조달 · 기존 주주 희석'});
-    if(Number(threat.attacker_company_id||0)>0&&cash>floor)push({id:`defense-counter-${Number(threat.attacker_company_id)}-${Math.floor(cycle/14)}`,kind:'DEFENSE_COUNTER',priority:'warn',department:'MANAGEMENT',officer:mgmt?.top||crisisOfficer,title:'역인수·맞지분 확보안',summary:'상대 회사 지분을 역으로 매입해 협상력을 확보하자는 제안입니다.',budget:Math.max(floor,Math.min(cash*.10,valuation*.005)),impact:'상대 회사 맞지분 확보 · 협상 압력'});
+    push({id:`defense-buyback-${Number(threat.attacker_company_id||0)}-${Math.floor(cycle/8)}`,kind:'DEFENSE_BUYBACK',priority:'critical',department:'FINANCE',officer:crisisOfficer,title:'긴급 자사주 매입 방어안',summary:`${crisisOfficer?crisisOfficer.name+'이(가) ':'재무팀이 '}공격 지분 ${stake.toFixed(2)}%를 보고 즉시 자사주 매입을 상신했습니다.`,budget,impact:`공격자 보유지분 직접 축소 · 법인현금 -${formatKrwSmart(budget)}`});
+    if(stake>=20)push({id:`defense-negotiate-${Number(threat.attacker_company_id||0)}-${Math.floor(cycle/10)}`,kind:'DEFENSE_NEGOTIATE',priority:'critical',department:'FINANCE',officer:crisisOfficer,title:'공격자 지분 매각 협상안',summary:'프리미엄을 지급해 공격자가 보유한 우리 회사 지분을 직접 되사는 협상안입니다.',budget:Math.max(floor,Math.min(cash*.10,valuation*.005)),impact:'공격자 지분 직접 감소 · 법인현금 지출'});
+    if(stake>=35)push({id:`defense-white-${Number(threat.attacker_company_id||0)}-${Math.floor(cycle/12)}`,kind:'DEFENSE_WHITE_KNIGHT',priority:'critical',department:'MANAGEMENT',officer:mgmt?.top||crisisOfficer,title:'백기사 우호지분 확보안',summary:'경영지원팀이 우호 주주를 끌어들여 의결권 방어력을 높이자고 제안했습니다.',budget:Math.max(floor,Math.min(cash*.09,valuation*.0045)),impact:'방어력 대폭 강화 · 우호 의결권 확보 · 법인현금 지출'});
+    if(stake>=45)push({id:`defense-rights-${Number(threat.attacker_company_id||0)}-${Math.floor(cycle/12)}`,kind:'DEFENSE_RIGHTS_ISSUE',priority:'critical',department:'FINANCE',officer:crisisOfficer,title:'긴급 유상증자 희석안',summary:'경영권선이 가까워 재무팀이 신주 발행으로 공격자 지분을 희석하는 비상안을 상신했습니다.',budget:Math.max(floor,Math.min(Math.max(cash*.10,valuation*.006),valuation*.014)),impact:'공격자 지분 희석 · 방어비 현금 지출 · 기존 주주 희석'});
+    if(Number(threat.attacker_company_id||0)>0&&cash>floor)push({id:`defense-counter-${Number(threat.attacker_company_id)}-${Math.floor(cycle/14)}`,kind:'DEFENSE_COUNTER',priority:'warn',department:'MANAGEMENT',officer:mgmt?.top||crisisOfficer,title:'역인수·맞지분 확보안',summary:'상대 회사 지분을 역으로 매입해 협상력을 확보하자는 제안입니다.',budget:Math.max(floor,Math.min(cash*.10,valuation*.005)),impact:'상대 회사 맞지분 확보 · 협상 압력 · 법인현금 지출'});
   }
   for(const p of products.filter(x=>String(x.status)==='READY').slice(0,2)){
     const officer=chairmanProposalOfficer('ENGINEERING')||chairmanProposalOfficer('MANAGEMENT');
@@ -2515,7 +2550,7 @@ async function runDefenseAutopilot(p,progress){
     const action=candidates[0];const cash=Math.max(0,Number(my?.cash||0)),valuation=Math.max(1,Number(my?.valuation||1));
     let tranche=Math.max(minTranche,Math.min(remaining,Math.max(Number(p.budget||0)*.55,valuation*.004,cash*.06)));
     if(action==='POISON_PILL')tranche=Math.min(tranche,Math.max(minTranche,Number(p.budget||0)*.35));
-    if(action!=='RIGHTS_ISSUE'&&cash<tranche)tranche=Math.max(0,Math.min(remaining,cash*.70));if(action!=='RIGHTS_ISSUE'&&tranche<minTranche)break;
+    if(cash<tranche)tranche=Math.max(0,Math.min(remaining,cash*.70));if(tranche<minTranche)break;
     progress?.update(`공격 지분 ${stake.toFixed(2)}% · ${defenseActionLabel(action)} 자동 집행 중…`);
     try{
       const r=await companyDefenseV640(action,tranche);if(r?.ok===false)throw new Error(r.message||`${defenseActionLabel(action)} 실패`);
@@ -2525,7 +2560,7 @@ async function runDefenseAutopilot(p,progress){
       if(now<10)break;
     }catch(err){failures.add(action);steps.push(`${defenseActionLabel(action)} 실패`);if(failures.size>=5)throw err;}
   }
-  const finalStake=companyStakeAgainstMe();return {ok:true,spent:committed,steps,finalStake,cap,message:finalStake<10?`AI 방어팀이 공격 지분을 ${lastStake.toFixed(2)}%까지 낮춰 경영권 방어에 성공했습니다.`:`AI 방어팀이 ${steps.length}단계 조치를 자동 집행했습니다. 현재 위험 지분 ${finalStake.toFixed(2)}%.`};
+  const finalStake=companyStakeAgainstMe();return {ok:true,spent:committed,steps,finalStake,cap,message:finalStake<10?`AI 방어팀이 ${formatKrwSmart(committed)}을 지출해 공격 지분을 ${lastStake.toFixed(2)}%까지 낮추고 경영권 방어에 성공했습니다.`:`AI 방어팀이 ${steps.length}단계 조치에 ${formatKrwSmart(committed)}을 지출했습니다. 현재 위험 지분 ${finalStake.toFixed(2)}%.`};
 }
 async function runChairmanAutopilot(p,progress){
   const my=state.company?.my_company;if(!my)throw new Error('회사 정보를 찾지 못했습니다.');
@@ -2918,7 +2953,7 @@ function renderTerminal(preserve=false){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 6.5.5'}</span></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 6.5.6'}</span></div>
       ${topNav()}
       <div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
@@ -3173,7 +3208,7 @@ AI 자동집행 최대 한도: ${formatKrwSmart(cap)}
     try{b.disabled=true;const d=await companyIncentiveV650('TALENT',String(id),amount);if(!d?.ok)throw new Error(d?.message||'개인 인센티브 지급 실패');state.companyNotice=d.message;playCompanySfx('success');await loadCompanyLayer(false,true);renderTerminal(true)}catch(err){alert('개인 인센티브 지급 실패: '+err.message);renderTerminal(true)}
   });
   document.querySelectorAll('[data-chairman-direct-defense]').forEach(b=>b.onclick=async()=>{
-    const my=state.company?.my_company;if(!my)return;const budget=Math.max(100000000,Math.min(Number(my.cash||0)*.2,Number(my.valuation||0)*.015));if(!confirm(`재무팀에 ${formatKrwSmart(budget)} 한도로 긴급 자사주 매입 방어를 지시할까요?`))return;
+    const my=state.company?.my_company;if(!my)return;const budget=Math.max(takeoverDefenseMinimum(my),Math.min(Number(my.cash||0)*.12,Number(my.valuation||0)*.006));if(!confirm(`재무팀에 ${formatKrwSmart(budget)} 한도로 긴급 자사주 매입 방어를 지시할까요?\n승인하면 해당 금액은 법인현금에서 지출됩니다.\n예상 잔액 ${formatKrwSmart(Math.max(0,Number(my.cash||0)-budget))}`))return;
     try{b.disabled=true;const d=await companyDefenseV640('BUYBACK',budget);if(!d?.ok)throw new Error(d?.message||'방어 지시 실패');state.companyNotice=d.message||'긴급 방어 지시가 실행되었습니다.';playCompanySfx('alert');await loadCompanyLayer(false,true);renderTerminal(true)}catch(err){alert('방어 지시 실패: '+err.message);renderTerminal(true)}
   });
 
