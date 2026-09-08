@@ -1,5 +1,5 @@
 (()=>{
-const KX_COMPANY_BUILD='6.5.8-MARKET-VOLATILITY-CHART';
+const KX_COMPANY_BUILD='6.5.9-SHARED-CANDLES-TAKEOVER-GATE-POACH-FEEDBACK';
 window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
@@ -159,13 +159,57 @@ function companyDeterministicNoise(companyId,cycle,salt=0){
   const x=Math.sin((Number(companyId||1)+11.73)*12.9898+(Number(cycle||0)+salt*17.17)*78.233)*43758.5453123;
   return (x-Math.floor(x))*2-1;
 }
+
+const COMPANY_SHARED_MARKET_MODEL_VERSION=659;
+function companySharedValuationFactor(c={}){
+  const tech=Number(c.technology||50),brand=Number(c.brand||50),ops=Number(c.operations||50),quality=Number(c.product_quality||50),sent=Number(c.investor_sentiment||50);
+  const qualityScore=Math.max(20,Math.min(95,(tech*.25+brand*.22+ops*.22+quality*.21+sent*.10)));
+  const rev=Math.max(1,Number(c.revenue||1)),profit=Number(c.profit||0),margin=Math.max(-.20,Math.min(.35,profit/rev));
+  const style=String(c.ai_style||'').toUpperCase();
+  const styleAdj=style==='GROWTH'?.055:style==='AGGRESSIVE'?.04:style==='TECH'?.035:style==='DEFENSIVE'?.015:style==='VALUE'?-.015:0;
+  const idNoise=companyDeterministicNoise(Number(c.id||1),COMPANY_SHARED_MARKET_MODEL_VERSION,43)*.075;
+  return Math.max(.72,Math.min(1.38,.79+qualityScore/100*.38+margin*.42+styleAdj+idNoise));
+}
+function companyValuationClusterKey(v=0){const n=Math.max(1,Number(v)||1);const step=Math.max(100000000,Math.pow(10,Math.floor(Math.log10(n))-2));return Math.round(n/step)*step}
+function applySharedCompanyMarketDifferentiation(data=state.company){
+  const rows=(data?.companies||[]).filter(c=>c&&c.status!=='INACTIVE');
+  const bots=rows.filter(c=>c.is_bot||String(c.operator_type||'').toUpperCase()==='BOT');
+  if(bots.length<3)return data;
+  const groups=new Map();
+  for(const c of bots){const raw=Math.max(1,Number(c._raw_server_valuation??c.valuation)||1);const k=companyValuationClusterKey(raw),arr=groups.get(k)||[];arr.push(c);groups.set(k,arr)}
+  const rawVals=bots.map(c=>Math.max(1,Number(c._raw_server_valuation??c.valuation)||1));
+  const marketFlat=(Math.max(...rawVals)-Math.min(...rawVals))/Math.max(1,rawVals.reduce((a,b)=>a+b,0)/rawVals.length)<.035;
+  for(const c of bots){
+    const raw=Math.max(1,Number(c._raw_server_valuation??c.valuation)||1),group=groups.get(companyValuationClusterKey(raw))||[];
+    if(!marketFlat&&group.length<3)continue;
+    if(c._raw_server_valuation==null)c._raw_server_valuation=raw;
+    if(c._raw_server_share_price==null)c._raw_server_share_price=Math.max(1,Number(c.share_price||raw/Math.max(1,Number(c.shares_outstanding||1000000))));
+    const ordered=[...group].sort((a,b)=>Number(a.id||0)-Number(b.id||0)),pos=Math.max(0,ordered.findIndex(x=>Number(x.id)===Number(c.id)));
+    const ordinalSpread=ordered.length>1?((pos/(ordered.length-1))-.5)*.34:0;
+    const factor=Math.max(.66,Math.min(1.46,companySharedValuationFactor(c)*(1+ordinalSpread))),shares=Math.max(1,Number(c.shares_outstanding||1000000));
+    const adjusted=Math.max(100000000,Math.round(raw*factor/1000000)*1000000);
+    c.valuation=adjusted;c.share_price=Math.max(1,Math.round(adjusted/shares));c._shared_market_factor=factor;c._shared_market_diversified=true;
+  }
+  return data;
+}
+function alignCompanyProfileToSharedMarket(profile){
+  const pc=profile?.company;if(!pc)return profile;
+  const shared=(state.company?.companies||[]).find(c=>Number(c.id)===Number(pc.id));
+  if(shared){
+    pc._raw_server_valuation=Number(pc.valuation||0);pc._raw_server_share_price=Number(pc.share_price||0);
+    pc.valuation=Number(shared.valuation||pc.valuation||0);pc.share_price=Number(shared.share_price||pc.share_price||0);
+    pc._shared_market_factor=shared._shared_market_factor;pc._shared_market_diversified=shared._shared_market_diversified;
+  }
+  return profile;
+}
 function companyMarketAdjustedCandles(rawRows,company){
   const src=[...(rawRows||[])];
   const profile=companyMarketVolatilityProfile(company);
   const companyId=Number(company?.id||state.companyAnalysisId||1);
+  const sharedFactor=company?._shared_market_diversified?Math.max(.5,Math.min(1.6,Number(company._shared_market_factor||1))):1;
   const base=src.map((r,i,arr)=>{
-    const prev=i?Number(arr[i-1].close_price||arr[i-1].share_price||0):Number(r.open_price||r.share_price||r.close_price||0);
-    let c=Number(r.close_price||r.share_price||prev),o=Number(r.open_price||prev||c),h=Number(r.high_price||Math.max(o,c)),l=Number(r.low_price||Math.min(o,c));
+    const prev=(i?Number(arr[i-1].close_price||arr[i-1].share_price||0):Number(r.open_price||r.share_price||r.close_price||0))*sharedFactor;
+    let c=Number(r.close_price||r.share_price||0)*sharedFactor||prev,o=Number(r.open_price||0)*sharedFactor||prev||c,h=Number(r.high_price||0)*sharedFactor||Math.max(o,c),l=Number(r.low_price||0)*sharedFactor||Math.min(o,c);
     if(!(c>0))c=prev||1;if(!(o>0))o=c;h=Math.max(Number(h)||c,o,c);l=Math.min(Number(l)||c,o,c);
     return {...r,_rawClose:c,_rawOpen:o,_rawHigh:h,_rawLow:l};
   }).filter(r=>r._rawClose>0);
@@ -181,7 +225,7 @@ function companyMarketAdjustedCandles(rawRows,company){
   const amp=profile.targetRange*.34*fill;
   const offsets=base.map((r,i)=>{
     const cycle=Number(r.cycle_no||i+1);
-    const phase=(companyId%37)*.19;
+    const phase=(companyId%37)*.19+COMPANY_SHARED_MARKET_MODEL_VERSION*.0001;
     const wave1=Math.sin(cycle*.23+phase)*amp*.58;
     const wave2=Math.sin(cycle*.071+phase*1.7)*amp*.36;
     const noise=companyDeterministicNoise(companyId,cycle,3)*amp*.26;
@@ -901,7 +945,7 @@ function applyDefenseCashSpendState(data=state.company){
 const TAKEOVER_FAIRPLAY_PREFIX='kx_takeover_fairplay_v655';
 function takeoverFairplayKey(companyId=(state.company?.my_company?.id||'guest')){return `${TAKEOVER_FAIRPLAY_PREFIX}_${companyId}`}
 function loadTakeoverFairplayLedger(companyId=(state.company?.my_company?.id||'guest')){
-  try{const x=JSON.parse(localStorage.getItem(takeoverFairplayKey(companyId))||'{}')||{};return {cases:x.cases&&typeof x.cases==='object'?x.cases:{},lastNotice:String(x.lastNotice||''),lastResetAt:Number(x.lastResetAt||0)||0,lastAcceptedDay:Number(x.lastAcceptedDay||0)||0,lastAcceptedCase:String(x.lastAcceptedCase||'')}}catch(_e){return {cases:{},lastNotice:'',lastResetAt:0,lastAcceptedDay:0,lastAcceptedCase:''}}
+  try{const x=JSON.parse(localStorage.getItem(takeoverFairplayKey(companyId))||'{}')||{};return {cases:x.cases&&typeof x.cases==='object'?x.cases:{},lastNotice:String(x.lastNotice||''),lastResetAt:Number(x.lastResetAt||0)||0,lastAcceptedDay:Number(x.lastAcceptedDay||0)||0,lastAcceptedCase:String(x.lastAcceptedCase||''),globalShieldUntilDay:Number(x.globalShieldUntilDay||0)||0,lastResolvedDay:Number(x.lastResolvedDay||0)||0,lastBlockedReason:String(x.lastBlockedReason||'')}}catch(_e){return {cases:{},lastNotice:'',lastResetAt:0,lastAcceptedDay:0,lastAcceptedCase:'',globalShieldUntilDay:0,lastResolvedDay:0,lastBlockedReason:''}}
 }
 function saveTakeoverFairplayLedger(x,companyId=(state.company?.my_company?.id||'guest')){try{localStorage.setItem(takeoverFairplayKey(companyId),JSON.stringify(x||{}))}catch(_e){}return x}
 function takeoverGrowthTier(valuation=Number(state.company?.my_company?.valuation||0)){
@@ -926,7 +970,14 @@ function applyTakeoverFairPlayState(data=state.company){
   const tier=takeoverGrowthTier(my.valuation),ledger=loadTakeoverFairplayLedger(my.id||'guest'),live=data?.control_case,day=Math.max(1,Number(data?.talent_day||liveCompanyClock().day||1)||1);
   if(!live){return data}
   const key=takeoverCaseKey(live),raw=Math.max(liveTakeoverStakeValue(live),rawIncomingMax(data)),isNewCase=!ledger.cases[key],rec=ledger.cases[key]||{forgiven:0,shieldUntilDay:0,resetApplied:false,cooldownSuppressed:false};
-  if(isNewCase){
+  const eligibility=takeoverAttackEligibility(data,live);
+  if(!eligibility.allowed){
+    rec.forgiven=Math.max(Number(rec.forgiven||0),raw);rec.resetApplied=true;rec.cooldownSuppressed=true;
+    rec.shieldUntilDay=Math.max(Number(rec.shieldUntilDay||0),day+3);ledger.globalShieldUntilDay=Math.max(Number(ledger.globalShieldUntilDay||0),day+(Number(my.valuation||0)<1e12?7:4));
+    ledger.lastBlockedReason=eligibility.reason;ledger.lastNotice=`경영권 공격 자동 차단: ${eligibility.reason}`;ledger.lastResetAt=Date.now();
+    live.status='DEFENDED';live.stage='WATCH';live._blocked_reason=eligibility.reason;live._attack_evidence=eligibility.evidence?.label||'';
+  }
+  if(isNewCase&&eligibility.allowed){
     const tooSoon=Number(ledger.lastAcceptedDay||0)>0&&(day-Number(ledger.lastAcceptedDay||0))<Number(tier.cooldownDays||0);
     if(tier.startChance===0||tooSoon){rec.forgiven=Math.max(Number(rec.forgiven||0),raw);rec.shieldUntilDay=Math.max(Number(rec.shieldUntilDay||0),day+1);rec.resetApplied=true;rec.cooldownSuppressed=true;ledger.lastNotice=tier.startChance===0?`${tier.label}: 초기기업의 적대적 인수 시도를 자동 무효화`:`${tier.label}: 최근 공격 종료 후 보호기간이라 신규 공격을 자동 무효화`;}
     else{ledger.lastAcceptedDay=day;ledger.lastAcceptedCase=key;}
@@ -951,16 +1002,17 @@ function applyTakeoverFairPlayState(data=state.company){
   }
 
   let effective=Math.max(0,raw-Number(rec.forgiven||0)-Number(drec.neutralized||0));
+  if(!eligibility.allowed)effective=0;
   if(tier.hardShield)effective=Math.min(effective,tier.cap);
-  if(Number(rec.shieldUntilDay||0)>=day)effective=0;
-  if(effective<=0.01){live.status='DEFENDED';live.stage='WATCH';drec.shieldUntilDay=Math.max(Number(drec.shieldUntilDay||0),day+2);drec.shieldAnchorRaw=raw;}
+  if(Number(rec.shieldUntilDay||0)>=day||Number(ledger.globalShieldUntilDay||0)>=day)effective=0;
+  if(effective<=5){live.status='DEFENDED';live.stage='WATCH';drec.shieldUntilDay=Math.max(Number(drec.shieldUntilDay||0),day+3);drec.shieldAnchorRaw=raw;ledger.lastResolvedDay=day;ledger.globalShieldUntilDay=Math.max(Number(ledger.globalShieldUntilDay||0),day+(Number(my.valuation||0)<1e12?7:5));}
   else{live.status=String(live.status||'ACTIVE').toUpperCase()==='DEFENDED'?'ACTIVE':live.status;live.stage=localTakeoverStage(effective)}
   setStakeFields(live,effective);live.aggregate_stake=effective;live._raw_stake=raw;live._fairplay_cap=tier.cap;live._growth_protection=tier.hardShield;live._forgiven_stake=Number(rec.forgiven||0);live._defense_neutralized=Number(drec.neutralized||0);live._defense_shield_until=Number(drec.shieldUntilDay||0);
   const aid=Number(live.attacker_company_id||0);
   for(const h of data.incoming_holdings||[]){if(!aid||Number(h?.holder_company_id||0)===aid){const hv=holdingStakeValue(h),adjusted=Math.max(0,Math.min(tier.hardShield?tier.cap:100,hv-Number(rec.forgiven||0)-Number(drec.neutralized||0)));setStakeFields(h,adjusted)}}
   if(my){for(const k of ['incoming_stake','incoming_stake_pct','external_stake','outside_stake']){if(k in my)my[k]=Math.min(tier.hardShield?tier.cap:100,Math.max(0,Number(my[k]||0)-Number(rec.forgiven||0)-Number(drec.neutralized||0)))}if(effective<50&&my.parent_name===live.attacker_name)my.parent_name=null;my.takeover_growth_protection=tier.key;my.takeover_growth_cap=tier.cap;}
   ledger.cases[key]=rec;saveTakeoverFairplayLedger(ledger,my.id||'guest');dledger.cases[key]=drec;saveTakeoverDefenseLedger(dledger,my.id||'guest');
-  data.takeover_fairplay={tier:tier.key,label:tier.label,cap:tier.cap,raw_stake:raw,effective_stake:effective,forgiven:Number(rec.forgiven||0),defense_neutralized:Number(drec.neutralized||0),defense_shield_until:Number(drec.shieldUntilDay||0),defense_total_spent:Number(drec.totalSpent||0),shield_until_day:Number(rec.shieldUntilDay||0),reset_applied:!!rec.resetApplied};
+  data.takeover_fairplay={tier:tier.key,label:tier.label,cap:tier.cap,raw_stake:raw,effective_stake:effective,forgiven:Number(rec.forgiven||0),defense_neutralized:Number(drec.neutralized||0),defense_shield_until:Number(drec.shieldUntilDay||0),defense_total_spent:Number(drec.totalSpent||0),shield_until_day:Math.max(Number(rec.shieldUntilDay||0),Number(ledger.globalShieldUntilDay||0)),global_shield_until_day:Number(ledger.globalShieldUntilDay||0),reset_applied:!!rec.resetApplied,attack_allowed:!!eligibility.allowed,attack_reason:eligibility.reason,attack_evidence:eligibility.evidence?.label||'',blocked_reason:live._blocked_reason||''};
   return data;
 }
 function takeoverDefenseMinimum(my=state.company?.my_company){return takeoverGrowthTier(my?.valuation).minDefense}
@@ -968,20 +1020,23 @@ function takeoverProtectionNotice(data=state.company){
   const p=data?.takeover_fairplay;if(!p)return '';
   const day=Math.max(1,Number(data?.talent_day||liveCompanyClock().day||1)||1),shield=Number(p.shield_until_day||0)>=day;
   if(!p.reset_applied&&!shield&&!p.forgiven)return '';
-  return `<section class="takeover-growth-protection"><div><small>GROWTH-STAGE CONTROL PROTECTION</small><b>${escapeHtml(p.label||'성장기 보호')}</b><span>${shield?`기존에 과도하게 누적된 경영권 공격을 정리했습니다. DAY ${Number(p.shield_until_day)}까지 신규 적대적 인수는 실질 위협으로 누적되지 않습니다.`:`패치 이전 과도 누적분 ${Number(p.forgiven||0).toFixed(2)}%p를 영구 차감했습니다. 현재 기업가치 단계에서 단일 공격자의 유효 위협지분은 최대 ${Number(p.cap||0).toFixed(1)}%입니다.`}</span></div><em>원시 공격지분 ${Number(p.raw_stake||0).toFixed(2)}% → 실질 위험 ${Number(p.effective_stake||0).toFixed(2)}%${Number(p.defense_neutralized||0)>0?` · 방어로 무력화 ${Number(p.defense_neutralized||0).toFixed(2)}%p`:''}${Number(p.defense_total_spent||0)>0?` · 누적 방어비 ${formatKrwSmart(p.defense_total_spent)}`:''}${Number(p.defense_shield_until||0)>=day?` · 신규매입 억제 DAY ${Number(p.defense_shield_until)}까지`:''}</em></section>`;
+  return `<section class="takeover-growth-protection"><div><small>GROWTH-STAGE CONTROL PROTECTION</small><b>${escapeHtml(p.label||'성장기 보호')}</b><span>${p.attack_allowed===false?`공격으로 인정하지 않았습니다. 이유: ${escapeHtml(p.blocked_reason||p.attack_reason||'공격 명분 없음')}`:shield?`기존에 과도하게 누적된 경영권 공격을 정리했습니다. DAY ${Number(p.shield_until_day)}까지 신규 적대적 인수는 실질 위협으로 누적되지 않습니다.`:`패치 이전 과도 누적분 ${Number(p.forgiven||0).toFixed(2)}%p를 영구 차감했습니다. 현재 기업가치 단계에서 단일 공격자의 유효 위협지분은 최대 ${Number(p.cap||0).toFixed(1)}%입니다.`}</span></div><em>서버 원시지분 ${Number(p.raw_stake||0).toFixed(2)}% → 게임상 실질 위험 ${Number(p.effective_stake||0).toFixed(2)}%${Number(p.defense_neutralized||0)>0?` · 방어로 무력화 ${Number(p.defense_neutralized||0).toFixed(2)}%p`:''}${Number(p.defense_total_spent||0)>0?` · 누적 방어비 ${formatKrwSmart(p.defense_total_spent)}`:''}${Number(p.global_shield_until_day||p.defense_shield_until||0)>=day?` · 재공격 차단 DAY ${Number(p.global_shield_until_day||p.defense_shield_until)}까지`:''}</em></section>`;
 }
 
 function companyStakeAgainstMe(){
-  const live=state.company?.control_case;
+  const live=state.company?.control_case,my=state.company?.my_company;
   const incoming=[...(state.company?.incoming_holdings||[])].filter(h=>holdingStakeValue(h)>0);
   const largestSingle=incoming.reduce((max,h)=>Math.max(max,holdingStakeValue(h)),0);
-  const direct=companyIncomingDirectStake(state.company?.my_company);
-  // 서로 독립적인 외부 주주 지분을 모두 한 공격세력으로 합산하지 않는다.
+  const direct=companyIncomingDirectStake(my);
   let risk=Math.max(largestSingle,direct);
   if(live&&String(live.status||'ACTIVE').toUpperCase()!=='DEFENDED'){
-    const aid=Number(live.attacker_company_id||0);
-    const holder=incoming.find(h=>Number(h?.holder_company_id||0)===aid);
+    const gate=takeoverAttackEligibility(state.company,live);
+    if(!gate.allowed)return 0;
+    const aid=Number(live.attacker_company_id||0),holder=incoming.find(h=>Number(h?.holder_company_id||0)===aid);
     risk=Math.max(risk,liveTakeoverStakeValue(live),holdingStakeValue(holder));
+  }else if(Number(my?.valuation||0)<5000000000000){
+    const top=incoming.sort((a,b)=>holdingStakeValue(b)-holdingStakeValue(a))[0],reason=top?takeoverConcreteReason(state.company,top.holder_company_id):null;
+    if(Number(my?.valuation||0)<1000000000000){if(!reason?.strong)return 0;}else if(!reason)return 0;
   }
   return Math.max(0,Math.min(100,risk));
 }
@@ -989,33 +1044,42 @@ function companyRankMap(){
   const rows=[...(state.company?.companies||[])].filter(c=>c&&c.status!=='INACTIVE').sort((a,b)=>Number(b.valuation||0)-Number(a.valuation||0)||Number(a.id||0)-Number(b.id||0));
   const map=new Map();rows.forEach((c,i)=>map.set(Number(c.id),i+1));return map;
 }
-function companyRivalryReason(attackerId){
-  const my=state.company?.my_company;if(!my||!attackerId)return null;
-  const aid=Number(attackerId),mid=Number(my.id);
-  const holdings=state.company?.my_holdings||[];
-  const touched=holdings.find(h=>Number(h.target_company_id)===aid&&Number(h.stake||h.percent||0)>=0.25);
-  if(touched)return {code:'TOUCHED_FIRST',label:`내가 먼저 ${Number(touched.stake||touched.percent||0).toFixed(2)}% 지분을 확보`};
-  const press=(state.company?.press||[]).find(a=>Number(a.source_company_id)===mid&&Number(a.company_id)===aid&&String(a.news_tone||'').toUpperCase()==='CRITICAL');
-  if(press)return {code:'CRITICAL_NEWS',label:'내 회사가 먼저 비판·검증 기사를 발행'};
-  const ranks=companyRankMap(),mine=ranks.get(mid),theirs=ranks.get(aid);
-  if(mine&&theirs&&Math.abs(mine-theirs)===1)return {code:'RANK_RIVAL',label:`기업순위 인접 경쟁 (#${mine} ↔ #${theirs})`};
+function takeoverConcreteReason(data=state.company,attackerId){
+  const my=data?.my_company;if(!my||!attackerId)return null;
+  const aid=Number(attackerId),mid=Number(my.id),attacker=(data.companies||[]).find(c=>Number(c.id)===aid);
+  const holdings=data.my_holdings||[];
+  const touched=holdings.find(h=>Number(h.target_company_id)===aid&&Number(h.stake??h.percent??0)>=5);
+  if(touched)return {code:'PLAYER_STAKE',label:`내 회사가 먼저 ${Number(touched.stake??touched.percent??0).toFixed(2)}% 지분을 확보`,strong:true};
+  const critical=(data.press||[]).find(a=>Number(a.source_company_id)===mid&&Number(a.company_id)===aid&&String(a.news_tone||a.tone||'').toUpperCase()==='CRITICAL');
+  if(critical)return {code:'CRITICAL_NEWS',label:'내 회사가 먼저 해당 기업을 겨냥한 비판 기사를 집행',strong:true};
+  if(attacker){
+    const sameSector=String(attacker.sector||'')===String(my.sector||'');
+    const ratio=Number(attacker.valuation||0)/Math.max(1,Number(my.valuation||1));
+    if(Number(my.valuation||0)>=1000000000000&&sameSector&&ratio>=.45&&ratio<=2.5)return {code:'SECTOR_RIVAL',label:`동종업계 직접 경쟁 · 기업가치 차이 ${ratio.toFixed(2)}배`,strong:false};
+  }
   return null;
 }
+function companyRivalryReason(attackerId){return takeoverConcreteReason(state.company,attackerId)}
 function localRivalryReason(d,attacker){
-  const my=d?.my_company;if(!my||!attacker)return null;
-  const touched=(d.my_holdings||[]).find(h=>Number(h.target_company_id)===Number(attacker.id)&&Number(h.stake||h.percent||0)>=0.25);
-  if(touched)return '내 회사가 먼저 상대 지분을 매입함';
-  const rows=[...(d.companies||[])].filter(c=>c&&c.status!=='INACTIVE').sort((a,b)=>Number(b.valuation||0)-Number(a.valuation||0));
-  const mine=rows.findIndex(c=>Number(c.id)===Number(my.id)),theirs=rows.findIndex(c=>Number(c.id)===Number(attacker.id));
-  if(mine>=0&&theirs>=0&&Math.abs(mine-theirs)===1)return '기업순위 인접 경쟁';
-  return null;
+  const r=takeoverConcreteReason(d,Number(attacker?.id||0));
+  return r?.label||null;
+}
+function takeoverAttackEligibility(data=state.company,live=data?.control_case){
+  const my=data?.my_company,day=Math.max(1,Number(data?.talent_day||liveCompanyClock().day||1)||1),tier=takeoverGrowthTier(my?.valuation),ledger=loadTakeoverFairplayLedger(my?.id||'guest');
+  if(!my||!live)return {allowed:false,reason:'진행 중인 공격이 없습니다.',evidence:null,tier,day,shieldUntil:Number(ledger.globalShieldUntilDay||0)};
+  const evidence=takeoverConcreteReason(data,live.attacker_company_id),v=Number(my.valuation||0),shieldUntil=Number(ledger.globalShieldUntilDay||0);
+  if(shieldUntil>=day)return {allowed:false,reason:`최근 방어 성공 보호기간 · DAY ${shieldUntil}까지 재공격 차단`,evidence,tier,day,shieldUntil};
+  if(v<1000000000000&&!evidence?.strong)return {allowed:false,reason:'기업가치 1조 미만 보호 · 내가 먼저 지분매입/비판기사를 하지 않아 공격 명분 없음',evidence,tier,day,shieldUntil};
+  if(v<5000000000000&&!evidence)return {allowed:false,reason:'중견 성장구간 보호 · 구체적인 경쟁/선제행동 근거가 없어 적대적 인수로 인정하지 않음',evidence,tier,day,shieldUntil};
+  return {allowed:true,reason:evidence?.label||String(live.trigger_reason||'대형기업 공개 경영권 경쟁'),evidence,tier,day,shieldUntil};
 }
 function activeTakeoverThreat(){
   const live=state.company?.control_case;
   const myHoldings=state.company?.my_holdings||[];
   const incoming=[...(state.company?.incoming_holdings||[])].filter(h=>holdingStakeValue(h)>0).sort((a,b)=>holdingStakeValue(b)-holdingStakeValue(a));
   if(live&&String(live.status||'ACTIVE').toUpperCase()!=='DEFENDED'){
-    const rivalry=live.trigger_reason?{code:'SERVER',label:String(live.trigger_reason)}:companyRivalryReason(live.attacker_company_id);
+    const gate=takeoverAttackEligibility(state.company,live);if(!gate.allowed)return null;
+    const rivalry=gate.evidence||companyRivalryReason(live.attacker_company_id)||(live.trigger_reason?{code:'SERVER',label:String(live.trigger_reason)}:null);
     const actualCounter=myHoldings.find(h=>Number(h.target_company_id)===Number(live.attacker_company_id));
     const holder=incoming.find(h=>Number(h?.holder_company_id||0)===Number(live.attacker_company_id));
     const liveStake=Math.max(liveTakeoverStakeValue(live),holdingStakeValue(holder));
@@ -1028,6 +1092,7 @@ function activeTakeoverThreat(){
   const top=incoming[0]||null;
   const attackerId=Number(top?.holder_company_id||0);
   const reason=attackerId?companyRivalryReason(attackerId):null;
+  if(Number(state.company?.my_company?.valuation||0)<5000000000000&&!reason)return null;
   if(!reason&&aggregate<25)return null;
   const counter=myHoldings.find(h=>Number(h.target_company_id)===attackerId);
   const topStake=holdingStakeValue(top);
@@ -1289,7 +1354,7 @@ async function loadCompanyLayer(runSync=false,force=false){
       state.companyError='로그인 세션이 만료되었습니다. 로그아웃 후 다시 로그인해 주세요.';return;
     }
     if(!d||typeof d!=='object'||d.ok===false)throw new Error(d?.message||'회사 데이터를 불러오지 못했습니다.');
-    state.companyRpcMode='V59';state.company={...emptyCompany(),...d};applyEconomicCorrections(state.company);applyTakeoverFairPlayState(state.company);
+    state.companyRpcMode='V59';state.company={...emptyCompany(),...d};applySharedCompanyMarketDifferentiation(state.company);applyEconomicCorrections(state.company);applyTakeoverFairPlayState(state.company);
     try{
       const realism=await companyRealismApi('SNAPSHOT',{});
       if(realism?.ok){
@@ -1316,7 +1381,7 @@ async function loadCompanyLayer(runSync=false,force=false){
     processCompanyPress(state.company?.press||[]);
     trackCompanySnapshotMoments();
     if(state.companyAnalysisId){
-      try{const profile=await companyApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)});try{const rp=await companyRealismApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)});profile.realism_products=Array.isArray(rp?.products)?rp.products:[]}catch(_re){}state.companyAnalysis=profile;}catch(_e){}
+      try{const profile=await companyApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)});try{const rp=await companyRealismApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)});profile.realism_products=Array.isArray(rp?.products)?rp.products:[]}catch(_re){}state.companyAnalysis=alignCompanyProfileToSharedMarket(profile);}catch(_e){}
     }
   }catch(e){
     const raw=String(e?.message||'');
@@ -1668,7 +1733,8 @@ function renderTakeoverCrisis(my){
   ];
   return `<section id="takeoverDefenseCenter" class="takeover-crisis compact-defense">
     <div class="takeover-crisis-head"><div><small>경영권 방어</small><h2>${escapeHtml(c.attacker_name||'외부 주주')} 대응</h2></div><div class="threat-shortcuts"><button type="button" data-threat-media="${Number(c.attacker_company_id)||0}">비판 기사</button><button type="button" data-threat-analyze="${Number(c.attacker_company_id)||0}">회사 분석·인수</button></div></div>
-    <div class="takeover-trigger-reason"><small>공격 배경</small><b>${escapeHtml(c.rivalry_reason||c.trigger_reason||'직접 경쟁 관계')}</b><span>이제 이유 없는 무작위 공격은 경영권 위협으로 처리하지 않습니다.</span></div>
+    <div class="takeover-trigger-reason"><small>왜 공격받고 있나?</small><b>${escapeHtml(c.rivalry_reason||c.trigger_reason||'구체적 경쟁 근거 확인 중')}</b><span>기업가치 1조 미만에서는 내가 먼저 상대 지분을 5% 이상 사거나 비판 기사를 집행하지 않았다면 적대적 인수로 인정하지 않습니다.</span></div>
+    <div class="takeover-dossier"><article><small>공격 명분</small><b>${escapeHtml(c.rivalry_reason||c.trigger_reason||'없음')}</b><span>${c.attacker_ticker?`${escapeHtml(c.attacker_name||'공격사')} (${escapeHtml(c.attacker_ticker)})`:`${escapeHtml(c.attacker_name||'외부 주주')}`}</span></article><article><small>현재 보호 규칙</small><b>${escapeHtml(state.company?.takeover_fairplay?.label||takeoverGrowthTier(my.valuation).label)}</b><span>${Number(state.company?.takeover_fairplay?.global_shield_until_day||0)>=Math.max(1,Number(state.company?.talent_day||liveCompanyClock().day||1))?`DAY ${Number(state.company.takeover_fairplay.global_shield_until_day)}까지 재공격 차단`:`정당한 공격 근거가 있을 때만 위협으로 계산`}</span></article><article><small>공격이 다시 가능한 조건</small><b>${Number(my.valuation||0)<1e12?'내가 먼저 도발했을 때만':'구체적 경쟁관계 + 보호기간 종료'}</b><span>${Number(my.valuation||0)<1e12?'상대 지분 선매입 또는 상대 대상 비판 기사':'동종업계 경쟁·선제 지분매입·비판 기사 등'}</span></article></div>
     <div class="takeover-pressure-grid compact"><article class="danger"><small>공격자 지분</small><b>${stake.toFixed(2)}%</b></article><article><small>내 우호 지분</small><b>${owner.toFixed(2)}%</b></article><article><small>방어력</small><b>${defense.toFixed(0)}</b></article><article><small>상대 회사 맞지분</small><b>${counter.toFixed(2)}%</b></article><article><small>내 회사 1% 지분가치</small><b>${formatKrwSmart(onePctCost)}</b></article></div>
     <div class="defense-budget-box">${companyMoneyInput('takeoverDefenseBudget','이번 대응 예산',formatKrwSmart(budgetDefault))}<span>투입금액이 실제 매입·희석 규모에 비례합니다. 1억과 100억은 같은 효과가 아닙니다.</span></div>
     <div class="takeover-defense-grid">${actions.map(a=>{let preview='';if(['BUYBACK','NEGOTIATE','WHITE_KNIGHT','POISON_PILL','RIGHTS_ISSUE','COUNTER_TAKEOVER'].includes(a[0])){const d=defenseExpectedStakeReduction(a[0],budgetDefault,marketCap,stake);preview=`기본예산 기준 실질 위험 약 ${d.toFixed(2)}%p 감소`;}else preview='방어 효과 계산 중';return `<button type="button" class="takeover-defense-btn" data-company-defense="${a[0]}"><small>${a[2]}</small><b>${a[1]}</b><span>${a[3]}</span><em>${preview} · 현금 -${formatKrwSmart(budgetDefault)}</em></button>`}).join('')}</div>
@@ -2102,6 +2168,23 @@ function terminateLocalPoachedTalent(talentId,severance=0,data=state.company){
   ledger.cashSpent=Number(ledger.cashSpent||0)+Math.max(0,Number(severance||0));saveLocalPoachLedger(ledger,my.id||'guest');my.cash=Math.max(0,Number(my.cash||0)-Math.max(0,Number(severance||0)));data.talents=(data.talents||[]).filter(t=>Number(t.id)!==Number(talentId));refreshCompanyTalentDerivedState(data);return {ok:true,message:'직원의 퇴직 처리가 완료되었습니다.'};
 }
 
+
+function inferPoachSuccess(result={},talent=null,data=state.company){
+  if(result?.success===true||result?.accepted===true||result?.hired===true)return true;
+  if(result?.success===false||result?.accepted===false)return false;
+  const msg=String(result?.message||'');if(/거절|실패|불발|declin|reject/i.test(msg))return false;if(/영입 성공|이직 성공|수락|합류|accepted/i.test(msg))return true;
+  if(talent?.name&&(data?.talents||[]).some(t=>String(t.name)===String(talent.name)))return true;
+  if(talent?.id&&!(data?.poach_targets||[]).some(t=>Number(t.id)===Number(talent.id)))return true;
+  return false;
+}
+function showTalentPoachResult(talent,result,offerSalary,signingBonus){
+  document.getElementById('talentPoachResult')?.remove();
+  const success=inferPoachSuccess(result,talent,state.company),chance=result?.success_chance!=null?Number(result.success_chance):null;
+  const el=document.createElement('div');el.id='talentPoachResult';el.className=`talent-poach-result ${success===true?'success':success===false?'reject':'neutral'}`;
+  el.innerHTML=`<section><button type="button" class="poach-result-close">×</button><small>HEADHUNTING RESULT</small><h2>${success===true?'✓ 이직 제안 수락':success===false?'✕ 이직 제안 거절':'이직 협상 결과'}</h2><b>${escapeHtml(talent?.name||'인재')}</b><div class="poach-result-grid"><span><small>제시 월급</small><b>${formatKrwSmart(offerSalary)}</b></span><span><small>사인보너스</small><b>${formatKrwSmart(signingBonus)}</b></span>${chance!=null&&Number.isFinite(chance)?`<span><small>수락확률</small><b>${chance.toFixed(1)}%</b></span>`:''}</div><p>${escapeHtml(result?.message||state.companyNotice||'협상 결과가 반영되었습니다.')}</p><button type="button" class="poach-result-ok">확인</button></section>`;
+  document.body.appendChild(el);const close=()=>el.remove();el.querySelector('.poach-result-close').onclick=close;el.querySelector('.poach-result-ok').onclick=close;el.onclick=e=>{if(e.target===el)close()};
+}
+
 function companyInterviewFee(data=state.company,uses=0){const payroll=Math.max(Number(data?.my_company?.monthly_payroll||0)||0,Number(companyAutomationSummary(data).payroll)||0,50000000);const base=Math.max(12000000,Math.round(payroll*0.04/1000000)*1000000);const mult=uses<=0?1:uses===1?1.35:uses===2?1.8:2.45+(uses-3)*0.65;return Math.max(12000000,Math.round(base*mult/1000000)*1000000)}
 function buildCompanyInterviewShortlist(data=state.company,meta=loadCompanyTalentDeskMeta(data)){const used=Math.max(1,Number(meta?.interviewCount)||1),day=Math.max(1,Number(data?.talent_day||liveCompanyClock().day)||1);const recruits=(data?.recruit_pool||[]).filter(c=>!c?.hired&&!/HIRED/i.test(String(c?.status||''))).map(c=>({...c,_source:'recruit',_ref:`candidate-card-${c.id}`}));const poaches=(data?.poach_targets||[]).filter(Boolean).map(c=>({...c,_source:'poach',_ref:`poach-card-${c.id}`}));return [...recruits,...poaches].map((p,idx)=>{const m=talentMetricSnapshot(p),auto=talentAutopilotContribution(p),fit=Math.max(45,Math.min(98,Math.round((m.operations*0.34+m.leadership*0.28+m.sales*0.2+m.innovation*0.18)-Math.max(0,used-2)*2+((Number(p.id)||idx)+day)%7))),accept=Math.max(38,Math.min(96,Math.round((m.skillScore*0.65+auto*0.35)-Math.max(0,used-2)*3+((Number(p.id)||idx)+day)%9)));return {key:`${p._source}-${p.id}`,source:p._source,refId:p._ref,id:p.id,name:p.name,role:p.role,level:p.level,specialty:p.specialty,department:p.department,skillScore:m.skillScore,salary:m.salary,signBonus:m.signBonus,potential:m.potential,auto,fit,accept}}).sort((a,b)=>(b.auto*1.2+b.skillScore+b.fit*0.35+b.accept*0.15)-(a.auto*1.2+a.skillScore+a.fit*0.35+a.accept*0.15)).slice(0,3)}
 function openCompanyInterviewDesk(data=state.company){const meta=loadCompanyTalentDeskMeta(data),next={...meta,day:Math.max(1,Number(data?.talent_day||liveCompanyClock().day)||1),interviewCount:(Number(meta.interviewCount)||0)+1,lastOpenedAt:Date.now()};next.shortlist=buildCompanyInterviewShortlist(data,next);saveCompanyTalentDeskMeta(next);return next}
@@ -2464,7 +2547,7 @@ function renderCompanyAnalysisPanel(my){
   return `<aside class="company-analysis-panel clean-profile-panel">
     <div class="analysis-profile-head"><div><span class="analysis-country">${escapeHtml(c.home_country||'')}</span>${companyTypeBadge(c)}<h2>${escapeHtml(c.name)}${self?' <em class="me-chip">내 회사</em>':''}</h2><p>${escapeHtml(c.sector)} · ${companyOwnerLabel(c)}</p></div><div class="analysis-value-box"><small>기업가치</small><b>${companyMarketValueText(c)}</b><span>${c.home_country!=='대한민국'?`원화 환산 ${compactMoney(c.valuation)}원`:self?'내 회사':`내 회사 대비 ${gap>=1?`${gap.toFixed(gap>99?0:1)}배`:`${(gap*100).toFixed(0)}%`}`}</span></div></div>
     <div class="analysis-stat-grid"><article><small>현재 주가</small><b>${companySharePriceText(c)}</b><span class="${ret>=0?'up':'down'}">${ret>=0?'+':''}${ret.toFixed(2)}%</span></article><article><small>시장 수급</small><b class="${flow>=0?'up':'down'}">${flow>=0?'+':''}${compactMoney(flow)}원</b><span>공용 서버 수급</span></article><article><small>변동성</small><b>${Number(c.volatility||1.5).toFixed(2)}%</b><span>최근 가격 변동폭</span></article><article><small>${self?'내 경영진·우호 지분':'내 보유 지분'}</small><b>${stake.toFixed(2)}%</b><span>${self?`외부 ${Number(my.incoming_stake||0).toFixed(2)}%`:stage.label}</span></article></div>
-    <div class="company-target-chart live-company-chart clean-live-chart"><div class="mini-chart-head"><div><b>공용 실시간 주가</b><small>서버 종가를 기준으로 회사 규모·업종·BOT 수급·투자심리를 반영한 공용 시장 캔들입니다. 변동이 지나치게 평평하면 자연스러운 시장 미세변동을 보정합니다.</small></div><span class="live-dot">SHARED</span></div><canvas id="companyTargetChart"></canvas><div class="chart-decision-note"><span><small>매출</small><b>${compactMoney(c.revenue)}원</b></span><span><small>영업이익</small><b>${compactMoney(c.profit)}원</b></span><span><small>투자심리</small><b>${Number(c.investor_sentiment||50).toFixed(0)}</b></span><span><small>수급 방향</small><b class="${flow>=0?'up':'down'}">${flow>=0?'순매수':'순매도'}</b></span></div></div>
+    <div class="company-target-chart live-company-chart clean-live-chart"><div class="mini-chart-head"><div><b>공용 실시간 주가</b><small>서버 종가·회사 ID·경영주기만으로 계산하는 공용 캔들입니다. 같은 서버와 v6.5.9를 쓰는 모든 접속자는 같은 회사의 같은 캔들 모양을 봅니다.</small></div><span class="live-dot">SHARED</span></div><canvas id="companyTargetChart"></canvas><div class="chart-decision-note"><span><small>매출</small><b>${compactMoney(c.revenue)}원</b></span><span><small>영업이익</small><b>${compactMoney(c.profit)}원</b></span><span><small>투자심리</small><b>${Number(c.investor_sentiment||50).toFixed(0)}</b></span><span><small>수급 방향</small><b class="${flow>=0?'up':'down'}">${flow>=0?'순매수':'순매도'}</b></span></div></div>
     ${renderCompetitorProductIntel()}
     ${renderDueDiligencePanel(c,self,controlled)}
     <div class="analysis-news"><div class="analysis-subhead"><h3>최근 15분 관련 뉴스</h3><span>${press.length}건</span></div>${press.length?press.slice(0,4).map(a=>`<article><small>${escapeHtml(a.outlet_name||'경제뉴스')}</small><b>${escapeHtml(a.headline)}</b><p>${escapeHtml(a.article_body||'')}</p></article>`).join(''):`<div class="empty compact">최근 15분 안에 보도된 기사가 없습니다.</div>`}</div>
@@ -3132,7 +3215,7 @@ function renderTerminal(preserve=false){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 6.5.8'}</span></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 6.5.9'}</span></div>
       ${topNav()}
       <div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
@@ -3543,7 +3626,7 @@ ${side==='BUY'?`법인현금 -${formatKrwSmart(amount)}`:`보유 ${nf.format(Num
       const profile=await companyApi('PROFILE',{p_company_id:id});
       if(!profile?.company)throw new Error(profile?.message||'기업 프로필 응답이 비어 있습니다.');
       try{const rp=await companyRealismApi('PROFILE',{p_company_id:id});profile.realism_products=Array.isArray(rp?.products)?rp.products:[]}catch(_realismProfileErr){profile.realism_products=[]}
-      state.companyAnalysis=profile;
+      state.companyAnalysis=alignCompanyProfileToSharedMarket(profile);
       const currentSlot=document.getElementById('companyAnalysisSlot');
       if(currentSlot){
         currentSlot.innerHTML=renderCompanyAnalysisPanel(state.company?.my_company||{});
@@ -3566,7 +3649,7 @@ ${side==='BUY'?`법인현금 -${formatKrwSmart(amount)}`:`보유 ${nf.format(Num
 
   document.querySelectorAll('[data-company-ops-tab]').forEach(b=>b.onclick=()=>{state.companyOpsTab=b.dataset.companyOpsTab||'products';renderTerminal(true);});
   document.querySelectorAll('[data-threat-media]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.threatMedia||0);if(!id)return;state.companyMediaTargetId=id;state.companyMediaTone='CRITICAL';state.companyMediaSearch='';state.companySection='risk';renderTerminal(true);});
-  document.querySelectorAll('[data-threat-analyze]').forEach(b=>b.onclick=async()=>{const id=Number(b.dataset.threatAnalyze||0);const c=(state.company?.companies||[]).find(x=>Number(x.id)===id);if(!id)return;state.companySection='competition';state.companySearch=c?.name||'';state.companyAnalysisId=id;state.companyAnalysis=null;renderTerminal(true);try{const profile=await companyApi('PROFILE',{p_company_id:id});try{const rp=await companyRealismApi('PROFILE',{p_company_id:id});profile.realism_products=Array.isArray(rp?.products)?rp.products:[]}catch(_e){}state.companyAnalysis=profile;renderTerminal(true);}catch(err){state.companyNotice='공격 회사 분석 실패: '+err.message;renderTerminal(true);}});
+  document.querySelectorAll('[data-threat-analyze]').forEach(b=>b.onclick=async()=>{const id=Number(b.dataset.threatAnalyze||0);const c=(state.company?.companies||[]).find(x=>Number(x.id)===id);if(!id)return;state.companySection='competition';state.companySearch=c?.name||'';state.companyAnalysisId=id;state.companyAnalysis=null;renderTerminal(true);try{const profile=await companyApi('PROFILE',{p_company_id:id});try{const rp=await companyRealismApi('PROFILE',{p_company_id:id});profile.realism_products=Array.isArray(rp?.products)?rp.products:[]}catch(_e){}state.companyAnalysis=alignCompanyProfileToSharedMarket(profile);renderTerminal(true);}catch(err){state.companyNotice='공격 회사 분석 실패: '+err.message;renderTerminal(true);}});
   const mediaSearch=document.getElementById('companyMediaSearch');const mediaSearchBtn=document.getElementById('companyMediaSearchBtn');
   const doMediaSearch=()=>{const q=String(mediaSearch?.value||'').trim();state.companyMediaSearch=q;const all=[...(state.company?.companies||[])].filter(c=>c&&c.status!=='INACTIVE');const ql=q.toLowerCase(),matches=q?all.filter(c=>`${c.name||''} ${c.ticker||''} ${c.owner_nickname||''}`.toLowerCase().includes(ql)):[];const exact=matches.find(c=>String(c.name||'').toLowerCase()===ql||String(c.ticker||'').toLowerCase()===ql||String(c.owner_nickname||'').toLowerCase()===ql);const chosen=exact||(matches.length===1?matches[0]:null);if(chosen){state.companyMediaTargetId=Number(chosen.id);if(state.companyMediaTone==='CRITICAL'&&state.companyMediaTargetId===Number(state.company?.my_company?.id))state.companyMediaTone='PROMOTE';}renderTerminal(true);};
   if(mediaSearchBtn)mediaSearchBtn.onclick=doMediaSearch;if(mediaSearch)mediaSearch.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();doMediaSearch();}};
@@ -3603,19 +3686,23 @@ AI 자동 캠페인 최대 한도: ${formatKrwSmart(cap)}
   document.querySelectorAll('[data-talent-poach]').forEach(b=>b.onclick=async()=>{
     const id=Number(b.dataset.talentPoach||0),talent=(state.company?.poach_targets||[]).find(x=>Number(x.id)===id);if(!talent)return;
     const salary=parseCompanyMoney(document.getElementById(`poachSalary_${id}`)?.value,Number(talent.monthly_salary||0)*1.2),bonus=parseCompanyMoney(document.getElementById(`poachBonus_${id}`)?.value,Number(talent.monthly_salary||0)*4);
-    if(!confirm(`${talent.company_name||talent.source_company_name||'경쟁사'}의 ${talent.grade||talentCareerTitle(talent)} ${talent.name}에게 이직을 제안할까요?\n제시 월급 ${formatKrwSmart(salary)} · 사인보너스 ${formatKrwSmart(bonus)}\n실패하더라도 헤드헌터 착수비가 발생합니다.`))return;
+    if(!confirm(`${talent.company_name||talent.source_company_name||'경쟁사'}의 ${talent.grade||talentCareerTitle(talent)} ${talent.name}에게 이직을 제안할까요?
+제시 월급 ${formatKrwSmart(salary)} · 사인보너스 ${formatKrwSmart(bonus)}
+결과는 수락/거절 창으로 바로 알려드립니다.`))return;
+    const old=b.textContent;
     try{
       b.disabled=true;b.textContent='제안 협상 중…';
       const d=await companyTalentApi('POACH',{p_talent_id:id,p_offer_salary:salary,p_signing_bonus:bonus});
       if(!d?.ok)throw new Error(d?.message||'영입 제안을 처리하지 못했습니다.');
-      state.companyNotice=`${d.message}${d.success_chance!=null?` · 제안 당시 수락확률 ${Number(d.success_chance).toFixed(1)}%`:''}`;playCompanySfx(d.success?'success':'alert');await loadCompanyLayer(false,true);renderTerminal(true);
+      await loadCompanyLayer(false,true);const accepted=inferPoachSuccess(d,talent,state.company);const result={...d,success:accepted===null?d.success:accepted};
+      state.companyNotice=`${accepted===true?'이직 수락':accepted===false?'이직 거절':'이직 협상 완료'} · ${d.message||talent.name}${d.success_chance!=null?` · 수락확률 ${Number(d.success_chance).toFixed(1)}%`:''}`;playCompanySfx(accepted===true?'success':'alert');renderTerminal(true);setTimeout(()=>showTalentPoachResult(talent,result,salary,bonus),30);
     }catch(err){
       if(localTalentPoachFallbackable(err)){
         const d=applyLocalTalentPoach(id,salary,bonus,state.company);if(!d?.ok){state.companyNotice='헤드헌팅 실패: '+d.message;alert(state.companyNotice);renderTerminal(true);return;}
-        state.companyNotice=`${d.message} (서버 영입 API 미동작으로 게임 내 보완 로직 적용)`;playCompanySfx(d.success?'success':'alert');renderTerminal(true);return;
+        state.companyNotice=d.message;playCompanySfx(d.success?'success':'alert');renderTerminal(true);setTimeout(()=>showTalentPoachResult(talent,d,salary,bonus),30);return;
       }
-      state.companyNotice='헤드헌팅 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);
-    }
+      state.companyNotice='헤드헌팅 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);setTimeout(()=>showTalentPoachResult(talent,{success:false,message:state.companyNotice},salary,bonus),30);
+    }finally{if(document.body.contains(b)){b.disabled=false;b.textContent=old}}
   });
 
   document.querySelectorAll('[data-talent-fire]').forEach(b=>b.onclick=async()=>{

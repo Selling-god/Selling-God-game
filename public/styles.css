@@ -1442,3 +1442,15 @@ body.tutorial-active{overflow:hidden}
 .treasury-holding-actions button{min-height:34px;padding:0 10px;border:1px solid #35516f;border-radius:8px;background:#11243a;color:#dceaf7;font-size:8.5px;font-weight:900;cursor:pointer;white-space:nowrap}
 .treasury-holding-actions button.sell{border-color:#6b3d45;background:#28171c;color:#ffb9bf}
 @media(max-width:900px){.treasury-holding-actions{justify-content:flex-start}}
+
+/* V6.5.9 takeover transparency + poach feedback */
+.takeover-dossier{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0 12px}
+.takeover-dossier article{padding:11px;border:1px solid #344255;border-radius:10px;background:#0b121a;display:grid;gap:4px}
+.takeover-dossier small{font-size:8px;color:#8d9caf;font-weight:900;letter-spacing:.05em}.takeover-dossier b{font-size:11px;color:#eef3f8}.takeover-dossier span{font-size:9px;line-height:1.45;color:#97a5b7}
+.talent-poach-result{position:fixed;inset:0;z-index:300000;background:rgba(3,7,12,.76);display:grid;place-items:center;padding:18px}
+.talent-poach-result>section{position:relative;width:min(440px,100%);padding:22px;border:1px solid #536174;border-radius:16px;background:#0d151f;box-shadow:0 24px 90px rgba(0,0,0,.62)}
+.talent-poach-result.success>section{border-color:#4d8968}.talent-poach-result.reject>section{border-color:#9a5158}.talent-poach-result.neutral>section{border-color:#8d7745}
+.talent-poach-result small{font-size:9px;color:#8999ac;font-weight:900;letter-spacing:.08em}.talent-poach-result h2{margin:5px 0 3px;font-size:21px;color:#f0f4f8}.talent-poach-result.success h2{color:#7bd2a1}.talent-poach-result.reject h2{color:#ef878e}
+.talent-poach-result>section>b{display:block;margin:8px 0 12px;font-size:15px;color:#dce5ef}.talent-poach-result p{margin:12px 0;color:#9ba9ba;font-size:11px;line-height:1.6}
+.poach-result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.poach-result-grid span{padding:9px;border:1px solid #293646;border-radius:9px;background:#091019;display:grid;gap:3px}.poach-result-grid b{color:#edf2f7;font-size:11px}.poach-result-close{position:absolute;right:10px;top:9px;border:0;background:transparent;color:#8998aa;font-size:24px}.poach-result-ok{width:100%;height:40px;border:1px solid #526173;border-radius:9px;background:#182330;color:#f1f5f9;font-weight:900}
+@media(max-width:760px){.takeover-dossier{grid-template-columns:1fr}.poach-result-grid{grid-template-columns:1fr}}
