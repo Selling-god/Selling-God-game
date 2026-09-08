@@ -1,5 +1,5 @@
 (()=>{
-const KX_COMPANY_BUILD='6.5.1-DEFENSE-GRADE-ROSTER';
+const KX_COMPANY_BUILD='6.5.4-AI-AUTOPILOT';
 window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
@@ -11,6 +11,8 @@ const NEWS_SEEN_KEY='kx_news_seen_v2';
 let lastSeenNewsId=Number(localStorage.getItem(NEWS_SEEN_KEY)||0);
 let newsBaselineReady=false;
 let newsFlashTimer=null;
+let talentTrainingRpcAvailable=null;
+let talentTrainingToastTimer=null;
 let companyIncomeToastTimer=null;
 let companyIncomeBaselineReady=false;
 let lastCompanyIncomeId=0;
@@ -1591,14 +1593,41 @@ function normalizeCompanyTrainingLedger(raw){
       specialtyCount:Number(x.specialtyCount||0)||0,
       totalTrainings:Number(x.totalTrainings||0)||0,
       totalSpent:Number(x.totalSpent||0)||0,
-      lastTrainDay:Number(x.lastTrainDay||0)||0
+      lastTrainDay:Number(x.lastTrainDay||0)||0,
+      lastTrainingType:String(x.lastTrainingType||''),
+      lastSkillGain:Number(x.lastSkillGain||0)||0,
+      lastCost:Number(x.lastCost||0)||0,
+      lastCompletedAt:Number(x.lastCompletedAt||0)||0,
+      lastSource:String(x.lastSource||'')
     };
   });
   return {cashSpent:Number(base.cashSpent||0)||0,totalTrainings:Number(base.totalTrainings||0)||0,lastUpdatedAt:Number(base.lastUpdatedAt||0)||0,talents};
 }
 function loadCompanyTrainingLedger(companyId=(state.company?.my_company?.id||'guest')){try{return normalizeCompanyTrainingLedger(JSON.parse(localStorage.getItem(companyTrainingLedgerKey(companyId))||'{}'))}catch(_e){return normalizeCompanyTrainingLedger({})}}
 function saveCompanyTrainingLedger(ledger,companyId=(state.company?.my_company?.id||'guest')){const norm=normalizeCompanyTrainingLedger(ledger);try{localStorage.setItem(companyTrainingLedgerKey(companyId),JSON.stringify(norm))}catch(_e){}return norm}
-function localTalentTrainingFallbackable(err){const raw=String(err?.message||'');return missingRpcError(err)||/404|not found|could not find|schema cache|pgrst|지원하지 않|구현되지 않|train/i.test(raw)}
+
+function companyTalentTrainingDay(data=state.company){return Math.max(1,Number(data?.talent_day||liveCompanyClock().day||1)||1)}
+function companyTalentTrainingEntry(talentId,data=state.company){const ledger=loadCompanyTrainingLedger(data?.my_company?.id||'guest');return ledger.talents[String(talentId)]||null}
+function companyTalentTrainingStatus(talent,data=state.company){
+  const day=companyTalentTrainingDay(data),entry=companyTalentTrainingEntry(talent?.id,data),trainedToday=Number(entry?.lastTrainDay||0)===day;
+  const type=String(entry?.lastTrainingType||'').toUpperCase();
+  return {day,entry,trainedToday,type,label:type==='SPECIALTY'?'전문 연수':type==='BALANCED'?'종합 연수':'연수',nextDay:day+1};
+}
+function recordServerTalentTrainingStatus(talentId,type,result={},data=state.company){
+  const companyId=data?.my_company?.id||'guest',ledger=loadCompanyTrainingLedger(companyId),day=companyTalentTrainingDay(data);
+  const x=ledger.talents[String(talentId)]||{skill_score:0,monthly_salary:0,innovation:0,sales_skill:0,operations_skill:0,leadership:0,loyalty:0,potential:0,career_level:0,balancedCount:0,specialtyCount:0,totalTrainings:0,totalSpent:0,lastTrainDay:0};
+  x.lastTrainDay=day;x.lastTrainingType=String(type||'BALANCED').toUpperCase();x.lastSkillGain=Number(result?.skill_gain||result?.growth||result?.delta_skill||0)||0;x.lastCost=Number(result?.cost||result?.training_cost||0)||0;x.lastCompletedAt=Date.now();x.lastSource='SERVER';x.totalTrainings=Number(x.totalTrainings||0)+1;
+  if(x.lastTrainingType==='SPECIALTY')x.specialtyCount=Number(x.specialtyCount||0)+1;else x.balancedCount=Number(x.balancedCount||0)+1;
+  ledger.talents[String(talentId)]=x;ledger.totalTrainings=Number(ledger.totalTrainings||0)+1;ledger.lastUpdatedAt=Date.now();saveCompanyTrainingLedger(ledger,companyId);
+}
+function showTalentTrainingToast(talent,type,message){
+  clearTimeout(talentTrainingToastTimer);document.getElementById('talentTrainingToast')?.remove();
+  const el=document.createElement('aside');el.id='talentTrainingToast';el.className='talent-training-toast';
+  el.innerHTML=`<small>EMPLOYEE TRAINING · 즉시 반영</small><b>${escapeHtml(talent?.name||'직원')} · ${String(type).toUpperCase()==='SPECIALTY'?'전문 연수':'종합 연수'} 완료</b><span>${escapeHtml(message||'능력치와 자동운영 기여도에 연수 결과가 반영되었습니다.')}</span><em>다음 DAY부터 다시 연수할 수 있습니다.</em>`;
+  document.body.appendChild(el);requestAnimationFrame(()=>el.classList.add('show'));talentTrainingToastTimer=setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),240)},5200);
+}
+
+function localTalentTrainingFallbackable(err){const raw=String(err?.message||'').toLowerCase();return missingRpcError(err)||err?.status===404||raw.includes('not implemented')||raw.includes('unknown action')||raw.includes('미구현')||raw.includes('지원하지 않')}
 function talentTrainingFocusKeys(department=''){
   switch(String(department||'').toUpperCase()){
     case 'ENGINEERING':return ['innovation','operations_skill'];
@@ -1679,7 +1708,7 @@ function applyLocalTalentTraining(talentId,type='BALANCED',data=state.company){
   Object.entries(plan.delta).forEach(([k,v])=>{existing[k]=Number(existing[k]||0)+Number(v||0)});
   existing.totalTrainings=Number(existing.totalTrainings||0)+1;
   existing.totalSpent=Number(existing.totalSpent||0)+plan.cost;
-  existing.lastTrainDay=currentDay;
+  existing.lastTrainDay=currentDay;existing.lastTrainingType=String(type||'BALANCED').toUpperCase();existing.lastSkillGain=Number(plan.skillGain||0)||0;existing.lastCost=Number(plan.cost||0)||0;existing.lastCompletedAt=Date.now();existing.lastSource='LOCAL';
   if(String(type).toUpperCase()==='SPECIALTY')existing.specialtyCount=Number(existing.specialtyCount||0)+1;else existing.balancedCount=Number(existing.balancedCount||0)+1;
   ledger.talents[String(talentId)]=existing;
   ledger.cashSpent=Number(ledger.cashSpent||0)+plan.cost;
@@ -1822,14 +1851,18 @@ function filteredCompanyTalents(){
 }
 function renderEmployeeQuickRoster(my){
   const talents=(state.company?.talents||[]).filter(Boolean);
-  const localTrainCount=Number(state.company?.my_company?.training_count_local||0)||0;
-  const localTrainSpent=Number(state.company?.my_company?.training_cash_spent||0)||0;
+  const ledger=loadCompanyTrainingLedger(state.company?.my_company?.id||'guest');
+  const day=companyTalentTrainingDay(state.company);
+  const localTrainCount=Number(ledger.totalTrainings||0)||0;
+  const localTrainSpent=Number(ledger.cashSpent||0)||0;
+  const trainedToday=talents.filter(t=>Number(ledger.talents[String(t.id)]?.lastTrainDay||0)===day).length;
   if(!talents.length)return `<section class="employee-roster-quick"><div class="employee-roster-head"><div><small>EMPLOYEE ROSTER</small><h3>재직 핵심인재</h3></div><span>아직 이름이 있는 핵심인재가 없습니다.</span></div></section>`;
   const counts={};for(const t of talents){const g=talentGradeKey(t);counts[g]=(counts[g]||0)+1}
   const grades=Object.keys(counts).sort((a,b)=>talentGradeSortValue(a)-talentGradeSortValue(b));
   let filter=String(state.companyTalentGradeFilter||'ALL');if(filter!=='ALL'&&!counts[filter]){filter='ALL';state.companyTalentGradeFilter='ALL'}
   const rows=[...talents].filter(t=>filter==='ALL'||talentGradeKey(t)===filter).sort((a,b)=>talentGradeSortValue(talentGradeKey(b))-talentGradeSortValue(talentGradeKey(a))||Number(b.skill_score||0)-Number(a.skill_score||0));
-  return `<section class="employee-roster-quick grade-roster"><div class="employee-roster-head"><div><small>EMPLOYEE ROSTER</small><h3>재직 핵심인재</h3><p>등급별로 인재를 골라 보고, 같은 화면에서 연수·해고까지 처리합니다. 아래에 별도의 중복 재직 카드 목록은 표시하지 않습니다.</p>${localTrainCount?`<div class="roster-training-note">연수 반영 ${nf.format(localTrainCount)}회 · 누적 사용 ${formatKrwSmart(localTrainSpent)}</div>`:''}</div><span>${rows.length}/${talents.length}명</span></div><div class="employee-grade-tabs"><button type="button" data-talent-grade-filter="ALL" class="${filter==='ALL'?'on':''}">전체 <b>${talents.length}</b></button>${grades.map(g=>`<button type="button" data-talent-grade-filter="${escapeHtml(g)}" class="${filter===g?'on':''}">${escapeHtml(g)} <b>${counts[g]}</b></button>`).join('')}</div><div class="employee-roster-table"><div class="employee-roster-row header"><span>직원</span><span>부서</span><span>역량 / 잠재력</span><span>월급</span><span>자동운영</span><span>관리</span></div>${rows.map(t=>`<div class="employee-roster-row"><span class="employee-name">${talentGradeBadge(t)}<b>${escapeHtml(t.name)}</b><small>${escapeHtml(t.specialty||'-')} · Lv.${Number(t.career_level||1)}</small></span><span>${escapeHtml(talentDepartmentShort(t.department))}</span><span><b>${Number(t.skill_score||0).toFixed(1)}</b><small>잠재력 ${Number(t.potential||50).toFixed(0)}</small></span><span>${formatKrwSmart(t.monthly_salary||0)}</span><span>+${talentAutopilotContribution(t).toFixed(1)}</span><span class="employee-roster-actions"><button type="button" data-talent-train="${t.id}" data-training-type="BALANCED">종합 연수</button><button type="button" data-talent-train="${t.id}" data-training-type="SPECIALTY">전문 연수</button><button type="button" class="employee-fire-btn" data-talent-fire="${t.id}">해고</button></span></div>`).join('')}</div></section>`;
+  const progress=Math.max(0,Math.min(100,talents.length?trainedToday/talents.length*100:0));
+  return `<section class="employee-roster-quick grade-roster"><div class="employee-roster-head"><div><small>EMPLOYEE ROSTER</small><h3>재직 핵심인재</h3><p>연수는 기다리는 작업이 아니라 <b>승인 즉시 완료·반영</b>됩니다. 오늘 완료한 직원은 다음 DAY부터 다시 연수할 수 있습니다.</p></div><span>${rows.length}/${talents.length}명</span></div><div class="training-status-board"><div><small>TODAY TRAINING</small><b>오늘 연수 완료 ${trainedToday}/${talents.length}명</b><span>${trainedToday?`DAY ${day} 연수 결과가 이미 반영되었습니다.`:'아직 오늘 연수를 받은 직원이 없습니다.'}</span></div><div class="training-progress-track"><i style="width:${progress.toFixed(1)}%"></i></div><div class="training-status-meta"><span>누적 연수 <b>${nf.format(localTrainCount)}회</b></span><span>로컬 대체 연수비 <b>${formatKrwSmart(localTrainSpent)}</b></span><span>재교육 가능 <b>DAY ${day+1}</b></span></div></div><div class="employee-grade-tabs"><button type="button" data-talent-grade-filter="ALL" class="${filter==='ALL'?'on':''}">전체 <b>${talents.length}</b></button>${grades.map(g=>`<button type="button" data-talent-grade-filter="${escapeHtml(g)}" class="${filter===g?'on':''}">${escapeHtml(g)} <b>${counts[g]}</b></button>`).join('')}</div><div class="employee-roster-table"><div class="employee-roster-row header"><span>직원</span><span>부서</span><span>역량 / 잠재력</span><span>월급</span><span>자동운영</span><span>관리</span></div>${rows.map(t=>{const st=companyTalentTrainingStatus(t,state.company);const entry=st.entry;const done=st.trainedToday;const detail=done?`${st.label} 완료${Number(entry?.lastSkillGain||0)>0?` · 역량 +${Number(entry.lastSkillGain).toFixed(1)}`:''}`:'오늘 연수 가능';return `<div class="employee-roster-row ${done?'training-done':''}"><span class="employee-name">${talentGradeBadge(t)}<b>${escapeHtml(t.name)}</b><small>${escapeHtml(t.specialty||'-')} · Lv.${Number(t.career_level||1)}</small>${done?`<em class="employee-training-inline">✓ ${escapeHtml(detail)}</em>`:''}</span><span>${escapeHtml(talentDepartmentShort(t.department))}</span><span><b>${Number(t.skill_score||0).toFixed(1)}</b><small>잠재력 ${Number(t.potential||50).toFixed(0)}</small></span><span>${formatKrwSmart(t.monthly_salary||0)}</span><span>+${talentAutopilotContribution(t).toFixed(1)}</span><span class="employee-roster-actions">${done?`<div class="employee-training-status"><b>오늘 연수 완료</b><small>DAY ${st.nextDay}부터 재교육 가능</small></div>`:''}<button type="button" data-talent-train="${t.id}" data-training-type="BALANCED" ${done?'disabled':''}>${done?'오늘 완료':'종합 연수'}</button><button type="button" data-talent-train="${t.id}" data-training-type="SPECIALTY" ${done?'disabled':''}>${done?'재교육 대기':'전문 연수'}</button><button type="button" class="employee-fire-btn" data-talent-fire="${t.id}">해고</button></span></div>`}).join('')}</div></section>`;
 }
 
 
@@ -2067,13 +2100,13 @@ function renderMediaDesk(my){
   const options=allTargets.sort((a,b)=>Number(a.id)===Number(my.id)?-1:Number(b.id)===Number(my.id)?1:Number(b.valuation||0)-Number(a.valuation||0)).map(c=>`<option value="${c.id}" ${Number(c.id)===targetId?'selected':''}>${Number(c.id)===Number(my.id)?'[내 회사] ':companyOperatorType(c)==='PLAYER'?'[유저] ':Number(c.id)===threatId?'[위협] ':''}${escapeHtml(c.name)} · ${escapeHtml(c.ticker||'')}</option>`).join('');
   const sourceName=id=>allTargets.find(x=>Number(x.id)===Number(id))?.name||'';
   return `<section class="corp-section media-desk-section clean-newsroom-management">
-    <div class="company-section-head"><div><small>NEWS / IR</small><h2>언론 대응</h2></div></div>
+    <div class="company-section-head"><div><small>NEWS / IR</small><h2>언론 대응</h2><p class="media-autopilot-note">매체 하나만 승인하면 AI 홍보팀이 선택한 대상·논조를 유지하면서 예산 한도 안에서 최대 3개 매체를 자동 조합해 후속 기사까지 집행합니다.</p></div></div>
     <div class="media-company-search"><label>회사 검색<input id="companyMediaSearch" value="${escapeHtml(state.companyMediaSearch||'')}" placeholder="회사명·종목코드·유저명 검색"></label><button type="button" id="companyMediaSearchBtn">검색</button></div>
     ${search?`<div class="media-search-results">${searchRows.length?searchRows.map(c=>`<button type="button" data-media-target-quick="${c.id}" class="${Number(c.id)===targetId?'on':''} ${companyOperatorType(c)==='PLAYER'&&Number(c.id)!==Number(my.id)?'player-target':''} ${Number(c.id)===threatId?'threat-target':''}"><b>${escapeHtml(c.name)}</b><span>${Number(c.id)===Number(my.id)?'내 회사':Number(c.id)===threatId?'내 경영권 위협 회사':companyOperatorType(c)==='PLAYER'?'실제 유저 회사':'BOT 회사'} · ${escapeHtml(c.ticker||'')}</span></button>`).join(''):`<div class="empty compact">검색 결과가 없습니다.</div>`}</div>`:''}
     <div class="media-target-shell compact search-selected-target"><div><small>현재 기사 대상 · 검색 결과가 바로 적용됩니다</small><b class="${Number(target.id)===threatId?'danger-text':''}">${escapeHtml(target?.name||'')}</b><span>${Number(target.id)===threatId?'내 경영권을 위협 중인 회사':companyOperatorType(target)==='PLAYER'&&Number(target.id)!==Number(my.id)?'실제 유저 회사':Number(target.id)===Number(my.id)?'내 회사':'BOT 회사'} · ${escapeHtml(target?.ticker||'')}</span></div><button type="button" id="companyMediaTargetReset">내 회사로 변경</button></div>
     <div class="media-tone-buttons"><button type="button" data-media-tone="PROMOTE" class="${tone==='PROMOTE'?'on':''}"><b>긍정 홍보</b></button><button type="button" data-media-tone="NEUTRAL" class="${tone==='NEUTRAL'?'on':''}"><b>사실 중심</b></button><button type="button" data-media-tone="CRITICAL" class="critical ${tone==='CRITICAL'?'on':''}" ${targetId===Number(my.id)?'disabled':''}><b>비판·검증</b></button></div>
     <div class="media-region-tabs"><button data-company-media-region="ALL" class="${region==='ALL'?'on':''}">전체</button><button data-company-media-region="국내" class="${region==='국내'?'on':''}">국내</button><button data-company-media-region="해외" class="${region==='해외'?'on':''}">해외</button></div>
-    <div class="auto-outlet-grid">${filtered.map(o=>`<article class="auto-outlet-card"><div><small>${o.kind}</small><h3>${o.name}</h3></div><dl><div><dt>비용</dt><dd>${formatKrwSmart(o.cost*(tone==='CRITICAL'?1.15:1))}</dd></div><div><dt>도달</dt><dd>${o.reach}</dd></div></dl><button type="button" data-company-media="${o.key}" data-media-api-code="${o.apiCode}" data-media-cost="${o.cost}" data-media-name="${o.name}" data-media-region="${o.region}">${tone==='CRITICAL'?'비판 기사 발행':tone==='NEUTRAL'?'사실 기사 발행':'홍보 기사 발행'}</button></article>`).join('')}</div>
+    <div class="auto-outlet-grid">${filtered.map(o=>`<article class="auto-outlet-card"><div><small>${o.kind}</small><h3>${o.name}</h3></div><dl><div><dt>비용</dt><dd>${formatKrwSmart(o.cost*(tone==='CRITICAL'?1.15:1))}</dd></div><div><dt>도달</dt><dd>${o.reach}</dd></div></dl><button type="button" data-company-media="${o.key}" data-media-api-code="${o.apiCode}" data-media-cost="${o.cost}" data-media-name="${o.name}" data-media-region="${o.region}">${tone==='CRITICAL'?'AI 비판 캠페인 승인':tone==='NEUTRAL'?'AI 사실 캠페인 승인':'AI 홍보 캠페인 승인'}</button></article>`).join('')}</div>
     <div class="published-news clean-published-news"><div class="company-section-head mini"><div><h3>최근 기업 뉴스</h3></div></div><div class="clean-news-list">${press.length?press.slice(0,28).map(a=>{const src=sourceName(a.source_company_id);return `<article class="press-article ${Number(a.sentiment_impact||0)<0?'negative':''}"><div class="press-meta"><b>${escapeHtml(a.outlet_name||'경제뉴스')}</b><span>${escapeHtml(a.company_name||'시장')}</span></div><h3>${escapeHtml(a.headline)}</h3><p>${escapeHtml(a.article_body||'')}</p>${src&&Number(a.source_company_id)!==Number(a.company_id)?`<footer><span>기사 출처·견제: ${escapeHtml(src)}</span></footer>`:''}</article>`}).join(''):`<div class="empty">최근 뉴스가 없습니다.</div>`}</div></div>
     <details class="media-history"><summary>언론 집행 기록</summary>${campaigns.length?campaigns.slice(0,10).map(c=>`<article><span><b>${escapeHtml(c.outlet_name)}</b><small>${escapeHtml(c.campaign_label||c.campaign_type||'보도')}</small></span><strong>${formatKrwSmart(c.budget)}</strong></article>`).join(''):`<div class="empty compact">아직 기록이 없습니다.</div>`}</details>
   </section>`;
@@ -2383,10 +2416,97 @@ function buildChairmanProposals(my){
   const weight={critical:0,warn:1,opportunity:2,normal:3};
   return out.sort((a,b)=>(weight[a.priority]??9)-(weight[b.priority]??9)).slice(0,6);
 }
+
+function showCompanyAutopilotProgress(title='AI 자동집행',detail='최적 실행안을 계산하고 있습니다.'){
+  document.getElementById('companyAutopilotProgress')?.remove();
+  const el=document.createElement('aside');el.id='companyAutopilotProgress';el.className='company-autopilot-progress';
+  el.innerHTML=`<small>CEO AUTHORIZED AUTOPILOT</small><b>${escapeHtml(title)}</b><span>${escapeHtml(detail)}</span><div><i></i></div>`;
+  document.body.appendChild(el);requestAnimationFrame(()=>el.classList.add('show'));
+  return {update(text){const span=el.querySelector('span');if(span)span.textContent=String(text||'처리 중…')},close(text=''){if(text){const span=el.querySelector('span');if(span)span.textContent=String(text)}setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),220)},text?1300:180)}};
+}
+function chairmanAutopilotCap(p,my=state.company?.my_company){
+  const cash=Math.max(0,Number(my?.cash||0)),valuation=Math.max(1,Number(my?.valuation||1)),base=Math.max(0,Number(p?.budget||0));
+  if(String(p?.kind||'').startsWith('DEFENSE')){const stake=companyStakeAgainstMe();const ratio=stake>=70?.58:stake>=50?.46:stake>=35?.34:.24;return Math.max(base,Math.min(cash*ratio,Math.max(base*5,valuation*(stake>=50?.05:.03))));}
+  if(p?.kind==='STRATEGIC_STAKE')return Math.max(base,Math.min(cash*.18,base*3.5));
+  return Math.min(cash,base);
+}
+function defenseActionLabel(a){return ({BUYBACK:'자사주 매입',NEGOTIATE:'지분 매각 협상',WHITE_KNIGHT:'백기사 확보',POISON_PILL:'포이즌필',RIGHTS_ISSUE:'긴급 유상증자',COUNTER_TAKEOVER:'역인수·맞지분'})[a]||a}
+function defenseAutopilotCandidates(stake,threat,my,lastAction=''){
+  const defense=Number(my?.defense_power||0),usedRights=!!threat?.used_rights_issue,usedPoison=!!threat?.used_poison_pill;
+  let rows=[];
+  if(stake>=60)rows=['RIGHTS_ISSUE','POISON_PILL','WHITE_KNIGHT','NEGOTIATE','BUYBACK','COUNTER_TAKEOVER'];
+  else if(stake>=45)rows=['WHITE_KNIGHT','NEGOTIATE','RIGHTS_ISSUE','POISON_PILL','BUYBACK','COUNTER_TAKEOVER'];
+  else if(stake>=25)rows=['NEGOTIATE','BUYBACK','WHITE_KNIGHT','COUNTER_TAKEOVER'];
+  else rows=['BUYBACK','NEGOTIATE'];
+  if(defense>=70)rows=rows.filter(x=>x!=='WHITE_KNIGHT');
+  if(usedRights)rows=rows.filter(x=>x!=='RIGHTS_ISSUE');
+  if(usedPoison)rows=rows.filter(x=>x!=='POISON_PILL');
+  if(lastAction&&rows.length>1){const i=rows.indexOf(lastAction);if(i===0)rows.push(rows.shift());}
+  return rows;
+}
+async function runDefenseAutopilot(p,progress){
+  const startMy=state.company?.my_company;if(!startMy)throw new Error('회사 정보를 찾지 못했습니다.');
+  const cap=chairmanAutopilotCap(p,startMy);let committed=0,steps=[],lastAction='',lastStake=companyStakeAgainstMe(),failures=new Set();
+  for(let i=0;i<9;i++){
+    const my=state.company?.my_company,threat=activeTakeoverThreat();const stake=companyStakeAgainstMe();
+    if(!threat||stake<10){lastStake=stake;break;}
+    const remaining=Math.max(0,cap-committed);if(remaining<40000000)break;
+    const candidates=defenseAutopilotCandidates(stake,threat,my,lastAction).filter(a=>!failures.has(a));if(!candidates.length)break;
+    const action=candidates[0];const cash=Math.max(0,Number(my?.cash||0)),valuation=Math.max(1,Number(my?.valuation||1));
+    let tranche=Math.max(40000000,Math.min(remaining,Math.max(Number(p.budget||0)*.55,valuation*.0075,cash*.09)));
+    if(action==='POISON_PILL')tranche=Math.min(tranche,Math.max(40000000,Number(p.budget||0)*.35));
+    if(action!=='RIGHTS_ISSUE'&&cash<tranche)tranche=Math.max(0,Math.min(remaining,cash*.85));if(action!=='RIGHTS_ISSUE'&&tranche<40000000)break;
+    progress?.update(`공격 지분 ${stake.toFixed(2)}% · ${defenseActionLabel(action)} 자동 집행 중…`);
+    try{
+      const r=await companyDefenseV640(action,tranche);if(r?.ok===false)throw new Error(r.message||`${defenseActionLabel(action)} 실패`);
+      committed+=tranche;steps.push(`${defenseActionLabel(action)} ${formatKrwSmart(tranche)}`);lastAction=action;
+      await loadCompanyLayer(false,true);
+      const now=companyStakeAgainstMe();if(now>=stake-.05&&['RIGHTS_ISSUE','POISON_PILL','WHITE_KNIGHT'].includes(action))failures.add(action);lastStake=now;
+      if(now<10)break;
+    }catch(err){failures.add(action);steps.push(`${defenseActionLabel(action)} 실패`);if(failures.size>=5)throw err;}
+  }
+  const finalStake=companyStakeAgainstMe();return {ok:true,spent:committed,steps,finalStake,cap,message:finalStake<10?`AI 방어팀이 공격 지분을 ${lastStake.toFixed(2)}%까지 낮춰 경영권 방어에 성공했습니다.`:`AI 방어팀이 ${steps.length}단계 조치를 자동 집행했습니다. 현재 위험 지분 ${finalStake.toFixed(2)}%.`};
+}
+async function runChairmanAutopilot(p,progress){
+  const my=state.company?.my_company;if(!my)throw new Error('회사 정보를 찾지 못했습니다.');
+  if(String(p.kind||'').startsWith('DEFENSE'))return runDefenseAutopilot(p,progress);
+  if(p.kind==='STRATEGIC_STAKE'){
+    const cap=chairmanAutopilotCap(p,my);let spent=0,steps=0;
+    while(spent<cap&&steps<5){const h=(state.company?.my_holdings||[]).find(x=>Number(x.target_company_id)===Number(p.targetCompanyId));if(Number(h?.stake||0)>=5)break;const remaining=cap-spent,tranche=Math.max(10000000,Math.min(remaining,Math.max(Number(p.budget||0),cap/3)));progress?.update(`전략지분 ${Number(h?.stake||0).toFixed(2)}% · 추가 매입 중…`);const d=await companyApi('BUY_SHARES',{p_target_company_id:p.targetCompanyId,p_budget:tranche});if(d?.ok===false)throw new Error(d.message||'전략지분 매입 실패');spent+=tranche;steps++;await loadCompanyLayer(false,true);}
+    const h=(state.company?.my_holdings||[]).find(x=>Number(x.target_company_id)===Number(p.targetCompanyId));return {ok:true,spent,steps:[`전략지분 자동 매입 ${steps}회`],message:`AI 재무팀이 자동 매입을 완료했습니다. 현재 보유지분 ${Number(h?.stake||0).toFixed(2)}%.`};
+  }
+  progress?.update(`${p.title} 집행 중…`);
+  let result=null;
+  if(p.kind==='PRODUCT_LAUNCH')result=await companyRealismApi('LAUNCH_PRODUCT',{p_product_id:p.productId});
+  else if(p.kind==='PRODUCT_DEVELOP')result=await companyRealismApi('DEVELOP_PRODUCT',{p_name:p.productName,p_type:p.productType,p_target_price:p.targetPrice,p_budget:p.budget,p_capacity:p.capacity});
+  else if(p.kind==='DEPT_INCENTIVE')result=await companyIncentiveV650('DEPARTMENT',p.department,p.budget);
+  if(result?.ok===false)throw new Error(result.message||'자동 집행 실패');await loadCompanyLayer(false,true);return {ok:true,spent:Number(p.budget||0),steps:[p.title],message:result?.message||`${p.title}을 자동 집행했습니다.`};
+}
+function mediaAutopilotCatalog(){return [
+  {apiCode:'ECON_DAILY',name:'KX 경제일보',cost:90000000,region:'국내'},
+  {apiCode:'BIZ_TV',name:'비즈니스24',cost:65000000,region:'국내'},
+  {apiCode:'EDGE_MEDIA',name:'EDGE 미디어',cost:35000000,region:'국내'},
+  {apiCode:'QUICK_BUZZ',name:'퀵버즈 경제',cost:15000000,region:'국내'},
+  {apiCode:'GLOBAL_WIRE',name:'Global Finance Wire',cost:160000000,region:'해외'}
+]}
+function mediaAutopilotPlan(anchor,tone,target,region,my){
+  const all=mediaAutopilotCatalog(),anchorRow=all.find(x=>x.apiCode===anchor)||all[0],globalNeed=region==='해외'||Number(my?.global_level||0)>=2||Number(my?.global_share||0)>=5;
+  const pref=tone==='CRITICAL'?(globalNeed?['ECON_DAILY','GLOBAL_WIRE','BIZ_TV','EDGE_MEDIA']:['ECON_DAILY','BIZ_TV','EDGE_MEDIA','GLOBAL_WIRE']):tone==='NEUTRAL'?['ECON_DAILY','GLOBAL_WIRE','BIZ_TV','EDGE_MEDIA']:(globalNeed?['GLOBAL_WIRE','ECON_DAILY','BIZ_TV','EDGE_MEDIA']:['ECON_DAILY','BIZ_TV','EDGE_MEDIA','GLOBAL_WIRE']);
+  const codes=[anchorRow.apiCode,...pref.filter(x=>x!==anchorRow.apiCode)];return codes.map(c=>all.find(x=>x.apiCode===c)).filter(Boolean);
+}
+async function runMediaAutopilot(anchor,targetId,tone,region,baseCost,progress){
+  const my=state.company?.my_company,target=(state.company?.companies||[]).find(c=>Number(c.id)===Number(targetId))||my;if(!my||!target)throw new Error('기사 대상을 찾지 못했습니다.');
+  const factor=tone==='CRITICAL'?1.15:1,anchorCost=Math.max(15000000,Number(baseCost||0))*factor,cash=Math.max(0,Number(my.cash||0));
+  const cap=Math.max(anchorCost,Math.min(cash*(tone==='CRITICAL'?.14:.10),anchorCost*3.2));const plan=mediaAutopilotPlan(anchor,tone,target,region,my);let spent=0,articles=[];
+  for(const outlet of plan){if(articles.length>=3)break;const expected=outlet.cost*factor;if(spent+expected>cap&&articles.length)continue;if(expected>Math.max(0,Number(state.company?.my_company?.cash||0))&&articles.length)break;progress?.update(`${outlet.name} 기사 자동 발행 중… (${articles.length+1}/3)`);try{const r=await companyMediaV640(outlet.apiCode,targetId,tone);if(r?.ok===false)throw new Error(r.message||'기사 발행 실패');spent+=expected;articles.push({outlet:outlet.name,headline:r?.headline||'',result:r});await loadCompanyLayer(false,true);}catch(err){if(!articles.length)throw err;break;}}
+  const last=articles[articles.length-1]?.result;if(last?.headline)showCompanyPressFlash({headline:last.headline,article_body:last.article_body,outlet_name:last.outlet_name||articles[articles.length-1].outlet,bot_flow:last.bot_flow,company_id:last.target_company_id||targetId});
+  return {ok:true,spent,articles,cap,message:`AI 홍보팀이 ${articles.length}개 매체를 자동 조합해 캠페인을 집행했습니다. 예상 집행액 ${formatKrwSmart(spent)}.`};
+}
+
 function chairmanPriorityLabel(p){return p==='critical'?'긴급':p==='warn'?'주의':p==='opportunity'?'기회':'검토'}
 function renderChairmanCommandCenter(my){
   const proposals=buildChairmanProposals(my),auto=companyAutomationSummary(state.company),perf=talentDepartmentPerformance(state.company),talents=[...(state.company?.talents||[])].sort((a,b)=>talentAutopilotContribution(b)-talentAutopilotContribution(a)).slice(0,5),threat=activeTakeoverThreat();
-  return `<section class="chairman-command-center"><div class="chairman-head"><div><small>CHAIRMAN'S OFFICE</small><h2>회장 결재실</h2><p>일상 운영은 직원에게 위임하고, 신제품·대규모 투자·경영권 방어처럼 중요한 결정만 회장이 승인합니다.</p></div><div class="chairman-autonomy"><span>위임 운영</span><b>${auto.grade[0]} · ${escapeHtml(auto.grade[1])}</b><em>자동운영 지수 ${auto.automationIndex.toFixed(1)}</em></div></div><div class="chairman-delegation-strip"><span><b>직원들이 자동 처리</b> 기술 개선 · 영업 실행 · 생산 안정화 · 준법/조직 운영</span><span><b>회장 결재 필요</b> 신제품 출시 · 대규모 개발 · 전략지분 · 경영권 방어</span></div><div class="chairman-proposal-title"><div><small>APPROVAL QUEUE</small><b>결재 대기 ${proposals.length}건</b></div><button type="button" data-company-section-jump="people">직원 현황 보기</button></div><div class="chairman-proposal-grid">${proposals.length?proposals.map(p=>`<article class="chairman-proposal ${p.priority}"><div class="proposal-meta"><span>${chairmanPriorityLabel(p.priority)}</span><small>${escapeHtml(talentDepartmentShort(p.department))}</small></div><h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.summary)}</p><div class="proposal-facts"><span><small>제안자</small><b>${p.officer?escapeHtml(p.officer.name):escapeHtml(talentDepartmentShort(p.department))}</b></span><span><small>권고 예산</small><b>${formatKrwSmart(p.budget||0)}</b></span><span><small>예상 효과</small><b>${escapeHtml(p.impact||'-')}</b></span></div><div class="proposal-actions"><button type="button" data-chairman-approve="${escapeHtml(p.id)}">승인·집행</button><button type="button" class="secondary" data-chairman-reject="${escapeHtml(p.id)}">이번 안건 보류</button></div></article>`).join(''):`<div class="chairman-empty"><b>현재 결재 대기 안건이 없습니다.</b><span>직원들은 일상 운영을 계속 진행합니다. 중요한 안건이 생기면 이곳에 올라옵니다.</span></div>`}</div><details class="chairman-incentive-box"><summary><b>성과 인센티브·회장 지시</b><span>잘하는 부서/직원에게 보상하거나 직접 운영 화면으로 이동합니다.</span></summary><div class="chairman-incentive-grid">${perf.map(d=>`<article><div><small>${escapeHtml(d.label)}</small><b>${d.score.toFixed(1)}점</b><span>${d.count}명 · 자동운영 ${d.auto.toFixed(1)}</span></div><label>인센티브<input id="chairmanDeptBonus_${d.code}" value="3000만"></label><button type="button" data-chairman-dept-incentive="${d.code}" ${d.count?'':'disabled'}>부서 인센티브</button></article>`).join('')}</div>${talents.length?`<div class="chairman-talent-bonus"><div class="chairman-mini-title"><b>핵심인재 개인 보상</b><span>자동운영 기여도가 높은 순</span></div>${talents.map(t=>`<article><span>${talentGradeBadge(t)} <b>${escapeHtml(t.name)}</b><small>${escapeHtml(talentDepartmentShort(t.department))} · 기여 ${talentAutopilotContribution(t).toFixed(1)}</small></span><input id="chairmanTalentBonus_${t.id}" value="1000만"><button type="button" data-chairman-talent-incentive="${t.id}">개인 인센티브</button></article>`).join('')}</div>`:''}<div class="chairman-directives"><button type="button" data-company-section-jump="operations">사업부에 직접 지시</button><button type="button" data-company-section-jump="competition">M&A팀에 직접 지시</button><button type="button" data-company-section-jump="people">인사팀에 직접 지시</button>${threat?`<button type="button" class="risk" data-chairman-direct-defense>긴급 자사주 매입 지시</button>`:''}</div></details></section>`;
+  return `<section class="chairman-command-center"><div class="chairman-head"><div><small>CHAIRMAN'S OFFICE</small><h2>회장 결재실</h2><p>일상 운영은 직원에게 위임합니다. 회장이 한 번 승인하면 AI 경영진이 승인 한도 안에서 필요한 후속 조치까지 자동 집행합니다.</p></div><div class="chairman-autonomy"><span>위임 운영</span><b>${auto.grade[0]} · ${escapeHtml(auto.grade[1])}</b><em>자동운영 지수 ${auto.automationIndex.toFixed(1)}</em></div></div><div class="chairman-delegation-strip"><span><b>직원들이 자동 처리</b> 기술 개선 · 영업 실행 · 생산 안정화 · 준법/조직 운영</span><span><b>회장 결재 필요</b> 한 번 승인 → AI가 예산 한도 안에서 최적 실행을 끝까지 진행</span></div><div class="chairman-proposal-title"><div><small>APPROVAL QUEUE</small><b>결재 대기 ${proposals.length}건</b></div><button type="button" data-company-section-jump="people">직원 현황 보기</button></div><div class="chairman-proposal-grid">${proposals.length?proposals.map(p=>`<article class="chairman-proposal ${p.priority}"><div class="proposal-meta"><span>${chairmanPriorityLabel(p.priority)}</span><small>${escapeHtml(talentDepartmentShort(p.department))}</small></div><h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.summary)}</p><div class="proposal-facts"><span><small>제안자</small><b>${p.officer?escapeHtml(p.officer.name):escapeHtml(talentDepartmentShort(p.department))}</b></span><span><small>권고 예산</small><b>${formatKrwSmart(p.budget||0)}</b></span><span><small>AI 자동집행 한도</small><b>${formatKrwSmart(chairmanAutopilotCap(p,my))}</b></span><span><small>예상 효과</small><b>${escapeHtml(p.impact||'-')}</b></span></div><div class="proposal-actions"><button type="button" data-chairman-approve="${escapeHtml(p.id)}">승인·AI 자동집행</button><button type="button" class="secondary" data-chairman-reject="${escapeHtml(p.id)}">이번 안건 보류</button></div></article>`).join(''):`<div class="chairman-empty"><b>현재 결재 대기 안건이 없습니다.</b><span>직원들은 일상 운영을 계속 진행합니다. 중요한 안건이 생기면 이곳에 올라옵니다.</span></div>`}</div><details class="chairman-incentive-box"><summary><b>성과 인센티브·회장 지시</b><span>잘하는 부서/직원에게 보상하거나 직접 운영 화면으로 이동합니다.</span></summary><div class="chairman-incentive-grid">${perf.map(d=>`<article><div><small>${escapeHtml(d.label)}</small><b>${d.score.toFixed(1)}점</b><span>${d.count}명 · 자동운영 ${d.auto.toFixed(1)}</span></div><label>인센티브<input id="chairmanDeptBonus_${d.code}" value="3000만"></label><button type="button" data-chairman-dept-incentive="${d.code}" ${d.count?'':'disabled'}>부서 인센티브</button></article>`).join('')}</div>${talents.length?`<div class="chairman-talent-bonus"><div class="chairman-mini-title"><b>핵심인재 개인 보상</b><span>자동운영 기여도가 높은 순</span></div>${talents.map(t=>`<article><span>${talentGradeBadge(t)} <b>${escapeHtml(t.name)}</b><small>${escapeHtml(talentDepartmentShort(t.department))} · 기여 ${talentAutopilotContribution(t).toFixed(1)}</small></span><input id="chairmanTalentBonus_${t.id}" value="1000만"><button type="button" data-chairman-talent-incentive="${t.id}">개인 인센티브</button></article>`).join('')}</div>`:''}<div class="chairman-directives"><button type="button" data-company-section-jump="operations">사업부에 직접 지시</button><button type="button" data-company-section-jump="competition">M&A팀에 직접 지시</button><button type="button" data-company-section-jump="people">인사팀에 직접 지시</button>${threat?`<button type="button" class="risk" data-chairman-direct-defense>긴급 자사주 매입 지시</button>`:''}</div></details></section>`;
 }
 
 function renderCompanyWorkspace(my){
@@ -2738,7 +2858,7 @@ function renderTerminal(preserve=false){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 6.4.5'}</span></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 6.5.3'}</span></div>
       ${topNav()}
       <div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
@@ -2973,21 +3093,14 @@ function bind(){
   document.querySelectorAll('[data-chairman-reject]').forEach(b=>b.onclick=()=>{markChairmanHandled(String(b.dataset.chairmanReject||''),24);state.companyNotice='안건을 이번 회차에서 보류했습니다. 상황이 계속되면 직원이 다시 상신할 수 있습니다.';renderTerminal(true)});
   document.querySelectorAll('[data-chairman-approve]').forEach(b=>b.onclick=async()=>{
     const id=String(b.dataset.chairmanApprove||''),p=buildChairmanProposals(state.company?.my_company).find(x=>x.id===id);if(!p)return;
-    if(!confirm(`${p.title}\n권고 예산: ${formatKrwSmart(p.budget||0)}\n\n회장 승인 후 즉시 집행할까요?`))return;
-    let result=null;
-    try{
-      b.disabled=true;b.textContent='집행 중…';
-      if(p.kind==='PRODUCT_LAUNCH')result=await companyRealismRun('LAUNCH_PRODUCT',{p_product_id:p.productId});
-      else if(p.kind==='PRODUCT_DEVELOP')result=await companyRealismRun('DEVELOP_PRODUCT',{p_name:p.productName,p_type:p.productType,p_target_price:p.targetPrice,p_budget:p.budget,p_capacity:p.capacity});
-      else if(p.kind==='STRATEGIC_STAKE')result=await companyRun('kx_company_buy_shares',{p_target_company_id:p.targetCompanyId,p_budget:p.budget});
-      else if(p.kind==='DEFENSE_BUYBACK'){result=await companyDefenseV640('BUYBACK',p.budget);if(result?.ok===false)throw new Error(result.message||'방어 집행 실패');state.companyNotice=result?.message||'자사주 매입 방어를 집행했습니다.';await loadCompanyLayer(false,true);renderTerminal(true);}
-      else if(p.kind==='DEFENSE_NEGOTIATE'){result=await companyDefenseV640('NEGOTIATE',p.budget);if(result?.ok===false)throw new Error(result.message||'지분 협상 실패');state.companyNotice=result?.message||'공격자 지분 매각 협상을 집행했습니다.';await loadCompanyLayer(false,true);renderTerminal(true);}
-      else if(p.kind==='DEFENSE_WHITE_KNIGHT'){result=await companyDefenseV640('WHITE_KNIGHT',p.budget);if(result?.ok===false)throw new Error(result.message||'백기사 확보 실패');state.companyNotice=result?.message||'백기사 우호지분 확보안을 집행했습니다.';await loadCompanyLayer(false,true);renderTerminal(true);}
-      else if(p.kind==='DEFENSE_RIGHTS_ISSUE'){result=await companyDefenseV640('RIGHTS_ISSUE',p.budget);if(result?.ok===false)throw new Error(result.message||'긴급 유상증자 실패');state.companyNotice=result?.message||'긴급 유상증자로 공격자 지분을 희석했습니다.';await loadCompanyLayer(false,true);renderTerminal(true);}
-      else if(p.kind==='DEFENSE_COUNTER'){result=await companyDefenseV640('COUNTER_TAKEOVER',p.budget);if(result?.ok===false)throw new Error(result.message||'역인수 집행 실패');state.companyNotice=result?.message||'역인수·맞지분 확보를 집행했습니다.';await loadCompanyLayer(false,true);renderTerminal(true);}
-      else if(p.kind==='DEPT_INCENTIVE'){result=await companyIncentiveV650('DEPARTMENT',p.department,p.budget);if(result?.ok===false)throw new Error(result.message||'인센티브 집행 실패');state.companyNotice=result?.message||'부서 인센티브가 반영되었습니다.';await loadCompanyLayer(false,true);renderTerminal(true);}
-      if(result){markChairmanHandled(id,p.kind.startsWith('DEFENSE')?10:36);playCompanySfx('success');}
-    }catch(err){state.companyNotice='회장 결재 집행 실패: '+(err?.message||String(err));alert(state.companyNotice);renderTerminal(true);}
+    const cap=chairmanAutopilotCap(p,state.company?.my_company);
+    if(!confirm(`${p.title}
+권고 예산: ${formatKrwSmart(p.budget||0)}
+AI 자동집행 최대 한도: ${formatKrwSmart(cap)}
+
+한 번 승인하면 AI 경영진이 이 한도 안에서 필요한 후속 조치를 반복 실행하고, 목표가 달성되거나 한도에 도달하면 자동으로 멈춥니다. 승인할까요?`))return;
+    const progress=showCompanyAutopilotProgress(p.title,'승인 완료 · AI 경영진이 최적 실행 순서를 계산합니다.');
+    try{b.disabled=true;b.textContent='AI 자동집행 중…';const result=await runChairmanAutopilot(p,progress);markChairmanHandled(id,p.kind.startsWith('DEFENSE')?10:36);state.companyNotice=result?.message||'AI 자동집행이 완료되었습니다.';playCompanySfx('success');progress.close(state.companyNotice);await loadCompanyLayer(false,true);renderTerminal(true);}catch(err){state.companyNotice='AI 자동집행 실패: '+(err?.message||String(err));progress.close(state.companyNotice);alert(state.companyNotice);renderTerminal(true);}
   });
   document.querySelectorAll('[data-chairman-dept-incentive]').forEach(b=>b.onclick=async()=>{
     const dept=String(b.dataset.chairmanDeptIncentive||''),amount=Math.max(5000000,parseCompanyMoney(document.getElementById(`chairmanDeptBonus_${dept}`)?.value,30000000));
@@ -3141,19 +3254,17 @@ function bind(){
 
   document.querySelectorAll('[data-company-media]').forEach(b=>b.onclick=async()=>{
     const outlet=b.dataset.mediaApiCode||b.dataset.companyMedia,cost=Math.max(0,Number(b.dataset.mediaCost)||0),name=b.dataset.mediaName||'언론사',region=b.dataset.mediaRegion||'',tone=state.companyMediaTone||'PROMOTE';
-    const targetId=Math.max(0,Number(state.companyMediaTargetId)||Number(state.company?.my_company?.id)||0);
-    const target=(state.company?.companies||[]).find(c=>Number(c.id)===targetId)||state.company?.my_company;
+    const targetId=Math.max(0,Number(state.companyMediaTargetId)||Number(state.company?.my_company?.id)||0),target=(state.company?.companies||[]).find(c=>Number(c.id)===targetId)||state.company?.my_company;
     if(tone==='CRITICAL'&&targetId===Number(state.company?.my_company?.id)){alert('자사 대상 비판 기사는 지원하지 않습니다. 타사 또는 다른 유저 회사를 선택해 주세요.');return;}
-    const expected=tone==='CRITICAL'?cost*1.15:cost;
+    const factor=tone==='CRITICAL'?1.15:1,anchorCost=cost*factor,cash=Math.max(0,Number(state.company?.my_company?.cash||0)),cap=Math.max(anchorCost,Math.min(cash*(tone==='CRITICAL'?.14:.10),anchorCost*3.2));
     const direction=tone==='CRITICAL'?'비판·검증':tone==='NEUTRAL'?'사실 중심':'긍정 홍보';
-    const warning=tone==='CRITICAL'?'비판 보도는 상대 회사의 실제 지표가 강하거나 기사 근거가 약하면 역풍·법무비용이 발생할 수 있습니다. ':region==='해외'?'해외 언론은 비용이 높지만 글로벌 투자자 노출이 큽니다. ':'';
-    if(!confirm(`${warning}${name}에 약 ${formatKrwSmart(expected)}을 집행해 ${target?.name||'선택한 회사'}에 대한 [${direction}] 기사를 의뢰할까요? 최근 프로젝트·제품·인사·M&A 등 실제 활동이 있으면 그 내용이 기사에 우선 반영됩니다.`))return;
-    try{
-      b.disabled=true;const oldLabel=b.textContent;b.textContent='발행 중…';const result=await companyMediaV640(outlet,targetId,tone);if(result?.ok===false)throw new Error(result?.message||'기사를 처리하지 못했습니다.');
-      state.companyNotice=result?.message||'기사가 보도되었습니다.';
-      if(result?.headline)showCompanyPressFlash({headline:result.headline,article_body:result.article_body,outlet_name:result.outlet_name||name,bot_flow:result.bot_flow,company_id:result.target_company_id||targetId});
-      playCompanySfx('news');await loadCompanyLayer(false,false);renderTerminal(true);
-    }catch(err){state.companyNotice='언론 처리 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
+    if(!confirm(`${name}을 우선 매체로 선택했습니다.
+대상: ${target?.name||'선택한 회사'} · 논조: ${direction}
+AI 자동 캠페인 최대 한도: ${formatKrwSmart(cap)}
+
+한 번 승인하면 AI 홍보팀이 최대 3개 매체를 자동으로 조합해 후속 기사까지 발행합니다. 승인할까요?`))return;
+    const progress=showCompanyAutopilotProgress(`${target?.name||'대상 회사'} 언론 캠페인`,'AI 홍보팀이 최적 매체 조합을 계산합니다.');
+    try{b.disabled=true;b.textContent='AI 캠페인 중…';const result=await runMediaAutopilot(outlet,targetId,tone,region,cost,progress);state.companyNotice=result?.message||'AI 언론 캠페인이 완료되었습니다.';recordCompanyGameAction('media',`${tone}:${targetId}`);playCompanySfx('news');progress.close(state.companyNotice);await loadCompanyLayer(false,true);renderTerminal(true);}catch(err){state.companyNotice='AI 언론 캠페인 실패: '+err.message;progress.close(state.companyNotice);alert(state.companyNotice);renderTerminal(true);}
   });
 
   document.querySelectorAll('[data-talent-grade-filter]').forEach(b=>b.onclick=()=>{state.companyTalentGradeFilter=String(b.dataset.talentGradeFilter||'ALL');renderTerminal(true)});
@@ -3197,9 +3308,22 @@ function bind(){
 
   document.querySelectorAll('[data-talent-train]').forEach(b=>b.onclick=async()=>{
     const id=Number(b.dataset.talentTrain||0),type=b.dataset.trainingType||'BALANCED',t=(state.company?.talents||[]).find(x=>Number(x.id)===id);if(!t)return;
+    const before=companyTalentTrainingStatus(t,state.company);
+    if(before.trainedToday){state.companyNotice=`${t.name}은(는) DAY ${before.day} 연수를 이미 완료했습니다. DAY ${before.nextDay}부터 다시 연수할 수 있습니다.`;alert(state.companyNotice);return;}
+    const plan=simulateTalentTrainingPlan(t,type);
     if(!confirm(`${t.name}에게 ${type==='SPECIALTY'?'전문':'종합'} 연수를 진행할까요?
-잠재력이 높아도 성장 성공은 보장되지 않습니다.`))return;
-    try{b.disabled=true;b.textContent='연수 중…';const d=await companyTalentApi('TRAIN',{p_talent_id:id,p_training_type:type});if(!d?.ok)throw new Error(d?.message||'연수 실패');state.companyNotice=d.message||'직원 연수를 진행했습니다.';playCompanySfx(d.grew?'success':'alert');await loadCompanyLayer(false,true);renderTerminal(true)}catch(err){if(localTalentTrainingFallbackable(err)){const local=applyLocalTalentTraining(id,type,state.company);if(!local?.ok)throw new Error(local?.message||'직원 연수 실패');state.companyNotice=`${local.message} (로컬 연수 시스템 적용)`;playCompanySfx('success');renderTerminal(true);return;}state.companyNotice='연수 처리 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
+연수는 승인 즉시 완료됩니다.${talentTrainingRpcAvailable===false?`
+예상 비용 ${formatKrwSmart(plan.cost)} · 로컬 연수 시스템 사용`:''}`))return;
+    const runLocal=()=>{const local=applyLocalTalentTraining(id,type,state.company);if(!local?.ok){state.companyNotice=local?.message||'직원 연수 실패';playCompanySfx('alert');alert(state.companyNotice);renderTerminal(true);return false;}state.companyNotice=`${local.message} · 즉시 반영 완료`;playCompanySfx('success');renderTerminal(true);setTimeout(()=>showTalentTrainingToast(t,type,local.message),30);return true;};
+    if(talentTrainingRpcAvailable===false){b.disabled=true;b.textContent='즉시 연수 처리 중…';runLocal();return;}
+    try{
+      b.disabled=true;b.textContent='연수 처리 중…';
+      const d=await companyTalentApi('TRAIN',{p_talent_id:id,p_training_type:type});if(!d?.ok)throw new Error(d?.message||'연수 실패');
+      talentTrainingRpcAvailable=true;recordServerTalentTrainingStatus(id,type,d,state.company);state.companyNotice=(d.message||'직원 연수를 진행했습니다.')+' · 즉시 반영 완료';playCompanySfx(d.grew?'success':'alert');await loadCompanyLayer(false,true);renderTerminal(true);setTimeout(()=>showTalentTrainingToast(t,type,d.message||'서버 연수 결과가 즉시 반영되었습니다.'),30);
+    }catch(err){
+      if(localTalentTrainingFallbackable(err)){talentTrainingRpcAvailable=false;runLocal();return;}
+      state.companyNotice='연수 처리 실패: '+err.message;playCompanySfx('alert');alert(state.companyNotice);renderTerminal(true);
+    }
   });
   document.querySelectorAll('[data-talent-match]').forEach(b=>b.onclick=async()=>{
     const id=Number(b.dataset.talentMatch||0),salary=parseCompanyMoney(document.getElementById(`matchSalary_${id}`)?.value,0);if(!confirm('경쟁사의 이직 제안에 맞제안할까요? 보상 비용이 법인현금에 반영됩니다.'))return;
