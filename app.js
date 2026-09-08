@@ -192,6 +192,83 @@ function applySharedCompanyMarketDifferentiation(data=state.company){
   }
   return data;
 }
+
+
+// V6.6.0: shared corporate-war layer. BOT firms fight each other in the same world
+// instead of treating the player as the center of every conflict. The model is
+// deterministic from server cycle + company ids, so every user sees the same feed.
+const CORPORATE_WAR_MODEL_VERSION=660;
+function corporateWarUnit(a=1,b=1,salt=0){return (companyDeterministicNoise(Number(a||1)+CORPORATE_WAR_MODEL_VERSION,Number(b||1)+salt*31.7,salt+71)+1)/2}
+function corporateWarBots(data=state.company){return (data?.companies||[]).filter(c=>c&&c.status!=='INACTIVE'&&(c.is_bot||String(c.operator_type||'').toUpperCase()==='BOT')).sort((a,b)=>Number(a.id||0)-Number(b.id||0))}
+function corporateWarReason(a,b){
+  if(!a||!b)return '시장 경쟁';
+  if(String(a.sector||'')===String(b.sector||''))return `${a.sector||'동종업계'} 주도권 경쟁`;
+  const av=Math.max(1,Number(a.valuation||1)),bv=Math.max(1,Number(b.valuation||1)),ratio=av/bv;
+  if(ratio>1.8)return '저평가 경쟁사 인수 기회';
+  if(ratio<.55)return '대형 경쟁사 견제';
+  return '사업영역·자본시장 경쟁';
+}
+function buildSharedCorporateWar(data=state.company){
+  const bots=corporateWarBots(data),cycle=Math.max(1,Number(data?.world?.cycle_no||data?.world?.cycle||1)||1);
+  if(bots.length<2){data.corporate_war={cycle,events:[],stakes:[],alliances:[],leaders:[]};return data.corporate_war;}
+  const start=Math.max(1,cycle-17),stakes=new Map(),alliances=new Map(),momentum=new Map(),events=[];
+  const pushMomentum=(id,v)=>momentum.set(Number(id),Math.max(-.09,Math.min(.09,Number(momentum.get(Number(id))||0)+v)));
+  const addEvent=(cy,slot,type,actor,target,title,body,impact='')=>events.push({id:`cw-${cy}-${slot}-${type}-${actor?.id||0}-${target?.id||0}`,cycle:cy,type,actor_id:Number(actor?.id||0),actor_name:actor?.name||'BOT',target_id:Number(target?.id||0),target_name:target?.name||'BOT',title,body,impact});
+  for(let cy=start;cy<=cycle;cy++){
+    const eventCount=2+(corporateWarUnit(cy,bots.length,1)>.58?1:0);
+    for(let slot=0;slot<eventCount;slot++){
+      const ai=Math.floor(corporateWarUnit(cy,slot+13,2)*bots.length)%bots.length;
+      let ti=Math.floor(corporateWarUnit(cy,slot+47,3)*bots.length)%bots.length;
+      if(ti===ai)ti=(ti+1+slot)%bots.length;
+      const a=bots[ai],b=bots[ti];if(!a||!b||Number(a.id)===Number(b.id))continue;
+      const av=Math.max(1,Number(a.valuation||1)),bv=Math.max(1,Number(b.valuation||1)),strength=Math.max(.45,Math.min(2.4,Math.sqrt(av/bv)));
+      const pairKey=`${Number(a.id)}>${Number(b.id)}`,curStake=Number(stakes.get(pairKey)||0),roll=corporateWarUnit(Number(a.id)+cy,Number(b.id)+slot,4),reason=corporateWarReason(a,b);
+      if(curStake>=12&&roll<.22){
+        const cut=Math.min(curStake,.9+corporateWarUnit(cy,slot+81,5)*4.6),next=Math.max(0,curStake-cut);stakes.set(pairKey,next);pushMomentum(b,.004);pushMomentum(a,-.002);
+        addEvent(cy,slot,'DEFENSE',b,a,`${b.name}, ${a.name} 지분공세 방어`,`${b.name} 경영진이 자사주·우호지분 방어로 ${a.name}의 영향력을 ${curStake.toFixed(1)}% → ${next.toFixed(1)}%로 낮췄습니다.`,`${cut.toFixed(1)}%p 방어`);
+      }else if(roll<.42){
+        const add=Math.max(.7,Math.min(7.5,(1.3+corporateWarUnit(cy,slot+23,6)*4.3)*strength)),next=Math.min(58,curStake+add);stakes.set(pairKey,next);pushMomentum(a,.003);pushMomentum(b,-.003);
+        const takeover=next>=50;
+        addEvent(cy,slot,takeover?'CONTROL':'STAKE',a,b,takeover?`${a.name}, ${b.name} 경영권 확보`:`${a.name}, ${b.name} 지분 ${add.toFixed(1)}%p 추가 매집`,takeover?`${reason}. 누적 영향력이 ${next.toFixed(1)}%에 도달해 BOT 기업 간 인수전에서 경영권을 확보했습니다.`:`${reason}을 이유로 ${a.name}이 ${b.name} 지분을 확대했습니다. BOT 기업끼리 실제로 지분전을 진행합니다.`,takeover?'경영권 이동':`누적 ${next.toFixed(1)}%`);
+        if(takeover){pushMomentum(a,.015);pushMomentum(b,-.018)}
+      }else if(roll<.60){
+        const score=Math.round(70+corporateWarUnit(cy,slot+31,7)*30);pushMomentum(a,.0035);pushMomentum(b,-.0045);
+        addEvent(cy,slot,'POACH',a,b,`${a.name}, ${b.name} 핵심인재 스카우트`,`${a.name}이 보상과 성장기회를 제시해 ${b.name}의 상위권 인재 영입전에 들어갔습니다. 협상력 ${score}/100.`,`인재전 ${score}`);
+      }else if(roll<.76){
+        const neg=corporateWarUnit(cy,slot+44,8)>.45;pushMomentum(a,neg?.0025:.001);pushMomentum(b,neg?-.004:.0015);
+        addEvent(cy,slot,'MEDIA',a,b,neg?`${a.name}, ${b.name} 겨냥 언론전`:`${a.name}·${b.name}, 공동시장 메시지`,neg?`${a.name}이 ${b.name}의 실적·전략을 겨냥한 공세적 IR/언론전을 벌였습니다.`:`두 회사가 시장 확대에 이해관계를 맞추며 우호적 메시지를 냈습니다.`,neg?'평판 압박':'투자심리 개선');
+      }else if(roll<.89){
+        const key=[Number(a.id),Number(b.id)].sort((x,y)=>x-y).join(':');alliances.set(key,{a_id:Number(a.id),a_name:a.name,b_id:Number(b.id),b_name:b.name,cycle:cy});pushMomentum(a,.002);pushMomentum(b,.002);
+        addEvent(cy,slot,'ALLIANCE',a,b,`${a.name}·${b.name} 전략적 제휴`,`${a.name}과 ${b.name}이 공급망·공동투자 또는 해외시장 협력을 위한 전략적 제휴를 체결했습니다.`,`우호관계 형성`);
+      }else{
+        const premium=8+Math.round(corporateWarUnit(cy,slot+55,9)*17),add=Math.max(2,Math.min(12,(3+corporateWarUnit(cy,slot+91,10)*7)*strength)),next=Math.min(58,curStake+add);stakes.set(pairKey,next);pushMomentum(a,.006);pushMomentum(b,-.006);
+        addEvent(cy,slot,next>=50?'CONTROL':'TENDER',a,b,next>=50?`${a.name}, 공개매수 끝에 ${b.name} 인수`:`${a.name}, ${b.name} 공개매수 선언`,`${reason}. 시장가 대비 ${premium}% 프리미엄을 제시하며 BOT끼리 공개매수전을 벌였습니다. 현재 누적 영향력 ${next.toFixed(1)}%.`,next>=50?'인수 성공':`프리미엄 ${premium}%`);
+      }
+    }
+  }
+  // Shared market consequences: recent wins/losses modestly move BOT valuations.
+  for(const c of bots){
+    const m=Math.max(-.06,Math.min(.06,Number(momentum.get(Number(c.id))||0)));
+    c._corporate_war_momentum=m;
+    if(Math.abs(m)>.00001){
+      const before=Math.max(1,Number(c.valuation||1)),factor=1+m*.55,shares=Math.max(1,Number(c.shares_outstanding||1000000));
+      c.valuation=Math.max(100000000,Math.round(before*factor/1000000)*1000000);c.share_price=Math.max(1,Math.round(c.valuation/shares));
+      c._shared_market_factor=Math.max(.45,Math.min(1.8,Number(c._shared_market_factor||1)*factor));c._shared_market_diversified=true;
+    }
+  }
+  const stakeRows=[...stakes.entries()].map(([key,stake])=>{const [aid,bid]=key.split('>').map(Number),a=bots.find(x=>Number(x.id)===aid),b=bots.find(x=>Number(x.id)===bid);return {attacker_id:aid,attacker_name:a?.name||'BOT',target_id:bid,target_name:b?.name||'BOT',stake:Number(stake||0)}}).filter(x=>x.stake>=3).sort((a,b)=>b.stake-a.stake);
+  const leaders=bots.map(c=>({id:Number(c.id),name:c.name,momentum:Number(c._corporate_war_momentum||0),valuation:Number(c.valuation||0)})).sort((a,b)=>b.momentum-a.momentum||b.valuation-a.valuation).slice(0,5);
+  data.corporate_war={cycle,events:events.sort((a,b)=>b.cycle-a.cycle||String(b.id).localeCompare(String(a.id))).slice(0,36),stakes:stakeRows.slice(0,18),alliances:[...alliances.values()].sort((a,b)=>b.cycle-a.cycle).slice(0,10),leaders};
+  return data.corporate_war;
+}
+function corporateWarTypeLabel(type){return ({STAKE:'지분전',TENDER:'공개매수',CONTROL:'인수성공',DEFENSE:'방어',POACH:'인재전',MEDIA:'언론전',ALLIANCE:'동맹'})[String(type||'')]||'기업전쟁'}
+function corporateWarTypeClass(type){return ['CONTROL','TENDER','STAKE'].includes(String(type||''))?'hostile':String(type)==='DEFENSE'?'defense':String(type)==='POACH'?'people':String(type)==='ALLIANCE'?'alliance':String(type)==='MEDIA'?'media':''}
+function renderCorporateWarLive(my,mode='compact'){
+  const war=state.company?.corporate_war||buildSharedCorporateWar(state.company),events=war?.events||[],stakes=war?.stakes||[],leaders=war?.leaders||[];
+  if(!events.length)return '';
+  const show=events.slice(0,mode==='full'?16:8),hot=stakes[0];
+  return `<section class="corporate-war-live ${mode==='full'?'full':''}"><div class="company-section-head"><div><small>BOT CORPORATE WAR · SHARED WORLD</small><h2>기업전쟁 LIVE</h2></div><span>플레이어가 중심이 아닙니다. BOT 기업들도 서로 지분·M&A·인재·언론전을 벌이며 같은 서버 주기를 공유합니다.</span></div><div class="corporate-war-summary"><article><small>현재 BOT간 충돌</small><b>${events.filter(e=>e.cycle>=Number(war.cycle||0)-2).length}건</b><span>최근 3개 경영주기</span></article><article><small>가장 뜨거운 지분전</small><b>${hot?`${Number(hot.stake||0).toFixed(1)}%`:'—'}</b><span>${hot?`${escapeHtml(hot.attacker_name)} → ${escapeHtml(hot.target_name)}`:'진행 중인 대형 지분전 없음'}</span></article><article><small>내 회사 상태</small><b>${companyStakeAgainstMe()>0?`${companyStakeAgainstMe().toFixed(1)}% 위험`:'비표적'}</b><span>${companyStakeAgainstMe()>0?'실제 공격 근거가 있는 경우만 계산':'현재 BOT 전쟁의 특별 표적이 아닙니다.'}</span></article></div>${leaders.length?`<div class="corporate-war-leaders"><small>최근 기세</small>${leaders.slice(0,4).map((x,i)=>`<span><b>#${i+1} ${escapeHtml(x.name)}</b><em class="${x.momentum>=0?'up':'down'}">${x.momentum>=0?'+':''}${(x.momentum*100).toFixed(1)}</em></span>`).join('')}</div>`:''}<div class="corporate-war-feed">${show.map(e=>`<article class="${corporateWarTypeClass(e.type)}"><div class="war-event-meta"><span>${corporateWarTypeLabel(e.type)}</span><small>CYCLE ${e.cycle}</small></div><h3>${escapeHtml(e.title)}</h3><p>${escapeHtml(e.body)}</p><div class="war-event-actions"><em>${escapeHtml(e.impact||'')}</em><button type="button" data-company-analyze="${Number(e.target_id||0)}">${Number(e.target_id)===Number(my?.id)?'내 회사 확인':'대상 회사 분석·참전 →'}</button></div></article>`).join('')}</div>${mode==='compact'?`<div class="corporate-war-more"><button type="button" data-company-section-jump="competition">기업전쟁·M&A 전체 보기</button></div>`:''}</section>`;
+}
 function alignCompanyProfileToSharedMarket(profile){
   const pc=profile?.company;if(!pc)return profile;
   const shared=(state.company?.companies||[]).find(c=>Number(c.id)===Number(pc.id));
@@ -1354,7 +1431,7 @@ async function loadCompanyLayer(runSync=false,force=false){
       state.companyError='로그인 세션이 만료되었습니다. 로그아웃 후 다시 로그인해 주세요.';return;
     }
     if(!d||typeof d!=='object'||d.ok===false)throw new Error(d?.message||'회사 데이터를 불러오지 못했습니다.');
-    state.companyRpcMode='V59';state.company={...emptyCompany(),...d};applySharedCompanyMarketDifferentiation(state.company);applyEconomicCorrections(state.company);applyTakeoverFairPlayState(state.company);
+    state.companyRpcMode='V60';state.company={...emptyCompany(),...d};applySharedCompanyMarketDifferentiation(state.company);buildSharedCorporateWar(state.company);applyEconomicCorrections(state.company);applyTakeoverFairPlayState(state.company);
     try{
       const realism=await companyRealismApi('SNAPSHOT',{});
       if(realism?.ok){
@@ -1684,7 +1761,7 @@ function renderCompanyCreate(){
   const rivals=all.slice(0,8),draft=state.companyDraft||{name:'',sector:'AI·반도체'};
   return `<main class="page-view company-page"><section class="panel page-panel company-shell onboarding-shell">
     <div class="simple-onboarding">
-      <div class="simple-onboarding-copy"><small>KX CORPORATE · ONLINE LEAGUE</small><h1>작은 회사를 세우고, 큰 기업들과 경쟁하세요</h1><p>처음에는 순위권 밖의 신생기업으로 시작합니다. 사업을 키우고, 뉴스를 읽고, 경쟁사 주가를 분석해 투자·인수하면서 글로벌 기업으로 성장하는 게임입니다.</p>
+      <div class="simple-onboarding-copy"><small>KX CORPORATE · ONLINE LEAGUE</small><h1>이미 싸우고 있는 기업 세계에 내 회사를 세우세요</h1><p>BOT 기업들이 서로 투자·인수·인재·언론전을 벌이는 기업 세계에서 신생기업으로 시작합니다. 남의 싸움을 지켜보다 끼어들 수도 있고, 독자적으로 성장하다 원하는 순간 기업전쟁에 참전할 수도 있습니다.</p>
         <div class="onboarding-steps"><span><b>1</b>회사 설립</span><span><b>2</b>사업 성장</span><span><b>3</b>기업 분석</span><span><b>4</b>M&A·해외 진출</span></div>
       </div>
       <form id="companyCreateForm" class="company-create-card simple-create-card">
@@ -2547,7 +2624,7 @@ function renderCompanyAnalysisPanel(my){
   return `<aside class="company-analysis-panel clean-profile-panel">
     <div class="analysis-profile-head"><div><span class="analysis-country">${escapeHtml(c.home_country||'')}</span>${companyTypeBadge(c)}<h2>${escapeHtml(c.name)}${self?' <em class="me-chip">내 회사</em>':''}</h2><p>${escapeHtml(c.sector)} · ${companyOwnerLabel(c)}</p></div><div class="analysis-value-box"><small>기업가치</small><b>${companyMarketValueText(c)}</b><span>${c.home_country!=='대한민국'?`원화 환산 ${compactMoney(c.valuation)}원`:self?'내 회사':`내 회사 대비 ${gap>=1?`${gap.toFixed(gap>99?0:1)}배`:`${(gap*100).toFixed(0)}%`}`}</span></div></div>
     <div class="analysis-stat-grid"><article><small>현재 주가</small><b>${companySharePriceText(c)}</b><span class="${ret>=0?'up':'down'}">${ret>=0?'+':''}${ret.toFixed(2)}%</span></article><article><small>시장 수급</small><b class="${flow>=0?'up':'down'}">${flow>=0?'+':''}${compactMoney(flow)}원</b><span>공용 서버 수급</span></article><article><small>변동성</small><b>${Number(c.volatility||1.5).toFixed(2)}%</b><span>최근 가격 변동폭</span></article><article><small>${self?'내 경영진·우호 지분':'내 보유 지분'}</small><b>${stake.toFixed(2)}%</b><span>${self?`외부 ${Number(my.incoming_stake||0).toFixed(2)}%`:stage.label}</span></article></div>
-    <div class="company-target-chart live-company-chart clean-live-chart"><div class="mini-chart-head"><div><b>공용 실시간 주가</b><small>서버 종가·회사 ID·경영주기만으로 계산하는 공용 캔들입니다. 같은 서버와 v6.5.9를 쓰는 모든 접속자는 같은 회사의 같은 캔들 모양을 봅니다.</small></div><span class="live-dot">SHARED</span></div><canvas id="companyTargetChart"></canvas><div class="chart-decision-note"><span><small>매출</small><b>${compactMoney(c.revenue)}원</b></span><span><small>영업이익</small><b>${compactMoney(c.profit)}원</b></span><span><small>투자심리</small><b>${Number(c.investor_sentiment||50).toFixed(0)}</b></span><span><small>수급 방향</small><b class="${flow>=0?'up':'down'}">${flow>=0?'순매수':'순매도'}</b></span></div></div>
+    <div class="company-target-chart live-company-chart clean-live-chart"><div class="mini-chart-head"><div><b>공용 실시간 주가</b><small>서버 종가·회사 ID·경영주기만으로 계산하는 공용 캔들입니다. 같은 서버와 v6.6.0을 쓰는 모든 접속자는 같은 회사의 같은 캔들 모양과 BOT 기업전쟁 결과를 봅니다.</small></div><span class="live-dot">SHARED</span></div><canvas id="companyTargetChart"></canvas><div class="chart-decision-note"><span><small>매출</small><b>${compactMoney(c.revenue)}원</b></span><span><small>영업이익</small><b>${compactMoney(c.profit)}원</b></span><span><small>투자심리</small><b>${Number(c.investor_sentiment||50).toFixed(0)}</b></span><span><small>수급 방향</small><b class="${flow>=0?'up':'down'}">${flow>=0?'순매수':'순매도'}</b></span></div></div>
     ${renderCompetitorProductIntel()}
     ${renderDueDiligencePanel(c,self,controlled)}
     <div class="analysis-news"><div class="analysis-subhead"><h3>최근 15분 관련 뉴스</h3><span>${press.length}건</span></div>${press.length?press.slice(0,4).map(a=>`<article><small>${escapeHtml(a.outlet_name||'경제뉴스')}</small><b>${escapeHtml(a.headline)}</b><p>${escapeHtml(a.article_body||'')}</p></article>`).join(''):`<div class="empty compact">최근 15분 안에 보도된 기사가 없습니다.</div>`}</div>
@@ -2618,7 +2695,7 @@ function renderCompanyEvents(){
 
 function renderCompanyModeBanner(){
   if(state.companyAvailable===false)return '';
-  return `<div class="company-mode-banner online compact-online-banner"><div><span class="online-live-dot">LIVE</span><b>온라인 기업 리그</b><span>유저 회사와 BOT 기업의 경영·지분·인수 데이터가 같은 서버에서 진행됩니다.</span></div></div>`;
+  return `<div class="company-mode-banner online compact-online-banner"><div><span class="online-live-dot">LIVE</span><b>온라인 기업 리그</b><span>유저 회사와 BOT 기업이 같은 시장에서 움직이며, BOT끼리도 지분전·M&A·인재전·언론전을 벌입니다.</span></div></div>`;
 }
 function renderCompanyOnlineRequired(){
   const err=escapeHtml(state.companyError||'온라인 회사 서버에 연결할 수 없습니다.');
@@ -2865,9 +2942,9 @@ function renderCompanyWorkspace(my){
   const section=state.companySection||'dashboard';
   if(section==='operations')return renderOperationsWorkspace(my);
   if(section==='people')return `${renderTalentMarket(my)}${renderPeopleFinanceDesk(my)}`;
-  if(section==='competition')return `${takeoverProtectionNotice(state.company)}${renderTakeoverCrisis(my)}${renderCompetitionBoard(my)}<details id="takeoverOwnershipDetails" class="management-details" ${companyStakeAgainstMe()>=15?'open':''}><summary>지분·경영권 상세</summary>${renderTakeoverDesk(my)}</details>`;
+  if(section==='competition')return `${renderCorporateWarLive(my,'full')}${takeoverProtectionNotice(state.company)}${renderTakeoverCrisis(my)}${renderCompetitionBoard(my)}<details id="takeoverOwnershipDetails" class="management-details" ${companyStakeAgainstMe()>=15?'open':''}><summary>지분·경영권 상세</summary>${renderTakeoverDesk(my)}</details>`;
   if(section==='risk')return `${renderMediaDesk(my)}<details class="management-details" ${Number(my.tax_due||0)+Number(my.tax_arrears||0)>0?'open':''}><summary>세금·준법</summary>${renderTaxOffice(my)}</details>`;
-  return `${renderChairmanCommandCenter(my)}${renderDashboardTakeoverAlert(my)}${renderExecutiveDecisionQueue(my)}${renderRealOperatingBrief(my)}${renderCompanyGrowthPanel(my)}${renderCompanyLatestNews(my)}`;
+  return `${renderChairmanCommandCenter(my)}${renderDashboardTakeoverAlert(my)}${renderCorporateWarLive(my,'compact')}${renderExecutiveDecisionQueue(my)}${renderRealOperatingBrief(my)}${renderCompanyGrowthPanel(my)}${renderCompanyLatestNews(my)}`;
 }
 
 function renderCompanySubnav(my){
@@ -2890,7 +2967,7 @@ function renderCompanyCompactContext(my,myRank,companies){
     <div class="company-compact-kpis">
       <article><small>법인 현금</small><b>${formatKrwSmart(my.cash)}</b></article>
       <article><small>회사 가치</small><b>${formatKrwSmart(my.valuation)}</b></article>
-      <article class="${threat>=35?'danger':''}"><small>외부 지분</small><b>${threat.toFixed(1)}%</b></article>
+      <article class="${threat>=35?'danger':''}"><small>경영권 위험</small><b>${threat.toFixed(1)}%</b><span>${threat<=0?'현재 공격 없음':threat<15?'관찰 단계':threat<35?'인수 압박 주의':'방어 필요'}</span></article>
       <article><small>진행 프로젝트</small><b>${activeProjects}개</b></article>
     </div>
   </section>`;
@@ -2920,7 +2997,7 @@ function renderCompanyRoom(){
           <article><small>영업이익</small><b class="${Number(my.profit)>=0?'up':'down'}">${compactMoney(my.profit)}원</b><span>이익률 ${margin.toFixed(1)}%</span></article>
           <article><small>시장 점유율</small><b>${Number(my.domestic_share||0).toFixed(2)}%</b><span>글로벌 ${Number(my.global_share||0).toFixed(2)}%</span></article>
           <article><small>현금 런웨이</small><b class="${runway.months<3?'down':runway.months>=6?'up':''}">${runway.months.toFixed(1)}개월</b><span>급여·고정비 기준</span></article>
-          <article class="${threat>=35?'danger':''}"><small>경영권 위험</small><b>${threat.toFixed(1)}%</b><span>${threat>=35?'방어 필요':'현재 안정'}</span></article>
+          <article class="${threat>=35?'danger':''}"><small>경영권 위험</small><b>${threat.toFixed(1)}%</b><span>${threat<=0?'현재 공격 없음 · 정상':threat<15?'지분 움직임 관찰':threat<35?'인수 압박 주의':'방어 필요'}</span></article>
         </div>
       </section>
     </div>`;
@@ -3215,7 +3292,7 @@ function renderTerminal(preserve=false){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 6.5.9'}</span></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 6.6.0'}</span></div>
       ${topNav()}
       <div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
