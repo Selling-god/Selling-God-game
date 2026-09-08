@@ -1,33 +1,15 @@
-KX EXCHANGE - Static root recovery patch
+Selling God v6.5.9 CLEAN PATCH
 
-이 패치는 배포 구조만 복구합니다.
-게임 로직(public/app.js), 디자인(public/styles.css), Supabase SQL은 수정하지 않습니다.
+This patch contains only files that need replacing.
 
-교체 파일:
-- package.json
+Replace the same paths in your project:
+- app.js
+- styles.css
+- index.html
+- 404.html
+- public/app.js
+- public/styles.css
 - public/index.html
-- scripts/build.js
-- render.yaml
+- public/404.html
 
-Render 기존 Static Site 설정:
-- Root Directory: 빈칸
-- Build Command: npm run build
-- Publish Directory: out
-
-적용:
-1. 위 4개 파일만 같은 경로에 덮어쓰기
-2. GitHub commit/push
-3. Render Auto Deploy 또는 Deploy latest commit 사용
-4. Clear build cache는 누르지 않아도 됨
-
-정상 빌드 로그:
-[KX STATIC RECOVERY] out/index.html=true
-[KX STATIC RECOVERY] out/404.html=true
-
-배포 후 확인:
-/ kx-health.txt 가 아니라 정확히 /kx-health.txt 로 접속
-KX_EXCHANGE_OK <buildId> 가 나오면 정적 배포가 정상입니다.
-
-참고:
-이 패치는 이전에 넣었던 hashed filename(app.<hash>.js) / version.json 자동 location.replace 구조를 제거하고,
-안정적인 고정 파일명 + 내용 hash query string 방식으로 되돌립니다.
+The build/, dist/, out/, and site/ duplicate folders from the previous patch were packaging duplicates and are intentionally excluded.
