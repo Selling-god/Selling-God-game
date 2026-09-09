@@ -20,7 +20,11 @@ if (fs.existsSync(appPath)) {
   if(dup.length) fail(`duplicate functions: ${dup.map(([n,c])=>`${n} x${c}`).join(', ')}`);
   for (const forbidden of ['RUN_THIS_IN_SUPABASE','SQL Editor']) if(app.includes(forbidden)) fail(`internal release token remains: ${forbidden}`);
   if(app.includes('takeoverOwnershipDetails')) fail('legacy M&A accordion marker remains');
-  if(!app.includes("const KX_COMPANY_BUILD='8.0.0-COMMERCIAL-RC'")) fail('release build marker mismatch');
+  const renderRefs=[...new Set([...app.matchAll(/\b(render[A-Z][A-Za-z0-9_$]*)\s*\(/g)].map(m=>m[1]))];
+  const renderDecl=new Set([...app.matchAll(/\bfunction\s+(render[A-Z][A-Za-z0-9_$]*)\s*\(/g)].map(m=>m[1]));
+  const missingRender=renderRefs.filter(n=>!renderDecl.has(n));
+  if(missingRender.length) fail(`undefined render function references: ${missingRender.join(', ')}`);
+  if(!app.includes("const KX_COMPANY_BUILD='8.0.1-COMMERCIAL-RC1'")) fail('release build marker mismatch');
 }
 const expectedApp=fs.existsSync(file(publicDir,'app.js'))?sha(file(publicDir,'app.js')):'';
 const expectedCss=fs.existsSync(file(publicDir,'styles.css'))?sha(file(publicDir,'styles.css')):'';
