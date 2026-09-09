@@ -1516,3 +1516,46 @@ body.tutorial-active{overflow:hidden}
 .corporate-war-summary b,.war-event-numbers b,.corporate-war-leaders em{font-variant-numeric:tabular-nums}
 @media(max-width:1180px){.war-event-numbers{grid-template-columns:repeat(2,minmax(0,1fr))}.war-event-numbers>span{padding:5px 7px;border-right:0;border-bottom:1px solid rgba(117,139,161,.12)}.war-event-numbers>span:nth-last-child(-n+2){border-bottom:0}}
 @media(max-width:900px){.war-event-foot{align-items:flex-start;flex-direction:column}.war-event-foot>div{width:100%;display:grid;grid-template-columns:1fr 1fr}.war-event-foot button{max-width:none;width:100%}}
+
+/* V6.6.1 EXTREME REALISM UI ------------------------------------------------- */
+.company-page .company-section-head>span,
+.company-page .talent-command-head>div>span,
+.company-page .employee-roster-head p,
+.company-page .training-choice-guide,
+.company-page .hr-card-head p,
+.company-page .new-product-panel>div>p,
+.company-page .acquisition-guide>div:first-child p{
+  display:none!important;
+}
+.company-page :where(section,article,div,nav,form,label,span){min-width:0}
+.company-page :where(h1,h2,h3,h4,b,strong,small,span,p,em,dd,dt,button){overflow-wrap:anywhere}
+.company-page button{max-width:100%}
+
+.reality-health-board{margin:0 0 12px;padding:14px;border:1px solid #2a3e53;border-radius:14px;background:#091521;display:grid;gap:10px}
+.reality-health-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.reality-health-head>div{display:grid;gap:2px}.reality-health-head small{font-size:8px;letter-spacing:.12em;font-weight:900;color:#83a2c0}.reality-health-head h2{margin:0;font-size:16px}.reality-health-head>span{padding:5px 9px;border:1px solid #2d455d;border-radius:999px;background:#0c1a28;color:#a9bed1;font-size:9px;font-weight:900;white-space:nowrap}
+.reality-health-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px}
+.reality-health-grid article{padding:10px 11px;border:1px solid #26394d;border-radius:10px;background:#0b1723;display:grid;gap:4px}
+.reality-health-grid article small{font-size:8.5px;color:#8298ad}.reality-health-grid article b{font-size:13px;color:#eef4f9;line-height:1.2}
+.reality-health-grid article.good{border-color:#315343;background:#0b1916}.reality-health-grid article.good b{color:#a9dfc4}
+.reality-health-grid article.warn{border-color:#65572e;background:#1a170c}.reality-health-grid article.warn b{color:#e8d083}
+.reality-health-grid article.danger{border-color:#6b3f46;background:#1b1115}.reality-health-grid article.danger b{color:#f09aa3}
+.reality-tax-alert{justify-self:start;padding:7px 10px;border:1px solid #76504a;border-radius:8px;background:#211516;color:#efb4aa;font-size:9px;font-weight:900;cursor:pointer}
+
+.company-browser-row-v646 .company-v646-identity small{line-height:1.4}
+.company-browser-row-v646 .company-v646-identity em{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.employee-roster-table,.finance-table-wrap{max-width:100%;overflow-x:auto}
+.employee-roster-row{min-width:760px}
+
+@media(max-width:1100px){.reality-health-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){
+  .reality-health-board{padding:11px;border-radius:12px}.reality-health-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.reality-health-grid article{padding:9px}.reality-health-grid article b{font-size:12px}
+  .company-hero-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .company-analysis-layout-v646,.clean-company-browser{grid-template-columns:1fr!important}
+  .company-browser-row-v646{grid-template-columns:42px minmax(0,1fr)!important;gap:8px!important}
+  .company-browser-row-v646 .company-v646-stake,.company-browser-row-v646 .company-v646-finance,.company-browser-row-v646 .company-v646-open{grid-column:2}
+  .company-browser-row-v646 .company-v646-open{justify-self:start}
+}
+@media(max-width:420px){.reality-health-grid{grid-template-columns:1fr 1fr}.company-compact-kpis{grid-template-columns:1fr 1fr!important}.company-compact-identity strong{font-size:17px}}
+
+.company-page .talent-market.unavailable .company-section-head>span{display:block!important;color:#dba4a8;font-size:10px;line-height:1.45}
