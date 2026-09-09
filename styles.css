@@ -1516,3 +1516,110 @@ body.tutorial-active{overflow:hidden}
 .corporate-war-summary b,.war-event-numbers b,.corporate-war-leaders em{font-variant-numeric:tabular-nums}
 @media(max-width:1180px){.war-event-numbers{grid-template-columns:repeat(2,minmax(0,1fr))}.war-event-numbers>span{padding:5px 7px;border-right:0;border-bottom:1px solid rgba(117,139,161,.12)}.war-event-numbers>span:nth-last-child(-n+2){border-bottom:0}}
 @media(max-width:900px){.war-event-foot{align-items:flex-start;flex-direction:column}.war-event-foot>div{width:100%;display:grid;grid-template-columns:1fr 1fr}.war-event-foot button{max-width:none;width:100%}}
+
+/* V6.6.1 EXTREME REALISM UI ------------------------------------------------- */
+.company-page .company-section-head>span,
+.company-page .talent-command-head>div>span,
+.company-page .employee-roster-head p,
+.company-page .training-choice-guide,
+.company-page .hr-card-head p,
+.company-page .new-product-panel>div>p,
+.company-page .acquisition-guide>div:first-child p{
+  display:none!important;
+}
+.company-page :where(section,article,div,nav,form,label,span){min-width:0}
+.company-page :where(h1,h2,h3,h4,b,strong,small,span,p,em,dd,dt,button){overflow-wrap:anywhere}
+.company-page button{max-width:100%}
+
+.reality-health-board{margin:0 0 12px;padding:14px;border:1px solid #2a3e53;border-radius:14px;background:#091521;display:grid;gap:10px}
+.reality-health-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.reality-health-head>div{display:grid;gap:2px}.reality-health-head small{font-size:8px;letter-spacing:.12em;font-weight:900;color:#83a2c0}.reality-health-head h2{margin:0;font-size:16px}.reality-health-head>span{padding:5px 9px;border:1px solid #2d455d;border-radius:999px;background:#0c1a28;color:#a9bed1;font-size:9px;font-weight:900;white-space:nowrap}
+.reality-health-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px}
+.reality-health-grid article{padding:10px 11px;border:1px solid #26394d;border-radius:10px;background:#0b1723;display:grid;gap:4px}
+.reality-health-grid article small{font-size:8.5px;color:#8298ad}.reality-health-grid article b{font-size:13px;color:#eef4f9;line-height:1.2}
+.reality-health-grid article.good{border-color:#315343;background:#0b1916}.reality-health-grid article.good b{color:#a9dfc4}
+.reality-health-grid article.warn{border-color:#65572e;background:#1a170c}.reality-health-grid article.warn b{color:#e8d083}
+.reality-health-grid article.danger{border-color:#6b3f46;background:#1b1115}.reality-health-grid article.danger b{color:#f09aa3}
+.reality-tax-alert{justify-self:start;padding:7px 10px;border:1px solid #76504a;border-radius:8px;background:#211516;color:#efb4aa;font-size:9px;font-weight:900;cursor:pointer}
+
+.company-browser-row-v646 .company-v646-identity small{line-height:1.4}
+.company-browser-row-v646 .company-v646-identity em{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.employee-roster-table,.finance-table-wrap{max-width:100%;overflow-x:auto}
+.employee-roster-row{min-width:760px}
+
+@media(max-width:1100px){.reality-health-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){
+  .reality-health-board{padding:11px;border-radius:12px}.reality-health-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.reality-health-grid article{padding:9px}.reality-health-grid article b{font-size:12px}
+  .company-hero-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .company-analysis-layout-v646,.clean-company-browser{grid-template-columns:1fr!important}
+  .company-browser-row-v646{grid-template-columns:42px minmax(0,1fr)!important;gap:8px!important}
+  .company-browser-row-v646 .company-v646-stake,.company-browser-row-v646 .company-v646-finance,.company-browser-row-v646 .company-v646-open{grid-column:2}
+  .company-browser-row-v646 .company-v646-open{justify-self:start}
+}
+@media(max-width:420px){.reality-health-grid{grid-template-columns:1fr 1fr}.company-compact-kpis{grid-template-columns:1fr 1fr!important}.company-compact-identity strong{font-size:17px}}
+
+.company-page .talent-market.unavailable .company-section-head>span{display:block!important;color:#dba4a8;font-size:10px;line-height:1.45}
+
+
+/* ========================================================================== */
+/* V6.6.2 - workspace UX: progressive disclosure, visible systems, no overlap */
+/* ========================================================================== */
+.company-shell.corporate-ui-refresh{max-width:1560px;margin:0 auto}
+.corporate-ui-refresh .company-hero-grid{grid-template-columns:1fr!important}
+.corporate-ui-refresh .compact-hero-metrics{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.company-workspace{display:block!important;margin-top:14px!important}
+.workspace-tabs{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;margin:0 0 14px;padding:7px;border:1px solid #24364a;border-radius:13px;background:#09141f}
+.workspace-tabs::-webkit-scrollbar{display:none}
+.workspace-tabs button{flex:0 0 auto;min-width:98px;min-height:39px;padding:0 14px;border:1px solid transparent;border-radius:9px;background:transparent;color:#8fa4b8;font-size:11px;font-weight:900;cursor:pointer;white-space:nowrap}
+.workspace-tabs button:hover{background:#0f1e2d;color:#d9e5f0}
+.workspace-tabs button.on{border-color:#3b5875;background:#14283c;color:#f2f7fb;box-shadow:inset 0 0 0 1px rgba(102,143,183,.08)}
+.workspace-launcher{padding:16px;border:1px solid #26394d;border-radius:16px;background:#09141f}
+.workspace-launcher-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:11px}
+.workspace-launcher-head>div{display:grid;gap:2px}.workspace-launcher-head small{font-size:8px;letter-spacing:.13em;color:#7390ac;font-weight:900}.workspace-launcher-head h2{margin:0;font-size:17px;color:#edf4fa}.workspace-launcher-head>span{padding:4px 8px;border-radius:999px;background:#0e1e2d;border:1px solid #2a4158;color:#91a8be;font-size:9px;font-weight:900}
+.workspace-launcher-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.workspace-launcher-card{position:relative;min-width:0;min-height:68px;padding:11px 32px 11px 12px;border:1px solid #26394d;border-radius:11px;background:#0b1723;color:#dfe9f2;text-align:left;display:grid;align-content:center;gap:4px;cursor:pointer;transition:.15s ease}
+.workspace-launcher-card:hover,.workspace-launcher-card:focus-visible{transform:translateY(-1px);border-color:#496987;background:#102033;outline:none}
+.workspace-launcher-card>span{font-size:11px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.workspace-launcher-card>b{font-size:9px;color:#8298ad;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.workspace-launcher-card>i{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:20px;font-style:normal;color:#5f7b96}
+.workspace-launcher-card.operations{border-left:2px solid #395d82}.workspace-launcher-card.people{border-left:2px solid #446b58}.workspace-launcher-card.competition{border-left:2px solid #6e5b3b}.workspace-launcher-card.risk{border-left:2px solid #70444b}
+.corporate-ui-refresh .executive-agenda,.corporate-ui-refresh .company-growth-panel,.corporate-ui-refresh .dashboard-progress,.corporate-ui-refresh .company-latest-news,.corporate-ui-refresh .chairman-command-center,.corporate-ui-refresh .reality-health-board{margin-bottom:14px}
+.chairman-head p,.chairman-delegation-strip{display:none!important}
+.chairman-head{margin-bottom:4px}.chairman-proposal-grid{margin-top:4px}
+.company-page .company-hero-head p{max-width:760px}
+.company-page .company-hero-price{min-width:160px}
+.company-page .operations-hub>nav{display:flex!important;gap:7px!important;overflow-x:auto!important;scrollbar-width:none!important;padding:7px!important;margin:0 0 14px!important;border-radius:13px!important}
+.company-page .operations-hub>nav::-webkit-scrollbar{display:none}
+.company-page .operations-hub>nav button{min-width:92px!important;min-height:39px!important;padding:0 13px!important;border-radius:9px!important;font-size:11px!important}
+.company-page .ui-refresh-notice:not(.muted){position:sticky;top:8px;z-index:35;margin:8px 0 10px;padding:9px 12px;box-shadow:0 8px 24px rgba(0,0,0,.22)}
+
+@media(max-width:1180px){
+  .workspace-launcher-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .corporate-ui-refresh .compact-hero-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:760px){
+  .workspace-tabs{margin-left:-2px;margin-right:-2px;padding:6px}
+  .workspace-tabs button{min-width:84px;min-height:38px;padding:0 11px;font-size:10px}
+  .workspace-launcher{padding:12px}.workspace-launcher-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .workspace-launcher-card{min-height:62px;padding:9px 28px 9px 10px}.workspace-launcher-card>span{font-size:10px}.workspace-launcher-card>b{font-size:8.5px}
+  .corporate-ui-refresh .compact-hero-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .company-hero-head{gap:10px!important}.company-page .company-hero-price{min-width:0;width:100%;box-sizing:border-box}
+}
+@media(max-width:430px){
+  .workspace-launcher-grid{grid-template-columns:1fr 1fr}
+  .corporate-ui-refresh .compact-hero-metrics{grid-template-columns:1fr 1fr!important}
+  .workspace-launcher-card{min-height:58px}
+}
+
+
+/* V6.6.2b - grouped workspace launcher */
+.workspace-group-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.workspace-group{min-width:0;padding:11px;border:1px solid #26394d;border-radius:12px;background:#0b1723;display:grid;gap:9px}
+.workspace-group.operations{border-left:2px solid #395d82}.workspace-group.people{border-left:2px solid #446b58}.workspace-group.competition{border-left:2px solid #6e5b3b}.workspace-group.risk{border-left:2px solid #70444b}
+.workspace-group-title{display:flex;align-items:center;justify-content:space-between;gap:10px}.workspace-group-title>b{font-size:12px;color:#eef4fa}.workspace-group-title>span{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#102131;color:#829ab0;font-size:8px;font-weight:900;display:inline-flex;align-items:center;justify-content:center}
+.workspace-group-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.workspace-group.people .workspace-group-actions,.workspace-group.risk .workspace-group-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+.workspace-group-actions button{min-width:0;min-height:48px;padding:8px 9px;border:1px solid #24374a;border-radius:9px;background:#09141f;color:#dfe9f2;text-align:left;display:grid;gap:3px;cursor:pointer;transition:.14s ease}
+.workspace-group-actions button:hover,.workspace-group-actions button:focus-visible{border-color:#476783;background:#102033;outline:none}.workspace-group-actions button>span{font-size:9.5px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.workspace-group-actions button>b{font-size:8px;color:#7f95aa;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* legacy single-card launcher styles are intentionally left harmless for cached fragments */
+@media(max-width:900px){.workspace-group-grid{grid-template-columns:1fr}.workspace-group-actions{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:520px){.workspace-group-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}.workspace-group{padding:9px}.workspace-group-actions button{min-height:46px}}
