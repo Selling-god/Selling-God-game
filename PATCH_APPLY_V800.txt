@@ -1,0 +1,7 @@
+KX CORPORATE V8.0 COMMERCIAL RC PATCH
+
+1. 패치 ZIP을 기존 프로젝트 루트에서 압축 해제해 같은 경로에 덮어씁니다.
+2. Render를 사용한다면 기존대로 `npm run build` / Publish Directory `./out` 구성을 사용할 수 있습니다.
+3. 강력 새로고침(Ctrl+F5)을 1회 권장합니다. V8.0은 빌드 해시로 JS/CSS 캐시를 갱신합니다.
+4. 신규 V8.0 SQL은 없습니다. CEO 라운지를 쓰는 서버는 기존 V6.7 Community SQL이 적용되어 있어야 합니다.
+5. 배포 전 `npm run release`를 실행하면 build와 release check를 한 번에 검사합니다.

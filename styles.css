@@ -1915,3 +1915,60 @@ body.tutorial-active{overflow:hidden}
 @media(max-width:430px){
   .board-objectives-grid{grid-template-columns:1fr}
 }
+
+/* V8.0 COMMERCIAL RELEASE CANDIDATE */
+:root{color-scheme:dark}
+html{background:#060b12}
+body{min-height:100vh;background:radial-gradient(circle at 12% 0,rgba(46,76,105,.11),transparent 34%),linear-gradient(180deg,#07101a 0,#060b12 100%)}
+button,input,select,textarea{font-family:inherit}
+button{letter-spacing:-.01em}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid rgba(118,164,209,.8)!important;outline-offset:2px!important}
+.commercial-terminal{min-height:100vh}
+.commercial-topbar{border-bottom-color:#213246!important;background:rgba(7,13,21,.94)!important;backdrop-filter:blur(16px);box-shadow:0 10px 34px rgba(0,0,0,.18)}
+.commercial-topbar .brand strong{letter-spacing:.05em}
+.settings-btn{height:36px;padding:0 12px;border:1px solid #2f465e;border-radius:9px;background:#0f1d2b;color:#d7e4ef;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap}
+.settings-btn:hover{background:#14273a;border-color:#456987;color:#fff}
+.online-mode-chip.online{box-shadow:inset 0 0 0 1px rgba(87,167,123,.08)}
+.online-mode-chip.offline{animation:kxSoftPulse 1.8s ease-in-out infinite}
+@keyframes kxSoftPulse{50%{opacity:.65}}
+
+/* polished boot / authentication */
+.boot{min-height:100vh;display:grid;place-content:center;justify-items:center;gap:9px;background:radial-gradient(circle at 50% 34%,rgba(54,89,120,.14),transparent 30%);color:#dfe8f1}
+.boot .kxlogo{width:54px;height:54px;border-radius:15px;display:grid;place-items:center;border:1px solid #39536d;background:#0d1c2a;box-shadow:0 16px 42px rgba(0,0,0,.32)}
+.boot b{font-size:18px;letter-spacing:.08em}.boot span{font-size:10px;color:#788ea3;letter-spacing:.03em}
+.commercial-auth{min-height:100vh;display:grid!important;grid-template-columns:minmax(340px,1.15fr) minmax(360px,.85fr);gap:0;padding:0!important;background:radial-gradient(circle at 14% 18%,rgba(55,91,123,.18),transparent 30%),#070d15}
+.auth-brand-panel{padding:clamp(42px,7vw,110px);display:flex;flex-direction:column;justify-content:space-between;gap:54px;border-right:1px solid #1d2d3d;min-height:100vh;box-sizing:border-box}
+.auth-brand-mark{display:flex;align-items:center;gap:13px}.auth-brand-mark .kxlogo{width:52px;height:52px;border-radius:15px}.auth-brand-mark span{font-size:9px;letter-spacing:.18em;color:#6f879e;font-weight:900}
+.auth-brand-panel h1{margin:0 0 18px;max-width:720px;font-size:clamp(34px,5vw,68px);line-height:1.06;letter-spacing:-.045em;color:#f1f5f9}.auth-brand-panel p{max-width:650px;margin:0;color:#93a6b8;font-size:14px;line-height:1.8}
+.auth-feature-row{display:flex;flex-wrap:wrap;gap:8px}.auth-feature-row span{padding:8px 11px;border:1px solid #26394c;border-radius:999px;background:#0b1723;color:#9eb1c3;font-size:9px;font-weight:900}
+.commercial-auth-card{align-self:center;justify-self:center;width:min(410px,calc(100% - 38px));margin:0!important;padding:28px!important;border:1px solid #293d50!important;border-radius:20px!important;background:rgba(10,20,31,.96)!important;box-shadow:0 28px 80px rgba(0,0,0,.32)}
+.auth-card-head{display:grid;gap:4px;margin-bottom:16px}.auth-card-head small{font-size:9px;color:#7290aa;letter-spacing:.15em;font-weight:900}.auth-card-head h2{margin:0;color:#f1f6fa;font-size:27px}.auth-card-head p{margin:0;color:#8297aa;font-size:10px;line-height:1.55}
+.commercial-auth-card label{gap:7px!important}.commercial-auth-card input{min-height:44px!important;border-radius:10px!important}.commercial-auth-card .primary{min-height:46px!important;border-radius:10px!important;font-size:12px!important}.commercial-auth-card footer{margin-top:5px;color:#61778c;text-align:center;font-size:8.5px}
+.password-field{display:grid;grid-template-columns:minmax(0,1fr) 56px;gap:6px}.password-field button{border:1px solid #2d455d;border-radius:9px;background:#112234;color:#aebfd0;font-size:9px;font-weight:900;cursor:pointer}
+.release-fatal{min-height:100vh;display:grid;place-items:center;padding:24px;background:#070d15}.release-fatal section{width:min(520px,100%);padding:30px;border:1px solid #334a61;border-radius:20px;background:#0b1622;text-align:center;display:grid;justify-items:center;gap:10px;box-shadow:0 28px 80px rgba(0,0,0,.3)}.release-fatal small{font-size:9px;letter-spacing:.12em;color:#7f96ac;font-weight:900}.release-fatal h1{margin:4px 0 0;color:#eff5fa;font-size:26px}.release-fatal p{margin:0;color:#9aabba;font-size:11px;line-height:1.7}.release-fatal button{margin-top:8px;min-height:40px;padding:0 16px;border:1px solid #486b8d;border-radius:10px;background:#17314a;color:#eef5fa;font-size:10px;font-weight:900;cursor:pointer}
+
+/* settings */
+.kx-settings-overlay{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:18px;background:rgba(2,7,12,.72);backdrop-filter:blur(10px)}
+.kx-settings-card{width:min(520px,100%);border:1px solid #344b61;border-radius:18px;background:#0a1520;box-shadow:0 30px 90px rgba(0,0,0,.5);overflow:hidden}
+.kx-settings-head{min-height:70px;padding:15px 17px;border-bottom:1px solid #223447;display:flex;align-items:center;justify-content:space-between;gap:12px}.kx-settings-head>div{display:grid;gap:2px}.kx-settings-head small{font-size:8px;letter-spacing:.15em;color:#728aa0;font-weight:900}.kx-settings-head h2{margin:0;font-size:20px;color:#eff5fa}.kx-settings-head>button{width:34px;height:34px;border:1px solid #2d4256;border-radius:9px;background:#0d1b29;color:#b9c9d8;font-size:20px;cursor:pointer}
+.kx-settings-grid{padding:10px 16px 4px;display:grid}.kx-settings-grid label{min-height:62px;padding:10px 2px;border-bottom:1px solid #1c2b3a;display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer}.kx-settings-grid label:last-child{border-bottom:0}.kx-settings-grid label span{display:grid;gap:3px}.kx-settings-grid b{font-size:12px;color:#e5edf5}.kx-settings-grid small{font-size:9px;color:#778da2}.kx-settings-grid input{width:18px;height:18px;accent-color:#668eb5}
+.kx-settings-actions{padding:12px 16px 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px}.kx-settings-actions button{min-height:40px;border:1px solid #344f69;border-radius:10px;background:#11253a;color:#dce8f3;font-size:9.5px;font-weight:900;cursor:pointer}.kx-settings-actions button:disabled{opacity:.55;cursor:wait}.kx-settings-foot{padding:10px 16px;border-top:1px solid #1c2c3b;display:flex;justify-content:space-between;gap:10px;color:#647b91;font-size:8px}
+
+/* runtime toasts */
+.kx-toast-host{position:fixed;right:18px;bottom:20px;z-index:12000;width:min(390px,calc(100vw - 36px));display:grid;gap:8px;pointer-events:none}.kx-toast{transform:translateY(8px);opacity:0;transition:.2s ease;padding:11px 12px;border:1px solid #33495e;border-radius:12px;background:rgba(10,21,32,.96);box-shadow:0 15px 45px rgba(0,0,0,.28);display:grid;grid-template-columns:24px minmax(0,1fr);gap:9px;align-items:center}.kx-toast.show{transform:none;opacity:1}.kx-toast>span{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:#14283a;color:#cfe0ee;font-size:11px;font-weight:900}.kx-toast>b{font-size:10px;line-height:1.45;color:#dfe8f0}.kx-toast.error{border-color:#67424a}.kx-toast.error>span{background:#251319;color:#efb5bd}.kx-toast.success{border-color:#315143}.kx-toast.success>span{background:#0d2018;color:#acd9bf}
+
+/* player-safe recovery states */
+.commercial-recovery{max-width:920px;margin:28px auto!important}.recovery-status-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.recovery-status-row span{padding:11px 12px;border:1px solid #26394d;border-radius:11px;background:#0b1722;color:#859bae;font-size:9px}.recovery-status-row b{display:block;margin-bottom:3px;color:#c8d6e3;font-size:10px}.market-recovery{max-width:760px;margin:32px auto!important;padding:28px!important;text-align:center;display:grid;justify-items:center;gap:8px}.market-recovery>small{font-size:8px;letter-spacing:.14em;color:#70889f;font-weight:900}.market-recovery h1{margin:2px 0 0;color:#edf4fa;font-size:24px}.market-recovery p{max-width:560px;margin:0;color:#879daf;font-size:10px;line-height:1.7}.market-recovery button{margin-top:8px;min-height:40px;padding:0 15px;border:1px solid #41617e;border-radius:10px;background:#142a40;color:#eef4fa;font-size:10px;font-weight:900;cursor:pointer}.player-safe code{display:none!important}.realism-install-notice.player-safe{border-color:#3d4650!important;background:#0d141c!important}.community-install.player-safe code{display:none!important}
+
+/* commercial readability + interaction */
+.company-shell,.page-panel{box-shadow:0 10px 30px rgba(0,0,0,.09)}
+.company-workspace button:not(.nav-scroll-arrow),.board-objective button,.agenda-card{transition:transform .12s ease,border-color .12s ease,background .12s ease,opacity .12s ease}
+.company-workspace button:not(.nav-scroll-arrow):active,.board-objective button:active,.agenda-card:active{transform:translateY(1px)}
+.clean-company-browser,.community-messages,.stake-table{scrollbar-gutter:stable}
+.company-section-head>span{max-width:620px}
+body.kx-comfortable .company-workspace>*,body.kx-comfortable .board-objective,body.kx-comfortable .stake-row{padding-top:calc(1em + 5px);padding-bottom:calc(1em + 5px)}
+body.kx-reduced-motion *,body.kx-reduced-motion *::before,body.kx-reduced-motion *::after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+
+@media(max-width:1100px){.commercial-auth{grid-template-columns:1fr}.auth-brand-panel{display:none}.commercial-auth-card{margin:auto!important}.commercial-topbar .header-money{display:none!important}}
+@media(max-width:900px){.commercial-topbar .settings-btn,.commercial-topbar .tutorial-btn,.commercial-topbar .logout{min-width:58px!important;padding:0 8px!important}.kx-toast-host{bottom:78px}.recovery-status-row{grid-template-columns:1fr}}
+@media(max-width:640px){.commercial-auth-card{width:min(410px,calc(100% - 24px));padding:21px!important;border-radius:16px!important}.auth-card-head h2{font-size:23px}.kx-settings-overlay{padding:10px}.kx-settings-actions{grid-template-columns:1fr}.kx-settings-foot{flex-direction:column}.kx-toast-host{right:10px;width:calc(100vw - 20px)}.commercial-recovery{margin:14px auto!important}.market-recovery{margin:14px auto!important;padding:20px!important}}

@@ -1,0 +1,19 @@
+KX CORPORATE V8.0 COMMERCIAL RC - RELEASE TEST REPORT
+
+[PASS] public/app.js JavaScript syntax
+[PASS] root/app.js JavaScript syntax after build
+[PASS] npm run build
+[PASS] npm run check
+[PASS] deploy roots synchronized: root, public, out, dist, build, site
+[PASS] app.js/styles.css hashes identical across deploy roots
+[PASS] index.html cache-busting build id present across deploy roots
+[PASS] version.json generated across deploy roots
+[PASS] duplicate named function declaration scan
+[PASS] legacy takeover accordion marker removed
+[PASS] internal SQL Editor / RUN_THIS_IN_SUPABASE strings absent from player app
+[PASS] partial stock-data outage no longer blocks company/community/ranking screens
+[PASS] optional community/realism/talent RPC failures are capability-cached
+
+NOTE
+- Headless Chromium visual smoke test was attempted in this environment but did not complete within the runtime limit.
+- Final real-device verification is still recommended for exact browser font rendering and live Supabase multi-user behavior.

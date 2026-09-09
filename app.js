@@ -1,5 +1,5 @@
 (()=>{
-const KX_COMPANY_BUILD='7.0.0-REAL-CEO-OPEN-ENDED';
+const KX_COMPANY_BUILD='8.0.0-COMMERCIAL-RC';
 window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
@@ -17,6 +17,13 @@ let companyIncomeToastTimer=null;
 let companyIncomeBaselineReady=false;
 let lastCompanyIncomeId=0;
 let companyApiReady=false;
+let realismRpcCapability=null;
+let talentRpcCapability=null;
+let communityRpcCapability=null;
+let runtimeGuardInstalled=false;
+let lastRuntimeToastAt=0;
+let lastRuntimeToastText='';
+let settingsPanelOpen=false;
 let communityPollTimer=null;
 const COMMUNITY_SEEN_KEY='kx_community_seen_v670';
 let communityLastSeenId=Number(localStorage.getItem(COMMUNITY_SEEN_KEY)||0);
@@ -61,15 +68,24 @@ const headers=(auth=true)=>{
 };
 
 async function req(path,opt={}){
-  const r=await fetch(C.supabaseUrl+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});
-  let data=null;
-  const txt=await r.text();
-  try{data=txt?JSON.parse(txt):null}catch{data=txt}
-  if(!r.ok){
-    const detail=data?.message||data?.msg||data?.error_description||data?.error||data?.hint||data?.error_code||data?.code||(typeof data==='string'&&data)||`HTTP ${r.status}`;
-    const err=new Error(String(detail));err.status=r.status;err.payload=data;throw err;
-  }
-  return data;
+  const controller=new AbortController();
+  const timeoutMs=Math.max(4000,Number(opt.timeoutMs)||15000);
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  try{
+    const r=await fetch(C.supabaseUrl+path,{...opt,signal:opt.signal||controller.signal,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});
+    let data=null;
+    const txt=await r.text();
+    try{data=txt?JSON.parse(txt):null}catch{data=txt}
+    if(!r.ok){
+      const detail=data?.message||data?.msg||data?.error_description||data?.error||data?.hint||data?.error_code||data?.code||(typeof data==='string'&&data)||`HTTP ${r.status}`;
+      const err=new Error(String(detail));err.status=r.status;err.payload=data;throw err;
+    }
+    return data;
+  }catch(err){
+    if(err?.name==='AbortError')throw new Error('서버 응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.');
+    if(String(err?.message||'').toLowerCase().includes('failed to fetch'))throw new Error('온라인 서버에 연결할 수 없습니다. 인터넷 연결을 확인해 주세요.');
+    throw err;
+  }finally{clearTimeout(timer)}
 }
 async function rpc(name,body,auth=true){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(body||{}),auth})}
 async function companyApi(action,payload={},auth=true){
@@ -122,23 +138,16 @@ function renderCommunityMessagesIntoDom(forceBottom=false){
 }
 async function loadCommunity(silent=false){
   if(!session?.access_token)return null;
+  if(communityRpcCapability===false){state.community.available=false;state.community.error='CEO 라운지를 현재 사용할 수 없습니다.';return null}
   if(!silent)state.community.loading=true;
   try{
-    const d=await companyCommunityApi('LIST',{p_channel:state.community.channel||'GLOBAL',p_limit:100});
-    const rows=Array.isArray(d?.messages)?d.messages:[];
-    const prevLast=Number(state.community.lastId||0);
-    const maxId=rows.reduce((m,x)=>Math.max(m,Number(x.id)||0),0);
+    const d=await companyCommunityApi('LIST',{p_channel:state.community.channel||'GLOBAL',p_limit:100});communityRpcCapability=true;
+    const rows=Array.isArray(d?.messages)?d.messages:[];const prevLast=Number(state.community.lastId||0);const maxId=rows.reduce((m,x)=>Math.max(m,Number(x.id)||0),0);
     state.community.messages=rows;state.community.lastId=maxId;state.community.available=true;state.community.error='';
-    if(state.tab==='community'){
-      communityLastSeenId=maxId;state.community.unread=0;localStorage.setItem(COMMUNITY_SEEN_KEY,String(maxId));
-    }else if(maxId>Math.max(prevLast,communityLastSeenId)){
-      state.community.unread=Math.max(1,rows.filter(x=>(Number(x.id)||0)>communityLastSeenId&&String(x.user_id||'')!==String(session?.user?.id||'')).length);
-    }
+    if(state.tab==='community'){communityLastSeenId=maxId;state.community.unread=0;localStorage.setItem(COMMUNITY_SEEN_KEY,String(maxId))}else if(maxId>Math.max(prevLast,communityLastSeenId)){state.community.unread=Math.max(1,rows.filter(x=>(Number(x.id)||0)>communityLastSeenId&&String(x.user_id||'')!==String(session?.user?.id||'')).length)}
     return d;
-  }catch(err){
-    state.community.available=false;state.community.error=String(err?.message||err||'커뮤니티 연결 실패');
-    return null;
-  }finally{state.community.loading=false}
+  }catch(err){if(missingRpcError(err))communityRpcCapability=false;state.community.available=false;state.community.error=missingRpcError(err)?'CEO 라운지를 현재 사용할 수 없습니다.':runtimeErrorText(err);return null}
+  finally{state.community.loading=false}
 }
 async function sendCommunityMessage(body){
   const text=String(body||'').trim();if(!text)return null;
@@ -159,8 +168,8 @@ function scheduleCommunityPolling(){
 }
 function renderCommunityRoom(){
   const my=state.company?.my_company;
-  const onlineLabel=state.community.available?'LIVE':'SETUP';
-  return `<main class="page-view community-page"><section class="panel page-panel community-shell"><div class="community-head"><div><small>CEO NETWORK</small><h1>CEO 라운지</h1><span>${escapeHtml(communityNickname())}${my?` · ${escapeHtml(my.name)}`:''}</span></div><div class="community-live ${state.community.available?'on':''}"><i></i><b>${onlineLabel}</b></div></div>${state.community.available?`<div class="community-layout"><section class="community-chat-card"><div class="community-chat-title"><div><b>전체 CEO 채널</b><span>온라인 유저 대화</span></div><button type="button" id="communityRefresh">새로고침</button></div><div id="communityMessages" class="community-messages">${communityMessagesHtml()}</div><form id="communityForm" class="community-composer"><textarea id="communityMessageInput" maxlength="220" rows="2" placeholder="메시지를 입력하세요"></textarea><div><span id="communityCharCount">0 / 220</span><button type="submit">전송</button></div></form></section><aside class="community-side"><article><small>내 표시명</small><b>${escapeHtml(communityNickname())}</b><span>${escapeHtml(communityCompanyName())}</span></article><article><small>채널</small><b>전체 CEO</b><span>5초마다 자동 갱신</span></article><article><small>메시지 보관</small><b>최근 7일</b><span>도배 방지 간격 적용</span></article></aside></div>`:`<div class="community-install"><b>CEO 라운지 DB 연결이 필요합니다.</b><span>${escapeHtml(state.community.error||'V6.7 커뮤니티 SQL을 Supabase에 적용해 주세요.')}</span><code>RUN_THIS_IN_SUPABASE_V6.7_COMMUNITY.sql</code><button type="button" id="communityRefresh">연결 다시 확인</button></div>`}</section></main>`;
+  const onlineLabel=state.community.available?'LIVE':'OFFLINE';
+  return `<main class="page-view community-page"><section class="panel page-panel community-shell"><div class="community-head"><div><small>CEO NETWORK</small><h1>CEO 라운지</h1><span>${escapeHtml(communityNickname())}${my?` · ${escapeHtml(my.name)}`:''}</span></div><div class="community-live ${state.community.available?'on':''}"><i></i><b>${onlineLabel}</b></div></div>${state.community.available?`<div class="community-layout"><section class="community-chat-card"><div class="community-chat-title"><div><b>전체 CEO 채널</b><span>온라인 유저 대화</span></div><button type="button" id="communityRefresh">새로고침</button></div><div id="communityMessages" class="community-messages">${communityMessagesHtml()}</div><form id="communityForm" class="community-composer"><textarea id="communityMessageInput" maxlength="220" rows="2" placeholder="메시지를 입력하세요"></textarea><div><span id="communityCharCount">0 / 220</span><button type="submit">전송</button></div></form></section><aside class="community-side"><article><small>내 표시명</small><b>${escapeHtml(communityNickname())}</b><span>${escapeHtml(communityCompanyName())}</span></article><article><small>채널</small><b>전체 CEO</b><span>5초마다 자동 갱신</span></article><article><small>메시지 보관</small><b>최근 7일</b><span>도배 방지 간격 적용</span></article></aside></div>`:`<div class="community-install player-safe"><b>CEO 라운지를 사용할 수 없습니다.</b><span>${escapeHtml(state.community.error||'온라인 소통 서버 연결을 확인해 주세요.')}</span><button type="button" id="communityRefresh">연결 다시 확인</button></div>`}</section></main>`;
 }
 async function companyDefenseV640(action,budget){
   const a=String(action||'').toUpperCase(),spend=Math.max(0,Number(budget||0));
@@ -544,6 +553,44 @@ function scheduleCompanyVisualTicker(){
   companyVisualTimer=setInterval(updateCompanyVisualQuotes,COMPANY_VISUAL_TICK_MS);
 }
 function escapeHtml(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+const KX_PREFS_KEY='kx_commercial_prefs_v800';
+function defaultKxPrefs(){return {reducedMotion:false,comfortable:false}}
+function kxPrefs(){try{return {...defaultKxPrefs(),...(JSON.parse(localStorage.getItem(KX_PREFS_KEY)||'{}')||{})}}catch{return defaultKxPrefs()}}
+function saveKxPrefs(next){try{localStorage.setItem(KX_PREFS_KEY,JSON.stringify({...defaultKxPrefs(),...(next||{})}))}catch{}applyKxPrefs()}
+function applyKxPrefs(){const p=kxPrefs();document.body.classList.toggle('kx-reduced-motion',!!p.reducedMotion);document.body.classList.toggle('kx-comfortable',!!p.comfortable)}
+function runtimeErrorText(err){
+  const raw=String(err?.message||err||'').trim();
+  if(!raw)return '일시적인 오류가 발생했습니다.';
+  const lower=raw.toLowerCase();
+  if(lower.includes('failed to fetch')||lower.includes('network'))return '온라인 연결이 불안정합니다. 잠시 후 자동으로 다시 연결합니다.';
+  if(lower.includes('시간이 초과'))return raw;
+  if(lower.includes('could not find the function')||lower.includes('pgrst202'))return '일부 온라인 기능이 아직 준비되지 않았습니다.';
+  return raw.length>140?`${raw.slice(0,137)}…`:raw;
+}
+function showAppToast(message,type='info',duration=4200){
+  const text=String(message||'').trim();if(!text)return;
+  const now=Date.now();if(text===lastRuntimeToastText&&now-lastRuntimeToastAt<2500)return;
+  lastRuntimeToastText=text;lastRuntimeToastAt=now;
+  let host=document.getElementById('kxToastHost');if(!host){host=document.createElement('div');host.id='kxToastHost';host.className='kx-toast-host';document.body.appendChild(host)}
+  const item=document.createElement('div');item.className=`kx-toast ${type}`;item.innerHTML=`<span>${type==='error'?'!':type==='success'?'✓':'i'}</span><b>${escapeHtml(text)}</b>`;host.appendChild(item);
+  requestAnimationFrame(()=>item.classList.add('show'));setTimeout(()=>{item.classList.remove('show');setTimeout(()=>item.remove(),220)},duration);
+}
+function installRuntimeGuards(){
+  if(runtimeGuardInstalled)return;runtimeGuardInstalled=true;
+  window.addEventListener('error',e=>{if(!e?.error&&!e?.message)return;const msg=runtimeErrorText(e?.error||e?.message);console.error('[KX runtime]',e?.error||e?.message);showAppToast(`화면 오류를 복구했습니다 · ${msg}`,'error',5200)});
+  window.addEventListener('unhandledrejection',e=>{const msg=runtimeErrorText(e?.reason);console.error('[KX async]',e?.reason);showAppToast(`처리 중 오류 · ${msg}`,'error',5200)});
+}
+function closeSettingsPanel(){document.getElementById('kxSettingsOverlay')?.remove();settingsPanelOpen=false}
+function openSettingsPanel(){
+  closeSettingsPanel();settingsPanelOpen=true;const prefs=kxPrefs();const el=document.createElement('div');el.id='kxSettingsOverlay';el.className='kx-settings-overlay';
+  el.innerHTML=`<section class="kx-settings-card" role="dialog" aria-modal="true" aria-label="게임 설정"><div class="kx-settings-head"><div><small>KX CORPORATE</small><h2>게임 설정</h2></div><button type="button" id="kxSettingsClose" aria-label="닫기">×</button></div><div class="kx-settings-grid"><label><span><b>경영 효과음</b><small>결정·경보·성과 효과음</small></span><input id="kxSettingSound" type="checkbox" ${companySoundEnabled()?'checked':''}></label><label><span><b>화면 움직임 줄이기</b><small>전환·강조 애니메이션 최소화</small></span><input id="kxSettingMotion" type="checkbox" ${prefs.reducedMotion?'checked':''}></label><label><span><b>넓은 정보 간격</b><small>카드와 표의 여백을 조금 넓게 표시</small></span><input id="kxSettingComfort" type="checkbox" ${prefs.comfortable?'checked':''}></label></div><div class="kx-settings-actions"><button type="button" id="kxReconnect">온라인 다시 연결</button><button type="button" id="kxFullscreen">전체 화면</button></div><div class="kx-settings-foot"><span>빌드 ${escapeHtml(KX_COMPANY_BUILD)}</span><span>자동 저장 · 온라인 동기화</span></div></section>`;
+  document.body.appendChild(el);el.querySelector('#kxSettingsClose').onclick=closeSettingsPanel;el.onclick=e=>{if(e.target===el)closeSettingsPanel()};
+  el.querySelector('#kxSettingSound').onchange=e=>{localStorage.setItem(COMPANY_SOUND_KEY,e.target.checked?'1':'0');if(e.target.checked)playCompanySfx('click')};
+  el.querySelector('#kxSettingMotion').onchange=e=>{const n=kxPrefs();n.reducedMotion=!!e.target.checked;saveKxPrefs(n)};
+  el.querySelector('#kxSettingComfort').onchange=e=>{const n=kxPrefs();n.comfortable=!!e.target.checked;saveKxPrefs(n)};
+  el.querySelector('#kxFullscreen').onclick=async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen?.();else await document.exitFullscreen?.()}catch{showAppToast('이 브라우저에서는 전체 화면을 사용할 수 없습니다.','info')}};
+  el.querySelector('#kxReconnect').onclick=async()=>{const b=el.querySelector('#kxReconnect');b.disabled=true;b.textContent='연결 확인 중…';realismRpcCapability=null;talentRpcCapability=null;communityRpcCapability=null;state.gameAvailable=true;state.companyRpcMode='AUTO';companyApiReady=false;try{await sync(false,true,true);await loadCommunity(false);const hasCore=state.companyAvailable!==false||state.stocks.length>0;closeSettingsPanel();renderTerminal(true);showAppToast(hasCore?'온라인 데이터 연결을 다시 확인했습니다.':'일부 서버 연결이 아직 복구되지 않았습니다.',hasCore?'success':'error')}catch(err){b.disabled=false;b.textContent='온라인 다시 연결';showAppToast(runtimeErrorText(err),'error')}};
+}
 function markUiInteraction(){uiLastInteractionAt=Date.now()}
 function uiIsBusy(){
   const a=document.activeElement,tag=String(a?.tagName||'').toUpperCase();
@@ -786,8 +833,8 @@ function processIncomingNews(rows){
 function authErrorText(err){
   const p=err?.payload||{};
   const raw=[err?.message,p?.message,p?.msg,p?.error_description,p?.error,p?.error_code,p?.code].filter(Boolean).join(' ').toLowerCase();
-  if(raw.includes('email_provider_disabled')||raw.includes('email signups are disabled')||raw.includes('email provider'))return 'Supabase에서 이메일 회원가입이 꺼져 있습니다. Authentication → Providers → Email 설정을 확인해 주세요.';
-  if(raw.includes('signup_disabled')||raw.includes('signups not allowed'))return 'Supabase에서 신규 회원가입이 차단되어 있습니다.';
+  if(raw.includes('email_provider_disabled')||raw.includes('email signups are disabled')||raw.includes('email provider'))return '현재 이메일 회원가입을 사용할 수 없습니다. 운영 설정을 확인해 주세요.';
+  if(raw.includes('signup_disabled')||raw.includes('signups not allowed'))return '현재 신규 회원가입이 일시적으로 제한되어 있습니다.';
   if(raw.includes('invalid email')||raw.includes('unable to validate email')||raw.includes('email_address_invalid'))return '이메일 주소 형식을 확인해 주세요.';
   if(raw.includes('password')&&(raw.includes('short')||raw.includes('weak')||raw.includes('valid')))return '비밀번호가 보안 조건을 충족하지 않습니다.';
   if(raw.includes('already registered')||raw.includes('user_already_exists')||raw.includes('already been registered'))return '이미 가입된 이메일입니다. 로그인해 주세요.';
@@ -1394,9 +1441,7 @@ function activeTakeoverThreat(){
   return {synthetic:true,attacker_company_id:attackerId||null,attacker_name:top?.holder_name||'외부 주주군',attacker_ticker:top?.holder_ticker||'',attacker_country:top?.holder_country||top?.country||'',attacker_type:top?.holder_type||'외부 주주',rivalry_reason:reason?.label||(aggregate>=35?'외부지분이 경영권 위험구간까지 누적':'외부지분 집중으로 경영권 위험 상승'),stake:topStake||aggregate,aggregate_stake:aggregate,stage:localTakeoverStage(aggregate),cycles_left:null,counter_stake:Number(counter?.stake||0),used_poison_pill:false,used_rights_issue:false};
 }
 function scrollToTakeoverDefenseCenter(){
-  const details=document.getElementById('takeoverOwnershipDetails');
-  if(details)details.open=true;
-  const target=document.getElementById('takeoverDefenseCenter')||document.getElementById('takeoverOwnershipDesk')||details;
+  const target=document.getElementById('takeoverDefenseCenter')||document.querySelector('.takeover-board');
   if(!target)return false;
   try{target.scrollIntoView({behavior:'smooth',block:'start'});}catch(_e){target.scrollIntoView();}
   target.classList?.add?.('defense-focus-flash');
@@ -1465,14 +1510,14 @@ function shortEquity(){
 }
 function eventOutcomeClass(e){return e?.outcome==='POSITIVE'?'positive':e?.outcome==='NEGATIVE'?'negative':'neutral'}
 function renderMarketGameStrip(){
-  if(state.gameAvailable===false)return `<section class="market-game-strip unavailable" data-tour="strategy"><div><small>MARKET PLAY</small><b>시장 이벤트 기능 설치 필요</b><span>기존 주식 거래는 정상 사용 가능합니다.</span></div><button data-main-tab="strategy">전략실 보기</button></section>`;
+  if(state.gameAvailable===false)return `<section class="market-game-strip unavailable" data-tour="strategy"><div><small>MARKET PLAY</small><b>시장 이벤트 연결 대기</b><span>기존 주식 거래는 정상 사용 가능합니다.</span></div><button data-main-tab="strategy">전략실 보기</button></section>`;
   const open=gameEvents().filter(e=>e.status==='OPEN').sort((a,b)=>Number(a.reveal_tick)-Number(b.reveal_tick));
   const next=open[0],stats=state.game?.prediction_stats||{};
   return `<section class="market-game-strip" data-tour="strategy"><div class="market-game-copy"><small>MARKET PLAY</small><b>${next?escapeHtml(next.title):'새 시장 이벤트 준비 중'}</b><span>${next?`${eventTypeLabel(next.event_type)} · ${ticksText(next.reveal_tick)}`:'실적·루머·배당·IPO가 시장 흐름을 만듭니다.'}</span></div><div class="market-game-stats"><span>진행 이벤트 <b>${open.length}</b></span><span>판단 적중 <b>${Number(stats.correct)||0}/${Number(stats.total)||0}</b></span><span>공매도 <b>${(state.game?.shorts||[]).filter(x=>x.status==='OPEN').length}</b></span></div><button data-main-tab="strategy">전략실 열기</button></section>`;
 }
 function renderStrategyRoom(){
   const g=state.game||emptyGame();
-  if(state.gameAvailable===false)return `<main class="page-view strategy-page"><section class="panel page-panel strategy-panel"><div class="page-title"><div><small>MARKET PLAY</small><h1>전략실</h1></div><span>실적·루머·공매도·IPO·배당을 한곳에서 관리합니다</span></div><div class="game-install-note"><h2>게임 확장 SQL을 먼저 한 번 실행해 주세요</h2><p>${escapeHtml(state.gameError||'Supabase에 KX 게임 확장 함수가 아직 없습니다.')}</p><span>SQL을 설치하지 않아도 기존 매수·매도·은행 기능은 그대로 작동합니다.</span></div></section></main>`;
+  if(state.gameAvailable===false)return `<main class="page-view strategy-page"><section class="panel page-panel strategy-panel"><div class="page-title"><div><small>MARKET PLAY</small><h1>전략실</h1></div><span>실적·공매도·IPO·배당을 한곳에서 관리합니다</span></div><div class="game-install-note player-safe"><h2>전략실 확장 기능을 준비 중입니다</h2><p>${escapeHtml(state.gameError||'현재 일부 전략 기능을 사용할 수 없습니다.')}</p><span>기본 회사 경영과 시장 거래는 정상적으로 계속할 수 있습니다.</span></div></section></main>`;
   const events=[...(g.events||[])].sort((a,b)=>a.status===b.status?Number(a.reveal_tick)-Number(b.reveal_tick):(a.status==='OPEN'?-1:1));
   const open=events.filter(e=>e.status==='OPEN'),resolved=events.filter(e=>e.status==='REVEALED').slice(0,5);
   const shorts=(g.shorts||[]).filter(x=>x.status==='OPEN');
@@ -1539,49 +1584,29 @@ async function validate(){
 }
 
 function renderDiag(){
-  app.innerHTML=`<div class="diag"><div><h1>KX CORPORATE 설정 필요</h1><p>Supabase 환경변수가 비어 있어 시장에 연결할 수 없습니다.</p><code>NEXT_PUBLIC_SUPABASE_URL\nNEXT_PUBLIC_SUPABASE_ANON_KEY</code><p>Render Environment에 두 값을 넣고 다시 배포해 주세요.</p></div></div>`;
+  app.innerHTML=`<main class="release-fatal"><section><div class="kxlogo">KX</div><small>SERVICE STATUS · KX-CFG-01</small><h1>서비스 연결 준비가 필요합니다</h1><p>현재 온라인 경영 서버 설정을 확인할 수 없습니다. 운영 환경을 확인한 뒤 다시 접속해 주세요.</p><button type="button" onclick="location.reload()">다시 확인</button></section></main>`;
 }
 
 function renderAuth(){
-  app.innerHTML=`<main class="auth"><form class="auth-card" id="authForm">
-    <div class="kxlogo">KX</div>
-    <h1>KX CORPORATE</h1>
-    <p>회사를 설립하고 국내·글로벌 기업과 경쟁하는 경영·주식시장 시뮬레이션</p>
-    <div class="auth-tabs"><button type="button" class="on" data-mode="login">로그인</button><button type="button" data-mode="signup">회원가입</button></div>
-    <label id="nickWrap" style="display:none">닉네임<input id="nickname" maxlength="18"></label>
-    <label>이메일<input id="email" type="email" required></label>
-    <label>비밀번호<input id="password" type="password" minlength="6" required></label>
-    <button class="primary" id="authSubmit">경영 시작</button>
-    <small class="auth-msg" id="authMsg"></small>
-  </form></main>`;
+  app.innerHTML=`<main class="auth commercial-auth"><section class="auth-brand-panel"><div class="auth-brand-mark"><div class="kxlogo">KX</div><span>REAL-TIME CORPORATE SIMULATION</span></div><div><h1>회사를 만들고,<br>시장 안에서 살아남으십시오.</h1><p>제품·직원·현금흐름·세금·경쟁사·M&A가 하나의 온라인 기업시장 안에서 연결됩니다.</p></div><div class="auth-feature-row"><span>실시간 기업시장</span><span>장기 경영</span><span>온라인 경쟁</span></div></section><form class="auth-card commercial-auth-card" id="authForm"><div class="auth-card-head"><small>KX CORPORATE</small><h2>CEO 로그인</h2><p>이전 회사 데이터는 계정에 그대로 연결됩니다.</p></div><div class="auth-tabs"><button type="button" class="on" data-mode="login">로그인</button><button type="button" data-mode="signup">회원가입</button></div><label id="nickWrap" style="display:none">닉네임<input id="nickname" maxlength="18" autocomplete="nickname"></label><label>이메일<input id="email" type="email" autocomplete="email" required></label><label>비밀번호<div class="password-field"><input id="password" type="password" minlength="6" autocomplete="current-password" required><button type="button" id="passwordToggle">표시</button></div></label><button class="primary" id="authSubmit">경영 시작</button><small class="auth-msg" id="authMsg"></small><footer>온라인 자동 저장 · 동일 계정으로 이어하기</footer></form></main>`;
   let mode='login';
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{
     mode=b.dataset.mode;
     document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('on',x===b));
     document.getElementById('nickWrap').style.display=mode==='signup'?'grid':'none';
     document.getElementById('authSubmit').textContent=mode==='signup'?'계정 만들기':'경영 시작';
+    document.getElementById('password').autocomplete=mode==='signup'?'new-password':'current-password';
   });
+  const pt=document.getElementById('passwordToggle');if(pt)pt.onclick=()=>{const input=document.getElementById('password');const show=input.type==='password';input.type=show?'text':'password';pt.textContent=show?'숨김':'표시'};
   document.getElementById('authForm').onsubmit=async e=>{
-    e.preventDefault();
-    const msg=document.getElementById('authMsg'),btn=document.getElementById('authSubmit');
-    btn.disabled=true;msg.textContent='';
+    e.preventDefault();const msg=document.getElementById('authMsg'),btn=document.getElementById('authSubmit');btn.disabled=true;btn.textContent=mode==='signup'?'계정 생성 중…':'온라인 연결 중…';msg.textContent='';
     try{
-      const email=document.getElementById('email').value.trim();
-      const password=document.getElementById('password').value;
+      const email=document.getElementById('email').value.trim();const password=document.getElementById('password').value;
       if(mode==='signup'){
-        const nickname=document.getElementById('nickname').value.trim();
-        if(!nickname){msg.textContent='닉네임을 입력해 주세요.';return}
-        if(password.length<6){msg.textContent='비밀번호는 최소 6자 이상 입력해 주세요.';return}
-        const d=await req('/auth/v1/signup',{method:'POST',body:JSON.stringify({email,password,data:{nickname}}),auth:false});
-        if(d.access_token){session=d;save();await start()}
-        else if(d.user||d.id){msg.textContent='가입 완료. 이메일 인증 후 로그인해 주세요.'}
-        else{msg.textContent='가입 요청이 완료되었습니다. 이메일 인증 후 로그인해 주세요.'}
-      }else{
-        const d=await req('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password}),auth:false});
-        session=d;save();await start();
-      }
-    }catch(err){msg.textContent=authErrorText(err)}
-    finally{btn.disabled=false}
+        const nickname=document.getElementById('nickname').value.trim();if(!nickname){msg.textContent='닉네임을 입력해 주세요.';return}if(password.length<6){msg.textContent='비밀번호는 최소 6자 이상 입력해 주세요.';return}
+        const d=await req('/auth/v1/signup',{method:'POST',body:JSON.stringify({email,password,data:{nickname}}),auth:false});if(d.access_token){session=d;save();await start()}else if(d.user||d.id){msg.textContent='가입 완료. 이메일 인증 후 로그인해 주세요.'}else{msg.textContent='가입 요청이 완료되었습니다. 이메일 인증 후 로그인해 주세요.'}
+      }else{const d=await req('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password}),auth:false});session=d;save();await start()}
+    }catch(err){msg.textContent=authErrorText(err)}finally{btn.disabled=false;btn.textContent=mode==='signup'?'계정 만들기':'경영 시작'}
   };
 }
 
@@ -1633,60 +1658,37 @@ function missingRpcError(e){
   return e?.status===404||raw.includes('Could not find the function')||raw.includes('schema cache')||raw.includes('PGRST202');
 }
 async function loadCompanyLayer(runSync=false,force=false){
-  // V5.6: PING is only used at boot/recovery. Normal market refresh uses a single RPC.
   if(state.companyRpcMode==='BROKEN'&&!force)return;
   try{
     if(!companyApiReady||force&&state.companyRpcMode==='BROKEN'){
-      const ping=await companyApi('PING',{},false);
-      if(!ping?.ok)throw new Error('회사 API 응답을 확인할 수 없습니다.');
-      companyApiReady=true;state.companyRpcMode='V56';
+      const ping=await companyApi('PING',{},false);if(!ping?.ok)throw new Error('회사 API 응답을 확인할 수 없습니다.');companyApiReady=true;state.companyRpcMode='V56';
     }
-    const action=runSync?'SYNC':'SNAPSHOT';
-    let d=await companyApi(action,{});
-    if(d?.needs_login&&await refresh())d=await companyApi(action,{});
-    if(d?.needs_login){
-      state.companyAvailable=false;state.companyMode='REMOTE';state.company=emptyCompany();
-      state.companyError='로그인 세션이 만료되었습니다. 로그아웃 후 다시 로그인해 주세요.';return;
-    }
+    const action=runSync?'SYNC':'SNAPSHOT';let d=await companyApi(action,{});if(d?.needs_login&&await refresh())d=await companyApi(action,{});
+    if(d?.needs_login){state.companyAvailable=false;state.companyMode='REMOTE';state.company=emptyCompany();state.companyError='로그인 세션이 만료되었습니다. 다시 로그인해 주세요.';return}
     if(!d||typeof d!=='object'||d.ok===false)throw new Error(d?.message||'회사 데이터를 불러오지 못했습니다.');
     state.companyRpcMode='V60';state.company={...emptyCompany(),...d};applyBotBusinessStrategies(state.company);applySharedCompanyMarketDifferentiation(state.company);buildSharedCorporateWar(state.company);applyEconomicCorrections(state.company);applyTakeoverFairPlayState(state.company);
-    try{
-      const realism=await companyRealismApi('SNAPSHOT',{});
-      if(realism?.ok){
-        state.company.products=Array.isArray(realism.products)?realism.products:[];
-        state.company.finance_periods=Array.isArray(realism.finance_periods)?realism.finance_periods:[];
-        state.company.incidents=Array.isArray(realism.incidents)?realism.incidents:[];
-        state.company.due_diligence=Array.isArray(realism.due_diligence)?realism.due_diligence:[];
-        state.company.macro=realism.macro||{};state.company.supply=realism.supply||{};state.company.finance_live=realism.finance_live||{};
-        state.company.realism_available=true;state.company.realism_error='';
-      }
+
+    if(realismRpcCapability!==false){
       try{
-        const talent=await companyTalentApi('SNAPSHOT',{});
-        if(talent?.ok){state.company.recruit_pool=shapeRecruitPoolByEmployer(Array.isArray(talent.candidates)?talent.candidates:[],state.company.my_company,Number(talent.day_no||1));state.company.talents=Array.isArray(talent.my_talents)?talent.my_talents:[];state.company.poach_targets=shapePoachTargetCompensation(Array.isArray(talent.poach_targets)?talent.poach_targets:[]);state.company.talent_offers=Array.isArray(talent.inbound_offers)?talent.inbound_offers:[];state.company.talent_summary=talent.summary||{};state.company.talent_day=Number(talent.day_no||1);state.company.talent_hired_today=Number(talent.hired_today||0);state.company.talent_daily_limit=Number(talent.daily_limit||5);state.company.talent_available=true;state.company.talent_error='';applyLocalPoachState(state.company);applyLocalHireProfiles(state.company);applyLocalTalentTrainingState(state.company);}
-      }catch(talentErr){state.company.talent_available=false;state.company.talent_error=missingRpcError(talentErr)?'V6.4 인재·육성 SQL이 아직 적용되지 않았습니다.':'인재시장 데이터를 불러오지 못했습니다: '+String(talentErr?.message||talentErr);}
-    }catch(realismErr){
-      state.company.realism_available=false;
-      state.company.realism_error=missingRpcError(realismErr)?'V6.2 현실경영 SQL이 아직 적용되지 않았습니다.':'현실경영 데이터를 불러오지 못했습니다: '+String(realismErr?.message||realismErr);
-    }
+        const realism=await companyRealismApi('SNAPSHOT',{});realismRpcCapability=true;
+        if(realism?.ok){state.company.products=Array.isArray(realism.products)?realism.products:[];state.company.finance_periods=Array.isArray(realism.finance_periods)?realism.finance_periods:[];state.company.incidents=Array.isArray(realism.incidents)?realism.incidents:[];state.company.due_diligence=Array.isArray(realism.due_diligence)?realism.due_diligence:[];state.company.macro=realism.macro||{};state.company.supply=realism.supply||{};state.company.finance_live=realism.finance_live||{};state.company.realism_available=true;state.company.realism_error=''}
+      }catch(realismErr){if(missingRpcError(realismErr))realismRpcCapability=false;state.company.realism_available=false;state.company.realism_error=missingRpcError(realismErr)?'현실경영 확장 기능을 현재 사용할 수 없습니다.':'현실경영 데이터를 불러오지 못했습니다: '+runtimeErrorText(realismErr)}
+    }else{state.company.realism_available=false;state.company.realism_error='현실경영 확장 기능을 현재 사용할 수 없습니다.'}
+
+    if(talentRpcCapability!==false){
+      try{
+        const talent=await companyTalentApi('SNAPSHOT',{});talentRpcCapability=true;
+        if(talent?.ok){state.company.recruit_pool=shapeRecruitPoolByEmployer(Array.isArray(talent.candidates)?talent.candidates:[],state.company.my_company,Number(talent.day_no||1));state.company.talents=Array.isArray(talent.my_talents)?talent.my_talents:[];state.company.poach_targets=shapePoachTargetCompensation(Array.isArray(talent.poach_targets)?talent.poach_targets:[]);state.company.talent_offers=Array.isArray(talent.inbound_offers)?talent.inbound_offers:[];state.company.talent_summary=talent.summary||{};state.company.talent_day=Number(talent.day_no||1);state.company.talent_hired_today=Number(talent.hired_today||0);state.company.talent_daily_limit=Number(talent.daily_limit||5);state.company.talent_available=true;state.company.talent_error='';applyLocalPoachState(state.company);applyLocalHireProfiles(state.company);applyLocalTalentTrainingState(state.company)}
+      }catch(talentErr){if(missingRpcError(talentErr))talentRpcCapability=false;state.company.talent_available=false;state.company.talent_error=missingRpcError(talentErr)?'인재·육성 기능을 현재 사용할 수 없습니다.':'인재시장 데이터를 불러오지 못했습니다: '+runtimeErrorText(talentErr)}
+    }else{state.company.talent_available=false;state.company.talent_error='인재·육성 기능을 현재 사용할 수 없습니다.'}
+
     state.companyAvailable=true;state.companyMode='REMOTE';state.companyError='';
-    if(d?.world?.server_time){const t=Date.parse(d.world.server_time);if(Number.isFinite(t))companyServerOffsetMs=t-Date.now();}
-    companyLastFetchAt=Date.now();if(runSync)companyLastAdvanceAt=companyLastFetchAt;
-    syncCompanyClockAnchor(state.company?.world,state.clock);
-    processCompanyIncome(state.company?.investment_income||[]);
-    processCompanyPress(state.company?.press||[]);
-    trackCompanySnapshotMoments();
-    if(state.companyAnalysisId){
-      try{const profile=await companyApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)});try{const rp=await companyRealismApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)});profile.realism_products=Array.isArray(rp?.products)?rp.products:[]}catch(_re){}state.companyAnalysis=alignCompanyProfileToSharedMarket(profile);}catch(_e){}
-    }
+    if(d?.world?.server_time){const t=Date.parse(d.world.server_time);if(Number.isFinite(t))companyServerOffsetMs=t-Date.now()}
+    companyLastFetchAt=Date.now();if(runSync)companyLastAdvanceAt=companyLastFetchAt;syncCompanyClockAnchor(state.company?.world,state.clock);processCompanyIncome(state.company?.investment_income||[]);processCompanyPress(state.company?.press||[]);trackCompanySnapshotMoments();
+    if(state.companyAnalysisId){try{const profile=await companyApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)});if(realismRpcCapability!==false){try{const rp=await companyRealismApi('PROFILE',{p_company_id:Number(state.companyAnalysisId)});profile.realism_products=Array.isArray(rp?.products)?rp.products:[]}catch(_re){}}state.companyAnalysis=alignCompanyProfileToSharedMarket(profile)}catch(_e){}}
   }catch(e){
-    const raw=String(e?.message||'');
-    state.companyAvailable=false;state.companyMode='REMOTE';state.company=emptyCompany();
-    if(missingRpcError(e)){
-      state.companyRpcMode='BROKEN';companyApiReady=false;
-      state.companyError='기본 회사 API(kx_company_api_v1)가 없습니다. 기존 설치라면 V6.1.2 기본 SQL 적용 여부를 먼저 확인한 뒤 RUN_THIS_IN_SUPABASE_V6.2.sql을 실행해 주세요.';
-    }else{
-      state.companyRpcMode='V56';state.companyError=raw||'온라인 회사 서버에 연결하지 못했습니다.';
-    }
+    const raw=String(e?.message||'');state.companyAvailable=false;state.companyMode='REMOTE';state.company=emptyCompany();
+    if(missingRpcError(e)){state.companyRpcMode='BROKEN';companyApiReady=false;state.companyError='온라인 회사 경영 서버가 준비되지 않았습니다.'}else{state.companyRpcMode='V56';state.companyError=runtimeErrorText(e)||'온라인 회사 서버에 연결하지 못했습니다.'}
   }
 }
 
@@ -1710,8 +1712,8 @@ async function sync(advance=false,full=false,forcePrivate=false){
     else{updateLiveCompanyClock();updateCompanyVisualQuotes();}
   }catch(e){
     console.error(e);
-    const el=document.getElementById('globalMsg');
-    if(el)el.textContent='동기화 오류: '+e.message;
+    const el=document.getElementById('globalMsg');if(el)el.textContent='동기화 오류: '+runtimeErrorText(e);
+    showAppToast(runtimeErrorText(e),'error',4800);
   }finally{syncBusy=false}
 }
 
@@ -2074,7 +2076,7 @@ function managementProjectMeta(type){
   return map[type]||[type,'-','-','회사 경영 프로젝트','-'];
 }
 function projectStatusLabel(p){
-  if(p.status==='PAYBACK')return '구형 성과금 회수';
+  if(p.status==='PAYBACK')return '잔여 성과금 회수';
   if(p.status==='COMPLETED')return '완료';
   if(p.status==='FAILED')return '성과 부진';
   return '진행 중';
@@ -2083,7 +2085,7 @@ function renderManagementProjectBoard(my){
   const rows=[...(state.company?.projects||[])].sort((a,b)=>Number(b.id)-Number(a.id));
   const active=rows.filter(p=>['ACTIVE','PAYBACK'].includes(String(p.status))).slice(0,8);
   const done=rows.filter(p=>!['ACTIVE','PAYBACK'].includes(String(p.status))).slice(0,6);
-  return `<section class="management-project-board"><div class="company-section-head"><div><small>CAPABILITY PROJECTS</small><h2>경영 프로젝트</h2></div><span>V6.2부터 신규 프로젝트는 투자원금을 나눠 돌려주는 상품이 아닙니다. 사업비를 써서 기술·품질·생산·인력·수요·준법 역량을 바꾸고, 그 효과가 제품 판매와 실제 손익에 연결됩니다.</span></div><div class="project-grid">${active.length?active.map(p=>{const meta=managementProjectMeta(p.project_type),dur=Math.max(1,Number(p.duration_cycles)||1),prog=Math.min(dur,Number(p.progress_cycles)||0),pc=Math.round(prog/dur*100),legacy=p.status==='PAYBACK';return `<article class="project-card status-${String(p.status||'ACTIVE').toLowerCase()} ${p.decision_pending?'decision-pending':''}"><div class="project-card-head"><span>${escapeHtml(p.project_type)}</span><b>${p.decision_pending?'이사회 결정 필요':projectStatusLabel(p)}</b></div><h3>${escapeHtml(p.title||meta[0])}</h3><p>${escapeHtml(p.outcome||meta[3])}</p><div class="project-progress"><i style="width:${legacy?100:pc}%"></i></div><div class="project-stats"><span>진행 <b>${legacy?`구형 회수 ${Math.max(0,Number(p.payout_cycles_remaining)||0)}회`:`${prog}/${dur}주기`}</b></span><span>사업비 <b>${compactMoney(p.budget)}원</b></span><span>핵심 목적 <b>${escapeHtml(meta[4])}</b></span><span>성공확률 <b>${Number(p.success_chance||0).toFixed(0)}%</b></span></div>${legacy?`<small class="project-choice-note legacy-note">V6.2 이전에 시작된 프로젝트의 기존 성과금만 계약상 잔여 회수로 유지됩니다. 신규 프로젝트에는 이 구조가 적용되지 않습니다.</small>`:`<small class="project-choice-note">직접 현금수익 없음 · 완료 결과는 제품 원가·품질·수요·생산능력·리스크에 반영</small>`}${p.decision_pending?`<div class="project-decision"><strong>중간 이사회 안건</strong><p>추가 투자는 성공확률을 높이지만 사업비가 늘어납니다. 회수금이 아니라 실제 회사 역량에 투자하는 결정입니다.</p><div><button data-project-decision="${p.id}" data-project-choice="BOOST">추가 투자 +20%<small>성공확률 +10% · 현금 추가 지출</small></button><button data-project-decision="${p.id}" data-project-choice="STEADY">기존 계획 유지<small>추가비용 없음 · 성공확률 +3%</small></button><button data-project-decision="${p.id}" data-project-choice="SCALE_DOWN">범위 축소<small>사업비 15% 절감 · 성공확률 +8%</small></button></div></div>`:`${p.decision_choice?`<small class="project-choice-note">중간 결정: ${escapeHtml(p.decision_choice)}</small>`:''}`}</article>`}).join(''):`<div class="empty project-empty">진행 중인 프로젝트가 없습니다. 프로젝트는 제품·영업 역량을 개선하는 투자입니다.</div>`}</div>${done.length?`<details class="project-history"><summary>완료된 프로젝트 ${done.length}개 보기</summary><div>${done.map(p=>`<article><span><b>${escapeHtml(p.title||p.project_type)}</b><small>${escapeHtml(p.outcome||projectStatusLabel(p))}</small></span><strong>${escapeHtml(managementProjectMeta(p.project_type)[4])}</strong></article>`).join('')}</div></details>`:''}</section>`;
+  return `<section class="management-project-board"><div class="company-section-head"><div><small>CAPABILITY PROJECTS</small><h2>경영 프로젝트</h2></div><span>신규 프로젝트는 투자원금을 나눠 돌려주는 상품이 아닙니다. 사업비를 써서 기술·품질·생산·인력·수요·준법 역량을 바꾸고, 그 효과가 제품 판매와 실제 손익에 연결됩니다.</span></div><div class="project-grid">${active.length?active.map(p=>{const meta=managementProjectMeta(p.project_type),dur=Math.max(1,Number(p.duration_cycles)||1),prog=Math.min(dur,Number(p.progress_cycles)||0),pc=Math.round(prog/dur*100),legacy=p.status==='PAYBACK';return `<article class="project-card status-${String(p.status||'ACTIVE').toLowerCase()} ${p.decision_pending?'decision-pending':''}"><div class="project-card-head"><span>${escapeHtml(p.project_type)}</span><b>${p.decision_pending?'이사회 결정 필요':projectStatusLabel(p)}</b></div><h3>${escapeHtml(p.title||meta[0])}</h3><p>${escapeHtml(p.outcome||meta[3])}</p><div class="project-progress"><i style="width:${legacy?100:pc}%"></i></div><div class="project-stats"><span>진행 <b>${legacy?`잔여 회수 ${Math.max(0,Number(p.payout_cycles_remaining)||0)}회`:`${prog}/${dur}주기`}</b></span><span>사업비 <b>${compactMoney(p.budget)}원</b></span><span>핵심 목적 <b>${escapeHtml(meta[4])}</b></span><span>성공확률 <b>${Number(p.success_chance||0).toFixed(0)}%</b></span></div>${legacy?`<small class="project-choice-note legacy-note">이전에 체결된 일부 프로젝트의 잔여 성과금만 계약에 따라 계속 정산됩니다. 신규 프로젝트에는 이 구조가 적용되지 않습니다.</small>`:`<small class="project-choice-note">직접 현금수익 없음 · 완료 결과는 제품 원가·품질·수요·생산능력·리스크에 반영</small>`}${p.decision_pending?`<div class="project-decision"><strong>중간 이사회 안건</strong><p>추가 투자는 성공확률을 높이지만 사업비가 늘어납니다. 회수금이 아니라 실제 회사 역량에 투자하는 결정입니다.</p><div><button data-project-decision="${p.id}" data-project-choice="BOOST">추가 투자 +20%<small>성공확률 +10% · 현금 추가 지출</small></button><button data-project-decision="${p.id}" data-project-choice="STEADY">기존 계획 유지<small>추가비용 없음 · 성공확률 +3%</small></button><button data-project-decision="${p.id}" data-project-choice="SCALE_DOWN">범위 축소<small>사업비 15% 절감 · 성공확률 +8%</small></button></div></div>`:`${p.decision_choice?`<small class="project-choice-note">중간 결정: ${escapeHtml(p.decision_choice)}</small>`:''}`}</article>`}).join(''):`<div class="empty project-empty">진행 중인 프로젝트가 없습니다. 프로젝트는 제품·영업 역량을 개선하는 투자입니다.</div>`}</div>${done.length?`<details class="project-history"><summary>완료된 프로젝트 ${done.length}개 보기</summary><div>${done.map(p=>`<article><span><b>${escapeHtml(p.title||p.project_type)}</b><small>${escapeHtml(p.outcome||projectStatusLabel(p))}</small></span><strong>${escapeHtml(managementProjectMeta(p.project_type)[4])}</strong></article>`).join('')}</div></details>`:''}</section>`;
 }
 
 function sectorProductPreset(sector){
@@ -2109,7 +2111,7 @@ function productGrossMargin(p){const rev=Number(p?.last_revenue||0),cogs=Number(
 function productPricePosition(p){const ref=Math.max(1,Number(p?.reference_price)||Number(p?.target_price)||1),px=Math.max(1,Number(p?.unit_price)||ref);return (px/ref-1)*100}
 function renderRealismInstallNotice(){
   if(state.company?.realism_available)return '';
-  return `<section class="realism-install-notice"><div><small>V6.2 REAL MANAGEMENT CORE</small><b>제품·판매·공급망·관리회계 확장 SQL이 필요합니다</b><span>${escapeHtml(state.company?.realism_error||'RUN_THIS_IN_SUPABASE_V6.2.sql을 Supabase SQL Editor에서 한 번 실행해 주세요.')}</span></div><code>RUN_THIS_IN_SUPABASE_V6.2.sql</code></section>`;
+  return `<section class="realism-install-notice player-safe"><div><small>REAL MANAGEMENT CORE</small><b>일부 현실경영 데이터가 연결되지 않았습니다</b><span>${escapeHtml(state.company?.realism_error||'제품·공급망·관리회계 데이터를 현재 불러올 수 없습니다.')}</span></div></section>`;
 }
 function renderMacroEnvironment(){
   const m=state.company?.macro||{};
@@ -2178,7 +2180,7 @@ function renderInvestmentReturnPanel(my){
   const incomes=(state.company?.investment_income||[]).slice(0,10);
   const value=Number(sum.portfolio_value||0),cost=Number(sum.portfolio_cost||0),unreal=Number(sum.unrealized_pnl??(value-cost)),real=Number(sum.realized_pnl||0),divi=Number(sum.dividend_income||0),projectReturn=Number(sum.project_return||0),globalReturn=Number(sum.global_return||0);
   const cycle=Number(state.company?.world?.cycle_no||0),nextYield=6-(cycle%6||0),nextGlobal=4-(cycle%4||0);
-  return `<section class="investment-return-panel"><div class="company-section-head"><div><small>CASH REALIZATION</small><h2>확정 투자수익·현금유입</h2></div><span>경쟁사 지분·법인 주식의 매각이익·배당·해외사업 현금유입을 보여줍니다. 프로젝트 항목은 V6.2 이전에 시작된 구형 계약의 잔여 회수분만 표시될 수 있습니다.</span></div><div class="return-schedule"><span><b>배당·금융수익</b> 약 ${nextYield||6}주기 뒤 정산</span><span><b>해외사업 현금</b> 약 ${nextGlobal||4}주기 뒤 정산</span><span>서버는 회사별 요청이 아니라 <b>시장 전체를 한 번에 배치 정산</b>합니다.</span></div><div class="return-kpis"><article><small>전체 투자 평가액</small><b>${compactMoney(value)}원</b><span>투자원가 ${compactMoney(cost)}원</span></article><article><small>평가손익</small><b class="${unreal>=0?'up':'down'}">${unreal>=0?'+':''}${compactMoney(unreal)}원</b><span>아직 매도 전 손익</span></article><article><small>확정 매매손익</small><b class="${real>=0?'up':'down'}">${real>=0?'+':''}${compactMoney(real)}원</b><span>매도 결과가 법인현금에 반영</span></article><article><small>누적 현금유입</small><b class="up">${compactMoney(divi+projectReturn+globalReturn)}원</b><span>배당 ${compactMoney(divi)} · 프로젝트 ${compactMoney(projectReturn)} · 해외 ${compactMoney(globalReturn)}</span></article></div><div class="income-feed">${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||x.source_code||'투자')}</b><small>${escapeHtml(x.income_label||x.income_type||'현금수익')} · 주기 #${Number(x.cycle_no)||0}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong><em>${escapeHtml(x.note||'법인현금 반영')}</em></article>`).join(''):`<div class="empty compact">아직 확정된 투자 현금수익이 없습니다. 배당·해외사업·지분 매각과 V6.2 이전 구형 프로젝트의 잔여 성과금이 발생하면 이곳에 실제 입금 내역이 쌓입니다.</div>`}</div></section>`;
+  return `<section class="investment-return-panel"><div class="company-section-head"><div><small>CASH REALIZATION</small><h2>확정 투자수익·현금유입</h2></div><span>경쟁사 지분·법인 주식의 매각이익·배당·해외사업 현금유입을 보여줍니다. 프로젝트 항목은 이전 계약의 잔여 회수분만 표시될 수 있습니다.</span></div><div class="return-schedule"><span><b>배당·금융수익</b> 약 ${nextYield||6}주기 뒤 정산</span><span><b>해외사업 현금</b> 약 ${nextGlobal||4}주기 뒤 정산</span><span>서버는 회사별 요청이 아니라 <b>시장 전체를 한 번에 배치 정산</b>합니다.</span></div><div class="return-kpis"><article><small>전체 투자 평가액</small><b>${compactMoney(value)}원</b><span>투자원가 ${compactMoney(cost)}원</span></article><article><small>평가손익</small><b class="${unreal>=0?'up':'down'}">${unreal>=0?'+':''}${compactMoney(unreal)}원</b><span>아직 매도 전 손익</span></article><article><small>확정 매매손익</small><b class="${real>=0?'up':'down'}">${real>=0?'+':''}${compactMoney(real)}원</b><span>매도 결과가 법인현금에 반영</span></article><article><small>누적 현금유입</small><b class="up">${compactMoney(divi+projectReturn+globalReturn)}원</b><span>배당 ${compactMoney(divi)} · 프로젝트 ${compactMoney(projectReturn)} · 해외 ${compactMoney(globalReturn)}</span></article></div><div class="income-feed">${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||x.source_code||'투자')}</b><small>${escapeHtml(x.income_label||x.income_type||'현금수익')} · 주기 #${Number(x.cycle_no)||0}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong><em>${escapeHtml(x.note||'법인현금 반영')}</em></article>`).join(''):`<div class="empty compact">아직 확정된 투자 현금수익이 없습니다. 배당·해외사업·지분 매각과 이전 프로젝트의 잔여 성과금이 발생하면 이곳에 실제 입금 내역이 쌓입니다.</div>`}</div></section>`;
 }
 
 function talentGradeRank(g){return ({'거장':8,'마스터':7,'천재':6,'핵심인재':5,'수재':4,'전문가':3,'경력직':2,'신입':1})[g]||1}
@@ -2516,7 +2518,7 @@ function renderEmployeeQuickRoster(my){
 
 
 function renderTalentMarket(my){
-  if(!state.company?.talent_available)return `<section class="talent-market unavailable"><div class="company-section-head mini"><div><h3>핵심인재 시스템</h3></div><span>${escapeHtml(state.company?.talent_error||'V6.4 SQL을 적용해 주세요.')}</span></div></section>`;
+  if(!state.company?.talent_available)return `<section class="talent-market unavailable"><div class="company-section-head mini"><div><h3>핵심인재 시스템</h3></div><span>${escapeHtml(state.company?.talent_error||'현재 인재시장 데이터를 불러올 수 없습니다.')}</span></div></section>`;
   const data=state.company||{},candidates=data.recruit_pool||[],talents=data.talents||[],targets=data.poach_targets||[],offers=data.talent_offers||[],sum=data.talent_summary||{},hired=Number(data.talent_hired_today||0),limit=Number(data.talent_daily_limit||5),day=Math.max(1,Number(data.talent_day||1)||1),summary=companyAutomationSummary(data),desk=loadCompanyTalentDeskMeta(data);
   return `<section class="talent-market talent-v640">
     <div class="talent-command-head"><div><small>PEOPLE & TALENT · DAY ${day}</small><h2>핵심인재실</h2><span>회사 가치와 보상 수준이 높을수록 더 뛰어난 지원자가 들어옵니다. 최상위 인재는 실제 빅테크 수준처럼 매우 높은 월급·사인보너스를 요구할 수 있습니다.</span></div><div><b>${talents.length}명</b><span>오늘 채용 ${hired}/${limit}</span></div></div>
@@ -2747,7 +2749,7 @@ function renderCompanyCommand(my){
   const advanced=[['PRICE_WAR','가격 경쟁','즉시','점유율을 빠르게 확보하지만 이익·브랜드가 흔들릴 수 있습니다.'],['COSTCUT','구조조정','즉시','현금을 확보하지만 직원 사기와 평판이 떨어질 수 있습니다.'],['DIVIDEND','주주 배당','즉시','현금을 주주에게 돌려 투자자 신뢰를 높입니다.'],['COMPLIANCE','준법·감사 프로젝트','3주기','규제·세무 위험을 낮추는 방어 프로젝트입니다.'],['LOAN','기업 대출','즉시','현금을 확보하는 대신 부채와 신용 부담이 생깁니다.'],['REPAY','부채 상환','즉시','부채를 줄여 신용과 재무 안정성을 높입니다.']];
   const cash=Number(my.cash||0),safeLow=cash*.03,safeHigh=cash*.10;
   return `<section class="corp-section ceo-command-section management-v54">
-    <div class="company-section-head"><div><small>CEO STRATEGY</small><h2>이번에는 ‘프로젝트’를 시작합니다</h2></div><span>현재 진행·구형 회수 ${active}개 · 핵심 프로젝트는 최대 4개까지 동시에 운영할 수 있습니다.</span></div>
+    <div class="company-section-head"><div><small>CEO STRATEGY</small><h2>이번에는 ‘프로젝트’를 시작합니다</h2></div><span>현재 진행·잔여 회수 ${active}개 · 핵심 프로젝트는 최대 4개까지 동시에 운영할 수 있습니다.</span></div>
     ${renderManagementProjectBoard(my)}
     <div class="project-launch-box"><div><b>신규 프로젝트 예산</b><span>프로젝트 사업비는 즉시 지출됩니다. 완료 후 현금을 직접 지급하지 않고 기술·품질·생산·인력·수요 같은 회사 역량을 바꿔 제품 매출과 원가에 간접 반영됩니다. 시작 전 <b>착수 검토</b>에서 실행계획을 결정합니다.${gm==='BEGINNER'?` 처음에는 법인현금의 약 3~10% 범위가 결과를 배우기 좋습니다.`:''}</span>${gm!=='REALISTIC'?`<div class="budget-presets"><button data-budget-preset="0.03">현금 3%</button><button data-budget-preset="0.05">5%</button><button data-budget-preset="0.10">10%</button><button data-budget-preset="0.15">15%</button></div>`:''}</div><div class="project-launch-side">${companyMoneyInput('companyActionAmount','집행금액',cash?formatKrwSmart(Math.max(10000000,Math.min(cash*.05,100000000))):'1억')} ${gm==='BEGINNER'?`<small class="budget-safe-note">현재 참고 범위 ${formatKrwSmart(safeLow)} ~ ${formatKrwSmart(safeHigh)}</small>`:''}${renderCompanyKickoffSummary()}</div></div>
     <div class="project-launch-grid">${core.map(k=>{const m=managementProjectMeta(k),im=companyImpactMeta(k),b=companyBudgetGuide(my,k);return `<button data-company-action="${k}" class="project-launch"><div><small>${m[1]} · 위험 ${m[2]}</small><b>${m[0]}</b></div><p>${m[3]}</p>${gm!=='REALISTIC'?`<div class="impact-tags"><i>${im[0]}</i><i>${im[1]}</i><i>${im[2]}</i></div>${gm==='BEGINNER'?`<small class="action-budget-hint">참고 예산 ${formatKrwSmart(b.low)}~${formatKrwSmart(b.high)}</small>`:''}`:''}<span>${m[4]} · 착수 검토 →</span></button>`}).join('')}</div>
@@ -2967,40 +2969,7 @@ function renderCompanyModeBanner(){
 }
 function renderCompanyOnlineRequired(){
   const err=escapeHtml(state.companyError||'온라인 회사 서버에 연결할 수 없습니다.');
-  return `<main class="page-view company-page"><section class="panel page-panel company-shell connection-repair-shell">
-    <div class="connection-repair-card">
-      <div class="connection-repair-icon">!</div>
-      <div class="connection-repair-copy"><small>ONLINE COMPANY SERVER</small><h1>회사 서버 연결을 복구해 주세요</h1><p>${err}</p></div>
-      <button data-company-retry class="company-primary">연결 다시 확인</button>
-    </div>
-    <div class="repair-steps"><article><b>1</b><span><strong>DB 설치 순서 확인</strong><small>기본 회사 API가 이미 있다면 <code>RUN_THIS_IN_SUPABASE_V6.2.sql</code>만 실행합니다. 기본 API도 없다면 V6.1.2 기본 SQL부터 적용합니다.</small></span></article><article><b>2</b><span><strong>페이지 새로고침 없이 확인</strong><small>위의 ‘연결 다시 확인’을 누르면 통합 온라인 API를 바로 다시 검사합니다.</small></span></article><article><b>3</b><span><strong>온라인 모드만 사용</strong><small>로컬 BOT 모드로 전환하지 않으며 모든 회사 데이터는 서버에 저장됩니다.</small></span></article></div>
-    <div class="repair-detail"><b>현재 오류</b><code>${err}</code><span>V6.2 SQL은 제품·공급망·관리회계·인수실사 확장용이며 기존 회사·유저·주식·은행 데이터는 삭제하지 않습니다.</span></div>
-  </section></main>`;
-}
-
-function renderCompanySubnav(){
-  const section=state.companySection||'dashboard';
-  const threat=companyStakeAgainstMe();
-  const offers=(state.company?.talent_offers||[]).length;
-  const items=[
-    ['dashboard','경영 홈','핵심 지표와 우선순위',null],
-    ['operations','사업 운영','제품·프로젝트·재무',null],
-    ['people','인사·조직','인재 영입과 급여',offers?`${offers}`:null],
-    ['competition','기업 경쟁·M&A','기업 분석과 지분 방어',threat>=15?`${threat.toFixed(0)}%`:null],
-    ['risk','뉴스·리스크','기사, 세금, 준법',null]
-  ];
-  return `<nav class="company-section-switcher compact-switcher user-friendly-switcher">${items.map(([k,title,desc,badge])=>`<button type="button" data-company-section="${k}" class="${section===k?'on':''}"><b>${title}</b><small>${desc}</small>${badge?`<span class="section-badge">${badge}</span>`:''}</button>`).join('')}</nav>`;
-}
-
-function renderCeoPulse(my){
-  const runway=companyCashRunway(my),margin=companyProfitMargin(my),morale=Number(my?.employee_morale||60),threat=companyStakeAgainstMe();
-  const pulse=[
-    ['현금 버팀',runway.months>=99?'99+개월':`${runway.months.toFixed(1)}개월`,runway.months<3?'danger':runway.months<6?'warn':'safe'],
-    ['영업이익률',`${margin.toFixed(1)}%`,margin<0?'danger':margin<7?'warn':'safe'],
-    ['직원 분위기',`${morale.toFixed(0)}점`,morale<45?'danger':morale<60?'warn':'safe'],
-    ['경영권 위험',`${threat.toFixed(1)}%`,threat>=35?'danger':threat>=15?'warn':'safe']
-  ];
-  return `<section class="ceo-pulse"><div class="ceo-pulse-head"><small>CEO PULSE</small><b>오늘 회사 상태</b></div><div class="ceo-pulse-grid">${pulse.map(x=>`<article class="${x[2]}"><span>${x[0]}</span><b>${x[1]}</b></article>`).join('')}</div></section>`;
+  return `<main class="page-view company-page"><section class="panel page-panel company-shell connection-repair-shell commercial-recovery"><div class="connection-repair-card"><div class="connection-repair-icon">!</div><div class="connection-repair-copy"><small>ONLINE COMPANY SERVER</small><h1>회사 데이터를 불러오지 못했습니다</h1><p>${err}</p></div><button data-company-retry class="company-primary">연결 다시 확인</button></div><div class="recovery-status-row"><span><b>계정</b> 로그인 상태 유지</span><span><b>저장</b> 서버 데이터 기준</span><span><b>복구</b> 연결 후 자동 갱신</span></div></section></main>`;
 }
 function renderExecutiveAgenda(my){
   const issues=[];
@@ -3049,7 +3018,7 @@ function renderDashboardProgress(my){
   const paybackCount=allProjects.filter(p=>String(p.status)==='PAYBACK').length;
   const realized=incomes.reduce((sum,x)=>sum+Number(x.amount||0),0);
   const totalReturn=projects.reduce((sum,p)=>sum+Number(p.realized_return||0),0);
-  return `<section class="dashboard-progress refined-progress-panel"><div class="company-section-head"><div><small>WHAT IS HAPPENING NOW</small><h2>내 결정이 지금 어떻게 진행되고 있나</h2></div><button data-company-section-jump="operations" class="section-link">사업 운영 전체 보기</button></div><div class="dashboard-progress-summary"><article><small>실행 중 프로젝트</small><b>${activeCount}개</b><span>현재 돈을 쓰며 진행 중인 과제</span></article><article><small>성과 현금 발생</small><b>${paybackCount}개</b><span>V6.2 이전 프로젝트의 잔여 성과금 회수</span></article><article><small>최근 확정 수익</small><b class="${realized>=0?'up':'down'}">${realized>=0?'+':''}${compactMoney(realized)}원</b><span>최근 기록된 법인현금 유입 합계</span></article><article><small>구형 프로젝트 현금</small><b>${compactMoney(totalReturn)}원</b><span>V6.2 이전 계약의 누적 현금유입</span></article></div><div class="dashboard-progress-grid"><div class="dashboard-projects"><h3>진행 중 프로젝트</h3>${projects.length?projects.map(p=>{const d=Math.max(1,Number(p.duration_cycles)||1),n=Math.min(d,Number(p.progress_cycles)||0),pc=p.status==='PAYBACK'?100:Math.round(n/d*100);return `<article><span><b>${escapeHtml(p.title||p.project_type)}</b><small>${projectStatusLabel(p)} · ${p.status==='PAYBACK'?`회수 ${Number(p.payout_cycles_remaining||0)}회 남음`:`${n}/${d}주기 진행`}</small></span><div><i style="width:${pc}%"></i></div><strong>${compactMoney(p.realized_return||0)}원 성과현금</strong></article>`}).join(''):`<div class="empty compact">진행 중 프로젝트가 없습니다.</div>`}</div><div class="dashboard-income"><h3>최근 법인현금 유입</h3>${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||'투자수익')}</b><small>${escapeHtml(x.income_label||x.income_type)}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong></article>`).join(''):`<div class="empty compact">아직 확정된 투자 수익이 없습니다.</div>`}</div></div></section>`;
+  return `<section class="dashboard-progress refined-progress-panel"><div class="company-section-head"><div><small>WHAT IS HAPPENING NOW</small><h2>내 결정이 지금 어떻게 진행되고 있나</h2></div><button data-company-section-jump="operations" class="section-link">사업 운영 전체 보기</button></div><div class="dashboard-progress-summary"><article><small>실행 중 프로젝트</small><b>${activeCount}개</b><span>현재 돈을 쓰며 진행 중인 과제</span></article><article><small>성과 현금 발생</small><b>${paybackCount}개</b><span>이전 프로젝트의 잔여 성과금 회수</span></article><article><small>최근 확정 수익</small><b class="${realized>=0?'up':'down'}">${realized>=0?'+':''}${compactMoney(realized)}원</b><span>최근 기록된 법인현금 유입 합계</span></article><article><small>기존 계약 현금유입</small><b>${compactMoney(totalReturn)}원</b><span>이전 계약의 누적 현금유입</span></article></div><div class="dashboard-progress-grid"><div class="dashboard-projects"><h3>진행 중 프로젝트</h3>${projects.length?projects.map(p=>{const d=Math.max(1,Number(p.duration_cycles)||1),n=Math.min(d,Number(p.progress_cycles)||0),pc=p.status==='PAYBACK'?100:Math.round(n/d*100);return `<article><span><b>${escapeHtml(p.title||p.project_type)}</b><small>${projectStatusLabel(p)} · ${p.status==='PAYBACK'?`회수 ${Number(p.payout_cycles_remaining||0)}회 남음`:`${n}/${d}주기 진행`}</small></span><div><i style="width:${pc}%"></i></div><strong>${compactMoney(p.realized_return||0)}원 성과현금</strong></article>`}).join(''):`<div class="empty compact">진행 중 프로젝트가 없습니다.</div>`}</div><div class="dashboard-income"><h3>최근 법인현금 유입</h3>${incomes.length?incomes.map(x=>`<article><span><b>${escapeHtml(x.source_name||'투자수익')}</b><small>${escapeHtml(x.income_label||x.income_type)}</small></span><strong class="${Number(x.amount)>=0?'up':'down'}">${Number(x.amount)>=0?'+':''}${compactMoney(x.amount)}원</strong></article>`).join(''):`<div class="empty compact">아직 확정된 투자 수익이 없습니다.</div>`}</div></div></section>`;
 }
 function renderOperationsWorkspace(my){
   const tab=state.companyOpsTab||'products';
@@ -3277,19 +3246,6 @@ function renderCompanyWorkspace(my){
   if(tab==='performance')return `${renderCompanyWorkspaceTabs(section)}${renderCompanyRealityHealth(my)}${renderRealOperatingBrief(my)}${renderCompanyGrowthPanel(my)}`;
   if(tab==='progress')return `${renderCompanyWorkspaceTabs(section)}${renderDashboardProgress(my)}${renderCompanyLatestNews(my)}`;
   return `${renderCompanyWorkspaceTabs(section)}${renderCeoPulse(my)}${renderDashboardTakeoverAlert(my)}${renderExecutiveAgenda(my)}${renderCompanyModuleMap(my)}`;
-}
-
-function renderCompanySubnav(my){
-  const section=state.companySection||'dashboard';
-  const threat=companyStakeAgainstMe(),offers=(state.company?.talent_offers||[]).length;
-  const items=[
-    ['dashboard','경영 홈','핵심 현황',null],
-    ['operations','사업 운영','제품·재무',null],
-    ['people','인사·조직','직원·인재',offers?`${offers}`:null],
-    ['competition','기업 경쟁·M&A','분석·지분',threat>=15?`${threat.toFixed(0)}%`:null],
-    ['risk','뉴스·리스크','뉴스·세금',null]
-  ];
-  return `<nav class="company-section-switcher compact-switcher user-friendly-switcher">${items.map(([k,title,desc,badge])=>`<button type="button" data-company-section="${k}" class="${section===k?'on':''}"><b>${title}</b><small>${desc}</small>${badge?`<span class="section-badge">${badge}</span>`:''}</button>`).join('')}</nav>`;
 }
 
 function renderCompanyCompactContext(my,myRank,companies){
@@ -3609,12 +3565,17 @@ function drawCompanyTargetChart(){
   ctx.fillStyle='#7b899c';ctx.textAlign='center';const marks=[0,Math.floor((rows.length-1)/2),rows.length-1];marks.forEach((i,idx)=>{const r=rows[i];if(r)ctx.fillText(idx===2?'현재':idx===0?`T-${rows.length-1}`:`T-${rows.length-1-i}`,x(i),H-10)});
   const first=rows[0]._c,chg=first?((last._c-first)/first)*100:0;ctx.textAlign='left';ctx.fillStyle=chg>=0?'#e66b70':'#668de8';ctx.font='bold 12px sans-serif';ctx.fillText(`구간 ${chg>=0?'+':''}${chg.toFixed(2)}%`,L,T+12);
 }
+function renderMarketDataUnavailable(){
+  return `<main class="page-view"><section class="panel page-panel market-recovery"><small>MARKET DATA</small><h1>시장 데이터를 불러오는 중입니다</h1><p>회사 경영 화면은 유지되며, 주식시장 데이터는 연결이 복구되는 즉시 다시 표시됩니다.</p><button type="button" data-runtime-retry>시장 데이터 다시 불러오기</button></section></main>`;
+}
 function renderTerminal(preserve=false){
-  const uiCtx=preserve?captureUiState():null;
-  rememberCompanyDraft();
-  const s=selected();if(!s)return;
-  const ch=changeOf(s);
+  const uiCtx=preserve?captureUiState():null;rememberCompanyDraft();
+  const s=selected()||state.stocks[0]||null;const ch=s?changeOf(s):0;
+  const stockRequired=state.tab==='market';
   const content=state.tab==='company'?renderCompanyRoom()
+    :state.tab==='community'?renderCommunityRoom()
+    :state.tab==='ranking'?renderRanking()
+    :stockRequired&&!s?renderMarketDataUnavailable()
     :state.tab==='market'?renderMarket(s,ch)
     :state.tab==='portfolio'?renderPortfolio()
     :state.tab==='orders'?renderOrders()
@@ -3622,38 +3583,10 @@ function renderTerminal(preserve=false){
     :state.tab==='strategy'?renderStrategyRoom()
     :state.tab==='learn'?renderInvestmentGuide()
     :state.tab==='bank'?renderBank()
-    :state.tab==='community'?renderCommunityRoom()
     :renderRanking();
-  const my=state.company?.my_company;
-  const legalCash=my?formatKrwSmart(my.cash):'설립 전';
-  const companyValue=my?formatKrwSmart(my.valuation):'설립 전';
-
-  app.innerHTML=`<div class="terminal management-first-terminal">
-    <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 7.0'}</span></div>
-      ${topNav()}
-      <div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div>
-      <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
-<button class="tutorial-btn" id="tutorialBtn">튜토리얼</button><button class="logout" id="logout">로그아웃</button>
-    </header>
-    <div class="mobile-account-bar"><span>법인 현금 <b>${legalCash}</b></span><span>회사 가치 <b>${companyValue}</b></span></div>
-    ${content}
-    ${state.tab==='company'?renderCompanyKickoffModal():''}
-    <div class="management-mobile-nav-shell" data-nav-shell="mobile"><button type="button" class="nav-scroll-arrow prev" data-nav-scroll="-1" aria-label="이전 메뉴">‹</button><nav id="managementMobileNav" data-management-nav-track class="mobile-nav management-mobile-nav">
-      <button data-main-tab="company" data-company-section-nav="dashboard" class="${state.tab==='company'&&state.companySection==='dashboard'?'on':''}">경영홈</button>
-      <button data-main-tab="company" data-company-section-nav="operations" class="${state.tab==='company'&&state.companySection==='operations'?'on':''}">사업운영</button>
-      <button data-main-tab="company" data-company-section-nav="people" class="${state.tab==='company'&&state.companySection==='people'?'on':''}">인사·조직</button>
-      <button data-main-tab="company" data-company-section-nav="competition" class="${state.tab==='company'&&state.companySection==='competition'?'on':''}">경쟁·M&A</button>
-      <button data-main-tab="company" data-company-section-nav="risk" class="${state.tab==='company'&&state.companySection==='risk'?'on':''}">뉴스·리스크</button>
-      <button data-main-tab="ranking" class="${state.tab==='ranking'?'on':''}">기업순위</button>
-      <button data-main-tab="community" class="${state.tab==='community'?'on':''}">CEO라운지</button>
-    </nav><button type="button" class="nav-scroll-arrow next" data-nav-scroll="1" aria-label="다음 메뉴">›</button></div>
-  </div>`;
-  bind();
-  if(state.tab==='market')drawChart();
-  if(state.tab==='company'){requestAnimationFrame(()=>{drawCompanyGrowthChart();drawCompanyTargetChart();});}
-  scheduleCompanyVisualTicker();
-  if(preserve)restoreUiState(uiCtx);
+  const my=state.company?.my_company;const legalCash=my?formatKrwSmart(my.cash):'설립 전';const companyValue=my?formatKrwSmart(my.valuation):'설립 전';
+  app.innerHTML=`<div class="terminal management-first-terminal commercial-terminal"><header class="top management-topbar commercial-topbar"><div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'연결 확인':'ONLINE · LIVE'}</span></div>${topNav()}<div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div><div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div><button class="tutorial-btn" id="tutorialBtn">도움말</button><button class="settings-btn" id="settingsBtn">설정</button><button class="logout" id="logout">로그아웃</button></header><div class="mobile-account-bar"><span>법인 현금 <b>${legalCash}</b></span><span>회사 가치 <b>${companyValue}</b></span></div>${content}${state.tab==='company'?renderCompanyKickoffModal():''}<div class="management-mobile-nav-shell" data-nav-shell="mobile"><button type="button" class="nav-scroll-arrow prev" data-nav-scroll="-1" aria-label="이전 메뉴">‹</button><nav id="managementMobileNav" data-management-nav-track class="mobile-nav management-mobile-nav"><button data-main-tab="company" data-company-section-nav="dashboard" class="${state.tab==='company'&&state.companySection==='dashboard'?'on':''}">경영홈</button><button data-main-tab="company" data-company-section-nav="operations" class="${state.tab==='company'&&state.companySection==='operations'?'on':''}">사업운영</button><button data-main-tab="company" data-company-section-nav="people" class="${state.tab==='company'&&state.companySection==='people'?'on':''}">인사·조직</button><button data-main-tab="company" data-company-section-nav="competition" class="${state.tab==='company'&&state.companySection==='competition'?'on':''}">경쟁·M&A</button><button data-main-tab="company" data-company-section-nav="risk" class="${state.tab==='company'&&state.companySection==='risk'?'on':''}">뉴스·리스크</button><button data-main-tab="ranking" class="${state.tab==='ranking'?'on':''}">기업순위</button><button data-main-tab="community" class="${state.tab==='community'?'on':''}">CEO라운지</button></nav><button type="button" class="nav-scroll-arrow next" data-nav-scroll="1" aria-label="다음 메뉴">›</button></div></div>`;
+  applyKxPrefs();bind();if(state.tab==='market'&&s)drawChart();if(state.tab==='company'){requestAnimationFrame(()=>{drawCompanyGrowthChart();drawCompanyTargetChart()})}scheduleCompanyVisualTicker();if(preserve)restoreUiState(uiCtx);
 }
 
 function rememberOrderInputs(){
@@ -3717,8 +3650,10 @@ async function executePendingOrder(){
 }
 
 function bind(){
-  document.getElementById('logout').onclick=logout;
+  const logoutBtn=document.getElementById('logout');if(logoutBtn)logoutBtn.onclick=logout;
   const tb=document.getElementById('tutorialBtn');if(tb)tb.onclick=()=>openTutorial(0);
+  const sb=document.getElementById('settingsBtn');if(sb)sb.onclick=openSettingsPanel;
+  document.querySelectorAll('[data-runtime-retry]').forEach(b=>b.onclick=async()=>{b.disabled=true;b.textContent='불러오는 중…';try{await sync(false,true,true);renderTerminal(true);showAppToast('시장 데이터를 다시 불러왔습니다.','success')}catch(err){b.disabled=false;b.textContent='시장 데이터 다시 불러오기';showAppToast(runtimeErrorText(err),'error')}});
   bindCompanyMoneyInputs();
   bindManagementNavScroller();
 
@@ -4214,11 +4149,11 @@ AI 자동 캠페인 최대 한도: ${formatKrwSmart(cap)}
 
   document.querySelectorAll('[data-company-retry]').forEach(b=>b.onclick=async()=>{
     b.disabled=true;b.textContent='온라인 연결 확인 중…';
-    state.companyRpcMode='AUTO';companyApiReady=false;
+    state.companyRpcMode='AUTO';companyApiReady=false;realismRpcCapability=null;talentRpcCapability=null;communityRpcCapability=null;
     await loadCompanyLayer(false,true);
     state.companyNotice=state.companyAvailable
       ?'온라인 회사 경영 서버가 연결되었습니다. BOT과 다른 유저 회사가 같은 시장에서 경쟁합니다.'
-      :'온라인 연결에 실패했습니다. 기본 kx_company_api_v1 설치 여부와 V6.2 SQL 실행 결과를 함께 확인해 주세요.';
+      :'온라인 연결에 실패했습니다. 잠시 후 다시 확인해 주세요.';
     renderTerminal();
   });
 
@@ -4341,11 +4276,12 @@ function drawChart(){
 }
 
 document.addEventListener('input',markUiInteraction,true);
-document.addEventListener('keydown',markUiInteraction,true);
+document.addEventListener('keydown',e=>{markUiInteraction();if(e.key==='Escape'&&settingsPanelOpen)closeSettingsPanel()},true);
 document.addEventListener('pointerdown',markUiInteraction,true);
 addEventListener('scroll',markUiInteraction,true);
 
 async function start(){
+  installRuntimeGuards();applyKxPrefs();
   localStorage.removeItem(LOCAL_COMPANY_KEY);
   state.companyMode='REMOTE';
   app.innerHTML='<div class="boot"><div class="kxlogo">KX</div><b>KX CORPORATE</b><span>온라인 기업시장·경영 데이터에 연결하는 중…</span></div>';
@@ -4366,6 +4302,7 @@ async function start(){
   addEventListener('resize',()=>{if(document.getElementById('chart'))drawChart();if(document.getElementById('companyGrowthChart'))drawCompanyGrowthChart();if(document.getElementById('companyTargetChart'))drawCompanyTargetChart();});
 }
 async function boot(){
+  installRuntimeGuards();applyKxPrefs();
   if(!C.supabaseUrl||!C.supabaseAnonKey)return renderDiag();
   try{session=JSON.parse(localStorage.getItem(LS)||'null')}catch{}
   if(session&&await validate())return start();
