@@ -29,6 +29,7 @@ const hash = crypto.createHash('sha256')
   .slice(0, 12);
 
 const configSource = `window.__KX_CONFIG__=${JSON.stringify({ ...env, buildId: hash })};\n`;
+const versionSource = JSON.stringify({ release: '8.0.0-COMMERCIAL-RC', buildId: hash, generatedAt: new Date().toISOString() }, null, 2) + '\n';
 const sourceIndex = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
 const renderedIndex = sourceIndex
   .replace(/__KX_ASSET_VERSION__/g, hash)
@@ -50,6 +51,7 @@ function writeDeployFiles(dest, copyAssets) {
   }
   fs.writeFileSync(path.join(dest, 'index.html'), renderedIndex);
   fs.writeFileSync(path.join(dest, 'config.js'), configSource);
+  fs.writeFileSync(path.join(dest, 'version.json'), versionSource);
   fs.writeFileSync(path.join(dest, '404.html'), renderedIndex);
   fs.writeFileSync(path.join(dest, '_redirects'), '/* /index.html 200\n');
   fs.writeFileSync(path.join(dest, 'kx-health.txt'), `KX_EXCHANGE_OK ${hash}\n`);
@@ -72,6 +74,7 @@ for (const name of ['app.js', 'styles.css']) {
 }
 fs.writeFileSync(path.join(root, 'index.html'), renderedIndex);
 fs.writeFileSync(path.join(root, 'config.js'), configSource);
+fs.writeFileSync(path.join(root, 'version.json'), versionSource);
 fs.writeFileSync(path.join(root, '404.html'), renderedIndex);
 fs.writeFileSync(path.join(root, '_redirects'), '/* /index.html 200\n');
 fs.writeFileSync(path.join(root, 'kx-health.txt'), `KX_EXCHANGE_OK ${hash}\n`);
