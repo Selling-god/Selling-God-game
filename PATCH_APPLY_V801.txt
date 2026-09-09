@@ -1,0 +1,37 @@
+KX CORPORATE V8.0.1 COMMERCIAL RC1 - STARTUP HOTFIX
+
+[적용]
+이 ZIP의 파일을 프로젝트의 같은 경로에 덮어씁니다.
+GitHub에 커밋/푸시하면 Render의 `npm run build`가 out 배포본을 새로 생성합니다.
+추가 Supabase SQL 실행은 필요 없습니다.
+
+[수정 사항]
+1. 경영 홈 로딩 정지 수정
+   - renderCeoPulse 함수 누락 복구
+   - ReferenceError: renderCeoPulse is not defined 해결
+
+2. 같은 오류 재발 방지
+   - release-check가 renderXXX() 호출 중 정의되지 않은 함수가 하나라도 있으면 빌드를 실패 처리
+   - npm run release에서 배포 전 자동 검출
+
+3. 화면 복구 안전장치
+   - 특정 화면 렌더러 하나가 실패해도 부팅 화면에 무한 정지하지 않음
+   - 복구 화면과 다시 불러오기 버튼 표시
+
+4. favicon.ico 404 정리
+   - index에 inline KX favicon 추가
+
+5. 채용 일일 한도 새로고침 보정
+   - 서버의 순간적인 hired_today 값이 낮아져도 같은 DAY의 브라우저 기록과 비교하여 더 큰 값을 유지
+   - 성공한 채용 횟수를 회사/경영 DAY 기준으로 localStorage에도 기록
+   - 새로고침으로 화면상 채용 한도가 0으로 돌아가는 문제 방지
+
+6. 기존 직원 연수 기록 유지
+   - 직원별 마지막 연수 DAY 기록은 기존 localStorage ledger를 계속 사용
+
+[검증]
+- npm run release PASS
+- JavaScript syntax PASS
+- undefined render function reference 검사 PASS
+- root/public/out/dist/build/site 동기화 PASS
+- buildId: 3742f246555c

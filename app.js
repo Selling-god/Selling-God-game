@@ -1,5 +1,5 @@
 (()=>{
-const KX_COMPANY_BUILD='8.0.0-COMMERCIAL-RC';
+const KX_COMPANY_BUILD='8.0.1-COMMERCIAL-RC1';
 window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
@@ -1678,7 +1678,7 @@ async function loadCompanyLayer(runSync=false,force=false){
     if(talentRpcCapability!==false){
       try{
         const talent=await companyTalentApi('SNAPSHOT',{});talentRpcCapability=true;
-        if(talent?.ok){state.company.recruit_pool=shapeRecruitPoolByEmployer(Array.isArray(talent.candidates)?talent.candidates:[],state.company.my_company,Number(talent.day_no||1));state.company.talents=Array.isArray(talent.my_talents)?talent.my_talents:[];state.company.poach_targets=shapePoachTargetCompensation(Array.isArray(talent.poach_targets)?talent.poach_targets:[]);state.company.talent_offers=Array.isArray(talent.inbound_offers)?talent.inbound_offers:[];state.company.talent_summary=talent.summary||{};state.company.talent_day=Number(talent.day_no||1);state.company.talent_hired_today=Number(talent.hired_today||0);state.company.talent_daily_limit=Number(talent.daily_limit||5);state.company.talent_available=true;state.company.talent_error='';applyLocalPoachState(state.company);applyLocalHireProfiles(state.company);applyLocalTalentTrainingState(state.company)}
+        if(talent?.ok){state.company.recruit_pool=shapeRecruitPoolByEmployer(Array.isArray(talent.candidates)?talent.candidates:[],state.company.my_company,Number(talent.day_no||1));state.company.talents=Array.isArray(talent.my_talents)?talent.my_talents:[];state.company.poach_targets=shapePoachTargetCompensation(Array.isArray(talent.poach_targets)?talent.poach_targets:[]);state.company.talent_offers=Array.isArray(talent.inbound_offers)?talent.inbound_offers:[];state.company.talent_summary=talent.summary||{};state.company.talent_day=Number(talent.day_no||1);state.company.talent_hired_today=Number(talent.hired_today||0);state.company.talent_daily_limit=Number(talent.daily_limit||5);state.company.talent_available=true;state.company.talent_error='';applyLocalPoachState(state.company);applyLocalHireProfiles(state.company);applyLocalTalentTrainingState(state.company);syncLocalHireDayUsage(state.company)}
       }catch(talentErr){if(missingRpcError(talentErr))talentRpcCapability=false;state.company.talent_available=false;state.company.talent_error=missingRpcError(talentErr)?'인재·육성 기능을 현재 사용할 수 없습니다.':'인재시장 데이터를 불러오지 못했습니다: '+runtimeErrorText(talentErr)}
     }else{state.company.talent_available=false;state.company.talent_error='인재·육성 기능을 현재 사용할 수 없습니다.'}
 
@@ -2414,6 +2414,14 @@ function shapePoachTargetCompensation(pool=[]){
   return (pool||[]).map((t,idx)=>{const skill=Math.max(35,Number(t.skill_score||55));const fair=talentMarketMonthlySalary(skill);const current=Math.max(Number(t.monthly_salary||t.current_salary||0),Math.round(fair*.78/100000)*100000);return {...t,monthly_salary:current,current_salary:current,ask_salary:Math.max(Number(t.ask_salary||0),Math.round(current*1.18/100000)*100000),ask_bonus:Math.max(Number(t.ask_bonus||0),Math.round(current*(skill>=90?5:4)/100000)*100000)}});
 }
 
+const COMPANY_LOCAL_HIRE_DAY_PREFIX='kx_company_local_hire_day_v1';
+function companyLocalHireDayKey(companyId=(state.company?.my_company?.id||'guest')){return `${COMPANY_LOCAL_HIRE_DAY_PREFIX}_${companyId}`}
+function loadLocalHireDayUsage(companyId=(state.company?.my_company?.id||'guest')){try{const r=JSON.parse(localStorage.getItem(companyLocalHireDayKey(companyId))||'{}')||{};return {day:Math.max(0,Number(r.day)||0),count:Math.max(0,Number(r.count)||0)}}catch(_e){return {day:0,count:0}}}
+function saveLocalHireDayUsage(day,count,companyId=(state.company?.my_company?.id||'guest')){try{localStorage.setItem(companyLocalHireDayKey(companyId),JSON.stringify({day:Math.max(1,Number(day)||1),count:Math.max(0,Number(count)||0),updatedAt:Date.now()}))}catch(_e){}}
+function localHireCountForDay(data=state.company){const my=data?.my_company;if(!my)return 0;const day=Math.max(1,Number(data?.talent_day||liveCompanyClock().day||1)||1),r=loadLocalHireDayUsage(my.id||'guest');return r.day===day?r.count:0}
+function syncLocalHireDayUsage(data=state.company){const my=data?.my_company;if(!my)return data;const day=Math.max(1,Number(data?.talent_day||liveCompanyClock().day||1)||1),server=Math.max(0,Number(data?.talent_hired_today||0)||0),local=localHireCountForDay(data);data.talent_hired_today=Math.max(server,local);return data}
+function recordLocalHireForToday(data=state.company){const my=data?.my_company;if(!my)return;const day=Math.max(1,Number(data?.talent_day||liveCompanyClock().day||1)||1),server=Math.max(0,Number(data?.talent_hired_today||0)||0),local=localHireCountForDay(data);saveLocalHireDayUsage(day,Math.max(server,local)+1,my.id||'guest');data.talent_hired_today=Math.max(server,local)+1}
+
 const COMPANY_LOCAL_HIRE_PROFILE_PREFIX='kx_company_local_hire_profiles_v1';
 function companyLocalHireProfilesKey(companyId=(state.company?.my_company?.id||'guest')){return `${COMPANY_LOCAL_HIRE_PROFILE_PREFIX}_${companyId}`}
 function loadLocalHireProfiles(companyId=(state.company?.my_company?.id||'guest')){try{const a=JSON.parse(localStorage.getItem(companyLocalHireProfilesKey(companyId))||'[]');return Array.isArray(a)?a:[]}catch(_e){return []}}
@@ -2971,6 +2979,17 @@ function renderCompanyOnlineRequired(){
   const err=escapeHtml(state.companyError||'온라인 회사 서버에 연결할 수 없습니다.');
   return `<main class="page-view company-page"><section class="panel page-panel company-shell connection-repair-shell commercial-recovery"><div class="connection-repair-card"><div class="connection-repair-icon">!</div><div class="connection-repair-copy"><small>ONLINE COMPANY SERVER</small><h1>회사 데이터를 불러오지 못했습니다</h1><p>${err}</p></div><button data-company-retry class="company-primary">연결 다시 확인</button></div><div class="recovery-status-row"><span><b>계정</b> 로그인 상태 유지</span><span><b>저장</b> 서버 데이터 기준</span><span><b>복구</b> 연결 후 자동 갱신</span></div></section></main>`;
 }
+function renderCeoPulse(my){
+  const runway=companyCashRunway(my),margin=companyProfitMargin(my),morale=Number(my?.employee_morale||60),threat=companyStakeAgainstMe();
+  const pulse=[
+    ['현금 버팀',runway.months>=99?'99+개월':`${runway.months.toFixed(1)}개월`,runway.months<3?'danger':runway.months<6?'warn':'safe'],
+    ['영업이익률',`${margin.toFixed(1)}%`,margin<0?'danger':margin<7?'warn':'safe'],
+    ['직원 분위기',`${morale.toFixed(0)}점`,morale<45?'danger':morale<60?'warn':'safe'],
+    ['경영권 위험',`${threat.toFixed(1)}%`,threat>=35?'danger':threat>=15?'warn':'safe']
+  ];
+  return `<section class="ceo-pulse"><div class="ceo-pulse-head"><small>CEO PULSE</small><b>오늘 회사 상태</b></div><div class="ceo-pulse-grid">${pulse.map(x=>`<article class="${x[2]}"><span>${x[0]}</span><b>${x[1]}</b></article>`).join('')}</div></section>`;
+}
+
 function renderExecutiveAgenda(my){
   const issues=[];
   const openIncidents=state.company?.incidents||[];
@@ -3568,22 +3587,30 @@ function drawCompanyTargetChart(){
 function renderMarketDataUnavailable(){
   return `<main class="page-view"><section class="panel page-panel market-recovery"><small>MARKET DATA</small><h1>시장 데이터를 불러오는 중입니다</h1><p>회사 경영 화면은 유지되며, 주식시장 데이터는 연결이 복구되는 즉시 다시 표시됩니다.</p><button type="button" data-runtime-retry>시장 데이터 다시 불러오기</button></section></main>`;
 }
+function renderViewRecovery(err){
+  const msg=runtimeErrorText(err);
+  return `<main class="page-view"><section class="panel page-panel market-recovery view-recovery"><small>VIEW RECOVERY</small><h1>경영 화면을 복구할 수 있습니다</h1><p>${escapeHtml(msg)}</p><button type="button" data-runtime-retry>화면 다시 불러오기</button></section></main>`;
+}
+
 function renderTerminal(preserve=false){
   const uiCtx=preserve?captureUiState():null;rememberCompanyDraft();
   const s=selected()||state.stocks[0]||null;const ch=s?changeOf(s):0;
   const stockRequired=state.tab==='market';
-  const content=state.tab==='company'?renderCompanyRoom()
-    :state.tab==='community'?renderCommunityRoom()
-    :state.tab==='ranking'?renderRanking()
-    :stockRequired&&!s?renderMarketDataUnavailable()
-    :state.tab==='market'?renderMarket(s,ch)
-    :state.tab==='portfolio'?renderPortfolio()
-    :state.tab==='orders'?renderOrders()
-    :state.tab==='news'?renderNews()
-    :state.tab==='strategy'?renderStrategyRoom()
-    :state.tab==='learn'?renderInvestmentGuide()
-    :state.tab==='bank'?renderBank()
-    :renderRanking();
+  let content='';
+  try{
+    content=state.tab==='company'?renderCompanyRoom()
+      :state.tab==='community'?renderCommunityRoom()
+      :state.tab==='ranking'?renderRanking()
+      :stockRequired&&!s?renderMarketDataUnavailable()
+      :state.tab==='market'?renderMarket(s,ch)
+      :state.tab==='portfolio'?renderPortfolio()
+      :state.tab==='orders'?renderOrders()
+      :state.tab==='news'?renderNews()
+      :state.tab==='strategy'?renderStrategyRoom()
+      :state.tab==='learn'?renderInvestmentGuide()
+      :state.tab==='bank'?renderBank()
+      :renderRanking();
+  }catch(err){console.error('[KX view recovery]',err);content=renderViewRecovery(err);setTimeout(()=>showAppToast(`화면 구성 오류를 복구했습니다 · ${runtimeErrorText(err)}`,'error',5200),0)}
   const my=state.company?.my_company;const legalCash=my?formatKrwSmart(my.cash):'설립 전';const companyValue=my?formatKrwSmart(my.valuation):'설립 전';
   app.innerHTML=`<div class="terminal management-first-terminal commercial-terminal"><header class="top management-topbar commercial-topbar"><div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'연결 확인':'ONLINE · LIVE'}</span></div>${topNav()}<div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div><div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div><button class="tutorial-btn" id="tutorialBtn">도움말</button><button class="settings-btn" id="settingsBtn">설정</button><button class="logout" id="logout">로그아웃</button></header><div class="mobile-account-bar"><span>법인 현금 <b>${legalCash}</b></span><span>회사 가치 <b>${companyValue}</b></span></div>${content}${state.tab==='company'?renderCompanyKickoffModal():''}<div class="management-mobile-nav-shell" data-nav-shell="mobile"><button type="button" class="nav-scroll-arrow prev" data-nav-scroll="-1" aria-label="이전 메뉴">‹</button><nav id="managementMobileNav" data-management-nav-track class="mobile-nav management-mobile-nav"><button data-main-tab="company" data-company-section-nav="dashboard" class="${state.tab==='company'&&state.companySection==='dashboard'?'on':''}">경영홈</button><button data-main-tab="company" data-company-section-nav="operations" class="${state.tab==='company'&&state.companySection==='operations'?'on':''}">사업운영</button><button data-main-tab="company" data-company-section-nav="people" class="${state.tab==='company'&&state.companySection==='people'?'on':''}">인사·조직</button><button data-main-tab="company" data-company-section-nav="competition" class="${state.tab==='company'&&state.companySection==='competition'?'on':''}">경쟁·M&A</button><button data-main-tab="company" data-company-section-nav="risk" class="${state.tab==='company'&&state.companySection==='risk'?'on':''}">뉴스·리스크</button><button data-main-tab="ranking" class="${state.tab==='ranking'?'on':''}">기업순위</button><button data-main-tab="community" class="${state.tab==='community'?'on':''}">CEO라운지</button></nav><button type="button" class="nav-scroll-arrow next" data-nav-scroll="1" aria-label="다음 메뉴">›</button></div></div>`;
   applyKxPrefs();bind();if(state.tab==='market'&&s)drawChart();if(state.tab==='company'){requestAnimationFrame(()=>{drawCompanyGrowthChart();drawCompanyTargetChart()})}scheduleCompanyVisualTicker();if(preserve)restoreUiState(uiCtx);
@@ -4060,10 +4087,12 @@ AI 자동 캠페인 최대 한도: ${formatKrwSmart(cap)}
   document.querySelectorAll('[data-talent-jump]').forEach(b=>b.onclick=()=>{const el=document.getElementById(String(b.dataset.talentJump||''));if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('focus-pulse');setTimeout(()=>el.classList.remove('focus-pulse'),1200)}});
   document.querySelectorAll('[data-talent-hire]').forEach(b=>b.onclick=async()=>{
     const id=Number(b.dataset.talentHire||0),candidate=(state.company?.recruit_pool||[]).find(x=>Number(x.id)===id);if(!candidate)return;
+    syncLocalHireDayUsage(state.company);const hiredNow=Math.max(0,Number(state.company?.talent_hired_today||0)),dailyLimit=Math.max(1,Number(state.company?.talent_daily_limit||5));
+    if(hiredNow>=dailyLimit){state.companyNotice=`오늘 채용 한도 ${dailyLimit}명을 모두 사용했습니다. 다음 DAY에 다시 채용할 수 있습니다.`;alert(state.companyNotice);renderTerminal(true);return;}
     if(!confirm(`${candidate.grade} ${candidate.name}을 채용할까요?
 월급 ${formatKrwSmart(candidate.monthly_salary)} · 사인보너스 ${formatKrwSmart(candidate.signing_bonus)}
-오늘 채용 한도 ${state.company.talent_hired_today}/${state.company.talent_daily_limit}`))return;
-    try{b.disabled=true;const d=await companyTalentApi('HIRE_CANDIDATE',{p_candidate_id:id});if(!d?.ok)throw new Error(d?.message||'채용에 실패했습니다.');rememberLocalHireProfile(candidate,state.company?.my_company);state.companyNotice=d.message;playCompanySfx('success');await loadCompanyLayer(false,true);renderTerminal(true);}catch(err){state.companyNotice='채용 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
+오늘 채용 한도 ${hiredNow}/${dailyLimit}`))return;
+    try{b.disabled=true;const d=await companyTalentApi('HIRE_CANDIDATE',{p_candidate_id:id});if(!d?.ok)throw new Error(d?.message||'채용에 실패했습니다.');rememberLocalHireProfile(candidate,state.company?.my_company);recordLocalHireForToday(state.company);state.companyNotice=d.message;playCompanySfx('success');await loadCompanyLayer(false,true);renderTerminal(true);}catch(err){state.companyNotice='채용 실패: '+err.message;alert(state.companyNotice);renderTerminal(true);}
   });
   document.querySelectorAll('[data-talent-poach]').forEach(b=>b.onclick=async()=>{
     const id=Number(b.dataset.talentPoach||0),talent=(state.company?.poach_targets||[]).find(x=>Number(x.id)===id);if(!talent)return;
