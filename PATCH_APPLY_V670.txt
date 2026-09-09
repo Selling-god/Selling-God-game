@@ -1,0 +1,23 @@
+KX CORPORATE V6.7.0 CEO EXPERIENCE + CEO LOUNGE
+
+1. Supabase SQL Editor에서 아래 파일을 1회 실행
+   RUN_THIS_IN_SUPABASE_V6.7_COMMUNITY.sql
+
+2. 웹 프로젝트 파일 덮어쓰기
+   - app.js
+   - styles.css
+   - public/app.js
+   - public/styles.css
+
+3. Render/GitHub에 기존 방식대로 배포
+
+4. 배포 후 브라우저에서 Ctrl+F5 강력 새로고침
+
+핵심 변경
+- 경영 홈에 CEO PULSE 추가: 현금 버팀 / 영업이익률 / 직원 분위기 / 경영권 위험
+- 오늘의 안건 중심 흐름 강화
+- 상단에 CEO 라운지 추가
+- 로그인 유저끼리 전체 CEO 채널에서 메시지 송수신
+- 5초 자동 갱신, 220자 제한, 1초 도배 방지, 최근 7일 메시지 유지
+- 데스크톱/모바일 대응
+- 기존 V6.6.4 기업 분석 스크롤 위치 유지 수정 포함

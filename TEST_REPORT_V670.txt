@@ -1,0 +1,13 @@
+KX CORPORATE V6.7.0 TEST REPORT
+
+PASS - node --check app.js
+PASS - node --check public/app.js
+PASS - npm run build
+PASS - static multi-root build: root/public/out/dist/build/site
+PASS - CEO 라운지 라우팅 코드 존재
+PASS - CEO PULSE 렌더링 코드 존재
+PASS - V6.6.4 기업 분석 스크롤 위치 보존 코드 유지
+
+주의
+- CEO 라운지 온라인 채팅은 Supabase에서 RUN_THIS_IN_SUPABASE_V6.7_COMMUNITY.sql을 먼저 실행해야 실제 메시지 송수신이 됩니다.
+- 실제 다중 계정 송수신은 사용자의 Supabase 프로젝트에 연결된 배포 환경에서 최종 확인해야 합니다.
