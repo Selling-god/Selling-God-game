@@ -1,5 +1,5 @@
 (()=>{
-const KX_COMPANY_BUILD='6.7.0-CEO-EXPERIENCE-COMMUNITY';
+const KX_COMPANY_BUILD='7.0.0-REAL-CEO-OPEN-ENDED';
 window.__KX_COMPANY_BUILD__=KX_COMPANY_BUILD;
 const C=window.__KX_CONFIG__||{};
 const nf=new Intl.NumberFormat('ko-KR');
@@ -554,7 +554,7 @@ function captureUiState(){
   const active=document.activeElement;
   const fields={};
   document.querySelectorAll('input[id],textarea[id],select[id]').forEach(el=>{fields[el.id]={value:el.value,checked:!!el.checked}});
-  return {x:scrollX,y:scrollY,activeId:active?.id||'',selectionStart:typeof active?.selectionStart==='number'?active.selectionStart:null,selectionEnd:typeof active?.selectionEnd==='number'?active.selectionEnd:null,fields,browserScroll:document.querySelector('.clean-company-browser')?.scrollTop||0,details:[...document.querySelectorAll('details')].map((d,i)=>d.open?i:-1).filter(i=>i>=0)};
+  return {x:scrollX,y:scrollY,activeId:active?.id||'',selectionStart:typeof active?.selectionStart==='number'?active.selectionStart:null,selectionEnd:typeof active?.selectionEnd==='number'?active.selectionEnd:null,fields,browserScroll:document.querySelector('.clean-company-browser')?.scrollTop||0,topNavScroll:document.getElementById('managementTopNav')?.scrollLeft||0,mobileNavScroll:document.getElementById('managementMobileNav')?.scrollLeft||0,details:[...document.querySelectorAll('details')].map((d,i)=>d.open?i:-1).filter(i=>i>=0)};
 }
 function restoreUiState(ctx){
   if(!ctx)return;
@@ -562,9 +562,36 @@ function restoreUiState(ctx){
   document.querySelectorAll('details').forEach((d,i)=>{d.open=(ctx.details||[]).includes(i)});
   const browser=document.querySelector('.clean-company-browser');if(browser)browser.scrollTop=ctx.browserScroll||0;
   requestAnimationFrame(()=>{
+    const topNav=document.getElementById('managementTopNav'),mobileNav=document.getElementById('managementMobileNav');
+    if(topNav)topNav.scrollLeft=Number(ctx.topNavScroll)||0;
+    if(mobileNav)mobileNav.scrollLeft=Number(ctx.mobileNavScroll)||0;
+    updateManagementNavScrollState(topNav);updateManagementNavScrollState(mobileNav);
     scrollTo(ctx.x||0,ctx.y||0);
     const el=ctx.activeId?document.getElementById(ctx.activeId):null;
     if(el){try{el.focus({preventScroll:true});if(ctx.selectionStart!=null&&el.setSelectionRange)el.setSelectionRange(ctx.selectionStart,ctx.selectionEnd??ctx.selectionStart)}catch(_e){}}
+  });
+}
+function updateManagementNavScrollState(nav){
+  if(!nav)return;
+  const shell=nav.closest('[data-nav-shell]');if(!shell)return;
+  const max=Math.max(0,nav.scrollWidth-nav.clientWidth),left=Math.max(0,nav.scrollLeft);
+  shell.classList.toggle('can-scroll',max>4);shell.classList.toggle('at-start',left<=4);shell.classList.toggle('at-end',left>=max-4);
+  const prev=shell.querySelector('[data-nav-scroll="-1"]'),next=shell.querySelector('[data-nav-scroll="1"]');if(prev)prev.disabled=max<=4||left<=4;if(next)next.disabled=max<=4||left>=max-4;
+}
+function bindManagementNavScroller(){
+  document.querySelectorAll('[data-nav-shell]').forEach(shell=>{
+    const nav=shell.querySelector('[data-management-nav-track]');if(!nav)return;
+    const memoryKey=nav.id==='managementMobileNav'?'_mobileManagementNavScroll':'_topManagementNavScroll';
+    const saved=Number(state[memoryKey])||0;if(saved>0)nav.scrollLeft=saved;
+    shell.querySelectorAll('[data-nav-scroll]').forEach(btn=>btn.onclick=e=>{e.preventDefault();e.stopPropagation();const dir=Number(btn.dataset.navScroll)||1;nav.scrollBy({left:dir*Math.max(180,nav.clientWidth*.68),behavior:'smooth'});setTimeout(()=>updateManagementNavScrollState(nav),260)});
+    let pressed=false,startX=0,startLeft=0,dragged=false;
+    nav.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;pressed=true;dragged=false;startX=e.clientX;startLeft=nav.scrollLeft;nav.classList.add('drag-ready')});
+    nav.addEventListener('pointermove',e=>{if(!pressed)return;const dx=e.clientX-startX;if(Math.abs(dx)>7){dragged=true;nav.classList.add('dragging');nav.scrollLeft=startLeft-dx;e.preventDefault();}});
+    const finish=()=>{if(!pressed)return;pressed=false;nav.classList.remove('drag-ready','dragging');if(dragged){nav.dataset.dragGuard='1';setTimeout(()=>{delete nav.dataset.dragGuard},180)}state[memoryKey]=nav.scrollLeft;updateManagementNavScrollState(nav)};
+    nav.addEventListener('pointerup',finish);nav.addEventListener('pointercancel',finish);nav.addEventListener('pointerleave',e=>{if(pressed&&e.pointerType==='mouse')finish()});
+    nav.addEventListener('click',e=>{if(nav.dataset.dragGuard==='1'){e.preventDefault();e.stopImmediatePropagation();}},true);
+    nav.addEventListener('scroll',()=>{state[memoryKey]=nav.scrollLeft;updateManagementNavScrollState(nav)},{passive:true});
+    requestAnimationFrame(()=>{if(saved>0)nav.scrollLeft=saved;updateManagementNavScrollState(nav)});
   });
 }
 function formatKrwSmart(v){
@@ -1756,7 +1783,8 @@ function topNav(){
     ['ranking','기업 순위',''],
     ['community','CEO 라운지','']
   ];
-  return `<nav class="main-nav management-nav compact-management-nav expanded-management-nav">${items.map(([k,label,section])=>`<button data-main-tab="${k}" ${section?`data-company-section-nav="${section}"`:''} class="${state.tab===k&&(!section||state.companySection===section)?'on':''}">${label}${k==='community'?`<em id="communityUnreadBadge" class="community-nav-badge" ${state.community.unread?'':'hidden'}>${state.community.unread?Math.min(99,state.community.unread):''}</em>`:''}</button>`).join('')}</nav>`;
+  const buttons=items.map(([k,label,section])=>`<button data-main-tab="${k}" ${section?`data-company-section-nav="${section}"`:''} class="${state.tab===k&&(!section||state.companySection===section)?'on':''}">${label}${k==='community'?`<em id="communityUnreadBadge" class="community-nav-badge" ${state.community.unread?'':'hidden'}>${state.community.unread?Math.min(99,state.community.unread):''}</em>`:''}</button>`).join('');
+  return `<div class="management-nav-shell" data-nav-shell="top"><button type="button" class="nav-scroll-arrow prev" data-nav-scroll="-1" aria-label="이전 메뉴">‹</button><nav id="managementTopNav" data-management-nav-track class="main-nav management-nav compact-management-nav expanded-management-nav">${buttons}</nav><button type="button" class="nav-scroll-arrow next" data-nav-scroll="1" aria-label="다음 메뉴">›</button></div>`;
 }
 
 function renderStockPicker(s){
@@ -2574,7 +2602,38 @@ function companyMissionSnapshot(my,myRank,companies){
   const level=Math.max(1,Math.min(10,1+Math.floor(xp/300)));const next=level>=10?300:300-(xp%300||0);
   return {goals,completed,xp,level,next,meta,runway};
 }
-function renderCompanyGameCenter(my,myRank,companies){return '';}
+function nextCompanyScaleTarget(value){
+  const tiers=[1e9,5e9,1e10,5e10,1e11,5e11,1e12,5e12,1e13,5e13,1e14,5e14,1e15,2e15,5e15];
+  return tiers.find(v=>value<v*0.999)||Math.max(1e15,Math.ceil(value/1e15+1)*1e15);
+}
+function nextCompanyRankTarget(rank,total){
+  if(!rank||rank<1)return Math.min(50,Math.max(1,total||50));
+  for(const t of [50,20,10,5,3,1])if(rank>t)return t;
+  return 1;
+}
+function strategicProgress(current,target,inverse=false,base=0){
+  if(inverse){if(current<=target)return 100;const span=Math.max(1,(base||current)-target);return Math.max(4,Math.min(96,(1-(current-target)/span)*100));}
+  return Math.max(4,Math.min(100,target>0?current/target*100:0));
+}
+function companyStrategicObjectives(my,myRank,companies){
+  const runway=companyCashRunway(my),revenue=Math.max(0,Number(my.revenue||0)),profit=Number(my.profit||0),margin=revenue>0?profit/revenue*100:0,value=Math.max(0,Number(my.valuation||0));
+  const runwayTiers=[3,6,9,12,18,24,36,48,60],runwayTarget=runwayTiers.find(v=>runway.months<v*.999)||Math.ceil((runway.months+1)/12)*12;
+  const marginTiers=[0,5,10,15,20,25,30,35,40],marginTarget=marginTiers.find(v=>margin<v-.01)||(Math.floor(Math.max(0,margin)/5)+1)*5;
+  const valueTarget=nextCompanyScaleTarget(value),rankTarget=nextCompanyRankTarget(myRank,companies?.length||0);
+  const health=(Number(my.employee_morale||50)+Number(my.product_quality||50)+Number(my.customer_trust||50))/3,healthTarget=health<60?60:health<70?70:health<80?80:health<90?90:health<95?95:100;
+  const total=Math.max(1,companies?.length||1);
+  return [
+    {id:'cash',kicker:'FINANCIAL RESILIENCE',title:`현금 버팀 ${runwayTarget}개월`,current:`${runway.months.toFixed(1)}개월`,target:`${runwayTarget}개월`,progress:strategicProgress(runway.months,runwayTarget),route:'operations:finance'},
+    {id:'margin',kicker:'PROFITABILITY',title:`영업이익률 ${marginTarget}%`,current:`${margin.toFixed(1)}%`,target:`${marginTarget}%`,progress:strategicProgress(Math.max(0,margin),marginTarget),route:'operations:finance'},
+    {id:'scale',kicker:'CORPORATE SCALE',title:`기업가치 ${formatKrwSmart(valueTarget)}`,current:formatKrwSmart(value),target:formatKrwSmart(valueTarget),progress:strategicProgress(value,valueTarget),route:'dashboard:performance'},
+    {id:'rank',kicker:'MARKET POSITION',title:rankTarget===1?'기업가치 순위 1위':'기업가치 순위 TOP '+rankTarget,current:myRank?`#${myRank} / ${total}`:'집계 대기',target:rankTarget===1?'#1 유지':`TOP ${rankTarget}`,progress:myRank?strategicProgress(myRank,rankTarget,true,total):4,mainTab:'ranking'},
+    {id:'health',kicker:'OPERATING QUALITY',title:`조직·제품 건전성 ${healthTarget}`,current:`${health.toFixed(0)} / 100`,target:`${healthTarget} / 100`,progress:strategicProgress(health,healthTarget),route:'people:workforce'}
+  ];
+}
+function renderCompanyGameCenter(my,myRank,companies){
+  const goals=companyStrategicObjectives(my,myRank,companies);
+  return `<section class="board-objectives"><div class="board-objectives-head"><div><small>BOARD TARGETS · MEDIUM TERM</small><h2>중기 경영 목표</h2></div><span>달성 시 다음 기준으로 자동 상향 · 별도 엔딩 없음</span></div><div class="board-objectives-grid">${goals.map(g=>`<article class="board-objective"><div class="board-objective-title"><small>${g.kicker}</small><b>${g.title}</b></div><div class="board-objective-values"><span>현재 <b>${g.current}</b></span><span>다음 기준 <b>${g.target}</b></span></div><div class="board-objective-progress"><i style="width:${Math.max(4,Math.min(100,g.progress)).toFixed(1)}%"></i></div><button type="button" ${g.route?`data-company-route="${g.route}"`:`data-main-tab="${g.mainTab||'company'}"`}>관련 경영 화면 →</button></article>`).join('')}</div></section>`;
+}
 function companyCoachItems(my){
   const rows=[],runway=companyCashRunway(my),projects=state.company?.projects||[],markets=state.company?.my_markets||[],holdings=state.company?.my_holdings||[];
   const tax=Number(my.tax_due||0)+Number(my.tax_arrears||0),threat=companyStakeAgainstMe();
@@ -3571,7 +3630,7 @@ function renderTerminal(preserve=false){
 
   app.innerHTML=`<div class="terminal management-first-terminal">
     <header class="top management-topbar">
-      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 6.7.0'}</span></div>
+      <div class="brand"><div class="kxlogo">KX</div><strong>KX CORPORATE</strong><span class="online-mode-chip ${state.companyAvailable===false?'offline':'online'}">${state.companyAvailable===false?'ONLINE 연결 필요':'ONLINE · LIVE 7.0'}</span></div>
       ${topNav()}
       <div class="market-status corporate-cycle-status"><b data-live-company-cycle>경영주기 #${liveCompanyClock().cycle}</b><span data-live-game-clock>DAY ${liveCompanyClock().day} · ${gameTime(liveCompanyClock().minute)}</span><em>24분 = 1 DAY</em></div>
       <div class="header-money company-header-money"><div class="asset cash"><small>법인 현금</small><b>${legalCash}</b></div><div class="asset"><small>회사 가치</small><b>${companyValue}</b></div></div>
@@ -3580,7 +3639,7 @@ function renderTerminal(preserve=false){
     <div class="mobile-account-bar"><span>법인 현금 <b>${legalCash}</b></span><span>회사 가치 <b>${companyValue}</b></span></div>
     ${content}
     ${state.tab==='company'?renderCompanyKickoffModal():''}
-    <nav class="mobile-nav management-mobile-nav">
+    <div class="management-mobile-nav-shell" data-nav-shell="mobile"><button type="button" class="nav-scroll-arrow prev" data-nav-scroll="-1" aria-label="이전 메뉴">‹</button><nav id="managementMobileNav" data-management-nav-track class="mobile-nav management-mobile-nav">
       <button data-main-tab="company" data-company-section-nav="dashboard" class="${state.tab==='company'&&state.companySection==='dashboard'?'on':''}">경영홈</button>
       <button data-main-tab="company" data-company-section-nav="operations" class="${state.tab==='company'&&state.companySection==='operations'?'on':''}">사업운영</button>
       <button data-main-tab="company" data-company-section-nav="people" class="${state.tab==='company'&&state.companySection==='people'?'on':''}">인사·조직</button>
@@ -3588,7 +3647,7 @@ function renderTerminal(preserve=false){
       <button data-main-tab="company" data-company-section-nav="risk" class="${state.tab==='company'&&state.companySection==='risk'?'on':''}">뉴스·리스크</button>
       <button data-main-tab="ranking" class="${state.tab==='ranking'?'on':''}">기업순위</button>
       <button data-main-tab="community" class="${state.tab==='community'?'on':''}">CEO라운지</button>
-    </nav>
+    </nav><button type="button" class="nav-scroll-arrow next" data-nav-scroll="1" aria-label="다음 메뉴">›</button></div>
   </div>`;
   bind();
   if(state.tab==='market')drawChart();
@@ -3661,6 +3720,7 @@ function bind(){
   document.getElementById('logout').onclick=logout;
   const tb=document.getElementById('tutorialBtn');if(tb)tb.onclick=()=>openTutorial(0);
   bindCompanyMoneyInputs();
+  bindManagementNavScroller();
 
   document.querySelectorAll('[data-main-tab]').forEach(b=>b.onclick=()=>{
     rememberOrderInputs();
