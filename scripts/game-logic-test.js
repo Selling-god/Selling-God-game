@@ -3,7 +3,7 @@ const path=require('path');
 const vm=require('vm');
 const root=path.resolve(__dirname,'..');
 let source=fs.readFileSync(path.join(root,'public','app.js'),'utf8');
-const exportCode=`window.__KX_TEST__={state,formatKrwSmart,holdingStakeValue,companyIncomingDirectStake,aggregateIncomingHoldings,companyExternalOwnershipTotal,ownerStakeOf,companyStakeAgainstMe,sanitizeCompanyPayload,renderTakeoverDesk,emptyCompany,runtimeErrorText,companyFinanceSnapshot,companyDisplayRevenue,companyDisplayOperatingProfit};`;
+const exportCode=`window.__KX_TEST__={state,formatKrwSmart,holdingStakeValue,companyIncomingDirectStake,aggregateIncomingHoldings,companyExternalOwnershipTotal,ownerStakeOf,companyStakeAgainstMe,companyOwnershipStructure,companyOutsideVotingCap,companyExplicitFounderStake,sanitizeCompanyPayload,renderTakeoverDesk,emptyCompany,runtimeErrorText,companyFinanceSnapshot,companyDisplayRevenue,companyDisplayOperatingProfit};`;
 const idx=source.lastIndexOf('boot();');
 if(idx<0)throw new Error('boot() marker not found');
 source=source.slice(0,idx)+exportCode+source.slice(idx+'boot();'.length);
@@ -74,44 +74,69 @@ ok(!fa.operatingCashFlowKnown&&!fa.investingCashFlowKnown,'missing cash-flow dat
 ok(near(T.companyDisplayOperatingProfit(financeMy),600000000,1),'headline operating profit must agree with management accounting when accounting data exists');
 const countClean=T.sanitizeCompanyPayload({my_company:{id:1,name:'Count QA',employees:'5.9',shares_outstanding:'100.8'},companies:[],incoming_holdings:[],my_holdings:[],market_holdings:[]});
 ok(countClean.my_company.employees===5&&countClean.my_company.shares_outstanding===100,'employee/share counts must be non-negative integers');
-ok(clean.incoming_holdings[0].stake===100,'snapshot holder stake must clamp at 100%');
+ok(clean.incoming_holdings.reduce((a,h)=>a+Number(h.stake||0),0)<=100.0001,'aggregate outside voting ownership must never exceed 100%');
 ok(clean.my_holdings[0].stake===100,'owned company stake must clamp at 100%');
 const idOnly=T.sanitizeCompanyPayload({incoming_holdings:[{holder_company_id:77,holder_ticker:'ID77',stake:4.2,market_value:100}],my_holdings:[],market_holdings:[]});
 ok(idOnly.incoming_holdings.length===1&&idOnly.incoming_holdings[0].stake===4.2,'valid shareholder rows must survive even when holder_name is missing');
 
-// Reproduce the screenshot-type case: many passive outside holders but no hostile case.
-T.state.company={...T.emptyCompany(),my_company:{id:1,name:'KX QA',valuation:8e12,cash:4e11,revenue:1e12,profit:8e10,debt:2e11,incoming_stake:80.5,defense_power:20},companies:[],incoming_holdings:[
-  {holder_company_id:101,holder_name:'Passive A',holder_ticker:'PA',holder_type:'기관',stake:12.3,market_value:9e11},
-  {holder_company_id:102,holder_name:'Passive B',holder_ticker:'PB',holder_type:'기관',stake:8.2,market_value:6e11},
-  {holder_company_id:103,holder_name:'Passive C',holder_ticker:'PC',holder_type:'기관',stake:3.0,market_value:2e11}
+// Reproduce the screenshot-type case: a player-founded independent company cannot silently become 0% founder owned.
+T.state.company={...T.emptyCompany(),my_company:{id:1,owner_user_id:'USER-1',operator_type:'ME',name:'KX QA',valuation:8e12,cash:4e11,revenue:1e12,profit:8e10,debt:2e11,incoming_stake:100,defense_power:20,parent_name:null},companies:[],incoming_holdings:[
+  {holder_company_id:101,holder_name:'Passive A',holder_ticker:'PA',holder_type:'기관',stake:45,market_value:3.6e12},
+  {holder_company_id:102,holder_name:'Passive B',holder_ticker:'PB',holder_type:'기관',stake:35,market_value:2.8e12},
+  {holder_company_id:103,holder_name:'Passive C',holder_ticker:'PC',holder_type:'기관',stake:20,market_value:1.6e12}
 ],my_holdings:[],events:[],press:[],control_case:null};
 const ext=T.companyExternalOwnershipTotal(T.state.company.my_company);
 const threat=T.companyStakeAgainstMe();
 const owner=T.ownerStakeOf(T.state.company.my_company);
-ok(near(ext,80.5),'outside ownership total must use aggregate ownership');
+ok(near(ext,49),'independent founder-controlled company must cap unexplained outside voting ownership below control line');
 ok(threat===0,'passive outside ownership must not be called a hostile takeover threat');
-ok(near(owner,19.5),'friendly/management ownership must reconcile to 100%');
+ok(near(owner,51),'player founder must retain majority unless an actual control/dilution event exists');
+const structure=T.companyOwnershipStructure(T.state.company.my_company);
+ok(structure.status.includes('창업자'),'independent majority-controlled company must be described as founder controlled');
 const takeoverHtml=T.renderTakeoverDesk(T.state.company.my_company);
-ok(takeoverHtml.includes('외부 주주 전체')&&takeoverHtml.includes('80.50%'),'M&A screen must display aggregate outside ownership');
-ok(takeoverHtml.includes('경영권 위협')&&takeoverHtml.includes('0.00%'),'M&A screen must display takeover threat separately');
-ok(!takeoverHtml.includes('외부 세력 보유지분'),'old ambiguous takeover label must not render');
-ok((takeoverHtml.match(/class="stake-row/g)||[]).length===3,'shareholder register should render each distinct holder once');
+ok(takeoverHtml.includes('창업자·경영진 의결권')&&takeoverHtml.includes('51.00%'),'M&A screen must show a plausible founder voting block');
+ok(takeoverHtml.includes('외부 주주 의결권')&&takeoverHtml.includes('49.00%'),'M&A screen must reconcile outside voting ownership');
+ok(takeoverHtml.includes('의결권 합계')&&takeoverHtml.includes('100.00%'),'M&A screen must visibly reconcile voting ownership to 100%');
+ok(takeoverHtml.includes('적대적 인수 지분')&&takeoverHtml.includes('0.00%'),'M&A screen must display evidenced hostile stake separately');
+
+// A live takeover may legitimately break the founder majority; that transition must be explicit rather than silent.
+T.state.company.control_case={status:'ACTIVE',attacker_company_id:101,attacker_name:'Passive A',stake:55,aggregate_stake:55};
+T.state.company.incoming_holdings=[{holder_company_id:101,holder_name:'Passive A',holder_type:'적대적 인수자',stake:55,market_value:4.4e12}];
+const contestedExt=T.companyExternalOwnershipTotal(T.state.company.my_company),contestedOwner=T.ownerStakeOf(T.state.company.my_company);
+ok(near(contestedExt,55),'shareholder ledger must outrank a stale generic incoming_stake during a live contest');
+ok(near(contestedOwner,45),'a live takeover can explicitly break founder majority without inventing 100% outside ownership');
+ok(T.companyOwnershipStructure(T.state.company.my_company).contest,'loss of founder control must be tied to an explicit live contest');
+
+// Explicit founder ownership is authoritative when no control contest is active.
+T.state.company.control_case=null;T.state.company.my_company.incoming_stake=80;T.state.company.my_company.founder_stake_pct=72;
+T.state.company.incoming_holdings=[{holder_company_id:201,holder_name:'Fund',stake:60,market_value:1}];
+ok(near(T.companyExternalOwnershipTotal(T.state.company.my_company),28),'explicit founder stake must cap outside voting rights to the complementary percentage');
+ok(near(T.ownerStakeOf(T.state.company.my_company),72),'founder and outside voting rights must reconcile exactly');
 
 // Duplicate holder records aggregate rather than create contradictory duplicate rows.
-T.state.company.incoming_holdings=[
+T.state.company.my_company={id:9,is_bot:true,operator_type:'BOT',name:'QA BOT'};T.state.company.control_case=null;T.state.company.incoming_holdings=[
   {holder_company_id:201,holder_name:'Same Fund',holder_ticker:'SF',stake:2.5,market_value:10},
   {holder_company_id:201,holder_name:'Same Fund',holder_ticker:'SF',stake:3.5,market_value:20}
 ];
 const ag=T.aggregateIncomingHoldings();
 ok(ag.length===1&&near(ag[0].stake,6),'duplicate shareholder records must aggregate into one 6% row');
 
-if(errors.length){console.error('[KX GAME LOGIC TEST V11] FAILED');for(const e of errors)console.error(' - '+e);process.exit(1)}
-console.log('[KX GAME LOGIC TEST V11] PASS');
+// Organizational and corporate-state consistency.
+const org=T.sanitizeCompanyPayload({my_company:{id:5,owner_user_id:'U',operator_type:'ME',status:'ACTIVE',employees:10,shares_outstanding:0,global_share:2,global_level:0,hr_engineering:8,hr_sales:7,hr_operations:4,hr_finance:2,hr_management:1},companies:[],incoming_holdings:[],my_holdings:[],market_holdings:[]});
+const deptTotal=['hr_engineering','hr_sales','hr_operations','hr_finance','hr_management'].reduce((a,k)=>a+Number(org.my_company[k]||0),0);
+ok(org.my_company.shares_outstanding>=1,'an active company must have at least one issued share');
+ok(deptTotal<=org.my_company.employees,'department headcount cannot exceed total employees');
+ok(org.my_company.global_level>=1,'nonzero global market share requires a nonzero global operating level');
+
+if(errors.length){console.error('[KX GAME LOGIC TEST V12] FAILED');for(const e of errors)console.error(' - '+e);process.exit(1)}
+console.log('[KX GAME LOGIC TEST V12] PASS');
 console.log(' - signed loss display');
 console.log(' - ownership invariant 0..100%');
 console.log(' - snapshot duplicate/NaN/count hygiene');
 console.log(' - passive holders != hostile takeover');
-console.log(' - outside ownership reconciles with friendly stake');
+console.log(' - founder voting control cannot silently disappear');
+console.log(' - live takeover is the explicit path to founder control loss');
+console.log(' - issued-share / headcount / global-presence consistency');
 console.log(' - duplicate shareholder aggregation');
 console.log(' - player-facing backend error sanitization');
 console.log(' - P&L / working-capital accounting reconciliation');

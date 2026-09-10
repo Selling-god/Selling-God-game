@@ -10,12 +10,20 @@ const errors=[],notes=[];
 const need=(ok,msg)=>{if(!ok)errors.push(msg);else notes.push(msg)};
 const count=(needle,hay=app)=>hay.split(needle).length-1;
 
-need(app.includes("const KX_COMPANY_BUILD='11.0.0-STEAM-RETAIL-CANDIDATE'"),'V11 release marker');
+need(app.includes("const KX_COMPANY_BUILD='12.0.0-REALITY-CONSISTENCY'"),'V12 release marker');
 need(app.includes('minlength="4"')&&app.includes('password.length<4'),'password rule is consistently minimum 4 characters');
 need(!app.includes('비밀번호는 최소 6자')&&!app.includes('minlength="6"'),'no stale 6-character password rule');
 need(count("if(f==='미국')")===1,'market filter has one US branch');
 need(app.includes('function formatKrwSmart(v){')&&!app.includes('function formatKrwSmart(v){\n  v=Math.max(0'),'negative financial values are not clamped to zero');
 need(app.includes('function aggregateIncomingHoldings(')&&app.includes('function companyExternalOwnershipTotal('),'shareholder aggregation is defined');
+need(app.includes('function companyOutsideVotingCap(')&&app.includes('function companyOwnershipStructure('),'founder-control ownership reconciliation is defined');
+need(app.includes("companyIsPlayerFounded(my)?49:100")&&app.includes('function companyOutsideVotingCap('),'independent founder-controlled player companies cannot silently lose majority control');
+need(app.includes('창업자·경영진 의결권')&&app.includes('의결권 합계'),'M&A UI explicitly reconciles founder and outside voting rights');
+need(app.includes('Generic incoming_stake is only a legacy fallback')&&app.includes('const direct=holders.length?0'),'shareholder ledger outranks stale generic aggregate ownership');
+need(app.includes('p_founder_stake_pct:100')&&app.includes("p_ownership_model:'FOUNDER_CONTROLLED'"),'new remote company creation declares founder-controlled ownership model');
+need(app.includes('employees:15')&&app.includes('founder_stake_pct:100'),'local company founding starts with plausible staffing and 100% founder ownership');
+need(app.includes('deptTotal>out.employees'),'department headcount cannot exceed company headcount');
+need(app.includes('global_share||0)>0&&Number(out.global_level||0)===0'),'global market share cannot coexist with zero global operating level');
 need(app.includes('owner=ownerStakeOf(my)'),'takeover crisis uses total reconciled friendly ownership');
 need(app.includes('function sanitizeCompanyPayload('),'server company snapshot sanitizer is enabled');
 need(app.includes('외부 주주 전체')&&app.includes('경영권 위협'),'aggregate ownership and evidenced takeover threat are separately labelled');
@@ -78,9 +86,9 @@ for(const dirName of ['.','public','out','dist','build','site']){
 }
 
 if(errors.length){
-  console.error('[KX QUALITY AUDIT V11] FAILED');
+  console.error('[KX QUALITY AUDIT V12] FAILED');
   for(const e of errors)console.error(' - '+e);
   process.exit(1);
 }
-console.log('[KX QUALITY AUDIT V11] PASS');
+console.log('[KX QUALITY AUDIT V12] PASS');
 for(const n of notes)console.log(' - '+n);

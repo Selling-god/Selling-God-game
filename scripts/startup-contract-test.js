@@ -20,8 +20,8 @@ need(app.includes('const {timeoutMs:_timeoutMs,auth:_auth,headers:extraHeaders,s
 need(app.includes('companySnapshotEpoch')&&app.includes('epoch!==companySnapshotEpoch'),'late optional responses cannot overwrite a newer company snapshot');
 const renderAt=start.indexOf('renderTerminal(false);'),firstAwait=start.indexOf('await Promise.allSettled');
 need(renderAt>=0&&firstAwait>renderAt,'first player-visible render happens before the startup wait');
-if(errors.length){console.error('[KX STARTUP CONTRACT V11] FAILED');errors.forEach(e=>console.error(' - '+e));process.exit(1)}
-console.log('[KX STARTUP CONTRACT V11] PASS');
+if(errors.length){console.error('[KX STARTUP CONTRACT V12] FAILED');errors.forEach(e=>console.error(' - '+e));process.exit(1)}
+console.log('[KX STARTUP CONTRACT V12] PASS');
 console.log(' - first shell renders before network hydration');
 console.log(' - company/market/private/game requests are bounded and parallelized');
 console.log(' - optional community and company extensions do not gate the first useful screen');

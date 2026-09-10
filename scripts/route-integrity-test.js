@@ -16,8 +16,8 @@ need(coach.includes('competition:control')&&coach.includes('risk:compliance')&&c
 need(coach.includes('data-company-route="${x[3]}"'),'coach buttons use precise routes');
 const nav=app.slice(app.indexOf("document.querySelectorAll('[data-main-tab]')"),app.indexOf("const communityRefresh=",app.indexOf("document.querySelectorAll('[data-main-tab]')")));
 need(!nav.includes("state.companyOpsTab='products'")&&!nav.includes("state.companyCompetitionTab='companies'")&&!nav.includes("state.companyRiskTab='news'"),'top navigation preserves the CEO last-used subworkspace');
-if(errors.length){console.error('[KX ROUTE INTEGRITY V11] FAILED');errors.forEach(e=>console.error(' - '+e));process.exit(1)}
-console.log('[KX ROUTE INTEGRITY V11] PASS');
+if(errors.length){console.error('[KX ROUTE INTEGRITY V12] FAILED');errors.forEach(e=>console.error(' - '+e));process.exit(1)}
+console.log('[KX ROUTE INTEGRITY V12] PASS');
 console.log(' - board/coach actions open the actual decision screen');
 console.log(' - literal company routes stay inside the supported route map');
 console.log(' - returning to a section preserves the last subworkspace');
