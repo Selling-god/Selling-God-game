@@ -50,8 +50,8 @@ for (const e of [...catalog.enemies, ...catalog.bosses]) {
 if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets: ${missing.slice(0, 5).join(', ')}`);
 
 const info = {
-  version: '2.2.1',
-  deployId: 'RIFT-V2.2.1-HOTFIX-20260910',
+  version: '2.3.0',
+  deployId: 'RIFT-V2.3.0-HQ-20260910',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,
