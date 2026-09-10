@@ -1,0 +1,25 @@
+KX CORPORATE V9.0 - STEAM RELEASE PREPARATION PATCH
+
+적용 기준: V8.0.1 Commercial RC1
+
+1. 이 ZIP을 기존 프로젝트 루트에 덮어씁니다.
+2. GitHub에 커밋/푸시합니다.
+3. Render Build Command는 기존처럼 npm run build 또는 npm run release를 사용합니다.
+4. 가능하면 배포 전 로컬/CI에서 npm run release를 실행하세요.
+5. 배포 후 Ctrl+F5로 캐시를 갱신합니다.
+
+추가 Supabase SQL: 없음
+
+V9 핵심
+- 브라우저 기본 alert/confirm 제거 -> KX 전용 경영 결정 다이얼로그
+- 경영 홈 과밀도 완화
+- 실제 회사 상태 기반 '현재 경영 국면' 도입
+- 고정 엔딩 없이 중기 기준 자동 상향
+- 재접속 시 부재 중 회사 변화 브리핑
+- 단순 상위 기업 대신 실제 관련 경쟁사 우선 표시
+- 진행 현황에서 BOT 전략/최근 행동 확인
+- Steam release smoke test 추가
+
+주의
+V9은 Steam 판매 품질을 목표로 한 본편 개선 버전입니다.
+Steamworks SDK/Windows 실행파일 패키징 자체는 아직 별도 작업입니다.

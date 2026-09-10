@@ -1,11 +1,12 @@
 {
   "name": "kx-exchange-static",
-  "version": "8.0.1",
+  "version": "9.0.0",
   "private": true,
   "scripts": {
     "build": "node scripts/build.js",
     "check": "node scripts/release-check.js",
-    "release": "npm run build && npm run check"
+    "release": "npm run build && npm run check && npm run smoke",
+    "smoke": "node scripts/steam-smoke.js"
   },
   "engines": {
     "node": ">=18"
