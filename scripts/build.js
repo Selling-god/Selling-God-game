@@ -1,5 +1,6 @@
 'use strict';
-const fs=require('fs');const path=require('path');
+const fs=require('fs');
+const path=require('path');
 const root=path.join(__dirname,'..');
 const required=['server.js','public/index.html','public/app.js','public/styles.css','data/catalog.json'];
 for(const rel of required){const p=path.join(root,rel);if(!fs.existsSync(p))throw new Error(`BUILD_FAIL missing ${rel}`);}
@@ -12,6 +13,14 @@ for(const c of catalog.cards){const p=path.join(root,c.art.replace(/^\//,''));if
 for(const b of catalog.biomes){const p=path.join(root,b.background.replace(/^\//,''));if(!fs.existsSync(p))missing.push(b.background);}
 for(const e of [...catalog.enemies,...catalog.bosses]){const p=path.join(root,e.sprite.replace(/^\//,''));if(!fs.existsSync(p))missing.push(e.sprite);}
 if(missing.length)throw new Error(`BUILD_FAIL missing ${missing.length} assets: ${missing.slice(0,5).join(', ')}`);
-const info={version:'2.0.0',builtAt:new Date().toISOString(),cards:catalog.cards.length,items:catalog.items.length,enemies:catalog.enemies.length+catalog.bosses.length,maxDungeonFloor:50,difficulties:Object.keys(catalog.difficulties)};
+const info={version:'2.1.0',deployId:'RIFT-V2.1-20260910',builtAt:new Date().toISOString(),cards:catalog.cards.length,items:catalog.items.length,enemies:catalog.enemies.length+catalog.bosses.length,maxDungeonFloor:50,difficulties:Object.keys(catalog.difficulties)};
 fs.writeFileSync(path.join(root,'public','build-info.json'),JSON.stringify(info,null,2));
-console.log(`BUILD_OK v${info.version} cards=${info.cards} items=${info.items} enemies=${info.enemies} floors=${info.maxDungeonFloor}`);
+// Compatibility guard: if this repository is accidentally deployed as a Render Static Site,
+// publish a diagnostic page instead of allowing an older tracked build to stay visible.
+const out=path.join(root,'out');
+fs.rmSync(out,{recursive:true,force:true});
+fs.mkdirSync(out,{recursive:true});
+fs.copyFileSync(path.join(root,'index.html'),path.join(out,'index.html'));
+fs.writeFileSync(path.join(out,'version.json'),JSON.stringify(info,null,2));
+console.log(`BUILD_OK v${info.version} deploy=${info.deployId} cards=${info.cards} items=${info.items} enemies=${info.enemies} floors=${info.maxDungeonFloor}`);
+console.log('STATIC_GUARD_OK out/index.html created (diagnostic only; game requires Node Web Service)');
