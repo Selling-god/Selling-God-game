@@ -48,3 +48,24 @@ npm start
 ## 영구 저장 주의
 
 Render의 로컬 파일 시스템은 장기 계정 데이터베이스 용도로 사용하면 안 됩니다. 현재 JSON 저장은 개발/테스트 단계용입니다. 공개 서비스 전에는 Supabase/Postgres로 프로필 어댑터를 바꾸는 것을 권장합니다.
+
+## v2.1 중요: 예전 화면이 계속 보일 때
+
+이 프로젝트는 Node 동적 서버입니다. 예전 `Selling-God` 정적 사이트를 그대로 사용하면 새 게임 서버가 실행되지 않습니다.
+
+정상 Render 서비스 설정:
+- Runtime: Node
+- Build Command: `npm ci && npm run build`
+- Start Command: `npm start`
+- Health Check Path: `/healthz`
+
+배포 후 `https://배포주소/healthz`를 열어 다음 값이 보여야 합니다.
+- `service`: `RIFT_DECK_SERVER`
+- `version`: `2.1.0`
+- `deployId`: `RIFT-V2.1-20260910`
+- `cards`: `315`
+- `maxDungeonFloor`: `50`
+
+정적 사이트로 잘못 배포하면 v2.1 빌드는 `out/index.html`에 진단 화면을 생성합니다. 따라서 새 빌드가 성공했는데도 예전 게임 화면이 보인다면 새 커밋/브랜치/서비스가 실제 배포 대상이 아닌 것입니다.
+
+브라우저의 과거 Service Worker/Cache도 v2.1 클라이언트가 시작 시 자동 해제합니다.

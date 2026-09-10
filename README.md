@@ -1,4 +1,4 @@
-# RIFT DECK : ABYSS EXPEDITION v2.0.0
+# RIFT DECK : ABYSS EXPEDITION v2.1.0
 
 브라우저에서 실행되는 **동적 서버 기반 카드 로그라이트 + 1~4인 협동 50층 던전**입니다.
 
@@ -142,3 +142,9 @@ Health Check Path: /healthz
 ## 저작권/브랜딩
 
 이 프로젝트는 장르와 플레이 루프를 참고하되 Pokemon/PokeRogue의 실제 그래픽, 캐릭터, 스프라이트, 로고, 명칭을 포함하지 않습니다. RIFT DECK의 카드, 적, 바이옴, 아이템과 제공된 절차형 픽셀 자산은 프로젝트 전용 독자 자산입니다.
+
+## v2.1 배포 식별과 기존 Supabase
+
+v2.1의 배포 식별자는 `RIFT-V2.1-20260910`입니다. `/healthz`에서 이 값을 확인할 수 있습니다.
+
+기존 Supabase 프로젝트를 버릴 필요는 없습니다. 기존 `kx_*` 데이터는 그대로 두고 `supabase/RUN_THIS_IN_SUPABASE_RIFT_V21.sql`을 한 번 실행해 `rift_profiles` 테이블만 추가합니다. Render에는 서버 전용 `SUPABASE_SERVICE_ROLE_KEY`를 등록합니다. 브라우저 코드에는 service-role 키를 넣지 않습니다.

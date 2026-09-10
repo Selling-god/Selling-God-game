@@ -1,0 +1,16 @@
+RIFT DECK v2.1 - 기존 Supabase 사용 방법
+
+1. 기존 Supabase 프로젝트 자체는 바꾸거나 삭제할 필요가 없습니다.
+2. 기존 판매의 신/KX 테이블(kx_*)도 삭제하지 않습니다.
+3. Supabase SQL Editor에서 아래 파일을 1회 실행합니다.
+   supabase/RUN_THIS_IN_SUPABASE_RIFT_V21.sql
+4. Render의 새 RIFT DECK Web Service 환경변수에 아래 2개를 등록합니다.
+   SUPABASE_URL = 기존 Supabase Project URL
+   SUPABASE_SERVICE_ROLE_KEY = 기존 프로젝트의 service_role key
+5. anon key는 현재 RIFT DECK 서버 저장에는 필요하지 않습니다.
+6. service_role key는 절대로 public/app.js나 브라우저에 넣으면 안 됩니다.
+
+정상 확인:
+배포 주소 뒤에 /healthz 를 붙여 접속합니다.
+storage 값이 supabase+json-fallback 이면 Supabase 영구 저장 연결이 활성화된 상태입니다.
+version은 2.1.0, deployId는 RIFT-V2.1-20260910 이어야 합니다.

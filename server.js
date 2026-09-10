@@ -29,7 +29,11 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
+const DEPLOY_ID = 'RIFT-V2.1-20260910';
+const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
+const SUPABASE_SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '');
+const SUPABASE_ACTIVE = Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 
 const CATALOG = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'catalog.json'), 'utf8'));
 const CARDS = CATALOG.cards;
@@ -86,10 +90,84 @@ function weighted(items, weightFn) {
 function readJson(file, fallback) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
 }
+let supabaseSyncTimer = null;
+let supabaseSyncBusy = false;
+let supabaseSyncAgain = false;
+
+async function supabaseRequest(pathname, options = {}) {
+  if (!SUPABASE_ACTIVE) return null;
+  const headers = {
+    apikey: SUPABASE_SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    'Content-Type': 'application/json',
+    ...(options.headers || {})
+  };
+  const response = await fetch(`${SUPABASE_URL}${pathname}`, { ...options, headers });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Supabase ${response.status}: ${text.slice(0, 300)}`);
+  }
+  if (response.status === 204) return null;
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function hydrateProfilesFromSupabase() {
+  if (!SUPABASE_ACTIVE) return;
+  try {
+    const rows = await supabaseRequest('/rest/v1/rift_profiles?select=profile_id,data&limit=10000');
+    if (Array.isArray(rows)) {
+      for (const row of rows) {
+        if (!row || !row.profile_id || !row.data || typeof row.data !== 'object') continue;
+        profiles[row.profile_id] = migrateProfile(row.data);
+      }
+      const tmp = PROFILE_FILE + '.tmp';
+      fs.writeFileSync(tmp, JSON.stringify(profiles, null, 2));
+      fs.renameSync(tmp, PROFILE_FILE);
+      console.log(`[RIFT DECK] loaded ${rows.length} Supabase profile rows`);
+    }
+  } catch (err) {
+    console.warn('[RIFT DECK] Supabase profile hydrate skipped:', err.message);
+  }
+}
+
+async function flushProfilesToSupabase() {
+  if (!SUPABASE_ACTIVE) return;
+  if (supabaseSyncBusy) { supabaseSyncAgain = true; return; }
+  supabaseSyncBusy = true;
+  try {
+    const rows = Object.values(profiles).map(profile => ({
+      profile_id: profile.id,
+      data: profile,
+      updated_at: new Date().toISOString()
+    }));
+    if (rows.length) {
+      await supabaseRequest('/rest/v1/rift_profiles?on_conflict=profile_id', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(rows)
+      });
+    }
+  } catch (err) {
+    console.warn('[RIFT DECK] Supabase profile sync failed:', err.message);
+  } finally {
+    supabaseSyncBusy = false;
+    if (supabaseSyncAgain) { supabaseSyncAgain = false; setTimeout(() => flushProfilesToSupabase(), 250).unref?.(); }
+  }
+}
+
+function queueSupabaseSync() {
+  if (!SUPABASE_ACTIVE) return;
+  if (supabaseSyncTimer) clearTimeout(supabaseSyncTimer);
+  supabaseSyncTimer = setTimeout(() => { supabaseSyncTimer = null; flushProfilesToSupabase(); }, 250);
+  supabaseSyncTimer.unref?.();
+}
+
 function saveProfiles() {
   const tmp = PROFILE_FILE + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(profiles, null, 2));
   fs.renameSync(tmp, PROFILE_FILE);
+  queueSupabaseSync();
 }
 function sanitizeName(s) {
   return String(s || '방랑자').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 14) || '방랑자';
@@ -1278,7 +1356,7 @@ function serveStatic(res, pathname) {
     const longCache = pathname.startsWith('/assets/');
     res.writeHead(200, {
       'Content-Type': type,
-      'Cache-Control': ext === '.html' ? 'no-store' : longCache ? 'public, max-age=604800, immutable' : 'public, max-age=3600',
+      'Cache-Control': longCache ? 'public, max-age=86400' : 'no-store, no-cache, must-revalidate',
       'X-Content-Type-Options': 'nosniff'
     });
     res.end(data);
@@ -1304,7 +1382,7 @@ const server = http.createServer(async (req, res) => {
     }
     const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const p = u.pathname;
-    if (p === '/healthz') return ok(res, { service: 'RIFT_DECK_SERVER', version: VERSION, rooms: rooms.size, uptime: Math.round(process.uptime()) });
+    if (p === '/healthz' || p === '/api/version') return ok(res, { service: 'RIFT_DECK_SERVER', version: VERSION, deployId: DEPLOY_ID, storage: SUPABASE_ACTIVE ? 'supabase+json-fallback' : 'json-local', cards: CARDS.length, items: ITEMS.length, maxDungeonFloor: DUNGEON_MAX_FLOOR, rooms: rooms.size, uptime: Math.round(process.uptime()) });
     if (p === '/api/meta' && req.method === 'GET') return ok(res, {
       cards: CARDS.map(publicCard), items: ITEMS.map(publicItem), rarities: RARITY, elements: ELEMENTS, biomes: BIOMES,
       relics: RELICS, banner: BANNER, difficulties: DIFFICULTIES, version: VERSION, maxDungeonFloor: DUNGEON_MAX_FLOOR
@@ -1395,7 +1473,13 @@ setInterval(() => {
 }, 15000).unref();
 
 if (require.main === module) {
-  server.listen(PORT, HOST, () => console.log(`[RIFT DECK v${VERSION}] dynamic server listening on http://${HOST}:${PORT}`));
+  (async () => {
+    await hydrateProfilesFromSupabase();
+    server.listen(PORT, HOST, () => {
+      console.log(`[RIFT DECK v${VERSION}] ${DEPLOY_ID} dynamic server listening on http://${HOST}:${PORT}`);
+      console.log(`[RIFT DECK] persistence=${SUPABASE_ACTIVE ? 'Supabase + JSON fallback' : 'JSON local (Supabase env not configured)'}`);
+    });
+  })().catch(err => { console.error('[RIFT DECK] boot failed', err); process.exit(1); });
 }
 
 module.exports = { server, CATALOG, DUNGEON_MAX_FLOOR, CARDS, ITEMS, DIFFICULTIES };
