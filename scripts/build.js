@@ -29,7 +29,7 @@ const hash = crypto.createHash('sha256')
   .slice(0, 12);
 
 const configSource = `window.__KX_CONFIG__=${JSON.stringify({ ...env, buildId: hash })};\n`;
-const versionSource = JSON.stringify({ release: '8.0.1-COMMERCIAL-RC1', buildId: hash, generatedAt: new Date().toISOString() }, null, 2) + '\n';
+const versionSource = JSON.stringify({ release: '9.0.0-STEAM-RELEASE-PREP', buildId: hash, generatedAt: new Date().toISOString() }, null, 2) + '\n';
 const sourceIndex = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
 const renderedIndex = sourceIndex
   .replace(/__KX_ASSET_VERSION__/g, hash)
