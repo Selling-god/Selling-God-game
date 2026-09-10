@@ -29,8 +29,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '2.2.1';
-const DEPLOY_ID = 'RIFT-V2.2.1-HOTFIX-20260910';
+const VERSION = '2.3.0';
+const DEPLOY_ID = 'RIFT-V2.3.0-HQ-20260910';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -382,7 +382,7 @@ function migrateProfile(p) {
     bestDungeonFloor: 0, bestJourneyFloor: 0, gachaPulls: 0,
     normalClears: 0, hardClears: 0, hellClears: 0,
     bestNormalFloor: 0, bestHardFloor: 0, bestHellFloor: 0,
-    loginCount: 0, lastLoginAt: 0
+    loginCount: 0, lastLoginAt: 0, perfectBattles: 0, bestChain: 0, overdrives: 0
   };
   for (const [k, v] of Object.entries(defaults)) if (p.stats[k] == null) p.stats[k] = v;
   p.history = Array.isArray(p.history) ? p.history.filter(x => x && typeof x === 'object').slice(0, 20) : [];
@@ -560,7 +560,8 @@ function makeCombatant(run, index) {
       energyDebt: 0
     },
     relics: run.relics.slice(),
-    stats: { cardsPlayed: 0, damage: 0, healing: 0 }
+    chain: { count: 0, lastType: null, best: 0, overdrives: 0 },
+    stats: { cardsPlayed: 0, damage: 0, healing: 0, hpDamageTaken: 0 }
   };
   drawCards(pc, 5 + Math.floor(modTotal(run, 'drawBonus')) + (run.relics.includes('r007') ? 1 : 0));
   return pc;
@@ -870,6 +871,8 @@ function startBattle(room, tier) {
     base.debuffs = { weak: 0, vulnerable: 0, burn: 0, shock: 0, intentSeal: 0 };
     base.nextDamageHalf = false;
     base.counter = 0;
+    base.phase = tier === 'boss' ? 1 : 0;
+    base.enraged = false;
     base.intent = rollIntent(base, tier, room.difficulty);
     enemies.push(base);
   }
@@ -881,8 +884,9 @@ function startBattle(room, tier) {
 function rollIntent(e, tier, difficulty = 'normal') {
   const r = Math.random();
   const hardShift = difficulty === 'hell' ? 0.10 : difficulty === 'hard' ? 0.05 : 0;
-  const heavy = Math.round(e.atk * (tier === 'boss' ? 1.72 : 1.50));
-  if (r < 0.54 + hardShift) return { type: 'attack', value: e.atk, icon: '⚔', text: `공격 ${e.atk}` };
+  const phaseShift = e.enraged ? 0.11 : 0;
+  const heavy = Math.round(e.atk * (tier === 'boss' ? (e.enraged ? 1.92 : 1.72) : 1.50));
+  if (r < 0.54 + hardShift + phaseShift) return { type: 'attack', value: e.atk, icon: '⚔', text: `공격 ${e.atk}` };
   if (r < 0.73) {
     const v = Math.max(5, Math.round(e.atk * 0.78));
     return { type: 'guard', value: v, icon: '▣', text: `방어 ${v}` };
@@ -930,8 +934,12 @@ function playCard(room, playerId, handIndex, targetUid) {
   if (c.type === 'unit') summonUnit(room, pc, c, target);
   else castSpell(room, pc, c, target);
   pc.discard.push(cid);
+  const chainResult = updateTacticalChain(room, pc, c);
+  const phaseShifts = updateBossPhase(room);
   if (checkBattleEnd(room)) return;
-  pushRoomEvent(room, 'card', `${pc.nickname}: ${c.name}`, { playerId: pc.playerId, cardId: c.id, cardName: c.name, cardType: c.type, element: c.element, targetUid: target?.uid || null, cost });
+  pushRoomEvent(room, 'card', `${pc.nickname}: ${c.name}`, { playerId: pc.playerId, cardId: c.id, cardName: c.name, cardType: c.type, element: c.element, targetUid: target?.uid || null, cost, chainCount: chainResult.displayCount, chainStage: chainResult.stage });
+  if (chainResult.stage) pushRoomEvent(room, 'chain', `${pc.nickname} ${chainResult.stage === 'overdrive' ? '오버드라이브' : '전술 연쇄'} 발동!`, { playerId: pc.playerId, stage: chainResult.stage, count: chainResult.displayCount });
+  for (const e of phaseShifts) pushRoomEvent(room, 'boss-phase', `${e.name}이(가) 2단계로 돌입했습니다!`, { enemyUid: e.uid, enemyName: e.name, phase: 2 });
 }
 
 function summonUnit(room, pc, c, target) {
@@ -963,6 +971,64 @@ function castSpell(room, pc, c, target) {
     }
   }
   battleLog(room, `${pc.nickname}이(가) ${c.name} 사용.`);
+}
+
+function updateTacticalChain(room, pc, card) {
+  pc.chain ||= { count: 0, lastType: null, best: 0, overdrives: 0 };
+  const chain = pc.chain;
+  if (chain.lastType && chain.lastType !== card.type) chain.count += 1;
+  else chain.count = 1;
+  chain.lastType = card.type;
+  chain.best = Math.max(Number(chain.best || 0), chain.count);
+  const p = profiles[pc.playerId];
+  if (p) p.stats.bestChain = Math.max(Number(p.stats.bestChain || 0), chain.best);
+  let stage = '';
+  const displayCount = chain.count;
+  if (chain.count === 3) {
+    drawCards(pc, 1);
+    pc.block += 4;
+    stage = 'flow';
+    battleLog(room, `${pc.nickname} 전술 연쇄 3! 드로우 +1 · 방어 +4.`);
+  } else if (chain.count >= 5) {
+    pc.energy += 1;
+    pc.buffs.nextAttack += 6;
+    chain.overdrives += 1;
+    if (p) p.stats.overdrives = Number(p.stats.overdrives || 0) + 1;
+    stage = 'overdrive';
+    battleLog(room, `${pc.nickname} OVERDRIVE! 에너지 +1 · 다음 공격 +6.`);
+    chain.count = 0;
+    chain.lastType = null;
+  }
+  return { stage, displayCount };
+}
+
+function updateBossPhase(room) {
+  const b = room.battle;
+  if (!b || b.tier !== 'boss') return [];
+  const shifted = [];
+  for (const e of b.enemies) {
+    if (e.hp <= 0 || e.enraged || e.hp > e.maxHp * 0.5) continue;
+    e.enraged = true;
+    e.phase = 2;
+    e.atk = Math.max(e.atk + 1, Math.round(e.atk * 1.18));
+    e.block = Number(e.block || 0) + Math.max(12, Math.round(e.maxHp * 0.08));
+    e.debuffs.weak = Math.max(0, Number(e.debuffs.weak || 0) - 1);
+    e.debuffs.intentSeal = 0;
+    e.intent = rollIntent(e, 'boss', room.difficulty);
+    shifted.push(e);
+    battleLog(room, `${e.name} PHASE II — 공격력이 상승하고 보호막을 전개했습니다.`);
+  }
+  return shifted;
+}
+
+function combatGrade(pc, battle) {
+  const taken = Number(pc?.stats?.hpDamageTaken || 0);
+  const ratio = pc?.maxHp ? taken / pc.maxHp : 1;
+  const turn = Number(battle?.turn || 99);
+  if (taken === 0 && turn <= 5) return 'S';
+  if (ratio <= 0.12 && turn <= 7) return 'A';
+  if (ratio <= 0.35 && turn <= 10) return 'B';
+  return 'C';
 }
 
 function modifiedDamage(room, pc, base, source) {
@@ -1037,6 +1103,7 @@ function damagePc(room, pc, amount, enemy) {
   pc.block -= blocked;
   d -= blocked;
   pc.hp = clamp(pc.hp - d, 0, pc.maxHp);
+  if (d > 0) pc.stats.hpDamageTaken = Number(pc.stats.hpDamageTaken || 0) + d;
   if (d > 0 && pc.buffs.thorns > 0 && enemy) applyDamage(enemy, pc.buffs.thorns);
   if (pc.hp <= 0) {
     const run = room.runState[pc.playerId];
@@ -1098,6 +1165,8 @@ function enemyTurn(room) {
       if (hook === 'teamBlockEvery3' && u.counter % 3 === 0) b.party.filter(x => !x.down).forEach(x => x.block += 8);
       if (hook === 'mythicPulse' && u.counter % 2 === 0) aliveEnemies(room).forEach(e => applyDamage(e, 12));
       if (hook === 'killEnergy' && target.hp <= 0 && !u.killPaid) { pc.energy++; u.killPaid = true; }
+      const phaseShifts = updateBossPhase(room);
+      for (const phaseEnemy of phaseShifts) pushRoomEvent(room, 'boss-phase', `${phaseEnemy.name}이(가) 2단계로 돌입했습니다!`, { enemyUid: phaseEnemy.uid, enemyName: phaseEnemy.name, phase: 2 });
       if (checkBattleEnd(room)) return;
     }
   }
@@ -1149,6 +1218,9 @@ function enemyTurn(room) {
     pc.ended = false;
     pc.buffs.debuffImmune = false;
     pc.buffs.thorns = Math.max(pc.buffs.thorns, Number(pc.itemMods.thorns || 0));
+    pc.chain ||= { count: 0, lastType: null, best: 0, overdrives: 0 };
+    pc.chain.count = 0;
+    pc.chain.lastType = null;
     pc.weak = Math.max(0, pc.weak - 1);
     pc.discard.push(...pc.hand);
     pc.hand = [];
@@ -1211,6 +1283,8 @@ function winBattle(room) {
   const diff = roomDifficulty(room);
   const baseGold = (boss ? 170 : b.tier === 'elite' ? 105 : 55) + room.floor * 3;
   const baseGems = (boss ? 55 : b.tier === 'elite' ? 24 : 8) + Math.floor(room.floor / 5);
+  const perfectBy = {};
+  const gradeBy = {};
   for (const rp of room.players) {
     const p = profiles[rp.id];
     const run = room.runState[rp.id];
@@ -1218,6 +1292,16 @@ function winBattle(room) {
     const gemPct = 1 + modTotal(run, 'gemPct');
     run.gold += Math.round(baseGold * diff.gold * goldPct);
     p.gems += Math.round(baseGems * diff.gems * gemPct);
+    const pc = b.party.find(x => x.playerId === rp.id);
+    gradeBy[rp.id] = combatGrade(pc, b);
+    if (Number(pc?.stats?.hpDamageTaken || 0) === 0) {
+      const bonusGold = 24 + room.floor * 2;
+      const bonusGems = 4 + Math.floor(room.floor / 10);
+      run.gold += bonusGold;
+      p.gems += bonusGems;
+      p.stats.perfectBattles = Number(p.stats.perfectBattles || 0) + 1;
+      perfectBy[rp.id] = { gold: bonusGold, gems: bonusGems };
+    }
     const afterHeal = modTotal(run, 'healAfterBattle');
     if (afterHeal > 0) run.hp = clamp(run.hp + Math.round(afterHeal), 1, run.maxHp);
     if (boss) p.stats.bosses++;
@@ -1233,9 +1317,11 @@ function winBattle(room) {
   const title = room.finalClearPending ? '50층 최종 수호자 격파!' : boss ? '지역 보스 격파!' : b.tier === 'elite' ? '정예 격파!' : '전투 승리';
   const text = `전투 골드와 프리즘을 획득했습니다. 카드 또는 런 아이템 중 하나를 선택하세요.`;
   createFloorReward(room, 'battle', title, text, b.tier);
+  room.reward.perfectBy = perfectBy;
+  room.reward.gradeBy = gradeBy;
   if (room.mode === 'journey' && Math.random() < (boss ? 0.70 : b.tier === 'elite' ? 0.42 : 0.27)) room.capture = makeCaptureEncounter(room.floor, b.tier, room);
   battleLog(room, '승리!');
-  pushRoomEvent(room, 'win', '전투에서 승리했습니다.', { tier: b.tier, floor: room.floor, final: room.finalClearPending });
+  pushRoomEvent(room, 'win', '전투에서 승리했습니다.', { tier: b.tier, floor: room.floor, final: room.finalClearPending, perfectPlayers: Object.keys(perfectBy).length });
 }
 
 function loseBattle(room) {

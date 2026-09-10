@@ -1,4 +1,4 @@
-RIFT DECK : ABYSS EXPEDITION v2.2.0 - INDEX
+RIFT DECK : ABYSS EXPEDITION v2.3.0 HIGH QUALITY - INDEX
 
 [콘텐츠]
 카드: 315 (일반96 / 희귀84 / 초희귀60 / 전설48 / 신화27)
@@ -10,6 +10,15 @@ RIFT DECK : ABYSS EXPEDITION v2.2.0 - INDEX
 난이도: 보통 / 어려움 / 지옥
 보상: 모든 층 완료 후 플레이어별 카드 또는 아이템 1개 선택
 
+
+[v2.3 HIGH QUALITY]
+가독성: 전체 글자 확대/대비 강화, 데스크톱 카드 자체 크기 확대, 상세 카드 보기
+TACTICAL CHAIN: 같은 턴 UNIT↔SPELL 교차 사용 연쇄. 3연쇄=드로우1+방어4, 5연쇄=OVERDRIVE(에너지1+다음공격6)
+보스 PHASE II: 보스 HP 50% 이하 폭주, 공격력 상승/보호막/공격 성향 강화
+전투 평가: S/A/B/C 등급, 노데미지 PERFECT 추가 골드+프리즘
+연출: 전설/신화 홀로그램 광택, TARGET 락온, PHASE II 강조, 연쇄/오버드라이브 배너+SFX
+조작: 카드 우클릭 또는 모바일 길게 누르기 상세 보기
+Supabase: 기존 v2.2 스키마 그대로 사용(추가 SQL 불필요)
 
 [v2.2]
 로그인: Supabase Auth (아이디+비밀번호, HttpOnly cookie)

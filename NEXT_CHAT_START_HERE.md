@@ -1,3 +1,16 @@
+# NEXT CHAT START HERE — v2.3.0 HIGH QUALITY
+
+현재 기준 버전은 RIFT DECK v2.3.0 HIGH QUALITY입니다. 기존 기능(315 카드, 50층, 3난이도, 1~4인 협동, Supabase 로그인/클라우드 저장)에 아래가 추가되었습니다.
+
+- 전체 가독성 개선
+- TACTICAL CHAIN / OVERDRIVE
+- 보스 PHASE II
+- S/A/B/C 전투 등급과 PERFECT 보너스
+- 카드 상세 보기
+- 전설/신화 홀로그램 및 타겟/페이즈 연출
+
+Supabase SQL은 v2.2를 이미 적용했다면 변경할 필요 없습니다.
+
 # RIFT DECK 다음 작업 시작점
 
 현재 기준: **v2.2.0 / CLOUD LOGIN + PERSISTENT RUN + COMBAT IMPACT UPDATE**

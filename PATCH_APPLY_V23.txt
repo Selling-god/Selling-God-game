@@ -1,0 +1,9 @@
+RIFT DECK v2.3 HIGH QUALITY 패치 적용
+
+1. PATCH ZIP 압축을 풉니다.
+2. 나온 파일/폴더를 현재 GitHub 저장소 최상위에 그대로 덮어씁니다.
+3. Commit/Push 하면 현재 Render Web Service가 자동 재배포됩니다.
+4. Supabase는 v2.2용 SQL을 이미 실행했다면 새 SQL 작업이 필요 없습니다.
+5. /healthz에서 version=2.3.0, deployId=RIFT-V2.3.0-HQ-20260910 확인
+
+변경 파일: server.js, public/app.js, public/styles.css, scripts/build.js, scripts/combat-depth-test.js, package.json, package-lock.json, 문서 파일
