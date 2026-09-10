@@ -2095,3 +2095,11 @@ body.kx-reduced-motion *,body.kx-reduced-motion *::before,body.kx-reduced-motion
 @media(max-width:360px){
   .company-page .operations-hub>nav{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 }
+
+/* V12.0 Reality Consistency - ownership, control and semantic accounting */
+.ownership-equation{margin:10px 0 14px;padding:10px 12px;border:1px solid #2a4053;border-radius:12px;background:#0a1621;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;color:#8ea4b7}
+.ownership-equation span{display:flex;align-items:center;gap:7px;min-width:0;font-size:9px;line-height:1.45}
+.ownership-equation b{color:#dce8f1;font-size:9px;white-space:nowrap}
+.takeover-overview-stats span>em{display:block;margin-top:3px;color:#6f879b;font-size:7.5px;font-style:normal;font-weight:700;line-height:1.35}
+.quality-takeover-board .stake-row .stake-figure b{white-space:nowrap}
+@media(max-width:760px){.ownership-equation{display:grid;grid-template-columns:1fr;padding:9px 10px}.ownership-equation span{justify-content:space-between}.takeover-overview-stats span>em{font-size:7px}}
