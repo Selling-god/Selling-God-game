@@ -1,0 +1,9 @@
+{
+  "name":"RIFT DECK: ABYSS EXPEDITION",
+  "short_name":"RIFT DECK",
+  "start_url":"/",
+  "display":"standalone",
+  "background_color":"#0d1320",
+  "theme_color":"#111827",
+  "icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml"}]
+}
