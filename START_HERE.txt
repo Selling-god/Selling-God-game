@@ -1,19 +1,32 @@
-RIFT DECK : ABYSS EXPEDITION - 시작 안내
+RIFT DECK : ABYSS EXPEDITION v2.0.0 - 시작 안내
 
-1) 이 ZIP은 기존 Selling-God 프로젝트에 덮는 패치가 아니라 전체 교체용 새 프로젝트입니다.
-2) Node.js 18 이상 설치
-3) 압축을 푼 폴더에서 npm install
-4) npm start
-5) http://localhost:3000 접속
-6) npm test 로 서버/4인방 기본 동작 테스트 가능
+[가장 빠른 실행]
+1. Node.js 20~26 설치 (권장: 22)
+2. 압축을 푼 프로젝트 루트에서: npm ci
+3. 빌드 검증: npm run build
+4. 실행: npm start
+5. 브라우저: http://localhost:3000
+6. 전체 테스트: npm test
 
-Render 배포:
-- GitHub에 이 폴더 내용 전체를 저장소 루트로 업로드
-- Render의 Blueprint에서 render.yaml 사용 또는 Web Service 생성
-- Build Command: npm ci
-- Start Command: npm start
-- Health Check: /healthz
+[Render]
+Build Command : npm ci && npm run build
+Start Command : npm start
+Node Version   : 22
+Health Check   : /healthz
 
-중요:
-- 방/전투는 동적 서버가 권한을 갖습니다.
-- 카드/프로필은 현재 JSON 저장 방식이며, 실제 장기 서비스에서는 Supabase/Postgres 영구 저장으로 교체 권장.
+이전 Missing script: "build" 오류는 이번 v2에서 package.json의 build 스크립트와 scripts/build.js를 추가해 수정했습니다.
+
+[이번 v2 핵심]
+- 50층 던전
+- 난이도: 보통 / 어려움 / 지옥
+- 1~4인 협동
+- 매 층 완료 후 각 플레이어가 랜덤 카드 또는 런 아이템 1개 선택
+- 카드 315종 (기존 63종의 정확히 5배)
+- 런 아이템 48종 / 적 50종 / 보스 5종 / 바이옴 5종
+- 일반 여행 카드 봉인/수집
+- 복각 가챠 / 컬렉션 / 덱 편성
+- 서버 권한 전투 + SSE 실시간 동기화
+- 375개 오리지널 PNG 자산
+
+[주의]
+data/profiles.json은 현재 로컬 JSON 저장입니다. 공개 서비스에서 영구 계정 데이터가 필요하면 Supabase/Postgres 연결이 다음 단계입니다.

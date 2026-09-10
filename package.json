@@ -1,15 +1,16 @@
 {
   "name": "rift-deck-abyss-expedition",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Original dynamic-server browser card roguelite with 1-4 player co-op dungeons.",
+  "description": "Dynamic server-authoritative 1-4 player card roguelite with a 50-floor co-op dungeon.",
   "scripts": {
+    "build": "node scripts/build.js",
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node scripts/smoke-test.js && node scripts/multiplayer-test.js && node scripts/combat-test.js",
-    "check": "node --check server.js && node --check public/app.js"
+    "check": "node --check server.js && node --check public/app.js && node scripts/catalog-test.js",
+    "test": "npm run build && node scripts/smoke-test.js && node scripts/multiplayer-test.js && node scripts/combat-test.js && node scripts/fifty-floor-test.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20 <27"
   }
 }
