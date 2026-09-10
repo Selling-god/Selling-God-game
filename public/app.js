@@ -39,7 +39,9 @@
     bannerTimer: 0,
     roomsTimer: 0,
     lastFxSeq: 0,
-    lastBattleKey: ''
+    lastBattleKey: '',
+    lastCastFx: null,
+    battleEntranceKey: ''
   };
   localStorage.setItem('riftdeck.guestProfileId', state.guestProfileId);
 
@@ -174,21 +176,70 @@
     const units=$$('.unit-slot.filled,.unit-actor.filled');
     units.slice(0,3).forEach((u,i)=>setTimeout(()=>{try{u.animate([{transform:'translate3d(0,0,0)'},{transform:'translate3d(26px,-8px,0) scale(1.06)',offset:.5},{transform:'translate3d(0,0,0)'}],{duration:260,easing:'cubic-bezier(.2,.8,.2,1)'});}catch{}},i*55));
   }
-  async function cardCastWindup(cardEl,card,targetEl){
-    if(!fxOn()||!cardEl)return;const from=cardEl.getBoundingClientRect(),root=fxRoot();
-    const clone=cardEl.cloneNode(true);clone.classList.add('cast-card-clone','v26');clone.style.left=`${from.left}px`;clone.style.top=`${from.top}px`;clone.style.width=`${from.width}px`;clone.style.height=`${from.height}px`;root.appendChild(clone);cardEl.classList.add('card-committed');
-    const centerX=innerWidth*.5-(from.left+from.width/2),centerY=innerHeight*.48-(from.top+from.height/2);
-    try{await clone.animate([
-      {transform:'translate3d(0,0,0) scale(1)',opacity:1},
-      {transform:`translate3d(${centerX*.72}px,${centerY*.72}px,0) scale(1.16) rotate(${card.type==='spell'?-2:2}deg)`,opacity:1,offset:.62},
-      {transform:`translate3d(${centerX}px,${centerY}px,0) scale(1.08) rotate(0deg)`,opacity:1}
-    ],{duration:220,easing:'cubic-bezier(.18,.8,.2,1)',fill:'forwards'}).finished;}catch{await wait(150);}
-    screenFlash(card.type==='spell'?'spell':'summon');sound(card.type==='spell'?'gacha':'summon');
-    if(card.type==='spell'&&targetEl){await projectileFx(clone,targetEl,card.element,Number(card.power||0)>=16);}
-    else{const slot=$('.unit-slot:not(.filled),.unit-actor:not(.filled)')||$('.unit-board');if(slot)await projectileFx(clone,slot,card.element,false);}
-    try{clone.animate([{opacity:1,transform:clone.style.transform||'none'},{opacity:0,filter:'brightness(2.2)',transform:`translate3d(${centerX}px,${centerY-12}px,0) scale(.72)`}],{duration:110,fill:'forwards'});}catch{}
-    setTimeout(()=>clone.remove(),130);cardEl.classList.remove('card-committed');
+  function cardFxMode(card){
+    if(card?.type==='unit')return 'summon';
+    const ops=new Set((card?.effects||[]).map(e=>e.op));
+    if([...ops].some(x=>['damage','damageAll','damageOthers','burn','vulnerable','vulnerableAll','weak','shockAll','intentSealAll'].includes(x))||Number(card?.power||0)>0)return 'attack';
+    if([...ops].some(x=>['heal','healAllies'].includes(x)))return 'heal';
+    if([...ops].some(x=>['block','blockAllies','debuffImmune'].includes(x)))return 'guard';
+    return 'utility';
   }
+  function cardFxHeavy(card){return ['legendary','mythic'].includes(card?.rarity)||Number(card?.power||0)>=18||(card?.effects||[]).some(e=>['damageAll','shockAll'].includes(e.op));}
+  function cardFxTrait(card){const ops=new Set((card?.effects||[]).map(e=>e.op));if([...ops].some(x=>['damageAll','damageOthers','shockAll','vulnerableAll','intentSealAll'].includes(x)))return 'aoe';if(ops.has('burn'))return 'burn';if([...ops].some(x=>['vulnerable','weak'].includes(x)))return 'debuff';if([...ops].some(x=>['heal','healAllies'].includes(x)))return 'heal';if([...ops].some(x=>['block','blockAllies','debuffImmune'].includes(x)))return 'guard';return 'direct';}
+  function cardFxVariant(card){const id=String(card?.id||card?.name||'rift');let n=0;for(let i=0;i<id.length;i++)n+=id.charCodeAt(i);return n%3;}
+  function soundElement(element,heavy=false){
+    if(!state.sound)return;try{const ctx=audioEngine();if(!ctx)return;const g=heavy?.05:.028;
+      if(element==='화염'){noise(ctx,.12,g,0,900);tone(ctx,240,.14,g,'sawtooth',0,90);}
+      else if(element==='물'){tone(ctx,320,.16,g,'sine',0,680);tone(ctx,760,.08,g*.55,'sine',.05,520);}
+      else if(element==='자연'){noise(ctx,.10,g*.7,0,1500);tone(ctx,190,.14,g,'triangle',0,310);}
+      else if(element==='빛'){tone(ctx,960,.11,g,'sine');tone(ctx,1420,.14,g*.75,'sine',.035,1760);}
+      else if(element==='그림자'){tone(ctx,150,.17,g,'sawtooth',0,58);noise(ctx,.10,g*.8,.02,620);}
+      else if(element==='강철'){noise(ctx,.07,g*1.2,0,2600);tone(ctx,680,.09,g,'square',0,390);}
+      else if(element==='바람'){noise(ctx,.18,g*.75,0,3000);tone(ctx,420,.13,g*.6,'sine',0,980);}
+      else if(element==='번개'){[1480,1040,1760].forEach((f,i)=>tone(ctx,f,.05,g,'square',i*.026,f*.62));noise(ctx,.08,g,.02,3500);}
+      else if(element==='별'){[620,930,1390].forEach((f,i)=>tone(ctx,f,.13,g*.8,'sine',i*.035,f*1.08));}
+      else if(element==='시간'){[520,520,780].forEach((f,i)=>tone(ctx,f,.045,g*.72,'square',i*.055));}
+      else if(element==='수정'){[860,1180,1520].forEach((f,i)=>tone(ctx,f,.09,g*.8,'triangle',i*.025));}
+      else{tone(ctx,130,.18,g,'sawtooth',0,48);tone(ctx,70,.16,g*.8,'sine',.04,42);}
+    }catch{}
+  }
+  function signatureImpactFx(target,card,strength=1){
+    if(!fxOn()||!target)return;const c=rectCenter(target),root=fxRoot(),ec=elementClass(card?.element),mode=cardFxMode(card),heavy=cardFxHeavy(card);const el=document.createElement('div');
+    el.className=`signature-impact-v31 sig-${ec}-v31 mode-${mode}-v31 trait-${cardFxTrait(card)}-v31 variant-${cardFxVariant(card)}-v31 ${heavy?'heavy':''}`;el.style.left=`${c.x}px`;el.style.top=`${c.y}px`;el.style.setProperty('--fx-scale',String(Math.max(.75,Math.min(1.7,strength))));
+    el.innerHTML='<i class="fx-core-v31"></i><i class="fx-ring-v31 r1"></i><i class="fx-ring-v31 r2"></i><b class="fx-bit-v31 b1"></b><b class="fx-bit-v31 b2"></b><b class="fx-bit-v31 b3"></b><b class="fx-bit-v31 b4"></b><b class="fx-bit-v31 b5"></b><b class="fx-bit-v31 b6"></b>';
+    root.appendChild(el);soundElement(card?.element,heavy);setTimeout(()=>el.remove(),heavy?760:620);
+  }
+  function signatureProjectileFx(fromEl,targetEl,card){
+    if(!fxOn()||!fromEl||!targetEl)return Promise.resolve();const a=rectCenter(fromEl),b=rectCenter(targetEl),dx=b.x-a.x,dy=b.y-a.y,root=fxRoot(),heavy=cardFxHeavy(card),ec=elementClass(card?.element),el=document.createElement('div');
+    el.className=`signature-projectile-v31 sig-${ec}-v31 trait-${cardFxTrait(card)}-v31 variant-${cardFxVariant(card)}-v31 ${heavy?'heavy':''}`;el.style.left=`${a.x}px`;el.style.top=`${a.y}px`;el.style.setProperty('--ang',`${Math.atan2(dy,dx)}rad`);el.innerHTML='<i></i><b></b><em></em>';root.appendChild(el);
+    const dur=heavy?300:235;try{const anim=el.animate([{transform:'translate3d(0,0,0) scale(.65)',opacity:0},{transform:`translate3d(${dx*.12}px,${dy*.12}px,0) scale(1)`,opacity:1,offset:.16},{transform:`translate3d(${dx}px,${dy}px,0) scale(${heavy?1.25:1})`,opacity:1}],{duration:dur,easing:'cubic-bezier(.16,.78,.18,1)',fill:'forwards'});anim.onfinish=()=>el.remove();}catch{setTimeout(()=>el.remove(),dur+20);}
+    return wait(Math.max(150,dur-50));
+  }
+  function signatureSummonFx(target,card){
+    if(!fxOn()||!target)return;const c=rectCenter(target),root=fxRoot(),el=document.createElement('div');el.className=`summon-gate-v31 sig-${elementClass(card?.element)}-v31`;el.style.left=`${c.x}px`;el.style.top=`${c.y}px`;el.innerHTML='<i></i><i></i><i></i><b></b>';root.appendChild(el);soundElement(card?.element,false);setTimeout(()=>el.remove(),760);
+  }
+  function enemyFxElement(enemy){const b=String(enemy?.biome||'');if(/glacier|ice|frost/i.test(b))return '물';if(/verdant|forest|green|nature/i.test(b))return '자연';if(/eclipse|moon/i.test(b))return '공허';if(/abyss|shadow/i.test(b))return '그림자';return '번개';}
+  async function cardCastWindup(cardEl,card,targetEl){
+    if(!cardEl)return;const mode=cardFxMode(card),heavy=cardFxHeavy(card);state.lastCastFx={cardId:card.id,targetUid:state.selectedEnemy,mode,at:Date.now()};if(!fxOn())return;
+    const from=cardEl.getBoundingClientRect(),root=fxRoot(),clone=cardEl.cloneNode(true);clone.classList.add('cast-card-clone','visual-cast-v31');clone.style.left=`${from.left}px`;clone.style.top=`${from.top}px`;clone.style.width=`${from.width}px`;clone.style.height=`${from.height}px`;root.appendChild(clone);cardEl.classList.add('card-committed');
+    const cx=innerWidth*.5-(from.left+from.width/2),cy=innerHeight*.52-(from.top+from.height/2);try{await clone.animate([{transform:'translate3d(0,0,0) scale(1)',opacity:1},{transform:`translate3d(${cx}px,${cy}px,0) scale(1.18) rotate(${mode==='attack'?-2:2}deg)`,opacity:1}],{duration:155,easing:'cubic-bezier(.18,.8,.2,1)',fill:'forwards'}).finished;}catch{await wait(120);}
+    let target=targetEl;
+    if(mode==='summon')target=$('.unit-actor-v31:not(.filled)')||$('.ally-units-v31')||$('.unit-board');
+    if(['guard','heal','utility'].includes(mode))target=$('.player-nameplate-v31')||$('.ally-stage-v31')||$('.battle-field-v31');
+    if(mode==='summon'){signatureSummonFx(target,card);if(target)await signatureProjectileFx(clone,target,card);}
+    else if(target){await signatureProjectileFx(clone,target,card);signatureImpactFx(target,card,heavy?1.35:1);}
+    if(heavy&&mode==='attack'){screenShake('hit');hitStop('hit');}
+    try{clone.animate([{opacity:1,filter:'brightness(1)'},{opacity:0,filter:'brightness(2.4)',transform:`translate3d(${cx}px,${cy-12}px,0) scale(.65)`}],{duration:100,fill:'forwards'});}catch{}
+    setTimeout(()=>clone.remove(),120);cardEl.classList.remove('card-committed');
+  }
+  function unitVolleyFx(next,targetEl){
+    if(!fxOn()||!next?.battle||!targetEl)return;const me=next.battle.party.find(p=>p.playerId===state.profileId);if(!me)return;const els=$$('.unit-actor-v31.filled');me.units.slice(0,els.length).forEach((u,i)=>setTimeout(()=>{const el=els[i],card=byId(state.meta.cards,u.cardId)||{element:u.element||'강철',rarity:'common',power:u.power,effects:[{op:'damage',value:u.power}]};try{el.animate([{transform:'translate3d(0,0,0)'},{transform:'translate3d(34px,-8px,0) scale(1.08)',offset:.45},{transform:'translate3d(0,0,0)'}],{duration:300,easing:'cubic-bezier(.2,.8,.2,1)'});}catch{}signatureProjectileFx(el,targetEl,card).then(()=>signatureImpactFx(targetEl,card,.82));},i*95));
+  }
+  function enemyAssaultFx(prev,targetEl){
+    if(!fxOn()||!prev?.battle||!targetEl)return;const attackers=prev.battle.enemies.filter(e=>e.hp>0&&['attack','heavy'].includes(e.intent?.type)).slice(0,3);attackers.forEach((e,i)=>setTimeout(()=>{const actor=$(`[data-enemy="${CSS.escape(e.uid)}"]`),heavy=e.intent.type==='heavy',fake={element:enemyFxElement(e),rarity:heavy?'legendary':'common',power:e.intent.value||e.atk,effects:[{op:'damage',value:e.intent.value||e.atk}]};if(actor){try{actor.animate([{transform:'translate3d(0,0,0)'},{transform:`translate3d(${-38-(heavy?18:0)}px,${heavy?10:4}px,0) scale(${heavy?1.13:1.06})`,offset:.46},{transform:'translate3d(8px,-2px,0) scale(.99)',offset:.72},{transform:'translate3d(0,0,0)'}],{duration:heavy?420:330,easing:'cubic-bezier(.18,.8,.2,1)'});}catch{}}
+      signatureImpactFx(targetEl,fake,heavy?1.45:1);if(heavy){screenShake('heavy');screenFlash('hurt');}},i*125));
+  }
+
   function battleDelta(prev,next){
     if(!prev?.battle||!next?.battle)return null;const out={enemies:[],party:[],turnChanged:prev.battle.turn!==next.battle.turn,tier:next.battle.tier};
     const pe=Object.fromEntries(prev.battle.enemies.map(x=>[x.uid,x]));for(const e of next.battle.enemies){const b=pe[e.uid];if(!b)continue;const hp=e.hp-b.hp,block=(e.block||0)-(b.block||0);if(hp||block)out.enemies.push({uid:e.uid,hp,block,dead:b.hp>0&&e.hp<=0});}
@@ -196,23 +247,32 @@
     return out;
   }
   function playCombatDelta(prev,next){
-    if(!fxOn())return;const d=battleDelta(prev,next);if(!d)return;let peak=0;
-    for(const x of d.enemies){const target=$(`[data-enemy="${CSS.escape(x.uid)}"]`);if(x.hp<0){const dmg=-x.hp;peak=Math.max(peak,dmg);if(d.turnChanged)unitStrikeFx(target);if(target){if(x.dead)target.classList.add('enemy-death');else{target.classList.remove('enemy-hurt');void target.offsetWidth;target.classList.add('enemy-hurt');setTimeout(()=>target.classList.remove('enemy-hurt'),280);}}popNumber(target,`-${dmg}`,'damage');impactBurst(target,'공허',Math.min(1.8,.7+dmg/32));slashAt(target,'강철',dmg>=22);if(x.dead){screenFlash('kill');sound('hit');}}else if(x.hp>0){popNumber(target,`+${x.hp}`,'heal');sound('heal');}if(x.block>0){popNumber(target,`+${x.block} BLOCK`,'block');sound('block');}else if(x.block<0){popNumber(target,`${x.block} BLOCK`,'block-loss');shieldCrack(target);}}
-    for(const x of d.party){if(x.playerId!==state.profileId)continue;const target=$('.player-panel')||$('.combatant-chip.me');if(x.hp<0){const dmg=-x.hp;peak=Math.max(peak,dmg);const attacker=$('.enemy-card:not(.enemy-death)');enemyLunge(attacker);slashAt(target,'그림자',dmg>=20);impactBurst(target,'그림자',Math.min(1.45,.65+dmg/38));popNumber(target,`-${dmg}`,'damage player');screenFlash('hurt');sound('enemy');}else if(x.hp>0){popNumber(target,`+${x.hp} HP`,'heal');screenFlash('heal');sound('heal');}if(x.block>0){popNumber(target,`+${x.block} BLOCK`,'block');sound('block');}else if(x.block<0){popNumber(target,`${x.block} BLOCK`,'block-loss');shieldCrack(target);}if(x.units>0){$$('.unit-slot.filled').slice(-x.units).forEach((u,i)=>setTimeout(()=>{u.classList.add('unit-summon');impactBurst(u,'빛',.65);sound('summon');},i*70));}}
-    if(peak>=28){screenShake('heavy');hitStop('heavy');sound('hit');}else if(peak>0){screenShake('hit');hitStop('hit');}
-    if(d.turnChanged&&next.battle?.phase==='players')setTimeout(()=>showCenterBanner(`TURN ${next.battle.turn}`,'YOUR TURN','turn'),110);
+    if(!fxOn())return;const d=battleDelta(prev,next);if(!d)return;let peak=0;const pending=state.lastCastFx&&Date.now()-state.lastCastFx.at<1400?state.lastCastFx:null;
+    for(const x of d.enemies){const target=$(`[data-enemy="${CSS.escape(x.uid)}"]`);if(x.hp<0){const dmg=-x.hp;peak=Math.max(peak,dmg);if(d.turnChanged)unitVolleyFx(next,target);else if(!pending||pending.targetUid!==x.uid){const fake={element:'강철',rarity:dmg>=24?'legendary':'common',power:dmg,effects:[{op:'damage',value:dmg}]};signatureImpactFx(target,fake,dmg>=24?1.25:.86);}if(target){if(x.dead)target.classList.add('enemy-death-v31');else{target.classList.remove('enemy-hurt-v31');void target.offsetWidth;target.classList.add('enemy-hurt-v31');setTimeout(()=>target.classList.remove('enemy-hurt-v31'),310);}}popNumber(target,`-${dmg}`,'damage');if(x.dead){screenFlash('kill');sound('hit');}}
+      else if(x.hp>0){popNumber(target,`+${x.hp}`,'heal');signatureImpactFx(target,{element:'빛',rarity:'rare',effects:[{op:'heal',value:x.hp}]},.8);}
+      if(x.block>0){popNumber(target,`+${x.block}`,'block');signatureImpactFx(target,{element:'강철',rarity:'common',effects:[{op:'block',value:x.block}]},.75);}else if(x.block<0)shieldCrack(target);
+    }
+    for(const x of d.party){if(x.playerId!==state.profileId)continue;const target=$('.player-nameplate-v31')||$('.ally-stage-v31');if(x.hp<0){const dmg=-x.hp;peak=Math.max(peak,dmg);enemyAssaultFx(prev,target);popNumber(target,`-${dmg}`,'damage player');screenFlash('hurt');sound('enemy');}
+      else if(x.hp>0){popNumber(target,`+${x.hp}`,'heal');signatureImpactFx(target,{element:'빛',rarity:'rare',effects:[{op:'heal',value:x.hp}]},.9);}
+      if(x.block>0){popNumber(target,`+${x.block}`,'block');signatureImpactFx(target,{element:'수정',rarity:'rare',effects:[{op:'block',value:x.block}]},.88);}else if(x.block<0)shieldCrack(target);
+      if(x.units>0){const me=next.battle?.party?.find(p=>p.playerId===state.profileId),newUnits=me?.units?.slice(-x.units)||[],$slots=$$('.unit-actor-v31.filled').slice(-x.units);$slots.forEach((u,i)=>{const c=byId(state.meta.cards,newUnits[i]?.cardId)||{element:newUnits[i]?.element||'빛',type:'unit',rarity:'common'};setTimeout(()=>{u.classList.add('unit-summon-v31');signatureSummonFx(u,c);setTimeout(()=>u.classList.remove('unit-summon-v31'),650);},i*80);});}
+    }
+    if(peak>=30){screenShake('heavy');hitStop('heavy');}else if(peak>0){screenShake('soft');}
+    if(d.turnChanged&&next.battle?.phase==='players')setTimeout(()=>showCenterBanner(`TURN ${next.battle.turn}`,'','turn'),120);
+    if(pending)state.lastCastFx=null;
   }
 
   function playRoomEvents(next,afterSeq){
     if(!next?.feed)return;const events=next.feed.filter(ev=>Number(ev.seq)>Number(afterSeq||0));for(const ev of events){
-      if(ev.type==='battle-start'){if(ev.payload?.tier==='boss'){screenShake('heavy');screenFlash('boss');showCenterBanner('BOSS ENCOUNTER',`${next.floor}F · ${next.biome?.name||''}`,'boss');sound('boss');}else showCenterBanner(ev.payload?.tier==='elite'?'ELITE ENCOUNTER':'BATTLE START',`${next.floor}F · ${next.biome?.name||''}`,'turn');}
-      else if(ev.type==='turn')showCenterBanner(`TURN ${next.battle?.turn||''}`,'적의 의도를 읽고 카드를 선택하세요','turn');
-      else if(ev.type==='card'&&ev.payload?.playerId!==state.profileId){const target=ev.payload?.targetUid?$(`[data-enemy="${CSS.escape(ev.payload.targetUid)}"]`):null;if(target)slashAt(target,ev.payload.element,ev.payload.cardType==='spell');showCenterBanner(ev.payload?.cardName||'CARD',playerNameFromRoom(next,ev.payload?.playerId),'ally');}
-      else if(ev.type==='chain'){if(ev.payload?.playerId===state.profileId){if(ev.payload?.stage==='overdrive'){screenFlash('victory');screenShake('heavy');showCenterBanner('OVERDRIVE','에너지 +1 · 다음 공격 +6','victory');sound('overdrive');}else{screenShake('soft');showCenterBanner('TACTICAL CHAIN ×3','드로우 +1 · 방어 +4','ally');sound('chain');}}}
-      else if(ev.type==='enemy-break'){const target=ev.payload?.enemyUid?$(`[data-enemy="${CSS.escape(ev.payload.enemyUid)}"]`):null;target?.classList.add('rift-broken-v26');screenFlash('break');screenShake('heavy');if(target){impactBurst(target,'수정',1.45);slashAt(target,'빛',true);}showCenterBanner('RIFT BREAK',`${ev.payload?.enemyName||'ENEMY'} · 행동 1회 봉쇄`,'victory');sound('overdrive');}
-      else if(ev.type==='boss-phase'){screenFlash('boss');screenShake('heavy');showCenterBanner('PHASE II',`${ev.payload?.enemyName||'BOSS'} · ENRAGED`,'boss');sound('boss');}
-      else if(ev.type==='win'){screenFlash('victory');screenShake('soft');showCenterBanner(ev.payload?.final?'ABYSS CONQUERED':'VICTORY',ev.payload?.final?'50층 심연 정복':'전투 승리','victory');sound('win');}
-      else if(ev.type==='defeat'){screenFlash('defeat');screenShake('heavy');showCenterBanner('EXPEDITION FAILED',`${ev.payload?.floor||next.floor}F`,'defeat');sound('error');}
+      if(ev.type==='battle-start'){if(ev.payload?.tier==='boss'){screenShake('heavy');screenFlash('boss');showCenterBanner('BOSS','','boss');sound('boss');}else if(ev.payload?.tier==='elite'){showCenterBanner('ELITE','','turn');}}
+      else if(ev.type==='turn')showCenterBanner(`TURN ${next.battle?.turn||''}`,'','turn');
+      else if(ev.type==='card'&&ev.payload?.playerId!==state.profileId){const card=byId(state.meta.cards,ev.payload?.cardId)||{element:ev.payload?.element||'공허',type:ev.payload?.cardType||'spell',rarity:'common',effects:[{op:'damage',value:1}]};const target=ev.payload?.targetUid?$(`[data-enemy="${CSS.escape(ev.payload.targetUid)}"]`):$('.ally-stage-v31');if(target)signatureImpactFx(target,card,.85);}
+      else if(ev.type==='mastery'&&ev.payload?.playerId===state.profileId){showCenterBanner(ev.payload?.level===2?'++':'+','CARD GROWTH','ally');sound('reward');}
+      else if(ev.type==='chain'){if(ev.payload?.playerId===state.profileId){if(ev.payload?.stage==='overdrive'){screenFlash('victory');screenShake('hit');showCenterBanner('OVERDRIVE','','victory');sound('overdrive');}else{showCenterBanner('COMBO ×3','','ally');sound('chain');}}}
+      else if(ev.type==='enemy-break'){const target=ev.payload?.enemyUid?$(`[data-enemy="${CSS.escape(ev.payload.enemyUid)}"]`):null;target?.classList.add('rift-broken-v26');screenFlash('break');screenShake('hit');if(target)signatureImpactFx(target,{element:'수정',rarity:'legendary',power:20,effects:[{op:'damage',value:20}]},1.4);showCenterBanner('BREAK','','victory');sound('overdrive');}
+      else if(ev.type==='boss-phase'){screenFlash('boss');screenShake('heavy');showCenterBanner('PHASE II','','boss');sound('boss');}
+      else if(ev.type==='win'){screenFlash('victory');screenShake('soft');showCenterBanner(ev.payload?.final?'ABYSS CLEAR':'VICTORY','','victory');sound('win');}
+      else if(ev.type==='defeat'){screenFlash('defeat');screenShake('heavy');showCenterBanner('DEFEAT','','defeat');sound('error');}
     }
   }
   function playerNameFromRoom(r,id){return r?.players?.find(p=>p.id===id)?.nickname||'ALLY';}
@@ -221,10 +281,7 @@
     return map[next?.status]||'EXPEDITION';
   }
   function playSceneCurtain(next){
-    if(!fxOn())return;const el=document.createElement('div');el.className='scene-swipe-v27';
-    const title=sceneTransitionLabel(next),sub=next?.biome?.name?`${next.floor||''}F · ${next.biome.name}`:'';
-    el.innerHTML=`<i></i><div><b>${esc(title)}</b><small>${esc(sub)}</small></div>`;
-    document.body.appendChild(el);requestAnimationFrame(()=>el.classList.add('go'));setTimeout(()=>el.remove(),520);
+    if(!fxOn())return;const el=document.createElement('div');el.className='scene-wipe-v31';const title=sceneTransitionLabel(next),glyph=next?.status==='battle'?'⚔':next?.status==='reward'?'◆':next?.status==='event'?'◇':next?.status==='route'?'⌁':'✦';el.innerHTML=`<i></i><b>${glyph}</b><span>${esc(title)}</span>`;document.body.appendChild(el);requestAnimationFrame(()=>el.classList.add('go'));setTimeout(()=>el.remove(),380);
   }
   function acceptRoomUpdate(next,{initial=false}={}){
     const prev=state.room;
@@ -236,19 +293,38 @@
     if(!initial)setTimeout(()=>{playCombatDelta(prev,next);playRoomEvents(next,after);},changed?260:0);
   }
   function clearTimers(){clearInterval(state.bannerTimer);clearInterval(state.roomsTimer);state.bannerTimer=0;state.roomsTimer=0;}
-  function setScreen(name,html){clearTimers();state.current=name;const runScreens=['route','battle','reward','event','end','roomLobby'];document.body.classList.toggle('in-run-v27',runScreens.includes(name));screen.innerHTML=html;screen.classList.remove('screen-enter-v26');void screen.offsetWidth;screen.classList.add('screen-enter-v26');setTimeout(()=>screen.classList.remove('screen-enter-v26'),260);window.scrollTo({top:0,behavior:'instant'});}
+  function animateBattleEntrance(){
+    const r=state.room,key=r?.battle?`${r.id}:${r.floor}:${r.battle.tier}`:'';if(!key||state.battleEntranceKey===key)return;state.battleEntranceKey=key;const enemies=$$('.enemy-actor-v31'),units=$$('.unit-actor-v31.filled'),cards=$$('.battle-hand-v31 .visual-card-v31');enemies.forEach((el,i)=>{try{el.animate([{transform:'translate3d(70px,10px,0) scale(.72)',opacity:0,filter:'brightness(2)'},{transform:'translate3d(0,0,0) scale(1.04)',opacity:1,filter:'brightness(1)',offset:.72},{transform:'translate3d(0,0,0) scale(1)',opacity:1}],{duration:480+i*70,delay:i*70,easing:'cubic-bezier(.16,.82,.18,1)'});}catch{}});units.forEach((el,i)=>{try{el.animate([{transform:'translate3d(-45px,12px,0) scale(.75)',opacity:0},{transform:'translate3d(0,0,0) scale(1)',opacity:1}],{duration:380,delay:130+i*65,easing:'cubic-bezier(.2,.8,.2,1)'});}catch{}});cards.forEach((el,i)=>{try{el.animate([{transform:'translate3d(0,70px,0) rotate(0deg)',opacity:0},{transform:'translate3d(0,0,0)',opacity:1}],{duration:300,delay:180+i*45,easing:'cubic-bezier(.2,.8,.2,1)'});}catch{}});
+  }
+  function setScreen(name,html){clearTimers();state.current=name;const runScreens=['route','battle','reward','event','end','roomLobby'];const inRun=runScreens.includes(name);document.body.classList.toggle('in-run-v27',inRun);document.body.classList.toggle('visual-run-v31',inRun);document.body.classList.toggle('battle-focus-v31',name==='battle');screen.innerHTML=html;screen.classList.remove('screen-enter-v26');void screen.offsetWidth;screen.classList.add('screen-enter-v26');setTimeout(()=>screen.classList.remove('screen-enter-v26'),220);window.scrollTo({top:0,behavior:'instant'});if(name==='battle')requestAnimationFrame(()=>requestAnimationFrame(animateBattleEntrance));}
+
+  function shortLine(value,max=42){const s=String(value||'').replace(/\s+/g,' ').trim();return s.length>max?`${s.slice(0,max-1)}…`:s;}
+  function elementGlyph(element){return ({'화염':'◆','물':'≈','자연':'✦','빛':'✧','그림자':'◒','강철':'✕','바람':'〰','번개':'ϟ','별':'★','시간':'◷','공허':'●','수정':'◇'})[element]||'◇';}
+  function cardKeywords(card,limit=3){
+    const labels={damage:'DMG',damageAll:'ALL',damageOthers:'SPLASH',block:'BLOCK',draw:'DRAW',vulnerable:'VULN',vulnerableAll:'VULN ALL',weak:'WEAK',burn:'BURN',energy:'ENERGY',heal:'HEAL',healAllies:'HEAL ALL',blockAllies:'GUARD ALL',anyDiscount:'COST -1',intentSealAll:'SEAL',buffUnits:'UNIT +',shockAll:'SHOCK',redraw:'REDRAW',nextAttack:'ATK +',debuffImmune:'IMMUNE'};
+    const out=[];for(const e of (card?.effects||[])){if(!labels[e.op])continue;let v=labels[e.op];if(Number(e.value)>0&&!['vulnerable','vulnerableAll','weak','debuffImmune','redraw'].includes(e.op))v+=` ${e.value}`;if(!out.includes(v))out.push(v);if(out.length>=limit)break;}
+    if(!out.length&&card?.type==='spell'){if(card.power)out.push(`DMG ${card.power}`);if(card.block)out.push(`BLOCK ${card.block}`);}
+    if(!out.length&&card?.type==='unit')out.push(`ATK ${card.power||0}`);
+    return out.slice(0,limit);
+  }
+  function routeGraphic(kind){return `<span class="route-glyph-v31 kind-${esc(kind)}"><i></i><i></i><i></i><i></i><i></i></span>`;}
+  function choiceGlyph(id){return ({safe:'♥',risk:'◆',scout:'⌖',seal:'◇'})[id]||'✦';}
+  function intentCompact(intent){if(!intent)return{icon:'·',value:''};return{icon:intent.icon||'·',value:Number(intent.value)>0?String(intent.value):''};}
+  function energyOrbs(me){return `<div class="energy-orbs-v31" title="에너지 ${me.energy}/${me.maxEnergy}">${Array.from({length:Math.max(1,me.maxEnergy)},(_,i)=>`<i class="${i<me.energy?'on':''}"></i>`).join('')}</div>`;}
 
   function cardHtml(card,opt={}){
     if(!card)return '';
     const tag=opt.compact?'div':'button';
-    const cls=`game-card${opt.compact?' mini-card':''}${opt.claimed?' claimed':''}${card.upgradeLevel?' upgraded':''}`;
-    const attrs=[`data-rarity="${esc(card.rarity)}"`,`data-card-id="${esc(card.id)}"`,`title="우클릭(모바일 길게 누르기)으로 카드 상세 보기"`];
+    const visual=!!opt.visual;
+    const cls=`game-card${opt.compact?' mini-card':''}${opt.claimed?' claimed':''}${card.upgradeLevel?' upgraded':''}${visual?' visual-card-v31':''}`;
+    const attrs=[`data-rarity="${esc(card.rarity)}"`,`data-card-id="${esc(card.id)}"`,`title="우클릭/길게 누르기: 상세 보기"`];
     if(opt.action)attrs.push(`data-action="${esc(opt.action)}"`);if(opt.index!=null)attrs.push(`data-index="${opt.index}"`);if(opt.rewardId)attrs.push(`data-reward-id="${esc(opt.rewardId)}"`);if(opt.disabled)attrs.push('disabled');
     const stats=card.type==='unit'?`<span>HP ${card.hp}</span><span>ATK ${card.power}</span>`:`${card.power?`<span>DMG ${card.power}</span>`:''}${card.block?`<span>DEF ${card.block}</span>`:''}`;
     const upgrade=card.upgradeLevel?`<span class="upgrade-badge">${card.upgradeLevel===1?'+':'++'}</span>`:'';
-    const mastery=card.masteryNeed?`<span class="mastery-badge">EXP ${card.masteryXp}/${card.masteryNeed}</span>`:'';
-    const synergy=Number(card.synergy||0)>0?`<span class="synergy-badge">${card.synergy>=3?'CORE MATCH':card.synergy===2?'SYNERGY+':'SYNERGY'}</span>`:'';
-    return `<${tag} class="${cls}" ${attrs.join(' ')}>${upgrade}${mastery}${synergy}<div class="rarity-ribbon rarity-${card.rarity}">${esc(rarityKo(card.rarity))}${card.limited?' · LIMITED':''}</div><div class="card-top"><span class="cost">${card.cost}</span><span class="card-name">${esc(card.name)}</span></div><div class="card-art"><img src="${esc(card.art)}" loading="lazy" alt=""></div><div class="card-type"><span>${card.type==='unit'?'UNIT':'SPELL'}</span><span>${esc(card.element)}</span></div><div class="card-text">${esc(card.text)}</div><div class="card-stats">${stats}</div></${tag}>`;
+    const mastery=card.masteryNeed?`<span class="mastery-badge">${card.masteryXp}/${card.masteryNeed}</span>`:'';
+    const synergy=Number(card.synergy||0)>0?`<span class="synergy-badge">${card.synergy>=3?'CORE':card.synergy===2?'SYNC+':'SYNC'}</span>`:'';
+    const body=visual?`<div class="card-keywords-v31">${cardKeywords(card,2).map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:`<div class="card-text">${esc(card.text)}</div>`;
+    return `<${tag} class="${cls}" ${attrs.join(' ')}>${upgrade}${mastery}${synergy}<div class="rarity-ribbon rarity-${card.rarity}">${esc(rarityKo(card.rarity))}${card.limited?' · LIMITED':''}</div><div class="card-top"><span class="cost">${card.cost}</span><span class="card-name">${esc(card.name)}</span></div><div class="card-art"><img src="${esc(card.art)}" loading="lazy" alt=""><span class="element-mark-v31 element-${elementClass(card.element)}">${esc(elementGlyph(card.element))}</span></div><div class="card-type"><span>${card.type==='unit'?'UNIT':'SPELL'}</span><span>${esc(card.element)}</span></div>${body}<div class="card-stats">${stats}</div></${tag}>`;
   }
 
   function runCardView(card,run){
@@ -356,20 +432,21 @@
   }
   function rewardStageHeader(r,run,step){return `<header class="reward-hud-v27"><div><small>${esc(step)}</small><b>${r.floor}F · ${esc(r.biome.name)}</b></div><div><span>HP ${run.hp}/${run.maxHp}</span><span>G ${run.gold}</span><span>◇ ${run.fragments||0}</span><button data-action="run-info">RUN</button></div></header>`;}
   function renderRoute(r){
-    const run=r.runState[state.profileId],voted=r.route?.find(n=>n.votes.includes(state.profileId))?.id,contractReady=!!r.contractClaims?.[state.profileId],pressure=(r.threatTokens||[]).length;
-    const offers=r.contractOffers?.[state.profileId]||[];
-    const content=!contractReady?`<div class="decision-card-v27"><div class="decision-title-v27"><small>STARTER CORE</small><h1>스타팅 코어를 하나 고르세요.</h1><p>이번 런의 플레이 감각을 정하는 첫 선택입니다. 하나만 고르면 바로 시작합니다.</p></div><div class="contract-grid-v27">${offers.map(c=>`<button data-action="contract-pick" data-contract-id="${esc(c.id)}"><span>${esc(c.icon||'◇')}</span><b>${esc(c.name)}</b><p>${esc(c.desc)}</p><small>${esc(c.detail)}</small></button>`).join('')}</div></div>`:`<div class="decision-card-v27"><div class="decision-title-v27"><small>PATH SELECT · PRESSURE ×${pressure}</small><h1>다음 길을 선택하세요.</h1><p>${esc(r.biome.desc)}</p></div><div class="path-grid-v27">${r.route.map((n,i)=>`<button class="path-choice-v27 kind-${esc(n.kind)} ${voted===n.id?'selected':''}" data-action="route-vote" data-node="${esc(n.id)}"><span class="path-icon-v27">${esc(n.icon)}</span><div><small>0${i+1}</small><b>${esc(n.label)}</b><p>${esc(n.desc)}</p></div><em>${n.votes.length}/${r.players.length}</em></button>`).join('')}</div><div class="decision-foot-v27">${voted?'선택 완료 · 다른 원정대원을 기다리는 중':'두 경로 중 하나를 선택하세요.'}</div></div>`;
-    setScreen('route',`<section class="run-stage-v27 route-stage-v27"><div class="run-bg-v27" style="background-image:url('${esc(r.biome.background)}')"></div><div class="run-shade-v27"></div>${compactRunHud(r,run)}<main class="decision-center-v27">${content}</main><div class="floor-track-v27"><i style="width:${r.maxFloor?pct(r.floor,r.maxFloor):Math.min(100,(r.floor%50)*2)}%"></i><span>${r.floor} / ${r.maxFloor||'∞'}</span></div></section>`);
+    const run=r.runState[state.profileId],voted=r.route?.find(n=>n.votes.includes(state.profileId))?.id,contractReady=!!r.contractClaims?.[state.profileId],pressure=(r.threatTokens||[]).length,offers=r.contractOffers?.[state.profileId]||[];
+    const tag=k=>({combat:'BATTLE',elite:'RELIC+',boss:'BOSS',event:'?',rest:'HEAL',treasure:'GOLD',merchant:'SHOP'})[k]||'PATH';
+    const content=!contractReady?`<div class="core-select-v31"><div class="visual-kicker-v31"><span>START</span><b>스타팅 코어</b></div><div class="core-grid-v31">${offers.map(c=>`<button data-action="contract-pick" data-contract-id="${esc(c.id)}" title="${esc(c.detail||c.desc||'')}"><span class="core-icon-v31">${esc(c.icon||'◇')}</span><b>${esc(c.name)}</b><small>${esc(shortLine(c.desc,28))}</small></button>`).join('')}</div><em class="tap-hint-v31">하나를 고르면 바로 출발</em></div>`:`<div class="path-select-v31"><div class="visual-kicker-v31"><span>${r.floor}F</span><b>${esc(r.biome.name)}</b><em>PRESSURE ×${pressure}</em></div><div class="path-grid-v31 visual-path-grid-v31">${r.route.map((n,i)=>`<button class="path-choice-v31 kind-${esc(n.kind)} ${voted===n.id?'selected':''}" data-action="route-vote" data-node="${esc(n.id)}" title="${esc(n.desc)}">${routeGraphic(n.kind)}<span class="path-index-v31">0${i+1}</span><b>${esc(n.label)}</b><small>${tag(n.kind)}</small><em>${n.votes.length}/${r.players.length}</em></button>`).join('')}</div><div class="tap-hint-v31">${voted?'선택 완료 · 대기 중':'길 하나만 선택'}</div></div>`;
+    setScreen('route',`<section class="run-stage-v31 route-stage-v31"><div class="run-bg-v31" style="background-image:url('${esc(r.biome.background)}')"></div><div class="ambient-grid-v31"></div><div class="run-shade-v31"></div>${compactRunHud(r,run)}<main class="decision-center-v31">${content}</main><div class="floor-track-v31"><i style="width:${r.maxFloor?pct(r.floor,r.maxFloor):Math.min(100,(r.floor%50)*2)}%"></i><span>${r.floor}/${r.maxFloor||'∞'}</span></div></section>`);
   }
   function renderBattle(r){
     const b=r.battle,me=b.party.find(p=>p.playerId===state.profileId);if(!me)return;
     const alive=b.enemies.filter(e=>e.hp>0);if(!state.selectedEnemy||!alive.some(e=>e.uid===state.selectedEnemy))state.selectedEnemy=alive[0]?.uid||null;
-    const run=r.runState[state.profileId],chain=me.chain||{count:0,lastType:null,best:0,overdrives:0};
-    const party=b.party.map(pc=>`<span class="party-dot-v27 ${pc.playerId===state.profileId?'me':''} ${pc.down?'down':''}" title="${esc(pc.nickname)} · HP ${pc.hp}/${pc.maxHp}"><i style="width:${pct(pc.hp,pc.maxHp)}%"></i>${esc(pc.nickname.slice(0,1))}</span>`).join('');
-    const enemies=alive.map(e=>`<button class="enemy-card enemy-actor-v26 enemy-actor-v27 ${state.selectedEnemy===e.uid?'selected':''} ${b.tier==='boss'?'boss':''} ${e.enraged?'phase2':''}" data-action="select-enemy" data-enemy="${e.uid}"><div class="intent-bubble-v27"><span>${esc(e.intent.icon)}</span><b>${esc(e.intent.text)}</b></div><div class="enemy-sprite-wrap-v26 enemy-sprite-wrap-v27"><img class="enemy-sprite" src="${esc(e.sprite)}" alt=""><i class="enemy-shadow-v26"></i></div><div class="enemy-hud-v27"><div><b>${esc(e.name)}</b>${e.marked?'<em class="mark-v30">MARK</em>':e.enraged?'<em>PHASE II</em>':''}</div><div class="enemy-hp-v27"><i style="width:${pct(e.hp,e.maxHp)}%"></i></div><small>${e.hp}/${e.maxHp}${e.block?` · B ${e.block}`:''}</small><div class="break-v27"><i><em style="width:${pct(e.stagger,e.staggerMax)}%"></em></i><span>${e.broken?'BREAK!':'BREAK'}</span></div></div>${state.selectedEnemy===e.uid?'<div class="target-corners-v26"></div>':''}</button>`).join('');
-    const units=[0,1,2].map(i=>{const u=me.units[i];return u?`<div class="unit-slot unit-actor-v26 unit-actor-v27 filled"><div class="unit-art-v26"><img src="${esc(byId(state.meta.cards,u.cardId)?.art||'')}" alt=""></div><b>${esc(u.name)}</b><small>ATK ${u.power}</small></div>`:`<div class="unit-slot unit-actor-v26 unit-actor-v27"><span>+</span></div>`;}).join('');
-    const hand=me.hand.map((cid,i)=>{const c=runCardView(byId(state.meta.cards,cid),run);const can=!me.ended&&!me.down&&b.phase==='players'&&me.energy>=Math.max(0,c.cost-(me.buffs.anyDiscount>0?1:(c.type==='spell'&&me.buffs.spellDiscount>0?1:0)))&&!(c.type==='unit'&&me.units.length>=3);return cardHtml(c,{action:'play-card',index:i,disabled:!can});}).join('');
-    setScreen('battle',`<section class="battle-screen battle-stage-v27"><div class="battle-backdrop" style="background-image:url('${esc(r.biome.background)}')"></div><div class="battle-vignette-v27"></div><header class="battle-hud-v27"><div class="battle-party-v27">${party}</div><div class="battle-label-v27"><small>${b.tier==='boss'?'BOSS':b.tier==='elite'?'ELITE':'ENCOUNTER'} · ${esc(r.biome.short)}</small><b>${r.floor}F · TURN ${b.turn}</b>${b.modifier?`<em class="battle-mod-v30">${esc(b.modifier.icon)} ${esc(b.modifier.name)} · ${esc(b.modifier.desc)}</em>`:''}</div><div class="battle-tools-v27"><button data-action="run-info">RUN</button><button data-action="toggle-combat-log">LOG</button></div></header><main class="battle-field-v27"><div class="ally-zone-v27"><div class="player-nameplate-v27"><b>${esc(me.nickname)}</b><span>HP ${me.hp}/${me.maxHp} · BLOCK ${me.block}</span><i><em style="width:${pct(me.hp,me.maxHp)}%"></em></i></div><div class="unit-board">${units}</div></div><div class="enemy-zone-v27">${enemies}</div></main><section class="battle-dock-v27"><div class="energy-core-v27"><small>ENERGY</small><b>${me.energy}</b><span>/ ${me.maxEnergy}</span><div class="chain-mini-v27"><em>COMBO ×${chain.count||0}</em>${[1,2,3,4,5].map(n=>`<i class="${n<=chain.count?'on':''}"></i>`).join('')}</div></div><div class="hand-wrap hand-dock-v26 hand-dock-v27"><div class="hand">${hand}</div><div class="hand-hint">숫자키 1~9 · 우클릭/길게 눌러 상세</div></div><div class="turn-box-v27"><div class="selected-intent-v27"><small>NEXT</small><b>${alive.length?alive.find(e=>e.uid===state.selectedEnemy)?.intent?.icon||alive[0].intent.icon:''} ${alive.length?esc(alive.find(e=>e.uid===state.selectedEnemy)?.intent?.text||alive[0].intent.text):'CLEAR'}</b></div>${me.ended?'<div class="waiting">동료 대기 중...</div>':`<button class="end-turn-v27" data-action="end-turn"><small>END TURN</small><b>E</b></button>`}</div></section><aside class="battle-log-drawer-v26 battle-log-drawer-v27 ${state.combatLogOpen?'open':''}"><div><b>COMBAT LOG</b><button data-action="toggle-combat-log">닫기</button></div>${b.log.slice(-18).reverse().map(x=>`<p>${esc(x.text)}</p>`).join('')}</aside></section>`);
+    const run=r.runState[state.profileId],chain=me.chain||{count:0,lastType:null,best:0,overdrives:0},selected=alive.find(e=>e.uid===state.selectedEnemy)||alive[0],intent=intentCompact(selected?.intent);
+    const party=b.party.map(pc=>`<span class="party-orb-v31 ${pc.playerId===state.profileId?'me':''} ${pc.down?'down':''}" title="${esc(pc.nickname)} · HP ${pc.hp}/${pc.maxHp}"><i style="--hp:${pct(pc.hp,pc.maxHp)}%"></i><b>${esc(pc.nickname.slice(0,1))}</b></span>`).join('');
+    const enemies=alive.map((e,i)=>{const it=intentCompact(e.intent);return `<button class="enemy-actor-v31 ${state.selectedEnemy===e.uid?'selected':''} ${b.tier==='boss'?'boss':''} ${e.enraged?'phase2':''} intent-${esc(e.intent?.type||'attack')}" data-action="select-enemy" data-enemy="${e.uid}" title="${esc(e.intent?.text||'')}"><div class="enemy-intent-v31"><span>${esc(it.icon)}</span>${it.value?`<b>${esc(it.value)}</b>`:''}</div><div class="enemy-sprite-stage-v31"><img class="enemy-sprite" src="${esc(e.sprite)}" alt=""><i class="enemy-shadow-v31"></i><i class="target-ring-v31"></i></div><div class="enemy-name-v31"><b>${esc(e.name)}</b>${e.enraged?'<em>II</em>':''}</div><div class="enemy-hpbar-v31"><i style="width:${pct(e.hp,e.maxHp)}%"></i></div><div class="enemy-sub-v31"><span>${e.hp}/${e.maxHp}</span>${e.block?`<span>▣ ${e.block}</span>`:''}<span class="break-dot-v31 ${e.broken?'broken':''}"><i style="width:${pct(e.stagger,e.staggerMax)}%"></i></span></div></button>`;}).join('');
+    const units=[0,1,2].map(i=>{const u=me.units[i];return u?`<div class="unit-actor-v31 filled element-${elementClass(u.element||byId(state.meta.cards,u.cardId)?.element)}" data-card-id="${esc(u.cardId)}"><div class="unit-sprite-v31"><img src="${esc(byId(state.meta.cards,u.cardId)?.art||'')}" alt=""></div><b>${esc(shortLine(u.name,12))}</b><span>ATK ${u.power}</span></div>`:`<div class="unit-actor-v31 empty"><i>+</i></div>`;}).join('');
+    const hand=me.hand.map((cid,i)=>{const c=runCardView(byId(state.meta.cards,cid),run);const can=!me.ended&&!me.down&&b.phase==='players'&&me.energy>=Math.max(0,c.cost-(me.buffs.anyDiscount>0?1:(c.type==='spell'&&me.buffs.spellDiscount>0?1:0)))&&!(c.type==='unit'&&me.units.length>=3);return cardHtml(c,{action:'play-card',index:i,disabled:!can,visual:true});}).join('');
+    const modifier=b.modifier?`<button class="modifier-chip-v31" data-action="run-info" title="${esc(b.modifier.desc)}"><span>${esc(b.modifier.icon)}</span><b>${esc(b.modifier.name)}</b></button>`:'';
+    setScreen('battle',`<section class="battle-stage-v31"><div class="battle-bg-v31" style="background-image:url('${esc(r.biome.background)}')"></div><div class="battle-parallax-v31 p1"></div><div class="battle-parallax-v31 p2"></div><div class="battle-grade-v31"></div><header class="battle-hud-v31"><div class="battle-party-v31">${party}</div><div class="battle-round-v31"><small>${b.tier==='boss'?'BOSS':b.tier==='elite'?'ELITE':esc(r.biome.short)}</small><b>${r.floor}F</b><span>T${b.turn}</span>${modifier}</div><div class="battle-tools-v31"><button data-action="run-info">◈</button><button data-action="toggle-combat-log">≡</button></div></header><main class="battle-field-v31"><section class="ally-stage-v31"><div class="player-nameplate-v31"><div><b>${esc(me.nickname)}</b><span>${me.hp}/${me.maxHp}</span></div><i><em style="width:${pct(me.hp,me.maxHp)}%"></em></i>${me.block?`<small>▣ ${me.block}</small>`:''}</div><div class="ally-units-v31">${units}</div></section><section class="enemy-stage-v31">${enemies}</section></main><footer class="battle-command-v31"><div class="energy-panel-v31"><span>ENERGY</span>${energyOrbs(me)}<div class="combo-pips-v31" title="COMBO ×${chain.count||0}">${[1,2,3,4,5].map(n=>`<i class="${n<=chain.count?'on':''}"></i>`).join('')}</div></div><div class="battle-hand-v31"><div class="hand">${hand}</div></div><div class="command-side-v31"><div class="intent-preview-v31" title="${esc(selected?.intent?.text||'')}"><small>NEXT</small><span>${esc(intent.icon)}</span>${intent.value?`<b>${esc(intent.value)}</b>`:''}</div>${me.ended?'<div class="waiting-v31">WAIT</div>':`<button class="end-turn-v31" data-action="end-turn"><span>END</span><b>E</b></button>`}</div></footer><aside class="battle-log-drawer-v31 ${state.combatLogOpen?'open':''}"><div><b>LOG</b><button data-action="toggle-combat-log">×</button></div>${b.log.slice(-14).reverse().map(x=>`<p>${esc(x.text)}</p>`).join('')}</aside></section>`);
   }
   function runMod(run,key){let n=Number(run?.mods?.[key]||0);for(const [id,count] of Object.entries(run?.items||{})){const it=byId(state.meta.items,id);n+=Number(it?.mod?.[key]||0)*Number(count||0);}for(const id of (run?.relics||[])){const r=byId(state.meta.relics,id);n+=Number(r?.mod?.[key]||0);}return n;}
   function relicDraftHtml(r,rw){const opts=rw.relicOptions?.[state.profileId]||[],claim=rw.relicClaims?.[state.profileId];if(!opts.length)return '';return `<div class="relic-draft"><div class="section-label">BONUS RIFT RELIC</div><h3>${rw.tier==='boss'?'보스 유물 선택':'유물 선택'}</h3><p>유물은 이번 원정 전체에 적용되는 강력한 패시브입니다. 카드보다 빌드 방향을 크게 바꿉니다.</p><div class="relic-grid">${opts.map(x=>relicHtml(x,{claimed:!!claim,disabled:!!claim})).join('')}</div>${claim?`<div class="claim-note">유물 선택 완료 · ${esc(byId(state.meta.relics,claim)?.name||claim)}</div>`:''}</div>`;}
@@ -378,39 +455,19 @@
   function nextRerollCost(r){const run=r.runState[state.profileId],count=Number(r.reward.rerolls?.[state.profileId]||0),discount=Math.min(.70,runMod(run,'rerollDiscount')),base=42+r.floor*3;return Math.max(20,Math.round(base*Math.pow(1.55,count)*(1-discount)));}
   function renderReward(r){
     const rw=r.reward,run=r.runState[state.profileId],pid=state.profileId,options=rw.playerOptions?.[pid]||[],claim=rw.claims?.[pid],continued=rw.continueBy?.includes(pid),relicOpts=rw.relicOptions?.[pid]||[],relicClaim=rw.relicClaims?.[pid],campDone=!rw.camp||!!rw.campBy?.[pid],rewardDone=!options.length||!!claim,afterCore=campDone&&(!relicOpts.length||!!relicClaim)&&rewardDone;
-    const capture=r.mode==='journey'&&r.capture&&!r.capture.escaped?r.capture:null;
-    let step='REWARD',title='',sub='',body='',actions='';
-    if(rw.camp&&!campDone){
-      const uniq=[...new Set(run.runDeck||[])].map(id=>({c:byId(state.meta.cards,id),lv:Number(run.upgrades?.[id]||0)})).filter(x=>x.c&&x.lv<2);
-      step='CAMP';title='별빛 야영지';sub='이번 야영에서 할 일 하나만 고르세요.';
-      body=`<div class="three-choice-v27"><button data-action="camp-rest"><span>♨</span><b>휴식</b><p>최대 HP의 약 30% 회복</p></button><button data-action="camp-meditate"><span>◇</span><b>명상</b><p>균열 파편 +2 · 40G</p></button><button data-action="open-forge" ${uniq.length?'':'disabled'}><span>⚒</span><b>카드 제련</b><p>핵심 카드 1장을 강화</p></button></div>`;
-    }else if(relicOpts.length&&!relicClaim){
-      step='RELIC';title='유물 선택';sub='이번 원정 전체에 영향을 주는 패시브 1개를 고르세요.';
-      body=`<div class="relic-grid-v27">${relicOpts.map(x=>relicHtml(x)).join('')}</div>`;
-    }else if(!rewardDone){
-      step='CARD REWARD';title=rw.title||'보상 선택';sub='3개 중 하나만 고르세요. 현재 덱과 잘 맞는 카드는 SYNERGY로 표시됩니다. 필요 없으면 분해하세요.';
-      body=`<div class="reward-options-v27">${options.map(o=>o.type==='card'?cardHtml({...o.card,synergy:o.synergy||0},{action:'reward-pick',rewardId:o.id}):itemHtml(o.item,{action:'reward-pick',rewardId:o.id})).join('')}</div>`;
-      actions=`<div class="reward-actions-v27"><button data-action="reward-salvage">분해</button><button data-action="reward-reroll">재굴림 ${nextRerollCost(r)}G</button>${run.fragments>0?'<button data-action="reward-reroll-fragment">파편 ◇1</button>':''}</div>`;
-    }else if(capture&&!capture.attemptedBy?.includes(pid)){
-      step='CARD ECHO';title='카드 흔적 발견';sub='일반 여행에서만 만나는 포획 기회입니다. 시도하지 않고 지나가도 됩니다.';
-      body=`<div class="capture-focus-v27"><img src="${esc(capture.card.art)}" alt=""><div><h2 class="rarity-${capture.card.rarity}">${esc(capture.card.name)}</h2><p>${esc(rarityKo(capture.card.rarity))} 카드 흔적</p><div><button data-action="capture" data-seal="basic">기본 ×${state.profile.seals.basic||0}</button><button data-action="capture" data-seal="silver">은빛 ×${state.profile.seals.silver||0}</button><button data-action="capture" data-seal="royal">왕가 ×${state.profile.seals.royal||0}</button></div></div></div>`;
-      actions=`<button class="next-button-v27" data-action="reward-continue">건너뛰고 다음 층</button>`;
-    }else if(rw.kind==='merchant'&&afterCore){
-      step='SHOP';title='유랑 상점';sub='필요한 것만 사고 바로 다음 층으로 가세요.';
-      body=merchantHtmlCompact(r);
-      actions=`<div class="reward-actions-v27"><button data-action="open-purge">덱 정제</button><button class="next-button-v27" data-action="reward-continue">다음 층</button></div>`;
-    }else{
-      step='READY';title=claim?`${claim.label} 획득`:'보상 완료';sub='준비가 끝났습니다. 다음 층으로 이동하세요.';
-      const grade=rw.gradeBy?.[pid];
-      body=`<div class="reward-complete-v27"><div class="reward-check-v27">✓</div>${grade?`<div class="grade-chip-v27">BATTLE GRADE <b>${grade}</b></div>`:''}<div class="reward-summary-v27"><span>덱 ${run.runDeck.length}장</span><span>유물 ${(run.relics||[]).length}</span><span>G ${run.gold}</span></div></div>`;
-      actions=`<div class="reward-actions-v27">${['rest','merchant'].includes(rw.kind)?'<button data-action="open-purge">덱 정제</button>':''}<button class="next-button-v27" data-action="reward-continue">${continued?'동료 대기 중...':r.finalClearPending?'50층 클리어':'다음 층'}</button></div>`;
-    }
-    setScreen('reward',`<section class="run-stage-v27 reward-stage-v27"><div class="run-bg-v27" style="background-image:url('${esc(r.biome.background)}')"></div><div class="run-shade-v27"></div>${rewardStageHeader(r,run,step)}<main class="reward-center-v27"><div class="reward-focus-v27"><div class="decision-title-v27"><small>${esc(step)}</small><h1>${esc(title)}</h1><p>${esc(sub)}</p></div>${body}${actions}</div></main></section>`);
+    const capture=r.mode==='journey'&&r.capture&&!r.capture.escaped?r.capture:null;let step='REWARD',body='',actions='';
+    if(rw.camp&&!campDone){const uniq=[...new Set(run.runDeck||[])].map(id=>({c:byId(state.meta.cards,id),lv:Number(run.upgrades?.[id]||0)})).filter(x=>x.c&&x.lv<2);step='CAMP';body=`<div class="reward-visual-title-v31"><span>✦</span><b>야영지</b></div><div class="reward-choice-grid-v31 camp"><button data-action="camp-rest"><span>♥</span><b>휴식</b><small>HP +30%</small></button><button data-action="camp-meditate"><span>◇</span><b>명상</b><small>파편 +2</small></button><button data-action="open-forge" ${uniq.length?'':'disabled'}><span>⚒</span><b>제련</b><small>카드 강화</small></button></div>`;}
+    else if(relicOpts.length&&!relicClaim){step='RELIC';body=`<div class="reward-visual-title-v31"><span>✦</span><b>유물</b></div><div class="relic-grid-v31 visual-relic-grid-v31">${relicOpts.map(x=>`<button class="relic-visual-v31 rarity-${x.rarity}" data-action="relic-pick" data-relic-id="${esc(x.id)}" title="${esc(x.text)}"><span>${esc(x.icon||'✦')}</span><b>${esc(x.name)}</b><small>${esc(shortLine(x.text,30))}</small></button>`).join('')}</div>`;}
+    else if(!rewardDone){step='PICK ONE';body=`<div class="reward-visual-title-v31"><span>◆</span><b>보상</b></div><div class="reward-options-v31">${options.map(o=>o.type==='card'?cardHtml({...o.card,synergy:o.synergy||0},{action:'reward-pick',rewardId:o.id,visual:true}):`<button class="reward-item-visual-v31 rarity-${o.item.rarity}" data-action="reward-pick" data-reward-id="${esc(o.id)}" title="${esc(o.item.text)}"><span>${esc(o.item.icon||'◆')}</span><b>${esc(o.item.name)}</b><small>${esc(shortLine(o.item.text,28))}</small></button>`).join('')}</div>`;actions=`<div class="reward-actions-v31"><button data-action="reward-salvage">분해</button><button data-action="reward-reroll">↻ ${nextRerollCost(r)}G</button>${run.fragments>0?'<button data-action="reward-reroll-fragment">◇1</button>':''}</div>`;}
+    else if(capture&&!capture.attemptedBy?.includes(pid)){step='CARD ECHO';body=`<div class="capture-visual-v31"><div class="capture-card-v31"><img src="${esc(capture.card.art)}" alt=""><i></i></div><div><small>${esc(rarityKo(capture.card.rarity))}</small><b>${esc(capture.card.name)}</b><div class="seal-buttons-v31"><button data-action="capture" data-seal="basic">◇ ${state.profile.seals.basic||0}</button><button data-action="capture" data-seal="silver">◈ ${state.profile.seals.silver||0}</button><button data-action="capture" data-seal="royal">◆ ${state.profile.seals.royal||0}</button></div></div></div>`;actions=`<button class="next-button-v31" data-action="reward-continue">PASS</button>`;}
+    else if(rw.kind==='merchant'&&afterCore){step='SHOP';body=`<div class="reward-visual-title-v31"><span>₡</span><b>상점</b></div>${merchantHtmlCompact(r)}`;actions=`<div class="reward-actions-v31"><button data-action="open-purge">덱 정제</button><button class="next-button-v31" data-action="reward-continue">NEXT</button></div>`;}
+    else{step='READY';const grade=rw.gradeBy?.[pid];body=`<div class="reward-ready-v31"><span>✓</span><b>${claim?esc(claim.label):'완료'}</b>${grade?`<em>${grade}</em>`:''}</div>`;actions=`<div class="reward-actions-v31">${['rest','merchant'].includes(rw.kind)?'<button data-action="open-purge">덱 정제</button>':''}<button class="next-button-v31" data-action="reward-continue">${continued?'WAIT':r.finalClearPending?'CLEAR':'NEXT'}</button></div>`;}
+    setScreen('reward',`<section class="run-stage-v31 reward-stage-v31"><div class="run-bg-v31" style="background-image:url('${esc(r.biome.background)}')"></div><div class="ambient-grid-v31"></div><div class="run-shade-v31"></div>${compactRunHud(r,run)}<main class="reward-center-v31"><div class="reward-focus-v31"><div class="reward-step-v31">${esc(step)}</div>${body}${actions}</div></main></section>`);
   }
-  function merchantHtmlCompact(r){const rw=r.reward,run=r.runState[state.profileId];return `<div class="shop-grid-v27">${(rw.shop||[]).map(x=>{const bought=rw.purchased?.[`${state.profileId}:${x.id}`],obj=x.type==='card'?x.card:x.item;return `<button class="shop-item-v27 rarity-${obj.rarity}" data-action="buy" data-item="${x.id}" data-type="${x.type}" ${bought||run.gold<x.price?'disabled':''}><span>${x.type==='card'?'▤':esc(obj.icon||'◆')}</span><b>${esc(obj.name)}</b><small>${x.price}G · ${esc(rarityKo(obj.rarity))}</small></button>`;}).join('')}</div>`;}
+  function merchantHtmlCompact(r){const rw=r.reward,run=r.runState[state.profileId];return `<div class="shop-grid-v31">${(rw.shop||[]).map(x=>{const bought=rw.purchased?.[`${state.profileId}:${x.id}`],obj=x.type==='card'?x.card:x.item;return `<button class="shop-item-v31 rarity-${obj.rarity}" data-action="buy" data-item="${x.id}" data-type="${x.type}" ${bought||run.gold<x.price?'disabled':''} title="${esc(obj.text||'')}"><span>${x.type==='card'?'▤':esc(obj.icon||'◆')}</span><b>${esc(obj.name)}</b><small>${x.price}G</small></button>`;}).join('')}</div>`;}
   function merchantHtml(r){const rw=r.reward,run=r.runState[state.profileId];return `<div class="merchant-panel"><div class="section-label" style="text-align:center">WANDERING MERCHANT</div><h2>추가 구매 · 현재 ${run.gold}G</h2><div class="shop-grid">${(rw.shop||[]).map(x=>{const bought=rw.purchased?.[`${state.profileId}:${x.id}`];const obj=x.type==='card'?x.card:x.item;const name=obj.name,text=obj.text,rar=obj.rarity,icon=x.type==='card'?'▤':(obj.icon||'◆');return `<div class="shop-card"><div class="rarity-${rar}" style="font-size:6px">${rarityKo(rar)} · ${x.type==='card'?'CARD':'ITEM'}</div><b>${esc(icon)} ${esc(name)}</b><p>${esc(text)}</p><div class="price">${x.price}G</div><button class="cta" data-action="buy" data-item="${x.id}" data-type="${x.type}" ${bought?'disabled':''}>${bought?'구매 완료':'구매'}</button></div>`;}).join('')}</div></div>`;}
 
-  function renderEvent(r){const ev=r.event,mine=ev.chosenBy?.[state.profileId],run=r.runState[state.profileId];setScreen('event',`<section class="run-stage-v27 event-stage-v27"><div class="run-bg-v27" style="background-image:url('${esc(r.biome.background)}')"></div><div class="run-shade-v27"></div>${compactRunHud(r,run)}<main class="decision-center-v27"><div class="decision-card-v27 event-focus-v27"><div class="event-sigil-v27">◇</div><div class="decision-title-v27"><small>MYSTERY EVENT</small><h1>${esc(ev.title)}</h1><p>${esc(ev.text)}</p></div><div class="event-grid-v27">${ev.choices.map(c=>`<button data-action="event-choice" data-choice="${esc(c.id)}" ${mine?'disabled':''}><b>${esc(c.label)}</b><small>${esc(c.desc)}</small></button>`).join('')}</div>${mine?'<div class="decision-foot-v27">선택 완료 · 다른 원정대원을 기다리는 중</div>':''}</div></main></section>`);}
+  function renderEvent(r){const ev=r.event,mine=ev.chosenBy?.[state.profileId],run=r.runState[state.profileId];setScreen('event',`<section class="run-stage-v31 event-stage-v31"><div class="run-bg-v31" style="background-image:url('${esc(r.biome.background)}')"></div><div class="ambient-grid-v31"></div><div class="run-shade-v31"></div>${compactRunHud(r,run)}<main class="event-center-v31"><div class="event-visual-card-v31"><div class="event-orb-v31"><i></i><b>◇</b></div><small>UNKNOWN SIGNAL</small><h1>${esc(ev.title)}</h1><p>${esc(shortLine(ev.text,58))}</p><div class="event-grid-v31 visual-event-grid-v31">${ev.choices.map(c=>`<button data-action="event-choice" data-choice="${esc(c.id)}" ${mine?'disabled':''} title="${esc(c.desc)}"><span>${choiceGlyph(c.id)}</span><b>${esc(c.label)}</b><small>${esc(shortLine(c.desc,26))}</small></button>`).join('')}</div>${mine?'<div class="tap-hint-v31">WAITING…</div>':''}</div></main></section>`);}
   function renderEnd(r){const clear=r.status==='cleared';setScreen('end',`<section class="event-screen"><div class="event-card"><div class="event-sigil">${clear?'♛':'☒'}</div><div class="section-label">${clear?'50F DUNGEON CLEAR':'EXPEDITION ENDED'}</div><h1>${esc(r.reward?.title||'원정 종료')}</h1><p>${esc(r.reward?.text||'')}</p><div class="stat-grid">${r.players.map(p=>{const run=r.runState[p.id];return `<div class="stat-box"><b>${esc(p.nickname)}</b><small>도달 ${r.floor}F · 덱 ${run?.runDeck?.length||0} · 아이템 ${Object.keys(run?.items||{}).length}</small></div>`;}).join('')}</div><div class="modal-actions" style="justify-content:center"><button class="cta mint" data-action="finish-run">홈으로 돌아가기</button></div></div></section>`);}
 
   function renderCollection(){state.deckDraft=[...(state.profile.deck||[])];state.collectionPage=0;renderCollectionInner();}
@@ -469,7 +526,7 @@
         if(state.busy)return;const me=state.room.battle.party.find(p=>p.playerId===state.profileId);if(me?.ended)return;const index=Number(el.dataset.index),base=byId(state.meta.cards,me.hand[index]),run=state.room.runState[state.profileId],card=runCardView(base,run),target=state.selectedEnemy?$(`[data-enemy="${CSS.escape(state.selectedEnemy)}"]`):null;if(!card)return;
         await cardCastWindup(el,card,target);const d=await roomPost('play',{handIndex:index,targetUid:state.selectedEnemy});if(d.room?.status==='reward')sound('win');return;
       }
-      if(action==='end-turn'){const b=state.room?.battle,active=b?.party?.filter(p=>!p.down&&!p.ended)||[];if(active.length<=1)showCenterBanner('ENEMY PHASE','소환 유닛 행동 후 적이 움직입니다.','enemy');return roomPost('end-turn',{});}
+      if(action==='end-turn'){const b=state.room?.battle,active=b?.party?.filter(p=>!p.down&&!p.ended)||[];if(active.length<=1)showCenterBanner('ENEMY','','enemy');return roomPost('end-turn',{});}
       if(action==='reward-pick'){await roomPost('reward',{rewardId:el.dataset.rewardId});await loadProfile();sound('reward');return renderRoom();}
       if(action==='reward-salvage'){await roomPost('salvage',{});sound('reward');return renderRoom();}
       if(action==='relic-pick'){await roomPost('relic',{relicId:el.dataset.relicId});sound('reward');return renderRoom();}
