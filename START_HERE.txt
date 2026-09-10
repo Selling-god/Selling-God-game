@@ -1,0 +1,19 @@
+RIFT DECK : ABYSS EXPEDITION - 시작 안내
+
+1) 이 ZIP은 기존 Selling-God 프로젝트에 덮는 패치가 아니라 전체 교체용 새 프로젝트입니다.
+2) Node.js 18 이상 설치
+3) 압축을 푼 폴더에서 npm install
+4) npm start
+5) http://localhost:3000 접속
+6) npm test 로 서버/4인방 기본 동작 테스트 가능
+
+Render 배포:
+- GitHub에 이 폴더 내용 전체를 저장소 루트로 업로드
+- Render의 Blueprint에서 render.yaml 사용 또는 Web Service 생성
+- Build Command: npm ci
+- Start Command: npm start
+- Health Check: /healthz
+
+중요:
+- 방/전투는 동적 서버가 권한을 갖습니다.
+- 카드/프로필은 현재 JSON 저장 방식이며, 실제 장기 서비스에서는 Supabase/Postgres 영구 저장으로 교체 권장.

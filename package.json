@@ -1,17 +1,13 @@
 {
-  "name": "kx-exchange-static",
-  "version": "12.0.0",
+  "name": "rift-deck-abyss-expedition",
+  "version": "1.0.0",
   "private": true,
+  "description": "Original dynamic-server browser card roguelite with 1-4 player co-op dungeons.",
   "scripts": {
-    "build": "node scripts/build.js",
-    "check": "node scripts/release-check.js",
-    "release": "npm run build && npm run check && npm run smoke && npm run logic && npm run rendercheck && npm run startup && npm run routes && npm run quality",
-    "smoke": "node scripts/steam-smoke.js",
-    "quality": "node scripts/quality-audit.js",
-    "logic": "node scripts/game-logic-test.js",
-    "rendercheck": "node scripts/render-matrix-test.js",
-    "startup": "node scripts/startup-contract-test.js",
-    "routes": "node scripts/route-integrity-test.js"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node scripts/smoke-test.js && node scripts/multiplayer-test.js && node scripts/combat-test.js",
+    "check": "node --check server.js && node --check public/app.js"
   },
   "engines": {
     "node": ">=18"
