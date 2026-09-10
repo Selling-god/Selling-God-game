@@ -1,36 +1,18 @@
-RIFT DECK : ABYSS EXPEDITION v2.2.0 - 로그인/전투연출 업데이트
+RIFT DECK : ABYSS EXPEDITION v2.6.0
 
-[기존 v2.1에서 업데이트하는 가장 간단한 순서]
-1. PATCH ZIP의 파일을 GitHub 저장소 루트에 그대로 덮어쓰기
-2. Supabase -> SQL Editor에서
-   supabase/RUN_THIS_IN_SUPABASE_RIFT_V22.sql 을 1회 실행
-3. Render -> 현재 사용 중인 RIFT DECK Web Service -> Environment에 2개 추가
-   SUPABASE_URL = 기존 Supabase Project URL
-   SUPABASE_SECRET_KEY = sb_secret_... (권장)
-   * 예전 service_role 키만 있으면 SUPABASE_SECRET_KEY 대신
-     SUPABASE_SERVICE_ROLE_KEY 이름으로 넣어도 됨
-4. Save Changes -> 자동 재배포
-5. 게임주소/healthz 에서 version=2.2.0 / auth=supabase 확인
-6. 게임 접속 -> 계정 생성 -> 로그인/저장 테스트
+1. Render는 기존 RIFT DECK Web Service를 그대로 사용합니다.
+2. Build Command: npm ci && npm run build
+3. Start Command: npm start
+4. Supabase 설정은 v2.5와 동일하며 새 SQL 실행은 필요 없습니다.
+5. PATCH 사용 시 PATCH_APPLY_V26.txt의 파일을 GitHub 루트에 덮어쓰세요.
+6. 배포 후 /healthz에서 version=2.6.0을 확인하세요.
 
-[기존 Web Service 그대로 사용]
-Build Command : npm ci && npm run build
-Start Command : npm start
-Node Version   : 22
-Health Check   : /healthz
-
-[v2.2 핵심]
-- Supabase Auth 아이디/비밀번호 로그인 + HttpOnly 쿠키
-- 컬렉션/덱/재화/봉인구/천장/통계/최근 원정 기록 클라우드 저장
-- 진행 중인 방/전투도 Supabase snapshot으로 저장해 Render 재시작 뒤 복구
-- 기존 게스트 기록을 첫 가입/로그인 때 계정으로 승계
-- 화면 흔들림 3단계 / hit-stop / 피격 플래시 / 전투 숫자
-- 12속성 파티클 / 베기 / 방어 파괴 / 카드 cast / 적 돌진·recoil·death
-- 보스·턴·적 페이즈·승패 배너 / 유닛 소환 / 보상 reveal
-- 다층 WebAudio SFX(타격/방어/회복/소환/보스 등)
-- FX 토글 + reduced-motion 대응
-
-[검증]
-npm ci
-npm test
-npm start
+v2.6 주요 변경
+- 전투 화면 한 화면 재구성
+- 적 흰 배경 제거
+- 카드/스펠/유닛/적 움직임 강화
+- 장면 전환 픽셀 커튼
+- RIFT BREAK
+- 던전 경로 화면 단순화
+- 게스트 -> 클라우드 로그인 기록 선택
+- 렌더/파티클 최적화

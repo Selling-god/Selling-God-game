@@ -29,8 +29,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '2.5.0';
-const DEPLOY_ID = 'RIFT-V2.5.0-ROGUELITE-20260910';
+const VERSION = '2.6.0';
+const DEPLOY_ID = 'RIFT-V2.6.0-COMBAT-POLISH-20260910';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -242,13 +242,14 @@ function accountIdFromUser(user) {
   const email = String(user?.email || '');
   return email.endsWith('@players.riftdeck.local') ? email.slice(0, -'@players.riftdeck.local'.length) : email;
 }
-function mergeGuestProfileInto(targetId, guestProfileId, nickname, accountId) {
+function mergeGuestProfileInto(targetId, guestProfileId, nickname, accountId, force = false) {
   const source = profiles[String(guestProfileId || '')];
-  if (!source || source.id === targetId || profiles[targetId]) return ensureProfile(targetId, nickname);
+  if (!source || source.id === targetId) return ensureProfile(targetId, nickname);
+  if (profiles[targetId] && !force) return ensureProfile(targetId, nickname);
   const merged = migrateProfile(clone(source));
   merged.id = targetId;
   merged.nickname = sanitizeName(nickname || merged.nickname);
-  merged.createdAt = Date.now();
+  merged.createdAt = profiles[targetId]?.createdAt || Date.now();
   merged.lastSeenAt = Date.now();
   merged.cloud = true;
   merged.accountId = accountId;
@@ -1002,6 +1003,10 @@ function startBattle(room, tier) {
     base.counter = 0;
     base.phase = tier === 'boss' ? 1 : 0;
     base.enraged = false;
+    base.staggerMax = Math.max(18, Math.round(base.maxHp * (tier === 'boss' ? 0.22 : tier === 'elite' ? 0.25 : 0.28)));
+    base.stagger = 0;
+    base.broken = 0;
+    base.justBroken = false;
     base.intent = rollIntent(base, tier, room.difficulty);
     enemies.push(base);
   }
@@ -1067,8 +1072,11 @@ function playCard(room, playerId, handIndex, targetUid) {
   pc.discard.push(cid);
   const chainResult = updateTacticalChain(room, pc, c);
   const phaseShifts = updateBossPhase(room);
+  const breakTargets = b.enemies.filter(e => e.justBroken && e.hp > 0);
+  for (const e of b.enemies) e.justBroken = false;
   if (checkBattleEnd(room)) return;
   pushRoomEvent(room, 'card', `${pc.nickname}: ${c.name}`, { playerId: pc.playerId, cardId: c.id, cardName: c.name, cardType: c.type, element: c.element, targetUid: target?.uid || null, cost, chainCount: chainResult.displayCount, chainStage: chainResult.stage, upgradeLevel:c.upgradeLevel||0 });
+  for (const e of breakTargets) pushRoomEvent(room, 'enemy-break', `${e.name}의 균열 자세가 붕괴했습니다!`, { enemyUid:e.uid, enemyName:e.name });
   if (chainResult.stage) pushRoomEvent(room, 'chain', `${pc.nickname} ${chainResult.stage === 'overdrive' ? '오버드라이브' : '전술 연쇄'} 발동!`, { playerId: pc.playerId, stage: chainResult.stage, count: chainResult.displayCount });
   for (const e of phaseShifts) pushRoomEvent(room, 'boss-phase', `${e.name}이(가) 2단계로 돌입했습니다!`, { enemyUid: e.uid, enemyName: e.name, phase: 2 });
 }
@@ -1224,6 +1232,15 @@ function applyDamage(e, amount) {
   e.block = (e.block || 0) - blocked;
   d -= blocked;
   e.hp = clamp(e.hp - d, 0, e.maxHp);
+  if (d > 0 && e.staggerMax && !e.broken && e.hp > 0) {
+    e.stagger = clamp(Number(e.stagger || 0) + Math.max(1, Math.round(d * 0.46)), 0, e.staggerMax);
+    if (e.stagger >= e.staggerMax) {
+      e.broken = 1;
+      e.justBroken = true;
+      e.debuffs ||= {};
+      e.debuffs.vulnerable = Math.max(Number(e.debuffs.vulnerable || 0), 1);
+    }
+  }
   return d;
 }
 
@@ -1310,6 +1327,14 @@ function enemyTurn(room) {
       battleLog(room, `${e.name} 화상 ${d}.`);
       if (e.hp <= 0) { if (checkBattleEnd(room)) return; continue; }
     }
+    if (e.broken > 0) {
+      e.broken = 0;
+      e.stagger = 0;
+      e.debuffs.vulnerable = Math.max(Number(e.debuffs.vulnerable || 0), 1);
+      battleLog(room, `${e.name} RIFT BREAK! 자세를 회복하느라 행동하지 못했습니다.`);
+      e.intent = rollIntent(e, b.tier, room.difficulty);
+      continue;
+    }
     if (e.debuffs.intentSeal > 0) {
       e.debuffs.intentSeal--;
       battleLog(room, `${e.name}의 행동이 봉인됨.`);
@@ -1335,6 +1360,7 @@ function enemyTurn(room) {
     }
     e.debuffs.vulnerable = Math.max(0, e.debuffs.vulnerable - 1);
     e.debuffs.weak = Math.max(0, e.debuffs.weak - 1);
+    if (e.staggerMax && !e.broken) e.stagger = Math.max(0, Number(e.stagger || 0) - Math.ceil(e.staggerMax * 0.28));
     e.intent = rollIntent(e, b.tier, room.difficulty);
   }
   if (checkBattleEnd(room)) return;
@@ -1968,11 +1994,14 @@ const server = http.createServer(async (req, res) => {
       catch { throw new Error('아이디 또는 비밀번호가 올바르지 않습니다.'); }
       setAuthCookies(req, res, session);
       const nickname = sanitizeName(session.user?.user_metadata?.nickname || accountId);
-      let prof = mergeGuestProfileInto(session.user.id, b.guestProfileId, nickname, accountId);
+      const profileMode = b.profileMode === 'guest' ? 'guest' : 'cloud';
+      let prof = profileMode === 'guest'
+        ? mergeGuestProfileInto(session.user.id, b.guestProfileId, nickname, accountId, true)
+        : ensureProfile(session.user.id, nickname);
       prof.cloud = true; prof.accountId = accountId;
       prof.stats.loginCount = Number(prof.stats.loginCount || 0) + 1; prof.stats.lastLoginAt = Date.now();
       saveProfiles();
-      return ok(res, { user: { id: session.user.id, accountId, nickname: prof.nickname }, profile: profileView(prof) });
+      return ok(res, { user: { id: session.user.id, accountId, nickname: prof.nickname }, profileMode, profile: profileView(prof) });
     }
     if (p === '/api/auth/logout' && req.method === 'POST') {
       clearAuthCookies(req, res);

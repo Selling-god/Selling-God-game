@@ -1,0 +1,32 @@
+RIFT DECK v2.6 PATCH 적용 방법
+
+1. 기존 GitHub 프로젝트를 백업합니다.
+2. v2.6 PATCH ZIP을 풉니다.
+3. 압축 안의 파일을 Selling-God-game 저장소 최상위에 그대로 덮어씁니다.
+4. GitHub Commit / Push 합니다.
+5. Render Web Service가 자동 재배포될 때까지 기다립니다.
+6. /healthz 에서 아래 값을 확인합니다.
+   version: 2.6.0
+   deployId: RIFT-V2.6.0-COMBAT-POLISH-20260910
+
+Supabase SQL 변경은 없습니다.
+기존 v2.5에서 사용하던 Supabase 설정을 그대로 사용하면 됩니다.
+
+주요 변경 파일
+- server.js
+- public/app.js
+- public/styles.css
+- public/index.html
+- scripts/build.js
+- package.json
+- package-lock.json
+
+핵심 변경
+- 게스트 로그인 시 저장 데이터 선택
+- 전투 화면 완전 재배치
+- 적 뒤 흰 사각형 제거
+- RIFT BREAK 전투 시스템
+- 카드/스펠/유닛/적 공격 애니메이션 개선
+- 장면 전환 픽셀 커튼
+- 원정/던전 경로 화면을 한 화면 중심 구조로 개편
+- 중복 SSE 렌더 방지 및 파티클 최적화
