@@ -1,0 +1,8708 @@
+{
+  "version": "2.0.0",
+  "rarities": {
+    "common": {
+      "ko": "일반",
+      "order": 1,
+      "travelWeight": 7600,
+      "sealBase": 0.88,
+      "dust": 2,
+      "rewardWeight": 7200
+    },
+    "rare": {
+      "ko": "희귀",
+      "order": 2,
+      "travelWeight": 2050,
+      "sealBase": 0.62,
+      "dust": 6,
+      "rewardWeight": 2200
+    },
+    "ultra": {
+      "ko": "초희귀",
+      "order": 3,
+      "travelWeight": 310,
+      "sealBase": 0.32,
+      "dust": 18,
+      "rewardWeight": 520
+    },
+    "legendary": {
+      "ko": "전설",
+      "order": 4,
+      "travelWeight": 10,
+      "sealBase": 0.095,
+      "dust": 60,
+      "rewardWeight": 55
+    },
+    "mythic": {
+      "ko": "신화",
+      "order": 5,
+      "travelWeight": 0.55,
+      "sealBase": 0.024,
+      "dust": 180,
+      "rewardWeight": 5
+    }
+  },
+  "elements": [
+    "화염",
+    "물",
+    "자연",
+    "빛",
+    "그림자",
+    "강철",
+    "바람",
+    "번개",
+    "별",
+    "시간",
+    "공허",
+    "수정"
+  ],
+  "cards": [
+    {
+      "id": "c001",
+      "name": "용광 수호자",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "화염",
+      "hp": 22,
+      "power": 5,
+      "block": 0,
+      "text": "소환 효과 발동 · 약화된 적 추가 피해.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 4
+        },
+        {
+          "op": "draw",
+          "value": 1
+        },
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "weakBonus5"
+      },
+      "limited": false,
+      "art": "/assets/cards/c001.png"
+    },
+    {
+      "id": "c002",
+      "name": "태양 정찰자",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "화염",
+      "hp": 27,
+      "power": 8,
+      "block": 1,
+      "text": "체력 최대 적 추가 피해.",
+      "effects": [],
+      "unit": {
+        "onAttack": "fullBonus"
+      },
+      "limited": false,
+      "art": "/assets/cards/c002.png"
+    },
+    {
+      "id": "c003",
+      "name": "잿불 마도사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "화염",
+      "hp": 32,
+      "power": 11,
+      "block": 3,
+      "text": "첫 공격 강화.",
+      "effects": [],
+      "unit": {
+        "onAttack": "firstBonus4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c003.png"
+    },
+    {
+      "id": "c004",
+      "name": "용광 사냥꾼",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "화염",
+      "hp": 37,
+      "power": 7,
+      "block": 4,
+      "text": "방어 중인 적 추가 피해.",
+      "effects": [],
+      "unit": {
+        "onAttack": "blockBonus6"
+      },
+      "limited": false,
+      "art": "/assets/cards/c004.png"
+    },
+    {
+      "id": "c005",
+      "name": "잿불의 장막",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "화염",
+      "hp": 0,
+      "power": 0,
+      "block": 9,
+      "text": "즉시 방어 획득.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 9
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c005.png"
+    },
+    {
+      "id": "c006",
+      "name": "용광의 파동",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "화염",
+      "hp": 0,
+      "power": 6,
+      "block": 6,
+      "text": "공격과 방어 동시 전개.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 6,
+          "target": "enemy"
+        },
+        {
+          "op": "block",
+          "value": 6
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c006.png"
+    },
+    {
+      "id": "c007",
+      "name": "태양의 메아리",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "화염",
+      "hp": 0,
+      "power": 0,
+      "block": 4,
+      "text": "카드 순환과 방어.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        },
+        {
+          "op": "block",
+          "value": 4
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c007.png"
+    },
+    {
+      "id": "c008",
+      "name": "잿불의 쇄도",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "화염",
+      "hp": 0,
+      "power": 5,
+      "block": 0,
+      "text": "피해와 화상 누적.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 5,
+          "target": "enemy"
+        },
+        {
+          "op": "burn",
+          "value": 2,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c008.png"
+    },
+    {
+      "id": "c009",
+      "name": "적염 치유사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "화염",
+      "hp": 32,
+      "power": 13,
+      "block": 0,
+      "text": "소환 효과 발동 · 2회마다 연쇄 피해 · 턴마다 약한 아군 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 5
+        }
+      ],
+      "unit": {
+        "onAttack": "chainEvery2",
+        "onRound": "healLowest2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c009.png"
+    },
+    {
+      "id": "c010",
+      "name": "홍련 연금술사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "화염",
+      "hp": 39,
+      "power": 8,
+      "block": 2,
+      "text": "소환 효과 발동 · 2회마다 추가 공격 · 턴마다 파티 회복.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "extraEvery2",
+        "onRound": "healAll2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c010.png"
+    },
+    {
+      "id": "c011",
+      "name": "화염 기수",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "화염",
+      "hp": 46,
+      "power": 12,
+      "block": 4,
+      "text": "소환 효과 발동 · 확률 추가 공격 · 턴마다 집중 회복.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "extra20",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c011.png"
+    },
+    {
+      "id": "c012",
+      "name": "적염 사제",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "화염",
+      "hp": 30,
+      "power": 6,
+      "block": 5,
+      "text": "주변 적에도 피해 · 턴마다 드로우와 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "splash40",
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c012.png"
+    },
+    {
+      "id": "c013",
+      "name": "화염의 봉인",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "화염",
+      "hp": 0,
+      "power": 5,
+      "block": 0,
+      "text": "취약을 만들고 공격.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        },
+        {
+          "op": "damage",
+          "value": 5,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c013.png"
+    },
+    {
+      "id": "c014",
+      "name": "적염의 진동",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "화염",
+      "hp": 0,
+      "power": 8,
+      "block": 0,
+      "text": "모든 적 공격.",
+      "effects": [
+        {
+          "op": "damageAll",
+          "value": 8
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c014.png"
+    },
+    {
+      "id": "c015",
+      "name": "홍련의 낙하",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "화염",
+      "hp": 0,
+      "power": 0,
+      "block": 4,
+      "text": "회복과 방어.",
+      "effects": [
+        {
+          "op": "heal",
+          "value": 10,
+          "target": "self"
+        },
+        {
+          "op": "block",
+          "value": 4
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c015.png"
+    },
+    {
+      "id": "c016",
+      "name": "홍련 무희",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "화염",
+      "hp": 48,
+      "power": 14,
+      "block": 0,
+      "text": "소환 효과 발동 · 첫 처치 시 에너지 · 턴마다 약한 아군 회복 · 스펠 연계.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 7
+        }
+      ],
+      "unit": {
+        "onAttack": "killEnergy",
+        "onRound": "healLowest2",
+        "onSpell": "echoThird"
+      },
+      "limited": false,
+      "art": "/assets/cards/c016.png"
+    },
+    {
+      "id": "c017",
+      "name": "화염 현자",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "화염",
+      "hp": 57,
+      "power": 19,
+      "block": 2,
+      "text": "보스 추가 피해 · 턴마다 파티 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "bossBonus10",
+        "onRound": "healAll2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c017.png"
+    },
+    {
+      "id": "c018",
+      "name": "적염 추적자",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "화염",
+      "hp": 65,
+      "power": 12,
+      "block": 5,
+      "text": "소환 효과 발동 · 균형형 전투 유닛 · 턴마다 집중 회복 · 스펠 연계.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onRound": "healLowest4",
+        "onSpell": "ping2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c018.png"
+    },
+    {
+      "id": "c019",
+      "name": "태양의 결계",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "화염",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "드로우와 비용 감소.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 2
+        },
+        {
+          "op": "anyDiscount",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c019.png"
+    },
+    {
+      "id": "c020",
+      "name": "잿불의 증폭",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "화염",
+      "hp": 0,
+      "power": 7,
+      "block": 0,
+      "text": "에너지 회복과 공격.",
+      "effects": [
+        {
+          "op": "energy",
+          "value": 1
+        },
+        {
+          "op": "damage",
+          "value": 7,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c020.png"
+    },
+    {
+      "id": "c021",
+      "name": "홍련 소환사",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "화염",
+      "hp": 59,
+      "power": 23,
+      "block": 10,
+      "text": "체력 최대 적 추가 피해 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "fullBonus",
+        "onSpell": "echoThird",
+        "aura": "whiteNight"
+      },
+      "limited": false,
+      "art": "/assets/cards/c021.png"
+    },
+    {
+      "id": "c022",
+      "name": "화염 검사",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "화염",
+      "hp": 71,
+      "power": 14,
+      "block": 0,
+      "text": "소환 효과 발동 · 첫 공격 강화 · 턴마다 약한 아군 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 9
+        },
+        {
+          "op": "vulnerable",
+          "value": 2,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "firstBonus4",
+        "onRound": "healLowest2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c022.png"
+    },
+    {
+      "id": "c023",
+      "name": "화염의 균열",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "화염",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "손패를 갈아엎고 재정비.",
+      "effects": [
+        {
+          "op": "redraw",
+          "value": 7
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c023.png"
+    },
+    {
+      "id": "c024",
+      "name": "적염의 폭풍",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "화염",
+      "hp": 0,
+      "power": 9,
+      "block": 0,
+      "text": "행동 봉인으로 템포 확보.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 9,
+          "target": "enemy"
+        },
+        {
+          "op": "intentSealAll",
+          "value": 2
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c024.png"
+    },
+    {
+      "id": "c025",
+      "name": "잿불 정찰자",
+      "type": "unit",
+      "rarity": "mythic",
+      "cost": 5,
+      "element": "화염",
+      "hp": 110,
+      "power": 27,
+      "block": 4,
+      "text": "소환 턴 공격 2배 · 턴마다 집중 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "summonDouble",
+        "onRound": "healLowest4",
+        "onSpell": "ping2",
+        "aura": "bossGuard1"
+      },
+      "limited": false,
+      "art": "/assets/cards/c025.png"
+    },
+    {
+      "id": "c026",
+      "name": "홍련의 일격",
+      "type": "spell",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "화염",
+      "hp": 0,
+      "power": 43,
+      "block": 0,
+      "text": "단일 폭딜과 주변 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 43,
+          "target": "enemy"
+        },
+        {
+          "op": "damageOthers",
+          "value": 12,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c026.png"
+    },
+    {
+      "id": "c027",
+      "name": "파도 사냥꾼",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "물",
+      "hp": 29,
+      "power": 10,
+      "block": 1,
+      "text": "체력 최대 적 추가 피해.",
+      "effects": [],
+      "unit": {
+        "onAttack": "fullBonus"
+      },
+      "limited": false,
+      "art": "/assets/cards/c027.png"
+    },
+    {
+      "id": "c028",
+      "name": "해류 기사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "물",
+      "hp": 34,
+      "power": 6,
+      "block": 3,
+      "text": "첫 공격 강화.",
+      "effects": [],
+      "unit": {
+        "onAttack": "firstBonus4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c028.png"
+    },
+    {
+      "id": "c029",
+      "name": "빙수 치유사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "물",
+      "hp": 22,
+      "power": 9,
+      "block": 4,
+      "text": "방어 중인 적 추가 피해.",
+      "effects": [],
+      "unit": {
+        "onAttack": "blockBonus6"
+      },
+      "limited": false,
+      "art": "/assets/cards/c029.png"
+    },
+    {
+      "id": "c030",
+      "name": "파도 연금술사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "물",
+      "hp": 27,
+      "power": 5,
+      "block": 0,
+      "text": "소환 효과 발동 · 소환 턴 공격 2배.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 4
+        }
+      ],
+      "unit": {
+        "onAttack": "summonDouble"
+      },
+      "limited": false,
+      "art": "/assets/cards/c030.png"
+    },
+    {
+      "id": "c031",
+      "name": "빙수의 폭발",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "물",
+      "hp": 0,
+      "power": 4,
+      "block": 0,
+      "text": "취약을 만들고 공격.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        },
+        {
+          "op": "damage",
+          "value": 4,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c031.png"
+    },
+    {
+      "id": "c032",
+      "name": "파도의 봉인",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "물",
+      "hp": 0,
+      "power": 6,
+      "block": 0,
+      "text": "모든 적 공격.",
+      "effects": [
+        {
+          "op": "damageAll",
+          "value": 6
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c032.png"
+    },
+    {
+      "id": "c033",
+      "name": "해류의 진동",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "물",
+      "hp": 0,
+      "power": 0,
+      "block": 3,
+      "text": "회복과 방어.",
+      "effects": [
+        {
+          "op": "heal",
+          "value": 8,
+          "target": "self"
+        },
+        {
+          "op": "block",
+          "value": 3
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c033.png"
+    },
+    {
+      "id": "c034",
+      "name": "빙수의 낙하",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "물",
+      "hp": 0,
+      "power": 0,
+      "block": 5,
+      "text": "파티 전체 방어.",
+      "effects": [
+        {
+          "op": "blockAllies",
+          "value": 5
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c034.png"
+    },
+    {
+      "id": "c035",
+      "name": "청람 사제",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "물",
+      "hp": 42,
+      "power": 10,
+      "block": 2,
+      "text": "소환 효과 발동 · 2회마다 추가 공격 · 턴마다 집중 회복.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        },
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "extraEvery2",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c035.png"
+    },
+    {
+      "id": "c036",
+      "name": "심해 사수",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "물",
+      "hp": 48,
+      "power": 14,
+      "block": 4,
+      "text": "확률 추가 공격 · 턴마다 드로우와 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extra20",
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c036.png"
+    },
+    {
+      "id": "c037",
+      "name": "유수 무희",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "물",
+      "hp": 32,
+      "power": 9,
+      "block": 5,
+      "text": "주변 적에도 피해.",
+      "effects": [],
+      "unit": {
+        "onAttack": "splash40"
+      },
+      "limited": false,
+      "art": "/assets/cards/c037.png"
+    },
+    {
+      "id": "c038",
+      "name": "청람 현자",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "물",
+      "hp": 39,
+      "power": 13,
+      "block": 0,
+      "text": "소환 효과 발동 · 3회마다 파티 방어 · 턴마다 약한 아군 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 5
+        }
+      ],
+      "unit": {
+        "onAttack": "teamBlockEvery3",
+        "onRound": "healLowest2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c038.png"
+    },
+    {
+      "id": "c039",
+      "name": "유수의 결계",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "물",
+      "hp": 0,
+      "power": 5,
+      "block": 0,
+      "text": "에너지 회복과 공격.",
+      "effects": [
+        {
+          "op": "energy",
+          "value": 1
+        },
+        {
+          "op": "damage",
+          "value": 5,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c039.png"
+    },
+    {
+      "id": "c040",
+      "name": "청람의 증폭",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "물",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "다음 공격 강화.",
+      "effects": [
+        {
+          "op": "nextAttack",
+          "value": 6
+        },
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c040.png"
+    },
+    {
+      "id": "c041",
+      "name": "심해의 연쇄",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "물",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "손패를 갈아엎고 재정비.",
+      "effects": [
+        {
+          "op": "redraw",
+          "value": 5
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c041.png"
+    },
+    {
+      "id": "c042",
+      "name": "심해 골렘",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "물",
+      "hp": 60,
+      "power": 10,
+      "block": 2,
+      "text": "보스 추가 피해 · 턴마다 집중 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "bossBonus10",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c042.png"
+    },
+    {
+      "id": "c043",
+      "name": "유수 소환사",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "물",
+      "hp": 40,
+      "power": 15,
+      "block": 5,
+      "text": "소환 효과 발동 · 균형형 전투 유닛 · 턴마다 드로우와 회복 · 스펠 연계.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onRound": "oracle",
+        "onSpell": "ping2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c043.png"
+    },
+    {
+      "id": "c044",
+      "name": "청람 검사",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "물",
+      "hp": 48,
+      "power": 9,
+      "block": 7,
+      "text": "소환 효과 발동 · 약화된 적 추가 피해 · 스펠 연계.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "weakBonus5",
+        "onSpell": "echoThird"
+      },
+      "limited": false,
+      "art": "/assets/cards/c044.png"
+    },
+    {
+      "id": "c045",
+      "name": "해류의 폭풍",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "물",
+      "hp": 0,
+      "power": 0,
+      "block": 21,
+      "text": "대형 방벽과 디버프 면역.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 21
+        },
+        {
+          "op": "debuffImmune",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c045.png"
+    },
+    {
+      "id": "c046",
+      "name": "빙수의 성역",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "물",
+      "hp": 0,
+      "power": 24,
+      "block": 0,
+      "text": "단일 폭딜과 주변 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 24,
+          "target": "enemy"
+        },
+        {
+          "op": "damageOthers",
+          "value": 7,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c046.png"
+    },
+    {
+      "id": "c047",
+      "name": "심해 정찰자",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "물",
+      "hp": 75,
+      "power": 18,
+      "block": 0,
+      "text": "소환 효과 발동 · 첫 공격 강화 · 턴마다 파티 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 9
+        }
+      ],
+      "unit": {
+        "onAttack": "firstBonus4",
+        "onRound": "healAll2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c047.png"
+    },
+    {
+      "id": "c048",
+      "name": "유수 마도사",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "물",
+      "hp": 87,
+      "power": 25,
+      "block": 3,
+      "text": "방어 중인 적 추가 피해 · 턴마다 집중 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "blockBonus6",
+        "onRound": "healLowest4",
+        "onSpell": "ping2",
+        "aura": "bossGuard1"
+      },
+      "limited": false,
+      "art": "/assets/cards/c048.png"
+    },
+    {
+      "id": "c049",
+      "name": "유수의 장막",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "물",
+      "hp": 0,
+      "power": 9,
+      "block": 0,
+      "text": "전체 취약과 광역 피해.",
+      "effects": [
+        {
+          "op": "vulnerableAll",
+          "value": 2
+        },
+        {
+          "op": "damageAll",
+          "value": 9
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c049.png"
+    },
+    {
+      "id": "c050",
+      "name": "청람의 파동",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "물",
+      "hp": 0,
+      "power": 9,
+      "block": 0,
+      "text": "광역 피해와 감전.",
+      "effects": [
+        {
+          "op": "damageAll",
+          "value": 9
+        },
+        {
+          "op": "shockAll",
+          "value": 2
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c050.png"
+    },
+    {
+      "id": "c051",
+      "name": "빙수 기사",
+      "type": "unit",
+      "rarity": "mythic",
+      "cost": 6,
+      "element": "물",
+      "hp": 79,
+      "power": 21,
+      "block": 9,
+      "text": "2회마다 연쇄 피해 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "chainEvery2",
+        "onSpell": "echoThird",
+        "aura": "whiteNight"
+      },
+      "limited": false,
+      "art": "/assets/cards/c051.png"
+    },
+    {
+      "id": "c052",
+      "name": "심해의 쇄도",
+      "type": "spell",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "물",
+      "hp": 0,
+      "power": 24,
+      "block": 0,
+      "text": "강력한 단일 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 24,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c052.png"
+    },
+    {
+      "id": "c053",
+      "name": "이끼 연금술사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "자연",
+      "hp": 36,
+      "power": 8,
+      "block": 3,
+      "text": "첫 공격 강화.",
+      "effects": [],
+      "unit": {
+        "onAttack": "firstBonus4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c053.png"
+    },
+    {
+      "id": "c054",
+      "name": "녹음 기수",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "자연",
+      "hp": 24,
+      "power": 11,
+      "block": 4,
+      "text": "방어 중인 적 추가 피해.",
+      "effects": [],
+      "unit": {
+        "onAttack": "blockBonus6"
+      },
+      "limited": false,
+      "art": "/assets/cards/c054.png"
+    },
+    {
+      "id": "c055",
+      "name": "화원 사제",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "자연",
+      "hp": 29,
+      "power": 7,
+      "block": 0,
+      "text": "소환 효과 발동 · 소환 턴 공격 2배.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 4
+        },
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "summonDouble"
+      },
+      "limited": false,
+      "art": "/assets/cards/c055.png"
+    },
+    {
+      "id": "c056",
+      "name": "이끼 사수",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "자연",
+      "hp": 34,
+      "power": 10,
+      "block": 1,
+      "text": "소환 효과 발동 · 2회마다 연쇄 피해.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "chainEvery2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c056.png"
+    },
+    {
+      "id": "c057",
+      "name": "화원의 회복",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "자연",
+      "hp": 0,
+      "power": 4,
+      "block": 0,
+      "text": "에너지 회복과 공격.",
+      "effects": [
+        {
+          "op": "energy",
+          "value": 1
+        },
+        {
+          "op": "damage",
+          "value": 4,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c057.png"
+    },
+    {
+      "id": "c058",
+      "name": "이끼의 결계",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "자연",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "다음 공격 강화.",
+      "effects": [
+        {
+          "op": "nextAttack",
+          "value": 5
+        },
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c058.png"
+    },
+    {
+      "id": "c059",
+      "name": "녹음의 증폭",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "자연",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "손패를 갈아엎고 재정비.",
+      "effects": [
+        {
+          "op": "redraw",
+          "value": 4
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c059.png"
+    },
+    {
+      "id": "c060",
+      "name": "화원의 연쇄",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "자연",
+      "hp": 0,
+      "power": 4,
+      "block": 0,
+      "text": "행동 봉인으로 템포 확보.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 4,
+          "target": "enemy"
+        },
+        {
+          "op": "intentSealAll",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c060.png"
+    },
+    {
+      "id": "c061",
+      "name": "야생 현자",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "자연",
+      "hp": 29,
+      "power": 8,
+      "block": 4,
+      "text": "확률 추가 공격.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extra20"
+      },
+      "limited": false,
+      "art": "/assets/cards/c061.png"
+    },
+    {
+      "id": "c062",
+      "name": "덩굴 추적자",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "자연",
+      "hp": 35,
+      "power": 12,
+      "block": 5,
+      "text": "주변 적에도 피해 · 턴마다 약한 아군 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "splash40",
+        "onRound": "healLowest2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c062.png"
+    },
+    {
+      "id": "c063",
+      "name": "수림 골렘",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "자연",
+      "hp": 42,
+      "power": 6,
+      "block": 0,
+      "text": "소환 효과 발동 · 3회마다 파티 방어 · 턴마다 파티 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 5
+        }
+      ],
+      "unit": {
+        "onAttack": "teamBlockEvery3",
+        "onRound": "healAll2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c063.png"
+    },
+    {
+      "id": "c064",
+      "name": "야생 소환사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "자연",
+      "hp": 48,
+      "power": 10,
+      "block": 2,
+      "text": "첫 처치 시 에너지 · 턴마다 집중 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "killEnergy",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c064.png"
+    },
+    {
+      "id": "c065",
+      "name": "수림의 폭풍",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "자연",
+      "hp": 0,
+      "power": 18,
+      "block": 0,
+      "text": "단일 폭딜과 주변 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 18,
+          "target": "enemy"
+        },
+        {
+          "op": "damageOthers",
+          "value": 5,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c065.png"
+    },
+    {
+      "id": "c066",
+      "name": "야생의 성역",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "자연",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "원정대 전체 회복.",
+      "effects": [
+        {
+          "op": "healAllies",
+          "value": 6
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c066.png"
+    },
+    {
+      "id": "c067",
+      "name": "덩굴의 일격",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "자연",
+      "hp": 0,
+      "power": 5,
+      "block": 0,
+      "text": "전체 취약과 광역 피해.",
+      "effects": [
+        {
+          "op": "vulnerableAll",
+          "value": 1
+        },
+        {
+          "op": "damageAll",
+          "value": 5
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c067.png"
+    },
+    {
+      "id": "c068",
+      "name": "덩굴 수호자",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "자연",
+      "hp": 43,
+      "power": 19,
+      "block": 5,
+      "text": "소환 효과 발동 · 균형형 전투 유닛 · 스펠 연계.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        },
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onSpell": "ping2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c068.png"
+    },
+    {
+      "id": "c069",
+      "name": "수림 정찰자",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "자연",
+      "hp": 52,
+      "power": 12,
+      "block": 7,
+      "text": "약화된 적 추가 피해 · 턴마다 약한 아군 회복 · 스펠 연계.",
+      "effects": [],
+      "unit": {
+        "onAttack": "weakBonus5",
+        "onRound": "healLowest2",
+        "onSpell": "echoThird"
+      },
+      "limited": false,
+      "art": "/assets/cards/c069.png"
+    },
+    {
+      "id": "c070",
+      "name": "야생 마도사",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "자연",
+      "hp": 60,
+      "power": 17,
+      "block": 0,
+      "text": "소환 효과 발동 · 체력 최대 적 추가 피해 · 턴마다 파티 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 7
+        }
+      ],
+      "unit": {
+        "onAttack": "fullBonus",
+        "onRound": "healAll2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c070.png"
+    },
+    {
+      "id": "c071",
+      "name": "녹음의 파동",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "자연",
+      "hp": 0,
+      "power": 0,
+      "block": 9,
+      "text": "소환 유닛 전체 강화.",
+      "effects": [
+        {
+          "op": "buffUnits",
+          "value": 3
+        },
+        {
+          "op": "block",
+          "value": 9
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c071.png"
+    },
+    {
+      "id": "c072",
+      "name": "화원의 메아리",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "자연",
+      "hp": 0,
+      "power": 14,
+      "block": 0,
+      "text": "강력한 단일 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 14,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c072.png"
+    },
+    {
+      "id": "c073",
+      "name": "덩굴 기사",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "자연",
+      "hp": 52,
+      "power": 14,
+      "block": 3,
+      "text": "방어 중인 적 추가 피해 · 턴마다 드로우와 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "blockBonus6",
+        "onRound": "oracle",
+        "onSpell": "ping2",
+        "aura": "bossGuard1"
+      },
+      "limited": false,
+      "art": "/assets/cards/c073.png"
+    },
+    {
+      "id": "c074",
+      "name": "수림 치유사",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "자연",
+      "hp": 64,
+      "power": 21,
+      "block": 6,
+      "text": "소환 턴 공격 2배 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "summonDouble",
+        "onSpell": "echoThird",
+        "aura": "whiteNight"
+      },
+      "limited": false,
+      "art": "/assets/cards/c074.png"
+    },
+    {
+      "id": "c075",
+      "name": "수림의 폭발",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "자연",
+      "hp": 0,
+      "power": 14,
+      "block": 14,
+      "text": "공격과 방어 동시 전개.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 14,
+          "target": "enemy"
+        },
+        {
+          "op": "block",
+          "value": 14
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c075.png"
+    },
+    {
+      "id": "c076",
+      "name": "야생의 봉인",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "자연",
+      "hp": 0,
+      "power": 0,
+      "block": 9,
+      "text": "카드 순환과 방어.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 2
+        },
+        {
+          "op": "block",
+          "value": 9
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c076.png"
+    },
+    {
+      "id": "c077",
+      "name": "화원 기수",
+      "type": "unit",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "자연",
+      "hp": 101,
+      "power": 15,
+      "block": 13,
+      "text": "소환 효과 발동 · 2회마다 추가 공격 · 턴마다 파티 회복.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 2
+        }
+      ],
+      "unit": {
+        "onAttack": "extraEvery2",
+        "onRound": "healAll2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c077.png"
+    },
+    {
+      "id": "c078",
+      "name": "덩굴의 낙하",
+      "type": "spell",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "자연",
+      "hp": 0,
+      "power": 15,
+      "block": 0,
+      "text": "피해와 약화 부여.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 15,
+          "target": "enemy"
+        },
+        {
+          "op": "weak",
+          "value": 3,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c078.png"
+    },
+    {
+      "id": "c079",
+      "name": "성광 사수",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "빛",
+      "hp": 26,
+      "power": 6,
+      "block": 4,
+      "text": "소환 효과 발동 · 방어 중인 적 추가 피해.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "blockBonus6"
+      },
+      "limited": false,
+      "art": "/assets/cards/c079.png"
+    },
+    {
+      "id": "c080",
+      "name": "순례 무희",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "빛",
+      "hp": 31,
+      "power": 9,
+      "block": 0,
+      "text": "소환 효과 발동 · 소환 턴 공격 2배.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 4
+        }
+      ],
+      "unit": {
+        "onAttack": "summonDouble"
+      },
+      "limited": false,
+      "art": "/assets/cards/c080.png"
+    },
+    {
+      "id": "c081",
+      "name": "여명 현자",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "빛",
+      "hp": 36,
+      "power": 5,
+      "block": 1,
+      "text": "소환 효과 발동 · 2회마다 연쇄 피해.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "chainEvery2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c081.png"
+    },
+    {
+      "id": "c082",
+      "name": "성광 추적자",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "빛",
+      "hp": 24,
+      "power": 8,
+      "block": 3,
+      "text": "2회마다 추가 공격.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extraEvery2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c082.png"
+    },
+    {
+      "id": "c083",
+      "name": "여명의 균열",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "빛",
+      "hp": 0,
+      "power": 14,
+      "block": 0,
+      "text": "단일 폭딜과 주변 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 14,
+          "target": "enemy"
+        },
+        {
+          "op": "damageOthers",
+          "value": 4,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c083.png"
+    },
+    {
+      "id": "c084",
+      "name": "성광의 폭풍",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "빛",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "원정대 전체 회복.",
+      "effects": [
+        {
+          "op": "healAllies",
+          "value": 5
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c084.png"
+    },
+    {
+      "id": "c085",
+      "name": "순례의 성역",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "빛",
+      "hp": 0,
+      "power": 4,
+      "block": 0,
+      "text": "전체 취약과 광역 피해.",
+      "effects": [
+        {
+          "op": "vulnerableAll",
+          "value": 1
+        },
+        {
+          "op": "damageAll",
+          "value": 4
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c085.png"
+    },
+    {
+      "id": "c086",
+      "name": "여명의 일격",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "빛",
+      "hp": 0,
+      "power": 4,
+      "block": 0,
+      "text": "광역 피해와 감전.",
+      "effects": [
+        {
+          "op": "damageAll",
+          "value": 4
+        },
+        {
+          "op": "shockAll",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c086.png"
+    },
+    {
+      "id": "c087",
+      "name": "천명 소환사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "빛",
+      "hp": 38,
+      "power": 14,
+      "block": 5,
+      "text": "주변 적에도 피해 · 턴마다 파티 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "splash40",
+        "onRound": "healAll2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c087.png"
+    },
+    {
+      "id": "c088",
+      "name": "광휘 검사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "빛",
+      "hp": 44,
+      "power": 9,
+      "block": 0,
+      "text": "소환 효과 발동 · 3회마다 파티 방어 · 턴마다 집중 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 5
+        }
+      ],
+      "unit": {
+        "onAttack": "teamBlockEvery3",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c088.png"
+    },
+    {
+      "id": "c089",
+      "name": "백야 수호자",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "빛",
+      "hp": 29,
+      "power": 13,
+      "block": 2,
+      "text": "소환 효과 발동 · 첫 처치 시 에너지 · 턴마다 드로우와 회복.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "killEnergy",
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c089.png"
+    },
+    {
+      "id": "c090",
+      "name": "천명 정찰자",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "빛",
+      "hp": 35,
+      "power": 8,
+      "block": 4,
+      "text": "소환 효과 발동 · 보스 추가 피해.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "bossBonus10"
+      },
+      "limited": false,
+      "art": "/assets/cards/c090.png"
+    },
+    {
+      "id": "c091",
+      "name": "백야의 파동",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "빛",
+      "hp": 0,
+      "power": 10,
+      "block": 0,
+      "text": "강력한 단일 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 10,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c091.png"
+    },
+    {
+      "id": "c092",
+      "name": "천명의 메아리",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "빛",
+      "hp": 0,
+      "power": 0,
+      "block": 12,
+      "text": "즉시 방어 획득.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 12
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c092.png"
+    },
+    {
+      "id": "c093",
+      "name": "광휘의 쇄도",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "빛",
+      "hp": 0,
+      "power": 8,
+      "block": 8,
+      "text": "공격과 방어 동시 전개.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 8,
+          "target": "enemy"
+        },
+        {
+          "op": "block",
+          "value": 8
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c093.png"
+    },
+    {
+      "id": "c094",
+      "name": "광휘 사냥꾼",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "빛",
+      "hp": 55,
+      "power": 15,
+      "block": 7,
+      "text": "약화된 적 추가 피해 · 턴마다 파티 회복 · 스펠 연계.",
+      "effects": [],
+      "unit": {
+        "onAttack": "weakBonus5",
+        "onRound": "healAll2",
+        "onSpell": "echoThird"
+      },
+      "limited": false,
+      "art": "/assets/cards/c094.png"
+    },
+    {
+      "id": "c095",
+      "name": "백야 기사",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "빛",
+      "hp": 64,
+      "power": 9,
+      "block": 0,
+      "text": "소환 효과 발동 · 체력 최대 적 추가 피해 · 턴마다 집중 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 7
+        }
+      ],
+      "unit": {
+        "onAttack": "fullBonus",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c095.png"
+    },
+    {
+      "id": "c096",
+      "name": "천명 치유사",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "빛",
+      "hp": 43,
+      "power": 14,
+      "block": 2,
+      "text": "첫 공격 강화 · 턴마다 드로우와 회복 · 스펠 연계.",
+      "effects": [],
+      "unit": {
+        "onAttack": "firstBonus4",
+        "onRound": "oracle",
+        "onSpell": "ping2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c096.png"
+    },
+    {
+      "id": "c097",
+      "name": "순례의 봉인",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "빛",
+      "hp": 0,
+      "power": 9,
+      "block": 0,
+      "text": "피해와 화상 누적.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 9,
+          "target": "enemy"
+        },
+        {
+          "op": "burn",
+          "value": 3,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c097.png"
+    },
+    {
+      "id": "c098",
+      "name": "여명의 진동",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "빛",
+      "hp": 0,
+      "power": 9,
+      "block": 0,
+      "text": "피해와 약화 부여.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 9,
+          "target": "enemy"
+        },
+        {
+          "op": "weak",
+          "value": 2,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c098.png"
+    },
+    {
+      "id": "c099",
+      "name": "광휘 기수",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "빛",
+      "hp": 68,
+      "power": 25,
+      "block": 6,
+      "text": "소환 턴 공격 2배 · 턴마다 약한 아군 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "summonDouble",
+        "onRound": "healLowest2",
+        "onSpell": "echoThird",
+        "aura": "whiteNight"
+      },
+      "limited": false,
+      "art": "/assets/cards/c099.png"
+    },
+    {
+      "id": "c100",
+      "name": "백야 사제",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "빛",
+      "hp": 80,
+      "power": 16,
+      "block": 10,
+      "text": "소환 효과 발동 · 2회마다 연쇄 피해 · 턴마다 파티 회복.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 2
+        },
+        {
+          "op": "vulnerable",
+          "value": 2,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "chainEvery2",
+        "onRound": "healAll2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c100.png"
+    },
+    {
+      "id": "c101",
+      "name": "백야의 회복",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "빛",
+      "hp": 0,
+      "power": 14,
+      "block": 0,
+      "text": "모든 적 공격.",
+      "effects": [
+        {
+          "op": "damageAll",
+          "value": 14
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c101.png"
+    },
+    {
+      "id": "c102",
+      "name": "천명의 결계",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "빛",
+      "hp": 0,
+      "power": 0,
+      "block": 7,
+      "text": "회복과 방어.",
+      "effects": [
+        {
+          "op": "heal",
+          "value": 18,
+          "target": "self"
+        },
+        {
+          "op": "block",
+          "value": 7
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c102.png"
+    },
+    {
+      "id": "c103",
+      "name": "여명 무희",
+      "type": "unit",
+      "rarity": "mythic",
+      "cost": 5,
+      "element": "빛",
+      "hp": 70,
+      "power": 30,
+      "block": 0,
+      "text": "소환 효과 발동 · 확률 추가 공격 · 턴마다 드로우와 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 12
+        }
+      ],
+      "unit": {
+        "onAttack": "extra20",
+        "onRound": "oracle",
+        "onSpell": "ping2",
+        "aura": "bossGuard1"
+      },
+      "limited": false,
+      "art": "/assets/cards/c103.png"
+    },
+    {
+      "id": "c104",
+      "name": "광휘의 연쇄",
+      "type": "spell",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "빛",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "드로우와 비용 감소.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 3
+        },
+        {
+          "op": "anyDiscount",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c104.png"
+    },
+    {
+      "id": "c105",
+      "name": "그림자 추적자",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "그림자",
+      "hp": 33,
+      "power": 11,
+      "block": 0,
+      "text": "소환 효과 발동 · 소환 턴 공격 2배.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 4
+        }
+      ],
+      "unit": {
+        "onAttack": "summonDouble"
+      },
+      "limited": false,
+      "art": "/assets/cards/c105.png"
+    },
+    {
+      "id": "c106",
+      "name": "황혼 골렘",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "그림자",
+      "hp": 38,
+      "power": 7,
+      "block": 1,
+      "text": "소환 효과 발동 · 2회마다 연쇄 피해.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "chainEvery2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c106.png"
+    },
+    {
+      "id": "c107",
+      "name": "암야 소환사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "그림자",
+      "hp": 26,
+      "power": 10,
+      "block": 3,
+      "text": "2회마다 추가 공격.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extraEvery2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c107.png"
+    },
+    {
+      "id": "c108",
+      "name": "그림자 검사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "그림자",
+      "hp": 31,
+      "power": 6,
+      "block": 4,
+      "text": "확률 추가 공격.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extra20"
+      },
+      "limited": false,
+      "art": "/assets/cards/c108.png"
+    },
+    {
+      "id": "c109",
+      "name": "암야의 장막",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "그림자",
+      "hp": 0,
+      "power": 8,
+      "block": 0,
+      "text": "강력한 단일 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 8,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c109.png"
+    },
+    {
+      "id": "c110",
+      "name": "그림자의 파동",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "그림자",
+      "hp": 0,
+      "power": 0,
+      "block": 9,
+      "text": "즉시 방어 획득.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 9
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c110.png"
+    },
+    {
+      "id": "c111",
+      "name": "황혼의 메아리",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "그림자",
+      "hp": 0,
+      "power": 6,
+      "block": 6,
+      "text": "공격과 방어 동시 전개.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 6,
+          "target": "enemy"
+        },
+        {
+          "op": "block",
+          "value": 6
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c111.png"
+    },
+    {
+      "id": "c112",
+      "name": "암야의 쇄도",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "그림자",
+      "hp": 0,
+      "power": 0,
+      "block": 4,
+      "text": "카드 순환과 방어.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        },
+        {
+          "op": "block",
+          "value": 4
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c112.png"
+    },
+    {
+      "id": "c113",
+      "name": "월영 정찰자",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "그림자",
+      "hp": 47,
+      "power": 12,
+      "block": 0,
+      "text": "소환 효과 발동 · 3회마다 파티 방어 · 턴마다 드로우와 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 5
+        },
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "teamBlockEvery3",
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c113.png"
+    },
+    {
+      "id": "c114",
+      "name": "흑월 마도사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "그림자",
+      "hp": 31,
+      "power": 6,
+      "block": 2,
+      "text": "첫 처치 시 에너지.",
+      "effects": [],
+      "unit": {
+        "onAttack": "killEnergy"
+      },
+      "limited": false,
+      "art": "/assets/cards/c114.png"
+    },
+    {
+      "id": "c115",
+      "name": "비밀 사냥꾼",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "그림자",
+      "hp": 38,
+      "power": 10,
+      "block": 4,
+      "text": "소환 효과 발동 · 보스 추가 피해 · 턴마다 약한 아군 회복.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "bossBonus10",
+        "onRound": "healLowest2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c115.png"
+    },
+    {
+      "id": "c116",
+      "name": "월영 기사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "그림자",
+      "hp": 44,
+      "power": 14,
+      "block": 5,
+      "text": "균형형 전투 유닛 · 턴마다 파티 회복.",
+      "effects": [],
+      "unit": {
+        "onRound": "healAll2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c116.png"
+    },
+    {
+      "id": "c117",
+      "name": "비밀의 봉인",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "그림자",
+      "hp": 0,
+      "power": 6,
+      "block": 0,
+      "text": "피해와 약화 부여.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 6,
+          "target": "enemy"
+        },
+        {
+          "op": "weak",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c117.png"
+    },
+    {
+      "id": "c118",
+      "name": "월영의 진동",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "그림자",
+      "hp": 0,
+      "power": 5,
+      "block": 0,
+      "text": "취약을 만들고 공격.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        },
+        {
+          "op": "damage",
+          "value": 5,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c118.png"
+    },
+    {
+      "id": "c119",
+      "name": "흑월의 낙하",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "그림자",
+      "hp": 0,
+      "power": 8,
+      "block": 0,
+      "text": "모든 적 공격.",
+      "effects": [
+        {
+          "op": "damageAll",
+          "value": 8
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c119.png"
+    },
+    {
+      "id": "c120",
+      "name": "흑월 연금술사",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "그림자",
+      "hp": 38,
+      "power": 12,
+      "block": 0,
+      "text": "소환 효과 발동 · 체력 최대 적 추가 피해 · 턴마다 드로우와 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 7
+        }
+      ],
+      "unit": {
+        "onAttack": "fullBonus",
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c120.png"
+    },
+    {
+      "id": "c121",
+      "name": "비밀 기수",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "그림자",
+      "hp": 46,
+      "power": 17,
+      "block": 2,
+      "text": "첫 공격 강화 · 스펠 연계.",
+      "effects": [],
+      "unit": {
+        "onAttack": "firstBonus4",
+        "onSpell": "ping2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c121.png"
+    },
+    {
+      "id": "c122",
+      "name": "월영 사제",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "그림자",
+      "hp": 55,
+      "power": 10,
+      "block": 5,
+      "text": "소환 효과 발동 · 방어 중인 적 추가 피해 · 턴마다 약한 아군 회복 · 스펠 연계.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "blockBonus6",
+        "onRound": "healLowest2",
+        "onSpell": "echoThird"
+      },
+      "limited": false,
+      "art": "/assets/cards/c122.png"
+    },
+    {
+      "id": "c123",
+      "name": "황혼의 결계",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "그림자",
+      "hp": 0,
+      "power": 0,
+      "block": 9,
+      "text": "파티 전체 방어.",
+      "effects": [
+        {
+          "op": "blockAllies",
+          "value": 9
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c123.png"
+    },
+    {
+      "id": "c124",
+      "name": "암야의 증폭",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "그림자",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "드로우와 비용 감소.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 2
+        },
+        {
+          "op": "anyDiscount",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c124.png"
+    },
+    {
+      "id": "c125",
+      "name": "흑월 무희",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "그림자",
+      "hp": 84,
+      "power": 21,
+      "block": 10,
+      "text": "소환 효과 발동 · 2회마다 연쇄 피해 · 턴마다 집중 회복.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 2
+        }
+      ],
+      "unit": {
+        "onAttack": "chainEvery2",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c125.png"
+    },
+    {
+      "id": "c126",
+      "name": "비밀 현자",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "그림자",
+      "hp": 57,
+      "power": 11,
+      "block": 0,
+      "text": "소환 효과 발동 · 2회마다 추가 공격 · 턴마다 드로우와 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 9
+        }
+      ],
+      "unit": {
+        "onAttack": "extraEvery2",
+        "onRound": "oracle",
+        "onSpell": "ping2",
+        "aura": "bossGuard1"
+      },
+      "limited": false,
+      "art": "/assets/cards/c126.png"
+    },
+    {
+      "id": "c127",
+      "name": "비밀의 균열",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "그림자",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "다음 공격 강화.",
+      "effects": [
+        {
+          "op": "nextAttack",
+          "value": 11
+        },
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c127.png"
+    },
+    {
+      "id": "c128",
+      "name": "월영의 폭풍",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "그림자",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "손패를 갈아엎고 재정비.",
+      "effects": [
+        {
+          "op": "redraw",
+          "value": 7
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c128.png"
+    },
+    {
+      "id": "c129",
+      "name": "암야 골렘",
+      "type": "unit",
+      "rarity": "mythic",
+      "cost": 6,
+      "element": "그림자",
+      "hp": 92,
+      "power": 24,
+      "block": 4,
+      "text": "주변 적에도 피해 · 턴마다 약한 아군 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "splash40",
+        "onRound": "healLowest2",
+        "onSpell": "echoThird",
+        "aura": "whiteNight"
+      },
+      "limited": false,
+      "art": "/assets/cards/c129.png"
+    },
+    {
+      "id": "c130",
+      "name": "흑월의 일격",
+      "type": "spell",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "그림자",
+      "hp": 0,
+      "power": 0,
+      "block": 37,
+      "text": "대형 방벽과 디버프 면역.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 37
+        },
+        {
+          "op": "debuffImmune",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c130.png"
+    },
+    {
+      "id": "c131",
+      "name": "강철 검사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "강철",
+      "hp": 23,
+      "power": 9,
+      "block": 1,
+      "text": "소환 효과 발동 · 2회마다 연쇄 피해.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "chainEvery2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c131.png"
+    },
+    {
+      "id": "c132",
+      "name": "기어 수호자",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "강철",
+      "hp": 28,
+      "power": 5,
+      "block": 3,
+      "text": "2회마다 추가 공격.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extraEvery2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c132.png"
+    },
+    {
+      "id": "c133",
+      "name": "합금 정찰자",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "강철",
+      "hp": 33,
+      "power": 8,
+      "block": 4,
+      "text": "소환 효과 발동 · 확률 추가 공격.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "extra20"
+      },
+      "limited": false,
+      "art": "/assets/cards/c133.png"
+    },
+    {
+      "id": "c134",
+      "name": "강철 마도사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "강철",
+      "hp": 38,
+      "power": 11,
+      "block": 0,
+      "text": "소환 효과 발동 · 주변 적에도 피해.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 4
+        }
+      ],
+      "unit": {
+        "onAttack": "splash40"
+      },
+      "limited": false,
+      "art": "/assets/cards/c134.png"
+    },
+    {
+      "id": "c135",
+      "name": "합금의 폭발",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "강철",
+      "hp": 0,
+      "power": 5,
+      "block": 0,
+      "text": "피해와 약화 부여.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 5,
+          "target": "enemy"
+        },
+        {
+          "op": "weak",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c135.png"
+    },
+    {
+      "id": "c136",
+      "name": "강철의 봉인",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "강철",
+      "hp": 0,
+      "power": 4,
+      "block": 0,
+      "text": "취약을 만들고 공격.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        },
+        {
+          "op": "damage",
+          "value": 4,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c136.png"
+    },
+    {
+      "id": "c137",
+      "name": "기어의 진동",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "강철",
+      "hp": 0,
+      "power": 6,
+      "block": 0,
+      "text": "모든 적 공격.",
+      "effects": [
+        {
+          "op": "damageAll",
+          "value": 6
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c137.png"
+    },
+    {
+      "id": "c138",
+      "name": "합금의 낙하",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "강철",
+      "hp": 0,
+      "power": 0,
+      "block": 3,
+      "text": "회복과 방어.",
+      "effects": [
+        {
+          "op": "heal",
+          "value": 8,
+          "target": "self"
+        },
+        {
+          "op": "block",
+          "value": 3
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c138.png"
+    },
+    {
+      "id": "c139",
+      "name": "철벽 기사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "강철",
+      "hp": 34,
+      "power": 9,
+      "block": 2,
+      "text": "첫 처치 시 에너지 · 턴마다 약한 아군 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "killEnergy",
+        "onRound": "healLowest2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c139.png"
+    },
+    {
+      "id": "c140",
+      "name": "기관 치유사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "강철",
+      "hp": 40,
+      "power": 13,
+      "block": 4,
+      "text": "소환 효과 발동 · 보스 추가 피해 · 턴마다 파티 회복.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "bossBonus10",
+        "onRound": "healAll2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c140.png"
+    },
+    {
+      "id": "c141",
+      "name": "톱니 연금술사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "강철",
+      "hp": 47,
+      "power": 8,
+      "block": 5,
+      "text": "균형형 전투 유닛 · 턴마다 집중 회복.",
+      "effects": [],
+      "unit": {
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c141.png"
+    },
+    {
+      "id": "c142",
+      "name": "철벽 기수",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "강철",
+      "hp": 31,
+      "power": 12,
+      "block": 0,
+      "text": "소환 효과 발동 · 약화된 적 추가 피해 · 턴마다 드로우와 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 5
+        }
+      ],
+      "unit": {
+        "onAttack": "weakBonus5",
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c142.png"
+    },
+    {
+      "id": "c143",
+      "name": "톱니의 결계",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "강철",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "드로우와 비용 감소.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 2
+        },
+        {
+          "op": "anyDiscount",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c143.png"
+    },
+    {
+      "id": "c144",
+      "name": "철벽의 증폭",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "강철",
+      "hp": 0,
+      "power": 5,
+      "block": 0,
+      "text": "에너지 회복과 공격.",
+      "effects": [
+        {
+          "op": "energy",
+          "value": 1
+        },
+        {
+          "op": "damage",
+          "value": 5,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c144.png"
+    },
+    {
+      "id": "c145",
+      "name": "기관의 연쇄",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "강철",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "다음 공격 강화.",
+      "effects": [
+        {
+          "op": "nextAttack",
+          "value": 6
+        },
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c145.png"
+    },
+    {
+      "id": "c146",
+      "name": "기관 사수",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "강철",
+      "hp": 50,
+      "power": 9,
+      "block": 2,
+      "text": "소환 효과 발동 · 첫 공격 강화 · 턴마다 약한 아군 회복 · 스펠 연계.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "firstBonus4",
+        "onRound": "healLowest2",
+        "onSpell": "ping2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c146.png"
+    },
+    {
+      "id": "c147",
+      "name": "톱니 무희",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "강철",
+      "hp": 58,
+      "power": 14,
+      "block": 5,
+      "text": "방어 중인 적 추가 피해 · 턴마다 파티 회복 · 스펠 연계.",
+      "effects": [],
+      "unit": {
+        "onAttack": "blockBonus6",
+        "onRound": "healAll2",
+        "onSpell": "echoThird"
+      },
+      "limited": false,
+      "art": "/assets/cards/c147.png"
+    },
+    {
+      "id": "c148",
+      "name": "철벽 현자",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "강철",
+      "hp": 38,
+      "power": 19,
+      "block": 7,
+      "text": "소환 효과 발동 · 소환 턴 공격 2배 · 턴마다 집중 회복.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "summonDouble",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c148.png"
+    },
+    {
+      "id": "c149",
+      "name": "기어의 폭풍",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "강철",
+      "hp": 0,
+      "power": 7,
+      "block": 0,
+      "text": "행동 봉인으로 템포 확보.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 7,
+          "target": "enemy"
+        },
+        {
+          "op": "intentSealAll",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c149.png"
+    },
+    {
+      "id": "c150",
+      "name": "합금의 성역",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "강철",
+      "hp": 0,
+      "power": 0,
+      "block": 21,
+      "text": "대형 방벽과 디버프 면역.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 21
+        },
+        {
+          "op": "debuffImmune",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c150.png"
+    },
+    {
+      "id": "c151",
+      "name": "기관 골렘",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "강철",
+      "hp": 62,
+      "power": 16,
+      "block": 0,
+      "text": "소환 효과 발동 · 2회마다 추가 공격 · 스펠 연계 · 파티 오라.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 9
+        }
+      ],
+      "unit": {
+        "onAttack": "extraEvery2",
+        "onSpell": "ping2",
+        "aura": "bossGuard1"
+      },
+      "limited": false,
+      "art": "/assets/cards/c151.png"
+    },
+    {
+      "id": "c152",
+      "name": "톱니 소환사",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "강철",
+      "hp": 73,
+      "power": 23,
+      "block": 3,
+      "text": "확률 추가 공격 · 턴마다 약한 아군 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extra20",
+        "onRound": "healLowest2",
+        "onSpell": "echoThird",
+        "aura": "whiteNight"
+      },
+      "limited": false,
+      "art": "/assets/cards/c152.png"
+    },
+    {
+      "id": "c153",
+      "name": "톱니의 장막",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "강철",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "원정대 전체 회복.",
+      "effects": [
+        {
+          "op": "healAllies",
+          "value": 11
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c153.png"
+    },
+    {
+      "id": "c154",
+      "name": "철벽의 파동",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "강철",
+      "hp": 0,
+      "power": 9,
+      "block": 0,
+      "text": "전체 취약과 광역 피해.",
+      "effects": [
+        {
+          "op": "vulnerableAll",
+          "value": 2
+        },
+        {
+          "op": "damageAll",
+          "value": 9
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c154.png"
+    },
+    {
+      "id": "c155",
+      "name": "합금 수호자",
+      "type": "unit",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "강철",
+      "hp": 113,
+      "power": 18,
+      "block": 9,
+      "text": "3회마다 파티 방어 · 턴마다 집중 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "teamBlockEvery3",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c155.png"
+    },
+    {
+      "id": "c156",
+      "name": "기관의 쇄도",
+      "type": "spell",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "강철",
+      "hp": 0,
+      "power": 0,
+      "block": 15,
+      "text": "소환 유닛 전체 강화.",
+      "effects": [
+        {
+          "op": "buffUnits",
+          "value": 6
+        },
+        {
+          "op": "block",
+          "value": 15
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c156.png"
+    },
+    {
+      "id": "c157",
+      "name": "구름 마도사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "바람",
+      "hp": 30,
+      "power": 7,
+      "block": 3,
+      "text": "소환 효과 발동 · 2회마다 추가 공격.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "extraEvery2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c157.png"
+    },
+    {
+      "id": "c158",
+      "name": "폭풍 사냥꾼",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "바람",
+      "hp": 35,
+      "power": 10,
+      "block": 4,
+      "text": "확률 추가 공격.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extra20"
+      },
+      "limited": false,
+      "art": "/assets/cards/c158.png"
+    },
+    {
+      "id": "c159",
+      "name": "질풍 기사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "바람",
+      "hp": 23,
+      "power": 6,
+      "block": 0,
+      "text": "소환 효과 발동 · 주변 적에도 피해.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 4
+        }
+      ],
+      "unit": {
+        "onAttack": "splash40"
+      },
+      "limited": false,
+      "art": "/assets/cards/c159.png"
+    },
+    {
+      "id": "c160",
+      "name": "구름 치유사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "바람",
+      "hp": 28,
+      "power": 9,
+      "block": 1,
+      "text": "3회마다 파티 방어.",
+      "effects": [],
+      "unit": {
+        "onAttack": "teamBlockEvery3"
+      },
+      "limited": false,
+      "art": "/assets/cards/c160.png"
+    },
+    {
+      "id": "c161",
+      "name": "질풍의 회복",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "바람",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "드로우와 비용 감소.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 2
+        },
+        {
+          "op": "anyDiscount",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c161.png"
+    },
+    {
+      "id": "c162",
+      "name": "구름의 결계",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "바람",
+      "hp": 0,
+      "power": 4,
+      "block": 0,
+      "text": "에너지 회복과 공격.",
+      "effects": [
+        {
+          "op": "energy",
+          "value": 1
+        },
+        {
+          "op": "damage",
+          "value": 4,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c162.png"
+    },
+    {
+      "id": "c163",
+      "name": "폭풍의 증폭",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "바람",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "다음 공격 강화.",
+      "effects": [
+        {
+          "op": "nextAttack",
+          "value": 5
+        },
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c163.png"
+    },
+    {
+      "id": "c164",
+      "name": "질풍의 연쇄",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "바람",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "손패를 갈아엎고 재정비.",
+      "effects": [
+        {
+          "op": "redraw",
+          "value": 4
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c164.png"
+    },
+    {
+      "id": "c165",
+      "name": "유영 기수",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "바람",
+      "hp": 43,
+      "power": 6,
+      "block": 4,
+      "text": "소환 효과 발동 · 보스 추가 피해 · 턴마다 집중 회복.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "bossBonus10",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c165.png"
+    },
+    {
+      "id": "c166",
+      "name": "하늘 사제",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "바람",
+      "hp": 49,
+      "power": 10,
+      "block": 5,
+      "text": "균형형 전투 유닛 · 턴마다 드로우와 회복.",
+      "effects": [],
+      "unit": {
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c166.png"
+    },
+    {
+      "id": "c167",
+      "name": "비상 사수",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "바람",
+      "hp": 34,
+      "power": 14,
+      "block": 0,
+      "text": "소환 효과 발동 · 약화된 적 추가 피해.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 5
+        },
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "weakBonus5"
+      },
+      "limited": false,
+      "art": "/assets/cards/c167.png"
+    },
+    {
+      "id": "c168",
+      "name": "유영 무희",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "바람",
+      "hp": 40,
+      "power": 9,
+      "block": 2,
+      "text": "체력 최대 적 추가 피해 · 턴마다 약한 아군 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "fullBonus",
+        "onRound": "healLowest2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c168.png"
+    },
+    {
+      "id": "c169",
+      "name": "비상의 폭풍",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "바람",
+      "hp": 0,
+      "power": 0,
+      "block": 16,
+      "text": "대형 방벽과 디버프 면역.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 16
+        },
+        {
+          "op": "debuffImmune",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c169.png"
+    },
+    {
+      "id": "c170",
+      "name": "유영의 성역",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "바람",
+      "hp": 0,
+      "power": 18,
+      "block": 0,
+      "text": "단일 폭딜과 주변 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 18,
+          "target": "enemy"
+        },
+        {
+          "op": "damageOthers",
+          "value": 5,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c170.png"
+    },
+    {
+      "id": "c171",
+      "name": "하늘의 일격",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "바람",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "원정대 전체 회복.",
+      "effects": [
+        {
+          "op": "healAllies",
+          "value": 6
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c171.png"
+    },
+    {
+      "id": "c172",
+      "name": "하늘 추적자",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "바람",
+      "hp": 62,
+      "power": 17,
+      "block": 5,
+      "text": "방어 중인 적 추가 피해 · 턴마다 집중 회복 · 스펠 연계.",
+      "effects": [],
+      "unit": {
+        "onAttack": "blockBonus6",
+        "onRound": "healLowest4",
+        "onSpell": "echoThird"
+      },
+      "limited": false,
+      "art": "/assets/cards/c172.png"
+    },
+    {
+      "id": "c173",
+      "name": "비상 골렘",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "바람",
+      "hp": 41,
+      "power": 10,
+      "block": 7,
+      "text": "소환 효과 발동 · 소환 턴 공격 2배 · 턴마다 드로우와 회복.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "summonDouble",
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c173.png"
+    },
+    {
+      "id": "c174",
+      "name": "유영 소환사",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "바람",
+      "hp": 50,
+      "power": 15,
+      "block": 0,
+      "text": "소환 효과 발동 · 2회마다 연쇄 피해 · 스펠 연계.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 7
+        }
+      ],
+      "unit": {
+        "onAttack": "chainEvery2",
+        "onSpell": "ping2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c174.png"
+    },
+    {
+      "id": "c175",
+      "name": "폭풍의 파동",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "바람",
+      "hp": 0,
+      "power": 7,
+      "block": 0,
+      "text": "광역 피해와 감전.",
+      "effects": [
+        {
+          "op": "damageAll",
+          "value": 7
+        },
+        {
+          "op": "shockAll",
+          "value": 2
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c175.png"
+    },
+    {
+      "id": "c176",
+      "name": "질풍의 메아리",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "바람",
+      "hp": 0,
+      "power": 0,
+      "block": 9,
+      "text": "소환 유닛 전체 강화.",
+      "effects": [
+        {
+          "op": "buffUnits",
+          "value": 3
+        },
+        {
+          "op": "block",
+          "value": 9
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c176.png"
+    },
+    {
+      "id": "c177",
+      "name": "하늘 수호자",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "바람",
+      "hp": 78,
+      "power": 11,
+      "block": 3,
+      "text": "확률 추가 공격 · 턴마다 파티 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extra20",
+        "onRound": "healAll2",
+        "onSpell": "echoThird",
+        "aura": "whiteNight"
+      },
+      "limited": false,
+      "art": "/assets/cards/c177.png"
+    },
+    {
+      "id": "c178",
+      "name": "비상 정찰자",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "바람",
+      "hp": 50,
+      "power": 18,
+      "block": 6,
+      "text": "소환 효과 발동 · 주변 적에도 피해 · 턴마다 집중 회복.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 2,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "splash40",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c178.png"
+    },
+    {
+      "id": "c179",
+      "name": "비상의 폭발",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "바람",
+      "hp": 0,
+      "power": 0,
+      "block": 21,
+      "text": "즉시 방어 획득.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 21
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c179.png"
+    },
+    {
+      "id": "c180",
+      "name": "유영의 봉인",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "바람",
+      "hp": 0,
+      "power": 14,
+      "block": 14,
+      "text": "공격과 방어 동시 전개.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 14,
+          "target": "enemy"
+        },
+        {
+          "op": "block",
+          "value": 14
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c180.png"
+    },
+    {
+      "id": "c181",
+      "name": "질풍 사냥꾼",
+      "type": "unit",
+      "rarity": "mythic",
+      "cost": 5,
+      "element": "바람",
+      "hp": 82,
+      "power": 34,
+      "block": 13,
+      "text": "첫 처치 시 에너지 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "killEnergy",
+        "onSpell": "ping2",
+        "aura": "bossGuard1"
+      },
+      "limited": false,
+      "art": "/assets/cards/c181.png"
+    },
+    {
+      "id": "c182",
+      "name": "하늘의 낙하",
+      "type": "spell",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "바람",
+      "hp": 0,
+      "power": 15,
+      "block": 0,
+      "text": "피해와 화상 누적.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 15,
+          "target": "enemy"
+        },
+        {
+          "op": "burn",
+          "value": 6,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c182.png"
+    },
+    {
+      "id": "c183",
+      "name": "전격 치유사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "번개",
+      "hp": 37,
+      "power": 5,
+      "block": 4,
+      "text": "확률 추가 공격.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extra20"
+      },
+      "limited": false,
+      "art": "/assets/cards/c183.png"
+    },
+    {
+      "id": "c184",
+      "name": "뇌광 연금술사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "번개",
+      "hp": 25,
+      "power": 8,
+      "block": 0,
+      "text": "소환 효과 발동 · 주변 적에도 피해.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 4
+        }
+      ],
+      "unit": {
+        "onAttack": "splash40"
+      },
+      "limited": false,
+      "art": "/assets/cards/c184.png"
+    },
+    {
+      "id": "c185",
+      "name": "천뢰 기수",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "번개",
+      "hp": 30,
+      "power": 11,
+      "block": 1,
+      "text": "3회마다 파티 방어.",
+      "effects": [],
+      "unit": {
+        "onAttack": "teamBlockEvery3"
+      },
+      "limited": false,
+      "art": "/assets/cards/c185.png"
+    },
+    {
+      "id": "c186",
+      "name": "전격 사제",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "번개",
+      "hp": 35,
+      "power": 7,
+      "block": 3,
+      "text": "소환 효과 발동 · 첫 처치 시 에너지.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "killEnergy"
+      },
+      "limited": false,
+      "art": "/assets/cards/c186.png"
+    },
+    {
+      "id": "c187",
+      "name": "천뢰의 균열",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "번개",
+      "hp": 0,
+      "power": 0,
+      "block": 12,
+      "text": "대형 방벽과 디버프 면역.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 12
+        },
+        {
+          "op": "debuffImmune",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c187.png"
+    },
+    {
+      "id": "c188",
+      "name": "전격의 폭풍",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "번개",
+      "hp": 0,
+      "power": 14,
+      "block": 0,
+      "text": "단일 폭딜과 주변 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 14,
+          "target": "enemy"
+        },
+        {
+          "op": "damageOthers",
+          "value": 4,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c188.png"
+    },
+    {
+      "id": "c189",
+      "name": "뇌광의 성역",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "번개",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "원정대 전체 회복.",
+      "effects": [
+        {
+          "op": "healAllies",
+          "value": 5
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c189.png"
+    },
+    {
+      "id": "c190",
+      "name": "천뢰의 일격",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "번개",
+      "hp": 0,
+      "power": 4,
+      "block": 0,
+      "text": "전체 취약과 광역 피해.",
+      "effects": [
+        {
+          "op": "vulnerableAll",
+          "value": 1
+        },
+        {
+          "op": "damageAll",
+          "value": 4
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c190.png"
+    },
+    {
+      "id": "c191",
+      "name": "전류 무희",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "번개",
+      "hp": 30,
+      "power": 13,
+      "block": 5,
+      "text": "소환 효과 발동 · 균형형 전투 유닛.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c191.png"
+    },
+    {
+      "id": "c192",
+      "name": "섬광 현자",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "번개",
+      "hp": 36,
+      "power": 8,
+      "block": 0,
+      "text": "소환 효과 발동 · 약화된 적 추가 피해 · 턴마다 약한 아군 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 5
+        }
+      ],
+      "unit": {
+        "onAttack": "weakBonus5",
+        "onRound": "healLowest2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c192.png"
+    },
+    {
+      "id": "c193",
+      "name": "낙뢰 추적자",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "번개",
+      "hp": 43,
+      "power": 12,
+      "block": 2,
+      "text": "체력 최대 적 추가 피해 · 턴마다 파티 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "fullBonus",
+        "onRound": "healAll2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c193.png"
+    },
+    {
+      "id": "c194",
+      "name": "전류 골렘",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "번개",
+      "hp": 49,
+      "power": 6,
+      "block": 4,
+      "text": "첫 공격 강화 · 턴마다 집중 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "firstBonus4",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c194.png"
+    },
+    {
+      "id": "c195",
+      "name": "낙뢰의 파동",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "번개",
+      "hp": 0,
+      "power": 0,
+      "block": 6,
+      "text": "소환 유닛 전체 강화.",
+      "effects": [
+        {
+          "op": "buffUnits",
+          "value": 3
+        },
+        {
+          "op": "block",
+          "value": 6
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c195.png"
+    },
+    {
+      "id": "c196",
+      "name": "전류의 메아리",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "번개",
+      "hp": 0,
+      "power": 10,
+      "block": 0,
+      "text": "강력한 단일 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 10,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c196.png"
+    },
+    {
+      "id": "c197",
+      "name": "섬광의 쇄도",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "번개",
+      "hp": 0,
+      "power": 0,
+      "block": 12,
+      "text": "즉시 방어 획득.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 12
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c197.png"
+    },
+    {
+      "id": "c198",
+      "name": "섬광 검사",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "번개",
+      "hp": 45,
+      "power": 14,
+      "block": 7,
+      "text": "소환 효과 발동 · 소환 턴 공격 2배.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "summonDouble"
+      },
+      "limited": false,
+      "art": "/assets/cards/c198.png"
+    },
+    {
+      "id": "c199",
+      "name": "낙뢰 수호자",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "번개",
+      "hp": 53,
+      "power": 19,
+      "block": 0,
+      "text": "소환 효과 발동 · 2회마다 연쇄 피해 · 턴마다 약한 아군 회복 · 스펠 연계.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 7
+        }
+      ],
+      "unit": {
+        "onAttack": "chainEvery2",
+        "onRound": "healLowest2",
+        "onSpell": "ping2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c199.png"
+    },
+    {
+      "id": "c200",
+      "name": "전류 정찰자",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "번개",
+      "hp": 62,
+      "power": 12,
+      "block": 2,
+      "text": "소환 효과 발동 · 2회마다 추가 공격 · 턴마다 파티 회복 · 스펠 연계.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "extraEvery2",
+        "onRound": "healAll2",
+        "onSpell": "echoThird"
+      },
+      "limited": false,
+      "art": "/assets/cards/c200.png"
+    },
+    {
+      "id": "c201",
+      "name": "뇌광의 봉인",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "번개",
+      "hp": 0,
+      "power": 0,
+      "block": 7,
+      "text": "카드 순환과 방어.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 2
+        },
+        {
+          "op": "block",
+          "value": 7
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c201.png"
+    },
+    {
+      "id": "c202",
+      "name": "천뢰의 진동",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "번개",
+      "hp": 0,
+      "power": 9,
+      "block": 0,
+      "text": "피해와 화상 누적.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 9,
+          "target": "enemy"
+        },
+        {
+          "op": "burn",
+          "value": 3,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c202.png"
+    },
+    {
+      "id": "c203",
+      "name": "섬광 사냥꾼",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "번개",
+      "hp": 55,
+      "power": 23,
+      "block": 6,
+      "text": "주변 적에도 피해 · 턴마다 드로우와 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "splash40",
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c203.png"
+    },
+    {
+      "id": "c204",
+      "name": "낙뢰 기사",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "번개",
+      "hp": 66,
+      "power": 14,
+      "block": 10,
+      "text": "3회마다 파티 방어 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "teamBlockEvery3",
+        "onSpell": "ping2",
+        "aura": "bossGuard1"
+      },
+      "limited": false,
+      "art": "/assets/cards/c204.png"
+    },
+    {
+      "id": "c205",
+      "name": "낙뢰의 회복",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "번개",
+      "hp": 0,
+      "power": 9,
+      "block": 0,
+      "text": "취약을 만들고 공격.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 2,
+          "target": "enemy"
+        },
+        {
+          "op": "damage",
+          "value": 9,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c205.png"
+    },
+    {
+      "id": "c206",
+      "name": "전류의 결계",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "번개",
+      "hp": 0,
+      "power": 14,
+      "block": 0,
+      "text": "모든 적 공격.",
+      "effects": [
+        {
+          "op": "damageAll",
+          "value": 14
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c206.png"
+    },
+    {
+      "id": "c207",
+      "name": "천뢰 연금술사",
+      "type": "unit",
+      "rarity": "mythic",
+      "cost": 6,
+      "element": "번개",
+      "hp": 104,
+      "power": 27,
+      "block": 0,
+      "text": "소환 효과 발동 · 보스 추가 피해 · 턴마다 파티 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 12
+        },
+        {
+          "op": "draw",
+          "value": 2
+        }
+      ],
+      "unit": {
+        "onAttack": "bossBonus10",
+        "onRound": "healAll2",
+        "onSpell": "echoThird",
+        "aura": "whiteNight"
+      },
+      "limited": false,
+      "art": "/assets/cards/c207.png"
+    },
+    {
+      "id": "c208",
+      "name": "섬광의 연쇄",
+      "type": "spell",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "번개",
+      "hp": 0,
+      "power": 0,
+      "block": 15,
+      "text": "파티 전체 방어.",
+      "effects": [
+        {
+          "op": "blockAllies",
+          "value": 15
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c208.png"
+    },
+    {
+      "id": "c209",
+      "name": "성운 사제",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "별",
+      "hp": 27,
+      "power": 10,
+      "block": 0,
+      "text": "소환 효과 발동 · 주변 적에도 피해.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 4
+        }
+      ],
+      "unit": {
+        "onAttack": "splash40"
+      },
+      "limited": false,
+      "art": "/assets/cards/c209.png"
+    },
+    {
+      "id": "c210",
+      "name": "성좌 사수",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "별",
+      "hp": 32,
+      "power": 6,
+      "block": 1,
+      "text": "3회마다 파티 방어.",
+      "effects": [],
+      "unit": {
+        "onAttack": "teamBlockEvery3"
+      },
+      "limited": false,
+      "art": "/assets/cards/c210.png"
+    },
+    {
+      "id": "c211",
+      "name": "천구 무희",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "별",
+      "hp": 37,
+      "power": 9,
+      "block": 3,
+      "text": "소환 효과 발동 · 첫 처치 시 에너지.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        },
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "killEnergy"
+      },
+      "limited": false,
+      "art": "/assets/cards/c211.png"
+    },
+    {
+      "id": "c212",
+      "name": "성운 현자",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "별",
+      "hp": 25,
+      "power": 5,
+      "block": 4,
+      "text": "보스 추가 피해.",
+      "effects": [],
+      "unit": {
+        "onAttack": "bossBonus10"
+      },
+      "limited": false,
+      "art": "/assets/cards/c212.png"
+    },
+    {
+      "id": "c213",
+      "name": "천구의 장막",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "별",
+      "hp": 0,
+      "power": 0,
+      "block": 5,
+      "text": "소환 유닛 전체 강화.",
+      "effects": [
+        {
+          "op": "buffUnits",
+          "value": 2
+        },
+        {
+          "op": "block",
+          "value": 5
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c213.png"
+    },
+    {
+      "id": "c214",
+      "name": "성운의 파동",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "별",
+      "hp": 0,
+      "power": 8,
+      "block": 0,
+      "text": "강력한 단일 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 8,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c214.png"
+    },
+    {
+      "id": "c215",
+      "name": "성좌의 메아리",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "별",
+      "hp": 0,
+      "power": 0,
+      "block": 9,
+      "text": "즉시 방어 획득.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 9
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c215.png"
+    },
+    {
+      "id": "c216",
+      "name": "천구의 쇄도",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "별",
+      "hp": 0,
+      "power": 6,
+      "block": 6,
+      "text": "공격과 방어 동시 전개.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 6,
+          "target": "enemy"
+        },
+        {
+          "op": "block",
+          "value": 6
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c216.png"
+    },
+    {
+      "id": "c217",
+      "name": "별빛 골렘",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "별",
+      "hp": 39,
+      "power": 10,
+      "block": 0,
+      "text": "소환 효과 발동 · 약화된 적 추가 피해 · 턴마다 파티 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 5
+        }
+      ],
+      "unit": {
+        "onAttack": "weakBonus5",
+        "onRound": "healAll2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c217.png"
+    },
+    {
+      "id": "c218",
+      "name": "은하 소환사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "별",
+      "hp": 46,
+      "power": 14,
+      "block": 2,
+      "text": "체력 최대 적 추가 피해 · 턴마다 집중 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "fullBonus",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c218.png"
+    },
+    {
+      "id": "c219",
+      "name": "유성 검사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "별",
+      "hp": 30,
+      "power": 9,
+      "block": 4,
+      "text": "첫 공격 강화 · 턴마다 드로우와 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "firstBonus4",
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c219.png"
+    },
+    {
+      "id": "c220",
+      "name": "별빛 수호자",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "별",
+      "hp": 36,
+      "power": 13,
+      "block": 5,
+      "text": "소환 효과 발동 · 방어 중인 적 추가 피해.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "blockBonus6"
+      },
+      "limited": false,
+      "art": "/assets/cards/c220.png"
+    },
+    {
+      "id": "c221",
+      "name": "유성의 봉인",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "별",
+      "hp": 0,
+      "power": 6,
+      "block": 0,
+      "text": "피해와 화상 누적.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 6,
+          "target": "enemy"
+        },
+        {
+          "op": "burn",
+          "value": 3,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c221.png"
+    },
+    {
+      "id": "c222",
+      "name": "별빛의 진동",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "별",
+      "hp": 0,
+      "power": 6,
+      "block": 0,
+      "text": "피해와 약화 부여.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 6,
+          "target": "enemy"
+        },
+        {
+          "op": "weak",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c222.png"
+    },
+    {
+      "id": "c223",
+      "name": "은하의 낙하",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "별",
+      "hp": 0,
+      "power": 5,
+      "block": 0,
+      "text": "취약을 만들고 공격.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        },
+        {
+          "op": "damage",
+          "value": 5,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c223.png"
+    },
+    {
+      "id": "c224",
+      "name": "은하 마도사",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "별",
+      "hp": 57,
+      "power": 10,
+      "block": 0,
+      "text": "소환 효과 발동 · 2회마다 연쇄 피해 · 턴마다 파티 회복 · 스펠 연계.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 7
+        },
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "chainEvery2",
+        "onRound": "healAll2",
+        "onSpell": "ping2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c224.png"
+    },
+    {
+      "id": "c225",
+      "name": "유성 사냥꾼",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "별",
+      "hp": 65,
+      "power": 15,
+      "block": 2,
+      "text": "2회마다 추가 공격 · 턴마다 집중 회복 · 스펠 연계.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extraEvery2",
+        "onRound": "healLowest4",
+        "onSpell": "echoThird"
+      },
+      "limited": false,
+      "art": "/assets/cards/c225.png"
+    },
+    {
+      "id": "c226",
+      "name": "별빛 기사",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "별",
+      "hp": 45,
+      "power": 9,
+      "block": 5,
+      "text": "확률 추가 공격 · 턴마다 드로우와 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extra20",
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c226.png"
+    },
+    {
+      "id": "c227",
+      "name": "성좌의 결계",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "별",
+      "hp": 0,
+      "power": 0,
+      "block": 5,
+      "text": "회복과 방어.",
+      "effects": [
+        {
+          "op": "heal",
+          "value": 14,
+          "target": "self"
+        },
+        {
+          "op": "block",
+          "value": 5
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c227.png"
+    },
+    {
+      "id": "c228",
+      "name": "천구의 증폭",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "별",
+      "hp": 0,
+      "power": 0,
+      "block": 9,
+      "text": "파티 전체 방어.",
+      "effects": [
+        {
+          "op": "blockAllies",
+          "value": 9
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c228.png"
+    },
+    {
+      "id": "c229",
+      "name": "은하 연금술사",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "별",
+      "hp": 71,
+      "power": 18,
+      "block": 10,
+      "text": "3회마다 파티 방어 · 턴마다 약한 아군 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "teamBlockEvery3",
+        "onRound": "healLowest2",
+        "onSpell": "ping2",
+        "aura": "bossGuard1"
+      },
+      "limited": false,
+      "art": "/assets/cards/c229.png"
+    },
+    {
+      "id": "c230",
+      "name": "유성 기수",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "별",
+      "hp": 82,
+      "power": 25,
+      "block": 0,
+      "text": "소환 효과 발동 · 첫 처치 시 에너지 · 턴마다 파티 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 9
+        },
+        {
+          "op": "draw",
+          "value": 2
+        }
+      ],
+      "unit": {
+        "onAttack": "killEnergy",
+        "onRound": "healAll2",
+        "onSpell": "echoThird",
+        "aura": "whiteNight"
+      },
+      "limited": false,
+      "art": "/assets/cards/c230.png"
+    },
+    {
+      "id": "c231",
+      "name": "유성의 균열",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "별",
+      "hp": 0,
+      "power": 9,
+      "block": 0,
+      "text": "에너지 회복과 공격.",
+      "effects": [
+        {
+          "op": "energy",
+          "value": 1
+        },
+        {
+          "op": "damage",
+          "value": 9,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c231.png"
+    },
+    {
+      "id": "c232",
+      "name": "별빛의 폭풍",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "별",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "다음 공격 강화.",
+      "effects": [
+        {
+          "op": "nextAttack",
+          "value": 11
+        },
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c232.png"
+    },
+    {
+      "id": "c233",
+      "name": "천구 사수",
+      "type": "unit",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "별",
+      "hp": 73,
+      "power": 21,
+      "block": 4,
+      "text": "균형형 전투 유닛 · 턴마다 드로우와 회복.",
+      "effects": [],
+      "unit": {
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c233.png"
+    },
+    {
+      "id": "c234",
+      "name": "은하의 일격",
+      "type": "spell",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "별",
+      "hp": 0,
+      "power": 12,
+      "block": 0,
+      "text": "행동 봉인으로 템포 확보.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 12,
+          "target": "enemy"
+        },
+        {
+          "op": "intentSealAll",
+          "value": 2
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c234.png"
+    },
+    {
+      "id": "c235",
+      "name": "역행 현자",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "시간",
+      "hp": 34,
+      "power": 8,
+      "block": 1,
+      "text": "소환 효과 발동 · 3회마다 파티 방어.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "teamBlockEvery3"
+      },
+      "limited": false,
+      "art": "/assets/cards/c235.png"
+    },
+    {
+      "id": "c236",
+      "name": "시간 추적자",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "시간",
+      "hp": 22,
+      "power": 11,
+      "block": 3,
+      "text": "소환 효과 발동 · 첫 처치 시 에너지.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "killEnergy"
+      },
+      "limited": false,
+      "art": "/assets/cards/c236.png"
+    },
+    {
+      "id": "c237",
+      "name": "시계 골렘",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "시간",
+      "hp": 27,
+      "power": 7,
+      "block": 4,
+      "text": "보스 추가 피해.",
+      "effects": [],
+      "unit": {
+        "onAttack": "bossBonus10"
+      },
+      "limited": false,
+      "art": "/assets/cards/c237.png"
+    },
+    {
+      "id": "c238",
+      "name": "역행 소환사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "시간",
+      "hp": 32,
+      "power": 10,
+      "block": 0,
+      "text": "소환 효과 발동 · 균형형 전투 유닛.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 4
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c238.png"
+    },
+    {
+      "id": "c239",
+      "name": "시계의 폭발",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "시간",
+      "hp": 0,
+      "power": 5,
+      "block": 0,
+      "text": "피해와 화상 누적.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 5,
+          "target": "enemy"
+        },
+        {
+          "op": "burn",
+          "value": 2,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c239.png"
+    },
+    {
+      "id": "c240",
+      "name": "역행의 봉인",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "시간",
+      "hp": 0,
+      "power": 5,
+      "block": 0,
+      "text": "피해와 약화 부여.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 5,
+          "target": "enemy"
+        },
+        {
+          "op": "weak",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c240.png"
+    },
+    {
+      "id": "c241",
+      "name": "시간의 진동",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "시간",
+      "hp": 0,
+      "power": 4,
+      "block": 0,
+      "text": "취약을 만들고 공격.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        },
+        {
+          "op": "damage",
+          "value": 4,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c241.png"
+    },
+    {
+      "id": "c242",
+      "name": "시계의 낙하",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "시간",
+      "hp": 0,
+      "power": 6,
+      "block": 0,
+      "text": "모든 적 공격.",
+      "effects": [
+        {
+          "op": "damageAll",
+          "value": 6
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c242.png"
+    },
+    {
+      "id": "c243",
+      "name": "기억 수호자",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "시간",
+      "hp": 48,
+      "power": 8,
+      "block": 2,
+      "text": "체력 최대 적 추가 피해 · 턴마다 드로우와 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "fullBonus",
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c243.png"
+    },
+    {
+      "id": "c244",
+      "name": "초침 정찰자",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "시간",
+      "hp": 32,
+      "power": 12,
+      "block": 4,
+      "text": "첫 공격 강화.",
+      "effects": [],
+      "unit": {
+        "onAttack": "firstBonus4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c244.png"
+    },
+    {
+      "id": "c245",
+      "name": "영겁 마도사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "시간",
+      "hp": 39,
+      "power": 6,
+      "block": 5,
+      "text": "소환 효과 발동 · 방어 중인 적 추가 피해 · 턴마다 약한 아군 회복.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        },
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "blockBonus6",
+        "onRound": "healLowest2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c245.png"
+    },
+    {
+      "id": "c246",
+      "name": "기억 사냥꾼",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "시간",
+      "hp": 46,
+      "power": 10,
+      "block": 0,
+      "text": "소환 효과 발동 · 소환 턴 공격 2배 · 턴마다 파티 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 5
+        }
+      ],
+      "unit": {
+        "onAttack": "summonDouble",
+        "onRound": "healAll2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c246.png"
+    },
+    {
+      "id": "c247",
+      "name": "영겁의 결계",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "시간",
+      "hp": 0,
+      "power": 0,
+      "block": 6,
+      "text": "파티 전체 방어.",
+      "effects": [
+        {
+          "op": "blockAllies",
+          "value": 6
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c247.png"
+    },
+    {
+      "id": "c248",
+      "name": "기억의 증폭",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "시간",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "드로우와 비용 감소.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 2
+        },
+        {
+          "op": "anyDiscount",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c248.png"
+    },
+    {
+      "id": "c249",
+      "name": "초침의 연쇄",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "시간",
+      "hp": 0,
+      "power": 5,
+      "block": 0,
+      "text": "에너지 회복과 공격.",
+      "effects": [
+        {
+          "op": "energy",
+          "value": 1
+        },
+        {
+          "op": "damage",
+          "value": 5,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c249.png"
+    },
+    {
+      "id": "c250",
+      "name": "초침 치유사",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "시간",
+      "hp": 40,
+      "power": 19,
+      "block": 2,
+      "text": "2회마다 추가 공격 · 턴마다 드로우와 회복 · 스펠 연계.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extraEvery2",
+        "onRound": "oracle",
+        "onSpell": "echoThird"
+      },
+      "limited": false,
+      "art": "/assets/cards/c250.png"
+    },
+    {
+      "id": "c251",
+      "name": "영겁 연금술사",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "시간",
+      "hp": 48,
+      "power": 12,
+      "block": 5,
+      "text": "확률 추가 공격.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extra20"
+      },
+      "limited": false,
+      "art": "/assets/cards/c251.png"
+    },
+    {
+      "id": "c252",
+      "name": "기억 기수",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "시간",
+      "hp": 57,
+      "power": 17,
+      "block": 7,
+      "text": "주변 적에도 피해 · 턴마다 약한 아군 회복 · 스펠 연계.",
+      "effects": [],
+      "unit": {
+        "onAttack": "splash40",
+        "onRound": "healLowest2",
+        "onSpell": "ping2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c252.png"
+    },
+    {
+      "id": "c253",
+      "name": "시간의 폭풍",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "시간",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "손패를 갈아엎고 재정비.",
+      "effects": [
+        {
+          "op": "redraw",
+          "value": 7
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c253.png"
+    },
+    {
+      "id": "c254",
+      "name": "시계의 성역",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "시간",
+      "hp": 0,
+      "power": 7,
+      "block": 0,
+      "text": "행동 봉인으로 템포 확보.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 7,
+          "target": "enemy"
+        },
+        {
+          "op": "intentSealAll",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c254.png"
+    },
+    {
+      "id": "c255",
+      "name": "초침 사수",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "시간",
+      "hp": 87,
+      "power": 14,
+      "block": 0,
+      "text": "소환 효과 발동 · 첫 처치 시 에너지 · 턴마다 집중 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 9
+        },
+        {
+          "op": "draw",
+          "value": 2
+        }
+      ],
+      "unit": {
+        "onAttack": "killEnergy",
+        "onRound": "healLowest4",
+        "onSpell": "echoThird",
+        "aura": "whiteNight"
+      },
+      "limited": false,
+      "art": "/assets/cards/c255.png"
+    },
+    {
+      "id": "c256",
+      "name": "영겁 무희",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "시간",
+      "hp": 59,
+      "power": 21,
+      "block": 3,
+      "text": "소환 효과 발동 · 보스 추가 피해 · 턴마다 드로우와 회복.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 2,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "bossBonus10",
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c256.png"
+    },
+    {
+      "id": "c257",
+      "name": "영겁의 장막",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "시간",
+      "hp": 0,
+      "power": 32,
+      "block": 0,
+      "text": "단일 폭딜과 주변 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 32,
+          "target": "enemy"
+        },
+        {
+          "op": "damageOthers",
+          "value": 9,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c257.png"
+    },
+    {
+      "id": "c258",
+      "name": "기억의 파동",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "시간",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "원정대 전체 회복.",
+      "effects": [
+        {
+          "op": "healAllies",
+          "value": 11
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c258.png"
+    },
+    {
+      "id": "c259",
+      "name": "시계 추적자",
+      "type": "unit",
+      "rarity": "mythic",
+      "cost": 5,
+      "element": "시간",
+      "hp": 95,
+      "power": 15,
+      "block": 9,
+      "text": "약화된 적 추가 피해 · 턴마다 약한 아군 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "weakBonus5",
+        "onRound": "healLowest2",
+        "onSpell": "ping2",
+        "aura": "bossGuard1"
+      },
+      "limited": false,
+      "art": "/assets/cards/c259.png"
+    },
+    {
+      "id": "c260",
+      "name": "초침의 쇄도",
+      "type": "spell",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "시간",
+      "hp": 0,
+      "power": 12,
+      "block": 0,
+      "text": "광역 피해와 감전.",
+      "effects": [
+        {
+          "op": "damageAll",
+          "value": 12
+        },
+        {
+          "op": "shockAll",
+          "value": 3
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c260.png"
+    },
+    {
+      "id": "c261",
+      "name": "망각 소환사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "공허",
+      "hp": 24,
+      "power": 6,
+      "block": 3,
+      "text": "소환 효과 발동 · 첫 처치 시 에너지.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "killEnergy"
+      },
+      "limited": false,
+      "art": "/assets/cards/c261.png"
+    },
+    {
+      "id": "c262",
+      "name": "공허 검사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "공허",
+      "hp": 29,
+      "power": 9,
+      "block": 4,
+      "text": "보스 추가 피해.",
+      "effects": [],
+      "unit": {
+        "onAttack": "bossBonus10"
+      },
+      "limited": false,
+      "art": "/assets/cards/c262.png"
+    },
+    {
+      "id": "c263",
+      "name": "무중력 수호자",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "공허",
+      "hp": 34,
+      "power": 5,
+      "block": 0,
+      "text": "소환 효과 발동 · 균형형 전투 유닛.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 4
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c263.png"
+    },
+    {
+      "id": "c264",
+      "name": "망각 정찰자",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "공허",
+      "hp": 22,
+      "power": 8,
+      "block": 1,
+      "text": "약화된 적 추가 피해.",
+      "effects": [],
+      "unit": {
+        "onAttack": "weakBonus5"
+      },
+      "limited": false,
+      "art": "/assets/cards/c264.png"
+    },
+    {
+      "id": "c265",
+      "name": "무중력의 회복",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "공허",
+      "hp": 0,
+      "power": 0,
+      "block": 5,
+      "text": "파티 전체 방어.",
+      "effects": [
+        {
+          "op": "blockAllies",
+          "value": 5
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c265.png"
+    },
+    {
+      "id": "c266",
+      "name": "망각의 결계",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "공허",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "드로우와 비용 감소.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 2
+        },
+        {
+          "op": "anyDiscount",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c266.png"
+    },
+    {
+      "id": "c267",
+      "name": "공허의 증폭",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "공허",
+      "hp": 0,
+      "power": 4,
+      "block": 0,
+      "text": "에너지 회복과 공격.",
+      "effects": [
+        {
+          "op": "energy",
+          "value": 1
+        },
+        {
+          "op": "damage",
+          "value": 4,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c267.png"
+    },
+    {
+      "id": "c268",
+      "name": "무중력의 연쇄",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "공허",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "다음 공격 강화.",
+      "effects": [
+        {
+          "op": "nextAttack",
+          "value": 5
+        },
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c268.png"
+    },
+    {
+      "id": "c269",
+      "name": "심연 사냥꾼",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "공허",
+      "hp": 35,
+      "power": 14,
+      "block": 4,
+      "text": "소환 효과 발동 · 첫 공격 강화 · 턴마다 약한 아군 회복.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "firstBonus4",
+        "onRound": "healLowest2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c269.png"
+    },
+    {
+      "id": "c270",
+      "name": "균열 기사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "공허",
+      "hp": 42,
+      "power": 9,
+      "block": 5,
+      "text": "소환 효과 발동 · 방어 중인 적 추가 피해 · 턴마다 파티 회복.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "blockBonus6",
+        "onRound": "healAll2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c270.png"
+    },
+    {
+      "id": "c271",
+      "name": "영점 치유사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "공허",
+      "hp": 48,
+      "power": 13,
+      "block": 0,
+      "text": "소환 효과 발동 · 소환 턴 공격 2배 · 턴마다 집중 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 5
+        }
+      ],
+      "unit": {
+        "onAttack": "summonDouble",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c271.png"
+    },
+    {
+      "id": "c272",
+      "name": "심연 연금술사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "공허",
+      "hp": 32,
+      "power": 8,
+      "block": 2,
+      "text": "2회마다 연쇄 피해 · 턴마다 드로우와 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "chainEvery2",
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c272.png"
+    },
+    {
+      "id": "c273",
+      "name": "영점의 폭풍",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "공허",
+      "hp": 0,
+      "power": 5,
+      "block": 0,
+      "text": "행동 봉인으로 템포 확보.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 5,
+          "target": "enemy"
+        },
+        {
+          "op": "intentSealAll",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c273.png"
+    },
+    {
+      "id": "c274",
+      "name": "심연의 성역",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "공허",
+      "hp": 0,
+      "power": 0,
+      "block": 16,
+      "text": "대형 방벽과 디버프 면역.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 16
+        },
+        {
+          "op": "debuffImmune",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c274.png"
+    },
+    {
+      "id": "c275",
+      "name": "균열의 일격",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "공허",
+      "hp": 0,
+      "power": 18,
+      "block": 0,
+      "text": "단일 폭딜과 주변 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 18,
+          "target": "enemy"
+        },
+        {
+          "op": "damageOthers",
+          "value": 5,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c275.png"
+    },
+    {
+      "id": "c276",
+      "name": "균열 사제",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "공허",
+      "hp": 52,
+      "power": 15,
+      "block": 5,
+      "text": "확률 추가 공격 · 턴마다 약한 아군 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extra20",
+        "onRound": "healLowest2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c276.png"
+    },
+    {
+      "id": "c277",
+      "name": "영점 사수",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "공허",
+      "hp": 60,
+      "power": 9,
+      "block": 7,
+      "text": "주변 적에도 피해 · 턴마다 파티 회복 · 스펠 연계.",
+      "effects": [],
+      "unit": {
+        "onAttack": "splash40",
+        "onRound": "healAll2",
+        "onSpell": "ping2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c277.png"
+    },
+    {
+      "id": "c278",
+      "name": "심연 무희",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "공허",
+      "hp": 40,
+      "power": 14,
+      "block": 0,
+      "text": "소환 효과 발동 · 3회마다 파티 방어 · 턴마다 집중 회복 · 스펠 연계.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 7
+        },
+        {
+          "op": "draw",
+          "value": 1
+        },
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "teamBlockEvery3",
+        "onRound": "healLowest4",
+        "onSpell": "echoThird"
+      },
+      "limited": false,
+      "art": "/assets/cards/c278.png"
+    },
+    {
+      "id": "c279",
+      "name": "공허의 파동",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "공허",
+      "hp": 0,
+      "power": 7,
+      "block": 0,
+      "text": "전체 취약과 광역 피해.",
+      "effects": [
+        {
+          "op": "vulnerableAll",
+          "value": 1
+        },
+        {
+          "op": "damageAll",
+          "value": 7
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c279.png"
+    },
+    {
+      "id": "c280",
+      "name": "무중력의 메아리",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "공허",
+      "hp": 0,
+      "power": 7,
+      "block": 0,
+      "text": "광역 피해와 감전.",
+      "effects": [
+        {
+          "op": "damageAll",
+          "value": 7
+        },
+        {
+          "op": "shockAll",
+          "value": 2
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c280.png"
+    },
+    {
+      "id": "c281",
+      "name": "균열 추적자",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "공허",
+      "hp": 64,
+      "power": 25,
+      "block": 3,
+      "text": "보스 추가 피해.",
+      "effects": [],
+      "unit": {
+        "onAttack": "bossBonus10"
+      },
+      "limited": false,
+      "art": "/assets/cards/c281.png"
+    },
+    {
+      "id": "c282",
+      "name": "영점 골렘",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "공허",
+      "hp": 75,
+      "power": 16,
+      "block": 6,
+      "text": "균형형 전투 유닛 · 턴마다 약한 아군 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onRound": "healLowest2",
+        "onSpell": "ping2",
+        "aura": "bossGuard1"
+      },
+      "limited": false,
+      "art": "/assets/cards/c282.png"
+    },
+    {
+      "id": "c283",
+      "name": "영점의 폭발",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "공허",
+      "hp": 0,
+      "power": 18,
+      "block": 0,
+      "text": "강력한 단일 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 18,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c283.png"
+    },
+    {
+      "id": "c284",
+      "name": "심연의 봉인",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "공허",
+      "hp": 0,
+      "power": 0,
+      "block": 21,
+      "text": "즉시 방어 획득.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 21
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c284.png"
+    },
+    {
+      "id": "c285",
+      "name": "무중력 검사",
+      "type": "unit",
+      "rarity": "mythic",
+      "cost": 6,
+      "element": "공허",
+      "hp": 116,
+      "power": 30,
+      "block": 13,
+      "text": "체력 최대 적 추가 피해 · 턴마다 집중 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "fullBonus",
+        "onRound": "healLowest4",
+        "onSpell": "echoThird",
+        "aura": "whiteNight"
+      },
+      "limited": false,
+      "art": "/assets/cards/c285.png"
+    },
+    {
+      "id": "c286",
+      "name": "균열의 낙하",
+      "type": "spell",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "공허",
+      "hp": 0,
+      "power": 0,
+      "block": 12,
+      "text": "카드 순환과 방어.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 3
+        },
+        {
+          "op": "block",
+          "value": 12
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c286.png"
+    },
+    {
+      "id": "c287",
+      "name": "수정 정찰자",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "수정",
+      "hp": 31,
+      "power": 11,
+      "block": 4,
+      "text": "보스 추가 피해.",
+      "effects": [],
+      "unit": {
+        "onAttack": "bossBonus10"
+      },
+      "limited": false,
+      "art": "/assets/cards/c287.png"
+    },
+    {
+      "id": "c288",
+      "name": "석영 마도사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "수정",
+      "hp": 36,
+      "power": 7,
+      "block": 0,
+      "text": "소환 효과 발동 · 균형형 전투 유닛.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 4
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c288.png"
+    },
+    {
+      "id": "c289",
+      "name": "결정 사냥꾼",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 1,
+      "element": "수정",
+      "hp": 24,
+      "power": 10,
+      "block": 1,
+      "text": "소환 효과 발동 · 약화된 적 추가 피해.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "weakBonus5"
+      },
+      "limited": false,
+      "art": "/assets/cards/c289.png"
+    },
+    {
+      "id": "c290",
+      "name": "수정 기사",
+      "type": "unit",
+      "rarity": "common",
+      "cost": 2,
+      "element": "수정",
+      "hp": 29,
+      "power": 6,
+      "block": 3,
+      "text": "체력 최대 적 추가 피해.",
+      "effects": [],
+      "unit": {
+        "onAttack": "fullBonus"
+      },
+      "limited": false,
+      "art": "/assets/cards/c290.png"
+    },
+    {
+      "id": "c291",
+      "name": "결정의 균열",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "수정",
+      "hp": 0,
+      "power": 4,
+      "block": 0,
+      "text": "행동 봉인으로 템포 확보.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 4,
+          "target": "enemy"
+        },
+        {
+          "op": "intentSealAll",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c291.png"
+    },
+    {
+      "id": "c292",
+      "name": "수정의 폭풍",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 0,
+      "element": "수정",
+      "hp": 0,
+      "power": 0,
+      "block": 12,
+      "text": "대형 방벽과 디버프 면역.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 12
+        },
+        {
+          "op": "debuffImmune",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c292.png"
+    },
+    {
+      "id": "c293",
+      "name": "석영의 성역",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 1,
+      "element": "수정",
+      "hp": 0,
+      "power": 14,
+      "block": 0,
+      "text": "단일 폭딜과 주변 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 14,
+          "target": "enemy"
+        },
+        {
+          "op": "damageOthers",
+          "value": 4,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c293.png"
+    },
+    {
+      "id": "c294",
+      "name": "결정의 일격",
+      "type": "spell",
+      "rarity": "common",
+      "cost": 2,
+      "element": "수정",
+      "hp": 0,
+      "power": 0,
+      "block": 0,
+      "text": "원정대 전체 회복.",
+      "effects": [
+        {
+          "op": "healAllies",
+          "value": 5
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c294.png"
+    },
+    {
+      "id": "c295",
+      "name": "프리즘 연금술사",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "수정",
+      "hp": 44,
+      "power": 12,
+      "block": 5,
+      "text": "소환 효과 발동 · 방어 중인 적 추가 피해 · 턴마다 집중 회복.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "blockBonus6",
+        "onRound": "healLowest4"
+      },
+      "limited": false,
+      "art": "/assets/cards/c295.png"
+    },
+    {
+      "id": "c296",
+      "name": "빙정 기수",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "수정",
+      "hp": 29,
+      "power": 6,
+      "block": 0,
+      "text": "소환 효과 발동 · 소환 턴 공격 2배 · 턴마다 드로우와 회복.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 5
+        }
+      ],
+      "unit": {
+        "onAttack": "summonDouble",
+        "onRound": "oracle"
+      },
+      "limited": false,
+      "art": "/assets/cards/c296.png"
+    },
+    {
+      "id": "c297",
+      "name": "유리 사제",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "수정",
+      "hp": 35,
+      "power": 10,
+      "block": 2,
+      "text": "2회마다 연쇄 피해.",
+      "effects": [],
+      "unit": {
+        "onAttack": "chainEvery2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c297.png"
+    },
+    {
+      "id": "c298",
+      "name": "프리즘 사수",
+      "type": "unit",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "수정",
+      "hp": 42,
+      "power": 14,
+      "block": 4,
+      "text": "2회마다 추가 공격 · 턴마다 약한 아군 회복.",
+      "effects": [],
+      "unit": {
+        "onAttack": "extraEvery2",
+        "onRound": "healLowest2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c298.png"
+    },
+    {
+      "id": "c299",
+      "name": "유리의 파동",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 1,
+      "element": "수정",
+      "hp": 0,
+      "power": 5,
+      "block": 0,
+      "text": "광역 피해와 감전.",
+      "effects": [
+        {
+          "op": "damageAll",
+          "value": 5
+        },
+        {
+          "op": "shockAll",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c299.png"
+    },
+    {
+      "id": "c300",
+      "name": "프리즘의 메아리",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 2,
+      "element": "수정",
+      "hp": 0,
+      "power": 0,
+      "block": 6,
+      "text": "소환 유닛 전체 강화.",
+      "effects": [
+        {
+          "op": "buffUnits",
+          "value": 3
+        },
+        {
+          "op": "block",
+          "value": 6
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c300.png"
+    },
+    {
+      "id": "c301",
+      "name": "빙정의 쇄도",
+      "type": "spell",
+      "rarity": "rare",
+      "cost": 3,
+      "element": "수정",
+      "hp": 0,
+      "power": 10,
+      "block": 0,
+      "text": "강력한 단일 피해.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 10,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c301.png"
+    },
+    {
+      "id": "c302",
+      "name": "빙정 현자",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "수정",
+      "hp": 64,
+      "power": 12,
+      "block": 7,
+      "text": "소환 효과 발동 · 주변 적에도 피해 · 턴마다 집중 회복 · 스펠 연계.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 1,
+          "target": "enemy"
+        }
+      ],
+      "unit": {
+        "onAttack": "splash40",
+        "onRound": "healLowest4",
+        "onSpell": "ping2"
+      },
+      "limited": false,
+      "art": "/assets/cards/c302.png"
+    },
+    {
+      "id": "c303",
+      "name": "유리 추적자",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 4,
+      "element": "수정",
+      "hp": 43,
+      "power": 17,
+      "block": 0,
+      "text": "소환 효과 발동 · 3회마다 파티 방어 · 턴마다 드로우와 회복 · 스펠 연계.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 7
+        },
+        {
+          "op": "draw",
+          "value": 1
+        }
+      ],
+      "unit": {
+        "onAttack": "teamBlockEvery3",
+        "onRound": "oracle",
+        "onSpell": "echoThird"
+      },
+      "limited": false,
+      "art": "/assets/cards/c303.png"
+    },
+    {
+      "id": "c304",
+      "name": "프리즘 골렘",
+      "type": "unit",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "수정",
+      "hp": 52,
+      "power": 10,
+      "block": 2,
+      "text": "첫 처치 시 에너지.",
+      "effects": [],
+      "unit": {
+        "onAttack": "killEnergy"
+      },
+      "limited": false,
+      "art": "/assets/cards/c304.png"
+    },
+    {
+      "id": "c305",
+      "name": "석영의 봉인",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 2,
+      "element": "수정",
+      "hp": 0,
+      "power": 10,
+      "block": 10,
+      "text": "공격과 방어 동시 전개.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 10,
+          "target": "enemy"
+        },
+        {
+          "op": "block",
+          "value": 10
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c305.png"
+    },
+    {
+      "id": "c306",
+      "name": "결정의 진동",
+      "type": "spell",
+      "rarity": "ultra",
+      "cost": 3,
+      "element": "수정",
+      "hp": 0,
+      "power": 0,
+      "block": 7,
+      "text": "카드 순환과 방어.",
+      "effects": [
+        {
+          "op": "draw",
+          "value": 2
+        },
+        {
+          "op": "block",
+          "value": 7
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c306.png"
+    },
+    {
+      "id": "c307",
+      "name": "빙정 검사",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 4,
+      "element": "수정",
+      "hp": 80,
+      "power": 21,
+      "block": 6,
+      "text": "균형형 전투 유닛 · 턴마다 파티 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onRound": "healAll2",
+        "onSpell": "ping2",
+        "aura": "bossGuard1"
+      },
+      "limited": false,
+      "art": "/assets/cards/c307.png"
+    },
+    {
+      "id": "c308",
+      "name": "유리 수호자",
+      "type": "unit",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "수정",
+      "hp": 52,
+      "power": 11,
+      "block": 10,
+      "text": "약화된 적 추가 피해 · 턴마다 집중 회복 · 스펠 연계 · 파티 오라.",
+      "effects": [],
+      "unit": {
+        "onAttack": "weakBonus5",
+        "onRound": "healLowest4",
+        "onSpell": "echoThird",
+        "aura": "whiteNight"
+      },
+      "limited": false,
+      "art": "/assets/cards/c308.png"
+    },
+    {
+      "id": "c309",
+      "name": "유리의 회복",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 5,
+      "element": "수정",
+      "hp": 0,
+      "power": 11,
+      "block": 0,
+      "text": "피해와 약화 부여.",
+      "effects": [
+        {
+          "op": "damage",
+          "value": 11,
+          "target": "enemy"
+        },
+        {
+          "op": "weak",
+          "value": 2,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c309.png"
+    },
+    {
+      "id": "c310",
+      "name": "프리즘의 결계",
+      "type": "spell",
+      "rarity": "legendary",
+      "cost": 3,
+      "element": "수정",
+      "hp": 0,
+      "power": 9,
+      "block": 0,
+      "text": "취약을 만들고 공격.",
+      "effects": [
+        {
+          "op": "vulnerable",
+          "value": 2,
+          "target": "enemy"
+        },
+        {
+          "op": "damage",
+          "value": 9,
+          "target": "enemy"
+        }
+      ],
+      "unit": {},
+      "limited": false,
+      "art": "/assets/cards/c310.png"
+    },
+    {
+      "id": "c311",
+      "name": "결정 마도사",
+      "type": "unit",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "수정",
+      "hp": 85,
+      "power": 24,
+      "block": 0,
+      "text": "소환 효과 발동 · 첫 공격 강화.",
+      "effects": [
+        {
+          "op": "block",
+          "value": 12
+        }
+      ],
+      "unit": {
+        "onAttack": "firstBonus4"
+      },
+      "limited": true,
+      "art": "/assets/cards/c311.png"
+    },
+    {
+      "id": "c312",
+      "name": "빙정의 연쇄",
+      "type": "spell",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "수정",
+      "hp": 0,
+      "power": 0,
+      "block": 9,
+      "text": "회복과 방어.",
+      "effects": [
+        {
+          "op": "heal",
+          "value": 24,
+          "target": "self"
+        },
+        {
+          "op": "block",
+          "value": 9
+        }
+      ],
+      "unit": {},
+      "limited": true,
+      "art": "/assets/cards/c312.png"
+    },
+    {
+      "id": "c313",
+      "name": "복각·천익의 여왕 아르셀",
+      "type": "unit",
+      "rarity": "mythic",
+      "cost": 5,
+      "element": "빛",
+      "hp": 98,
+      "power": 34,
+      "block": 16,
+      "text": "소환 시 파티를 회복하고, 보스전에서 공격이 강화됩니다.",
+      "effects": [
+        {
+          "op": "healAllies",
+          "value": 16
+        },
+        {
+          "op": "draw",
+          "value": 2
+        }
+      ],
+      "unit": {
+        "onAttack": "bossBonus10",
+        "aura": "whiteNight"
+      },
+      "limited": true,
+      "art": "/assets/cards/c313.png"
+    },
+    {
+      "id": "c314",
+      "name": "복각·영겁 파쇄",
+      "type": "spell",
+      "rarity": "mythic",
+      "cost": 4,
+      "element": "시간",
+      "hp": 0,
+      "power": 68,
+      "block": 0,
+      "text": "모든 적에게 큰 피해를 주고 다음 행동을 봉인합니다.",
+      "effects": [
+        {
+          "op": "damageAll",
+          "value": 68
+        },
+        {
+          "op": "intentSealAll",
+          "value": 1
+        }
+      ],
+      "unit": {},
+      "limited": true,
+      "art": "/assets/cards/c314.png"
+    },
+    {
+      "id": "c315",
+      "name": "복각·심연의 왕 네르",
+      "type": "unit",
+      "rarity": "mythic",
+      "cost": 6,
+      "element": "공허",
+      "hp": 112,
+      "power": 39,
+      "block": 20,
+      "text": "소환 시 모든 적에게 취약을 부여하고 공격이 주변으로 번집니다.",
+      "effects": [
+        {
+          "op": "vulnerableAll",
+          "value": 2
+        }
+      ],
+      "unit": {
+        "onAttack": "splash40"
+      },
+      "limited": true,
+      "art": "/assets/cards/c315.png"
+    }
+  ],
+  "items": [
+    {
+      "id": "i001",
+      "name": "응급 붕대",
+      "rarity": "common",
+      "icon": "✚",
+      "maxStack": 5,
+      "text": "획득 즉시 체력을 12 회복.",
+      "mod": {
+        "healOnPickup": 12
+      }
+    },
+    {
+      "id": "i002",
+      "name": "두꺼운 망토",
+      "rarity": "common",
+      "icon": "▣",
+      "maxStack": 5,
+      "text": "전투 시작 방어 +5.",
+      "mod": {
+        "startBlock": 5
+      }
+    },
+    {
+      "id": "i003",
+      "name": "전술 수첩",
+      "rarity": "common",
+      "icon": "▤",
+      "maxStack": 3,
+      "text": "전투 시작 드로우 +1.",
+      "mod": {
+        "drawBonus": 1
+      }
+    },
+    {
+      "id": "i004",
+      "name": "숫돌",
+      "rarity": "common",
+      "icon": "／",
+      "maxStack": 5,
+      "text": "소환 유닛 공격력 +1.",
+      "mod": {
+        "unitPower": 1
+      }
+    },
+    {
+      "id": "i005",
+      "name": "마력 잉크",
+      "rarity": "common",
+      "icon": "✦",
+      "maxStack": 5,
+      "text": "스펠 피해 +2.",
+      "mod": {
+        "spellPower": 2
+      }
+    },
+    {
+      "id": "i006",
+      "name": "작은 부적",
+      "rarity": "common",
+      "icon": "◇",
+      "maxStack": 5,
+      "text": "보상 희귀도 운 +4%.",
+      "mod": {
+        "rewardLuck": 0.04
+      }
+    },
+    {
+      "id": "i007",
+      "name": "은제 봉인끈",
+      "rarity": "common",
+      "icon": "⌁",
+      "maxStack": 5,
+      "text": "일반 여행 봉인 확률 +3%p.",
+      "mod": {
+        "captureBonus": 0.03
+      }
+    },
+    {
+      "id": "i008",
+      "name": "여행자 주머니",
+      "rarity": "common",
+      "icon": "₡",
+      "maxStack": 5,
+      "text": "전투 골드 획득 +8%.",
+      "mod": {
+        "goldPct": 0.08
+      }
+    },
+    {
+      "id": "i009",
+      "name": "야영용 허브",
+      "rarity": "common",
+      "icon": "♣",
+      "maxStack": 5,
+      "text": "야영지 회복량 +6.",
+      "mod": {
+        "restFlat": 6
+      }
+    },
+    {
+      "id": "i010",
+      "name": "수호 문양",
+      "rarity": "common",
+      "icon": "▰",
+      "maxStack": 5,
+      "text": "받는 피해 -2%.",
+      "mod": {
+        "damageReduction": 0.02
+      }
+    },
+    {
+      "id": "i011",
+      "name": "경량 배터리",
+      "rarity": "rare",
+      "icon": "⚡",
+      "maxStack": 3,
+      "text": "첫 턴 에너지 +1.",
+      "mod": {
+        "firstTurnEnergy": 1
+      }
+    },
+    {
+      "id": "i012",
+      "name": "전투 약제",
+      "rarity": "rare",
+      "icon": "⚕",
+      "maxStack": 4,
+      "text": "회복 효과 +12%.",
+      "mod": {
+        "healPct": 0.12
+      }
+    },
+    {
+      "id": "i013",
+      "name": "강화 패널",
+      "rarity": "rare",
+      "icon": "▣",
+      "maxStack": 4,
+      "text": "방어 획득량 +10%.",
+      "mod": {
+        "blockPct": 0.1
+      }
+    },
+    {
+      "id": "i014",
+      "name": "붉은 렌즈",
+      "rarity": "rare",
+      "icon": "◉",
+      "maxStack": 4,
+      "text": "모든 직접 피해 +6%.",
+      "mod": {
+        "damagePct": 0.06
+      }
+    },
+    {
+      "id": "i015",
+      "name": "대형 배낭",
+      "rarity": "rare",
+      "icon": "▥",
+      "maxStack": 2,
+      "text": "손패 최대치 +1.",
+      "mod": {
+        "handLimit": 1
+      }
+    },
+    {
+      "id": "i016",
+      "name": "재생 코어",
+      "rarity": "rare",
+      "icon": "✚",
+      "maxStack": 3,
+      "text": "전투 승리 시 체력 5 회복.",
+      "mod": {
+        "healAfterBattle": 5
+      }
+    },
+    {
+      "id": "i017",
+      "name": "은빛 나침반",
+      "rarity": "rare",
+      "icon": "✧",
+      "maxStack": 3,
+      "text": "무료 보상 선택지 +1.",
+      "mod": {
+        "rewardChoices": 1
+      }
+    },
+    {
+      "id": "i018",
+      "name": "상인의 증표",
+      "rarity": "rare",
+      "icon": "¤",
+      "maxStack": 3,
+      "text": "보상 재굴림 비용 -15%.",
+      "mod": {
+        "rerollDiscount": 0.15
+      }
+    },
+    {
+      "id": "i019",
+      "name": "전령의 깃",
+      "rarity": "rare",
+      "icon": "➤",
+      "maxStack": 3,
+      "text": "전투 시작 첫 카드 비용 -1.",
+      "mod": {
+        "startDiscount": 1
+      }
+    },
+    {
+      "id": "i020",
+      "name": "가시 견갑",
+      "rarity": "rare",
+      "icon": "♠",
+      "maxStack": 4,
+      "text": "피격 시 적에게 2 피해.",
+      "mod": {
+        "thorns": 2
+      }
+    },
+    {
+      "id": "i021",
+      "name": "청람의 심장",
+      "rarity": "ultra",
+      "icon": "♥",
+      "maxStack": 3,
+      "text": "최대 체력 +10, 획득 시 같은 양 회복.",
+      "mod": {
+        "maxHpOnPickup": 10
+      }
+    },
+    {
+      "id": "i022",
+      "name": "마력 축전기",
+      "rarity": "ultra",
+      "icon": "⚡",
+      "maxStack": 2,
+      "text": "최대 에너지 +1.",
+      "mod": {
+        "maxEnergy": 1
+      }
+    },
+    {
+      "id": "i023",
+      "name": "전장의 북",
+      "rarity": "ultra",
+      "icon": "♫",
+      "maxStack": 3,
+      "text": "모든 소환 유닛 공격력 +3.",
+      "mod": {
+        "unitPower": 3
+      }
+    },
+    {
+      "id": "i024",
+      "name": "별가루 잉크병",
+      "rarity": "ultra",
+      "icon": "✦",
+      "maxStack": 3,
+      "text": "스펠 피해 +6.",
+      "mod": {
+        "spellPower": 6
+      }
+    },
+    {
+      "id": "i025",
+      "name": "수정 방패핵",
+      "rarity": "ultra",
+      "icon": "⬙",
+      "maxStack": 3,
+      "text": "전투 시작 방어 +14.",
+      "mod": {
+        "startBlock": 14
+      }
+    },
+    {
+      "id": "i026",
+      "name": "응축 행운석",
+      "rarity": "ultra",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "보상 희귀도 운 +12%.",
+      "mod": {
+        "rewardLuck": 0.12
+      }
+    },
+    {
+      "id": "i027",
+      "name": "왕가 봉인기",
+      "rarity": "ultra",
+      "icon": "♛",
+      "maxStack": 2,
+      "text": "일반 여행 봉인 확률 +10%p.",
+      "mod": {
+        "captureBonus": 0.1
+      }
+    },
+    {
+      "id": "i028",
+      "name": "휴대 성역",
+      "rarity": "ultra",
+      "icon": "⌂",
+      "maxStack": 2,
+      "text": "야영지에서 추가로 최대 체력 12% 회복.",
+      "mod": {
+        "restPct": 0.12
+      }
+    },
+    {
+      "id": "i029",
+      "name": "시간 접이장치",
+      "rarity": "ultra",
+      "icon": "◷",
+      "maxStack": 2,
+      "text": "매 전투 첫 턴 드로우 +2.",
+      "mod": {
+        "drawBonus": 2
+      }
+    },
+    {
+      "id": "i030",
+      "name": "공명 갑주",
+      "rarity": "ultra",
+      "icon": "▰",
+      "maxStack": 3,
+      "text": "받는 피해 -7%.",
+      "mod": {
+        "damageReduction": 0.07
+      }
+    },
+    {
+      "id": "i031",
+      "name": "불사조 깃털",
+      "rarity": "legendary",
+      "icon": "♨",
+      "maxStack": 2,
+      "text": "원정 중 전투 불능 시 35% 체력로 1회 부활.",
+      "mod": {
+        "revive": 1
+      }
+    },
+    {
+      "id": "i032",
+      "name": "왕의 전술서",
+      "rarity": "legendary",
+      "icon": "♜",
+      "maxStack": 2,
+      "text": "최대 에너지 +1, 전투 시작 드로우 +1.",
+      "mod": {
+        "maxEnergy": 1,
+        "drawBonus": 1
+      }
+    },
+    {
+      "id": "i033",
+      "name": "황금 나침반",
+      "rarity": "legendary",
+      "icon": "✧",
+      "maxStack": 2,
+      "text": "보상 선택지 +1, 희귀도 운 +18%.",
+      "mod": {
+        "rewardChoices": 1,
+        "rewardLuck": 0.18
+      }
+    },
+    {
+      "id": "i034",
+      "name": "거인의 혈청",
+      "rarity": "legendary",
+      "icon": "▲",
+      "maxStack": 2,
+      "text": "최대 체력 +22.",
+      "mod": {
+        "maxHpOnPickup": 22
+      }
+    },
+    {
+      "id": "i035",
+      "name": "심판의 렌즈",
+      "rarity": "legendary",
+      "icon": "◉",
+      "maxStack": 2,
+      "text": "보스에게 주는 피해 +22%.",
+      "mod": {
+        "bossDamagePct": 0.22
+      }
+    },
+    {
+      "id": "i036",
+      "name": "영구 방벽핵",
+      "rarity": "legendary",
+      "icon": "▣",
+      "maxStack": 2,
+      "text": "턴 종료 시 방어의 25%를 다음 턴까지 유지.",
+      "mod": {
+        "retainBlock": 0.25
+      }
+    },
+    {
+      "id": "i037",
+      "name": "천공 배터리",
+      "rarity": "legendary",
+      "icon": "⚡",
+      "maxStack": 1,
+      "text": "매 턴 최대 에너지 +1.",
+      "mod": {
+        "maxEnergy": 1
+      }
+    },
+    {
+      "id": "i038",
+      "name": "찬란한 봉인성배",
+      "rarity": "legendary",
+      "icon": "♛",
+      "maxStack": 2,
+      "text": "봉인 확률 +18%p, 전설 흔적 도주 확률 감소.",
+      "mod": {
+        "captureBonus": 0.18,
+        "captureEscapeReduction": 0.18
+      }
+    },
+    {
+      "id": "i039",
+      "name": "차원 주머니",
+      "rarity": "legendary",
+      "icon": "▥",
+      "maxStack": 1,
+      "text": "손패 최대치 +2, 시작 드로우 +1.",
+      "mod": {
+        "handLimit": 2,
+        "drawBonus": 1
+      }
+    },
+    {
+      "id": "i040",
+      "name": "원정대 휘장",
+      "rarity": "legendary",
+      "icon": "✪",
+      "maxStack": 1,
+      "text": "협동 전투에서 아군 전원 시작 방어 +8.",
+      "mod": {
+        "teamStartBlock": 8
+      }
+    },
+    {
+      "id": "i041",
+      "name": "신화·기원의 심장",
+      "rarity": "mythic",
+      "icon": "♥",
+      "maxStack": 1,
+      "text": "최대 체력 +35, 받는 피해 -10%.",
+      "mod": {
+        "maxHpOnPickup": 35,
+        "damageReduction": 0.1
+      }
+    },
+    {
+      "id": "i042",
+      "name": "신화·무한 축전기",
+      "rarity": "mythic",
+      "icon": "∞",
+      "maxStack": 1,
+      "text": "최대 에너지 +2.",
+      "mod": {
+        "maxEnergy": 2
+      }
+    },
+    {
+      "id": "i043",
+      "name": "신화·별바다 지도",
+      "rarity": "mythic",
+      "icon": "✦",
+      "maxStack": 1,
+      "text": "무료 보상 선택지 +2, 희귀도 운 +35%.",
+      "mod": {
+        "rewardChoices": 2,
+        "rewardLuck": 0.35
+      }
+    },
+    {
+      "id": "i044",
+      "name": "신화·공허 왕관",
+      "rarity": "mythic",
+      "icon": "♛",
+      "maxStack": 1,
+      "text": "모든 피해 +18%, 보스 추가 피해 +18%.",
+      "mod": {
+        "damagePct": 0.18,
+        "bossDamagePct": 0.18
+      }
+    },
+    {
+      "id": "i045",
+      "name": "신화·회귀의 모래시계",
+      "rarity": "mythic",
+      "icon": "◷",
+      "maxStack": 1,
+      "text": "전투 불능 시 55% 체력로 1회 부활.",
+      "mod": {
+        "revive": 1,
+        "revivePct": 0.55
+      }
+    },
+    {
+      "id": "i046",
+      "name": "미니 프리즘",
+      "rarity": "common",
+      "icon": "◇",
+      "maxStack": 9,
+      "text": "전투 종료 프리즘 획득 +5%.",
+      "mod": {
+        "gemPct": 0.05
+      }
+    },
+    {
+      "id": "i047",
+      "name": "보급 식량",
+      "rarity": "common",
+      "icon": "▱",
+      "maxStack": 9,
+      "text": "전투 승리 시 체력 2 회복.",
+      "mod": {
+        "healAfterBattle": 2
+      }
+    },
+    {
+      "id": "i048",
+      "name": "검은 상인표",
+      "rarity": "ultra",
+      "icon": "¤",
+      "maxStack": 2,
+      "text": "재굴림 비용 -30%, 전투 골드 +12%.",
+      "mod": {
+        "rerollDiscount": 0.3,
+        "goldPct": 0.12
+      }
+    }
+  ],
+  "biomes": [
+    {
+      "id": "verdant",
+      "name": "청록 유적",
+      "short": "VERDANT RUINS",
+      "sky": "#6fa49b",
+      "ground": "#20362f",
+      "accent": "#92d498",
+      "desc": "낮은 유적과 이끼 난간이 이어지는 1구역",
+      "background": "/assets/biomes/verdant.png",
+      "index": 0
+    },
+    {
+      "id": "ember",
+      "name": "잿불 제련소",
+      "short": "EMBER FOUNDRY",
+      "sky": "#8f5b5d",
+      "ground": "#35252a",
+      "accent": "#f39b5f",
+      "desc": "붉은 용광로와 고철 컨베이어가 남은 2구역",
+      "background": "/assets/biomes/ember.png",
+      "index": 1
+    },
+    {
+      "id": "frost",
+      "name": "유리 설원",
+      "short": "GLASS TUNDRA",
+      "sky": "#7089a6",
+      "ground": "#29394f",
+      "accent": "#b9eaff",
+      "desc": "얼음 수정과 눈보라가 전장을 가르는 3구역",
+      "background": "/assets/biomes/frost.png",
+      "index": 2
+    },
+    {
+      "id": "astral",
+      "name": "별의 회랑",
+      "short": "ASTRAL CORRIDOR",
+      "sky": "#5c528c",
+      "ground": "#211f3d",
+      "accent": "#d1b6ff",
+      "desc": "별빛 균열과 고대 관측소가 떠 있는 4구역",
+      "background": "/assets/biomes/astral.png",
+      "index": 3
+    },
+    {
+      "id": "origin",
+      "name": "기원의 문",
+      "short": "ORIGIN GATE",
+      "sky": "#75677d",
+      "ground": "#181526",
+      "accent": "#ffdf92",
+      "desc": "50층 최종 수호자에게 이어지는 심연의 중심부",
+      "background": "/assets/biomes/origin.png",
+      "index": 4
+    }
+  ],
+  "enemies": [
+    {
+      "id": "e001",
+      "name": "이끼 슬라임",
+      "tier": "common",
+      "hp": 34,
+      "atk": 7,
+      "skill": "강타",
+      "element": "화염",
+      "biome": "verdant",
+      "sprite": "/assets/enemies/e001.png"
+    },
+    {
+      "id": "e002",
+      "name": "유적 박쥐",
+      "tier": "common",
+      "hp": 38,
+      "atk": 9,
+      "skill": "방벽",
+      "element": "물",
+      "biome": "verdant",
+      "sprite": "/assets/enemies/e002.png"
+    },
+    {
+      "id": "e003",
+      "name": "덩굴 사냥개",
+      "tier": "common",
+      "hp": 42,
+      "atk": 11,
+      "skill": "약화 파동",
+      "element": "자연",
+      "biome": "verdant",
+      "sprite": "/assets/enemies/e003.png"
+    },
+    {
+      "id": "e004",
+      "name": "꽃가루 요정",
+      "tier": "rare",
+      "hp": 46,
+      "atk": 13,
+      "skill": "집중 사격",
+      "element": "빛",
+      "biome": "verdant",
+      "sprite": "/assets/enemies/e004.png"
+    },
+    {
+      "id": "e005",
+      "name": "초록 감시자",
+      "tier": "rare",
+      "hp": 50,
+      "atk": 15,
+      "skill": "균열 베기",
+      "element": "그림자",
+      "biome": "verdant",
+      "sprite": "/assets/enemies/e005.png"
+    },
+    {
+      "id": "e006",
+      "name": "숲 갑각충",
+      "tier": "rare",
+      "hp": 54,
+      "atk": 7,
+      "skill": "강타",
+      "element": "강철",
+      "biome": "verdant",
+      "sprite": "/assets/enemies/e006.png"
+    },
+    {
+      "id": "e007",
+      "name": "고목 골렘",
+      "tier": "rare",
+      "hp": 58,
+      "atk": 9,
+      "skill": "방벽",
+      "element": "바람",
+      "biome": "verdant",
+      "sprite": "/assets/enemies/e007.png"
+    },
+    {
+      "id": "e008",
+      "name": "바람 토끼",
+      "tier": "ultra",
+      "hp": 62,
+      "atk": 11,
+      "skill": "약화 파동",
+      "element": "번개",
+      "biome": "verdant",
+      "sprite": "/assets/enemies/e008.png"
+    },
+    {
+      "id": "e009",
+      "name": "청동 포식자",
+      "tier": "rare",
+      "hp": 66,
+      "atk": 13,
+      "skill": "집중 사격",
+      "element": "별",
+      "biome": "verdant",
+      "sprite": "/assets/enemies/e009.png"
+    },
+    {
+      "id": "e010",
+      "name": "균열 사슴",
+      "tier": "ultra",
+      "hp": 70,
+      "atk": 15,
+      "skill": "균열 베기",
+      "element": "시간",
+      "biome": "verdant",
+      "sprite": "/assets/enemies/e010.png"
+    },
+    {
+      "id": "e011",
+      "name": "잿빛 기사",
+      "tier": "common",
+      "hp": 50,
+      "atk": 10,
+      "skill": "강타",
+      "element": "자연",
+      "biome": "ember",
+      "sprite": "/assets/enemies/e011.png"
+    },
+    {
+      "id": "e012",
+      "name": "화로 임프",
+      "tier": "common",
+      "hp": 54,
+      "atk": 12,
+      "skill": "방벽",
+      "element": "빛",
+      "biome": "ember",
+      "sprite": "/assets/enemies/e012.png"
+    },
+    {
+      "id": "e013",
+      "name": "용광 사냥개",
+      "tier": "common",
+      "hp": 58,
+      "atk": 14,
+      "skill": "약화 파동",
+      "element": "그림자",
+      "biome": "ember",
+      "sprite": "/assets/enemies/e013.png"
+    },
+    {
+      "id": "e014",
+      "name": "연소 정령",
+      "tier": "rare",
+      "hp": 62,
+      "atk": 16,
+      "skill": "집중 사격",
+      "element": "강철",
+      "biome": "ember",
+      "sprite": "/assets/enemies/e014.png"
+    },
+    {
+      "id": "e015",
+      "name": "고철 망치병",
+      "tier": "rare",
+      "hp": 66,
+      "atk": 18,
+      "skill": "균열 베기",
+      "element": "바람",
+      "biome": "ember",
+      "sprite": "/assets/enemies/e015.png"
+    },
+    {
+      "id": "e016",
+      "name": "붉은 미믹",
+      "tier": "rare",
+      "hp": 70,
+      "atk": 10,
+      "skill": "강타",
+      "element": "번개",
+      "biome": "ember",
+      "sprite": "/assets/enemies/e016.png"
+    },
+    {
+      "id": "e017",
+      "name": "재 폭군",
+      "tier": "rare",
+      "hp": 74,
+      "atk": 12,
+      "skill": "방벽",
+      "element": "별",
+      "biome": "ember",
+      "sprite": "/assets/enemies/e017.png"
+    },
+    {
+      "id": "e018",
+      "name": "불꽃 나방",
+      "tier": "ultra",
+      "hp": 78,
+      "atk": 14,
+      "skill": "약화 파동",
+      "element": "시간",
+      "biome": "ember",
+      "sprite": "/assets/enemies/e018.png"
+    },
+    {
+      "id": "e019",
+      "name": "쇳물 골렘",
+      "tier": "rare",
+      "hp": 82,
+      "atk": 16,
+      "skill": "집중 사격",
+      "element": "공허",
+      "biome": "ember",
+      "sprite": "/assets/enemies/e019.png"
+    },
+    {
+      "id": "e020",
+      "name": "연기 암살자",
+      "tier": "ultra",
+      "hp": 86,
+      "atk": 18,
+      "skill": "균열 베기",
+      "element": "수정",
+      "biome": "ember",
+      "sprite": "/assets/enemies/e020.png"
+    },
+    {
+      "id": "e021",
+      "name": "서리 버섯",
+      "tier": "common",
+      "hp": 66,
+      "atk": 13,
+      "skill": "강타",
+      "element": "그림자",
+      "biome": "frost",
+      "sprite": "/assets/enemies/e021.png"
+    },
+    {
+      "id": "e022",
+      "name": "빙벽 기사",
+      "tier": "common",
+      "hp": 70,
+      "atk": 15,
+      "skill": "방벽",
+      "element": "강철",
+      "biome": "frost",
+      "sprite": "/assets/enemies/e022.png"
+    },
+    {
+      "id": "e023",
+      "name": "유리날개 요정",
+      "tier": "common",
+      "hp": 74,
+      "atk": 17,
+      "skill": "약화 파동",
+      "element": "바람",
+      "biome": "frost",
+      "sprite": "/assets/enemies/e023.png"
+    },
+    {
+      "id": "e024",
+      "name": "눈보라 늑대",
+      "tier": "rare",
+      "hp": 78,
+      "atk": 19,
+      "skill": "집중 사격",
+      "element": "번개",
+      "biome": "frost",
+      "sprite": "/assets/enemies/e024.png"
+    },
+    {
+      "id": "e025",
+      "name": "빙정 포식자",
+      "tier": "rare",
+      "hp": 82,
+      "atk": 21,
+      "skill": "균열 베기",
+      "element": "별",
+      "biome": "frost",
+      "sprite": "/assets/enemies/e025.png"
+    },
+    {
+      "id": "e026",
+      "name": "푸른 미믹",
+      "tier": "rare",
+      "hp": 86,
+      "atk": 13,
+      "skill": "강타",
+      "element": "시간",
+      "biome": "frost",
+      "sprite": "/assets/enemies/e026.png"
+    },
+    {
+      "id": "e027",
+      "name": "결빙 사제",
+      "tier": "rare",
+      "hp": 90,
+      "atk": 15,
+      "skill": "방벽",
+      "element": "공허",
+      "biome": "frost",
+      "sprite": "/assets/enemies/e027.png"
+    },
+    {
+      "id": "e028",
+      "name": "수정 사마귀",
+      "tier": "ultra",
+      "hp": 94,
+      "atk": 17,
+      "skill": "약화 파동",
+      "element": "수정",
+      "biome": "frost",
+      "sprite": "/assets/enemies/e028.png"
+    },
+    {
+      "id": "e029",
+      "name": "빙하 골렘",
+      "tier": "rare",
+      "hp": 98,
+      "atk": 19,
+      "skill": "집중 사격",
+      "element": "화염",
+      "biome": "frost",
+      "sprite": "/assets/enemies/e029.png"
+    },
+    {
+      "id": "e030",
+      "name": "백설 추적자",
+      "tier": "ultra",
+      "hp": 102,
+      "atk": 21,
+      "skill": "균열 베기",
+      "element": "물",
+      "biome": "frost",
+      "sprite": "/assets/enemies/e030.png"
+    },
+    {
+      "id": "e031",
+      "name": "별먹는 미믹",
+      "tier": "common",
+      "hp": 82,
+      "atk": 16,
+      "skill": "강타",
+      "element": "바람",
+      "biome": "astral",
+      "sprite": "/assets/enemies/e031.png"
+    },
+    {
+      "id": "e032",
+      "name": "시간 포식자",
+      "tier": "common",
+      "hp": 86,
+      "atk": 18,
+      "skill": "방벽",
+      "element": "번개",
+      "biome": "astral",
+      "sprite": "/assets/enemies/e032.png"
+    },
+    {
+      "id": "e033",
+      "name": "성운 사수",
+      "tier": "common",
+      "hp": 90,
+      "atk": 20,
+      "skill": "약화 파동",
+      "element": "별",
+      "biome": "astral",
+      "sprite": "/assets/enemies/e033.png"
+    },
+    {
+      "id": "e034",
+      "name": "천구 기사",
+      "tier": "rare",
+      "hp": 94,
+      "atk": 22,
+      "skill": "집중 사격",
+      "element": "시간",
+      "biome": "astral",
+      "sprite": "/assets/enemies/e034.png"
+    },
+    {
+      "id": "e035",
+      "name": "공명 사제",
+      "tier": "rare",
+      "hp": 98,
+      "atk": 24,
+      "skill": "균열 베기",
+      "element": "공허",
+      "biome": "astral",
+      "sprite": "/assets/enemies/e035.png"
+    },
+    {
+      "id": "e036",
+      "name": "유성 정령",
+      "tier": "rare",
+      "hp": 102,
+      "atk": 16,
+      "skill": "강타",
+      "element": "수정",
+      "biome": "astral",
+      "sprite": "/assets/enemies/e036.png"
+    },
+    {
+      "id": "e037",
+      "name": "공허 벌레",
+      "tier": "rare",
+      "hp": 106,
+      "atk": 18,
+      "skill": "방벽",
+      "element": "화염",
+      "biome": "astral",
+      "sprite": "/assets/enemies/e037.png"
+    },
+    {
+      "id": "e038",
+      "name": "시계 악령",
+      "tier": "ultra",
+      "hp": 110,
+      "atk": 20,
+      "skill": "약화 파동",
+      "element": "물",
+      "biome": "astral",
+      "sprite": "/assets/enemies/e038.png"
+    },
+    {
+      "id": "e039",
+      "name": "별빛 골렘",
+      "tier": "rare",
+      "hp": 114,
+      "atk": 22,
+      "skill": "집중 사격",
+      "element": "자연",
+      "biome": "astral",
+      "sprite": "/assets/enemies/e039.png"
+    },
+    {
+      "id": "e040",
+      "name": "차원 사냥꾼",
+      "tier": "ultra",
+      "hp": 118,
+      "atk": 24,
+      "skill": "균열 베기",
+      "element": "빛",
+      "biome": "astral",
+      "sprite": "/assets/enemies/e040.png"
+    },
+    {
+      "id": "e041",
+      "name": "영점 감시자",
+      "tier": "common",
+      "hp": 98,
+      "atk": 19,
+      "skill": "강타",
+      "element": "별",
+      "biome": "origin",
+      "sprite": "/assets/enemies/e041.png"
+    },
+    {
+      "id": "e042",
+      "name": "심연 문지기",
+      "tier": "common",
+      "hp": 102,
+      "atk": 21,
+      "skill": "방벽",
+      "element": "시간",
+      "biome": "origin",
+      "sprite": "/assets/enemies/e042.png"
+    },
+    {
+      "id": "e043",
+      "name": "무중력 기사",
+      "tier": "common",
+      "hp": 106,
+      "atk": 23,
+      "skill": "약화 파동",
+      "element": "공허",
+      "biome": "origin",
+      "sprite": "/assets/enemies/e043.png"
+    },
+    {
+      "id": "e044",
+      "name": "망각 사제",
+      "tier": "rare",
+      "hp": 110,
+      "atk": 25,
+      "skill": "집중 사격",
+      "element": "수정",
+      "biome": "origin",
+      "sprite": "/assets/enemies/e044.png"
+    },
+    {
+      "id": "e045",
+      "name": "기원 파수꾼",
+      "tier": "rare",
+      "hp": 114,
+      "atk": 27,
+      "skill": "균열 베기",
+      "element": "화염",
+      "biome": "origin",
+      "sprite": "/assets/enemies/e045.png"
+    },
+    {
+      "id": "e046",
+      "name": "검은 성좌",
+      "tier": "rare",
+      "hp": 118,
+      "atk": 19,
+      "skill": "강타",
+      "element": "물",
+      "biome": "origin",
+      "sprite": "/assets/enemies/e046.png"
+    },
+    {
+      "id": "e047",
+      "name": "공허 거인",
+      "tier": "rare",
+      "hp": 122,
+      "atk": 21,
+      "skill": "방벽",
+      "element": "자연",
+      "biome": "origin",
+      "sprite": "/assets/enemies/e047.png"
+    },
+    {
+      "id": "e048",
+      "name": "차원 절단자",
+      "tier": "ultra",
+      "hp": 126,
+      "atk": 23,
+      "skill": "약화 파동",
+      "element": "빛",
+      "biome": "origin",
+      "sprite": "/assets/enemies/e048.png"
+    },
+    {
+      "id": "e049",
+      "name": "왕관 수호수",
+      "tier": "rare",
+      "hp": 130,
+      "atk": 25,
+      "skill": "집중 사격",
+      "element": "그림자",
+      "biome": "origin",
+      "sprite": "/assets/enemies/e049.png"
+    },
+    {
+      "id": "e050",
+      "name": "종말 집행자",
+      "tier": "ultra",
+      "hp": 134,
+      "atk": 27,
+      "skill": "균열 베기",
+      "element": "강철",
+      "biome": "origin",
+      "sprite": "/assets/enemies/e050.png"
+    }
+  ],
+  "bosses": [
+    {
+      "id": "b001",
+      "name": "녹음왕 베르단",
+      "tier": "boss",
+      "hp": 300,
+      "atk": 18,
+      "skill": "뿌리의 포효",
+      "element": "자연",
+      "biome": "verdant",
+      "sprite": "/assets/enemies/b001.png"
+    },
+    {
+      "id": "b002",
+      "name": "제련군주 이그니스",
+      "tier": "boss",
+      "hp": 390,
+      "atk": 23,
+      "skill": "용광로 붕괴",
+      "element": "화염",
+      "biome": "ember",
+      "sprite": "/assets/enemies/b002.png"
+    },
+    {
+      "id": "b003",
+      "name": "빙정성녀 프리마",
+      "tier": "boss",
+      "hp": 500,
+      "atk": 27,
+      "skill": "절대 영도",
+      "element": "수정",
+      "biome": "frost",
+      "sprite": "/assets/enemies/b003.png"
+    },
+    {
+      "id": "b004",
+      "name": "별바다 항해자 아스트라",
+      "tier": "boss",
+      "hp": 640,
+      "atk": 32,
+      "skill": "성좌 낙하",
+      "element": "별",
+      "biome": "astral",
+      "sprite": "/assets/enemies/b004.png"
+    },
+    {
+      "id": "b005",
+      "name": "기원의 파괴자 제로스",
+      "tier": "boss",
+      "hp": 860,
+      "atk": 38,
+      "skill": "심연 개벽",
+      "element": "공허",
+      "biome": "origin",
+      "sprite": "/assets/enemies/b005.png"
+    }
+  ],
+  "relics": [
+    {
+      "id": "r001",
+      "name": "붉은 나침반",
+      "icon": "✦",
+      "text": "각 전투 첫 피해 카드 +4.",
+      "rarity": "common"
+    },
+    {
+      "id": "r002",
+      "name": "접이식 야영구",
+      "icon": "⌂",
+      "text": "야영지 회복량 +8.",
+      "rarity": "common"
+    },
+    {
+      "id": "r003",
+      "name": "은빛 봉인침",
+      "icon": "◇",
+      "text": "일반 여행 봉인 확률 +8%p.",
+      "rarity": "rare"
+    },
+    {
+      "id": "r004",
+      "name": "마력 축전기",
+      "icon": "⚡",
+      "text": "최대 에너지 +1, 최대 체력 -8.",
+      "rarity": "ultra"
+    },
+    {
+      "id": "r005",
+      "name": "별바다 왕관",
+      "icon": "♛",
+      "text": "보스전에서 유닛 공격력 +4.",
+      "rarity": "legendary"
+    },
+    {
+      "id": "r006",
+      "name": "수정 거울",
+      "icon": "⬙",
+      "text": "전투 시작 방어 10.",
+      "rarity": "rare"
+    },
+    {
+      "id": "r007",
+      "name": "시간 주머니",
+      "icon": "◷",
+      "text": "첫 턴 드로우 +1.",
+      "rarity": "ultra"
+    },
+    {
+      "id": "r008",
+      "name": "기원의 휘장",
+      "icon": "✪",
+      "text": "최종 10층에서 주는 피해 +8%.",
+      "rarity": "legendary"
+    }
+  ],
+  "banner": {
+    "id": "rerun-origin-fall-2026-09",
+    "name": "복각 · 기원의 추락",
+    "subtitle": "천익의 여왕 아르셀 · 영겁 파쇄 · 심연의 왕 네르 확률 상승",
+    "endsAt": "2026-09-30T23:59:59+09:00",
+    "featured": [
+      "c313",
+      "c314",
+      "c315"
+    ],
+    "singleCost": 100,
+    "tenCost": 900,
+    "rates": {
+      "mythic": 0.008,
+      "legendary": 0.032,
+      "ultra": 0.09,
+      "rare": 0.26,
+      "common": 0.61
+    },
+    "pity": {
+      "legendary": 60,
+      "mythic": 120
+    }
+  },
+  "difficulties": {
+    "normal": {
+      "ko": "보통",
+      "subtitle": "표준 원정",
+      "enemyHp": 1.0,
+      "enemyAtk": 1.0,
+      "partyScale": 1.0,
+      "rewardLuck": 1.0,
+      "gold": 1.0,
+      "gems": 1.0,
+      "healBetweenBiomes": 0.22,
+      "desc": "처음 시작하기 좋은 기본 난이도. 적 성장과 보상이 균형 잡혀 있습니다."
+    },
+    "hard": {
+      "ko": "어려움",
+      "subtitle": "고난 원정",
+      "enemyHp": 1.3,
+      "enemyAtk": 1.2,
+      "partyScale": 1.08,
+      "rewardLuck": 1.18,
+      "gold": 1.22,
+      "gems": 1.2,
+      "healBetweenBiomes": 0.16,
+      "desc": "적의 체력과 공격이 크게 증가하지만 희귀 보상과 획득 재화도 좋아집니다."
+    },
+    "hell": {
+      "ko": "지옥",
+      "subtitle": "심연 원정",
+      "enemyHp": 1.68,
+      "enemyAtk": 1.42,
+      "partyScale": 1.15,
+      "rewardLuck": 1.42,
+      "gold": 1.55,
+      "gems": 1.45,
+      "healBetweenBiomes": 0.1,
+      "desc": "전설급 적 성장. 보상 운은 높지만 잘못된 덱 구성은 빠르게 무너집니다."
+    }
+  },
+  "starterPool": [
+    "c001",
+    "c008",
+    "c027",
+    "c034",
+    "c053",
+    "c060",
+    "c079",
+    "c086",
+    "c105",
+    "c112",
+    "c131",
+    "c138"
+  ]
+}
