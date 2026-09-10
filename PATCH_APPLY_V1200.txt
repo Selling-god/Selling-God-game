@@ -1,0 +1,11 @@
+KX CORPORATE V12.0 PATCH APPLY
+
+1. Back up the current V11 repository.
+2. Copy the files from this patch ZIP over the same relative paths.
+3. Commit and push to GitHub.
+4. Let Render run the normal build/deploy process.
+5. After deployment, perform a hard refresh once (Ctrl+F5).
+6. Open M&A / Control and verify that founder/management voting rights plus outside voting rights equal 100%.
+7. Run `npm run release` locally whenever possible before the next deployment.
+
+No new Supabase SQL is required for this client-side V12 patch.
