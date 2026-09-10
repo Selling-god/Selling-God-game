@@ -1,0 +1,18 @@
+{
+  "version": "3.1.0",
+  "deployId": "RIFT-V3.1.0-VISUAL-FIRST-20260910",
+  "builtAt": "2026-09-10T14:41:43.490Z",
+  "cards": 315,
+  "items": 48,
+  "enemies": 55,
+  "maxDungeonFloor": 50,
+  "difficulties": [
+    "normal",
+    "hard",
+    "hell"
+  ],
+  "cloudSchema": 2,
+  "auth": "supabase-auth",
+  "roomSnapshots": true,
+  "supabaseSetupFileIncluded": true
+}
