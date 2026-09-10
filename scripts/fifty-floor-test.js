@@ -12,6 +12,6 @@ async function ready(){for(let i=0;i<40;i++){try{return await req('GET','/health
    const opts=room.reward.playerOptions[u.profileId];if(!opts?.length)throw Error(`no reward at ${floor}`);room=(await req('POST',`/api/room/${room.id}/reward`,{...u,rewardId:opts[0].id})).room;room=(await req('POST',`/api/room/${room.id}/continue`,u)).room;
    if(floor<50&&room.floor!==floor+1)throw Error(`did not advance after ${floor}`);
  }
- if(room.status!=='cleared'||room.floor!==50)throw Error(`50 floor clear failed ${room.status}/${room.floor}`);const p=await req('POST','/api/profile',u);if((p.profile.stats.hellClears||0)<1)throw Error('hell clear stat missing');
- console.log(`FIFTY_FLOOR_OK floor=${room.floor} status=${room.status} hellClears=${p.profile.stats.hellClears}`);
+ if(room.status!=='cleared'||room.floor!==50)throw Error(`50 floor clear failed ${room.status}/${room.floor}`);const p=await req('POST','/api/profile',u);if((p.profile.stats.hellClears||0)<1)throw Error('hell clear stat missing');if(!p.profile.history?.some(h=>h.result==='clear'&&h.floor===50&&h.difficulty==='hell'))throw Error('clear history missing');
+ console.log(`FIFTY_FLOOR_OK floor=${room.floor} status=${room.status} hellClears=${p.profile.stats.hellClears} history=${p.profile.history.length}`);
 }catch(e){console.error('FIFTY_FLOOR_FAIL',e);process.exitCode=1}finally{proc.kill('SIGTERM');try{fs.unlinkSync(profileFile)}catch{}}})();
