@@ -29,8 +29,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '2.7.0';
-const DEPLOY_ID = 'RIFT-V2.7.0-ONE-SCREEN-20260910';
+const VERSION = '3.0.0';
+const DEPLOY_ID = 'RIFT-V3.0.0-FUN-LOOP-20260910';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -67,6 +67,14 @@ const THREAT_TOKENS = [
   { id:'bulwark', name:'중갑 파동', icon:'■', desc:'적 체력 +6% · 고등급 보상 +5%', atk:0.00, hp:0.06, reward:0.05 },
   { id:'hunger', name:'심연 포식', icon:'◆', desc:'적 공격력 +2% / 체력 +3% · 고등급 보상 +7%', atk:0.02, hp:0.03, reward:0.07 },
   { id:'distortion', name:'왜곡 증폭', icon:'✦', desc:'적 공격력 +3% / 체력 +2% · 고등급 보상 +8%', atk:0.03, hp:0.02, reward:0.08 }
+];
+
+const BATTLE_MODIFIERS = [
+  { id:'overcharge', name:'과충전 지대', icon:'⚡', desc:'첫 턴 에너지 +1 · 적 HP +12%', firstEnergy:1, enemyHp:0.12 },
+  { id:'fracture', name:'균열 노출', icon:'◇', desc:'BREAK 축적 +35% · 적 공격 +8%', breakGain:0.35, enemyAtk:0.08 },
+  { id:'echo', name:'잔향 회로', icon:'✦', desc:'세 번째 카드마다 1장 드로우 · 적 HP +8%', everyThirdDraw:1, enemyHp:0.08 },
+  { id:'hunt', name:'집중 사냥', icon:'◎', desc:'표식 적이 받는 피해 +18% · 적 공격 +6%', markDamage:0.18, enemyAtk:0.06 },
+  { id:'fortify', name:'중갑 교전', icon:'▣', desc:'전투 시작 방어 +6 · 적도 보호막을 두릅니다.', startBlock:6, enemyStartBlock:6 }
 ];
 
 const CARD_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
@@ -478,6 +486,7 @@ function newRunPlayer(p) {
     relics: [],
     items: {},
     upgrades: {},
+    mastery: {},
     mods: {},
     fragments: 0,
     gold: 180,
@@ -764,11 +773,11 @@ function threatMods(room) {
 }
 
 function sampleKinds() {
-  const pool = ['combat', 'combat', 'combat', 'combat', 'event', 'rest', 'treasure', 'merchant'];
+  const pool = ['combat', 'combat', 'combat', 'event', 'rest', 'treasure', 'merchant'];
   const out = [];
-  while (out.length < 3) {
+  while (out.length < 2) {
     const k = choose(pool);
-    if (out.filter(x => x === k).length < 2) out.push(k);
+    if (!out.includes(k)) out.push(k);
   }
   return out;
 }
@@ -965,9 +974,12 @@ function startBattle(room, tier) {
   room.status = 'battle';
   room.route = null;
   room.event = null;
+  const modifier = tier === 'boss' ? null : clone(choose(BATTLE_MODIFIERS));
   const party = room.players.map((p, i) => makeCombatant(room.runState[p.id], i));
   const teamStartBlock = room.players.reduce((sum, p) => sum + modTotal(room.runState[p.id], 'teamStartBlock'), 0);
   if (teamStartBlock) party.forEach(pc => pc.block += teamStartBlock);
+  if (modifier?.firstEnergy) party.forEach(pc => pc.energy += modifier.firstEnergy);
+  if (modifier?.startBlock) party.forEach(pc => pc.block += modifier.startBlock);
 
   const scale = Math.max(1, room.players.length);
   let enemyCount;
@@ -994,10 +1006,10 @@ function startBattle(room, tier) {
     const partyHp = (1 + (scale - 1) * 0.48) * diff.partyScale;
     const eliteScale = tier === 'elite' ? 1.24 : 1;
     base.uid = uid('enemy');
-    base.maxHp = Math.round(base.hp * floorHp * partyHp * eliteScale * diff.enemyHp);
+    base.maxHp = Math.round(base.hp * floorHp * partyHp * eliteScale * diff.enemyHp * (1 + Number(modifier?.enemyHp || 0)));
     base.hp = base.maxHp;
-    base.atk = Math.round(base.atk * floorAtk * (1 + (scale - 1) * 0.11) * (tier === 'elite' ? 1.10 : 1) * diff.enemyAtk);
-    base.block = 0;
+    base.atk = Math.round(base.atk * floorAtk * (1 + (scale - 1) * 0.11) * (tier === 'elite' ? 1.10 : 1) * diff.enemyAtk * (1 + Number(modifier?.enemyAtk || 0)));
+    base.block = Number(modifier?.enemyStartBlock || 0);
     base.debuffs = { weak: 0, vulnerable: 0, burn: 0, shock: 0, intentSeal: 0 };
     base.nextDamageHalf = false;
     base.counter = 0;
@@ -1005,14 +1017,16 @@ function startBattle(room, tier) {
     base.enraged = false;
     base.staggerMax = Math.max(18, Math.round(base.maxHp * (tier === 'boss' ? 0.22 : tier === 'elite' ? 0.25 : 0.28)));
     base.stagger = 0;
+    base.staggerGainMult = 1 + Number(modifier?.breakGain || 0);
     base.broken = 0;
     base.justBroken = false;
     base.intent = rollIntent(base, tier, room.difficulty);
     enemies.push(base);
   }
-  room.battle = { tier, turn: 1, phase: 'players', party, enemies, log: [], teamSpellCount: 0 };
-  battleLog(room, `${tier === 'boss' ? '보스' : tier === 'elite' ? '정예' : '적'} 조우!`);
-  pushRoomEvent(room, 'battle-start', '전투가 시작되었습니다.', { tier, floor: room.floor, enemyIds: enemies.map(e => e.uid) });
+  if (modifier?.markDamage && enemies[0]) enemies[0].marked = true;
+  room.battle = { tier, turn: 1, phase: 'players', party, enemies, log: [], teamSpellCount: 0, modifier };
+  battleLog(room, `${tier === 'boss' ? '보스' : tier === 'elite' ? '정예' : '적'} 조우!${modifier ? ` ${modifier.name}` : ''}`);
+  pushRoomEvent(room, 'battle-start', '전투가 시작되었습니다.', { tier, floor: room.floor, enemyIds: enemies.map(e => e.uid), modifier });
 }
 
 function rollIntent(e, tier, difficulty = 'normal') {
@@ -1048,6 +1062,25 @@ function resolveCost(pc, c) {
   return cost;
 }
 
+function gainCardMastery(room, run, cardId) {
+  if (!run || !CARD_BY_ID[cardId]) return null;
+  run.mastery ||= {};
+  run.upgrades ||= {};
+  const xp = Number(run.mastery[cardId] || 0) + 1;
+  run.mastery[cardId] = xp;
+  const before = Number(run.upgrades[cardId] || 0);
+  let after = before;
+  if (before < 1 && xp >= 3) after = 1;
+  if (after < 2 && xp >= 8) after = 2;
+  if (after > before) {
+    run.upgrades[cardId] = after;
+    const name = CARD_BY_ID[cardId].name;
+    battleLog(room, `${name} 숙련 상승! ${after === 1 ? '+' : '++'} 단계로 성장했습니다.`);
+    return { cardId, name, level: after, xp };
+  }
+  return { cardId, name: CARD_BY_ID[cardId].name, level: before, xp };
+}
+
 function playCard(room, playerId, handIndex, targetUid) {
   const b = room.battle;
   if (room.status !== 'battle' || !b || b.phase !== 'players') throw new Error('카드를 사용할 차례가 아닙니다.');
@@ -1070,12 +1103,18 @@ function playCard(room, playerId, handIndex, targetUid) {
   if (c.type === 'unit') summonUnit(room, pc, c, target);
   else castSpell(room, pc, c, target);
   pc.discard.push(cid);
+  const masteryResult = gainCardMastery(room, run, cid);
+  if (b.modifier?.everyThirdDraw && pc.stats.cardsPlayed % 3 === 0) {
+    drawCards(pc, b.modifier.everyThirdDraw);
+    battleLog(room, `${b.modifier.name}: 카드 1장을 추가로 드로우했습니다.`);
+  }
   const chainResult = updateTacticalChain(room, pc, c);
   const phaseShifts = updateBossPhase(room);
   const breakTargets = b.enemies.filter(e => e.justBroken && e.hp > 0);
   for (const e of b.enemies) e.justBroken = false;
   if (checkBattleEnd(room)) return;
-  pushRoomEvent(room, 'card', `${pc.nickname}: ${c.name}`, { playerId: pc.playerId, cardId: c.id, cardName: c.name, cardType: c.type, element: c.element, targetUid: target?.uid || null, cost, chainCount: chainResult.displayCount, chainStage: chainResult.stage, upgradeLevel:c.upgradeLevel||0 });
+  pushRoomEvent(room, 'card', `${pc.nickname}: ${c.name}`, { playerId: pc.playerId, cardId: c.id, cardName: c.name, cardType: c.type, element: c.element, targetUid: target?.uid || null, cost, chainCount: chainResult.displayCount, chainStage: chainResult.stage, upgradeLevel:Number(run.upgrades?.[c.id]||0), masteryXp:masteryResult?.xp||0 });
+  if (masteryResult && masteryResult.level > Number(c.upgradeLevel||0)) pushRoomEvent(room, 'mastery', `${masteryResult.name} 성장! ${masteryResult.level===1?'+':'++'} 단계`, { playerId:pc.playerId, cardId:c.id, level:masteryResult.level, xp:masteryResult.xp });
   for (const e of breakTargets) pushRoomEvent(room, 'enemy-break', `${e.name}의 균열 자세가 붕괴했습니다!`, { enemyUid:e.uid, enemyName:e.name });
   if (chainResult.stage) pushRoomEvent(room, 'chain', `${pc.nickname} ${chainResult.stage === 'overdrive' ? '오버드라이브' : '전술 연쇄'} 발동!`, { playerId: pc.playerId, stage: chainResult.stage, count: chainResult.displayCount });
   for (const e of phaseShifts) pushRoomEvent(room, 'boss-phase', `${e.name}이(가) 2단계로 돌입했습니다!`, { enemyUid: e.uid, enemyName: e.name, phase: 2 });
@@ -1226,6 +1265,7 @@ function applyEffects(room, pc, effects, target, source) {
 
 function applyDamage(e, amount) {
   let d = Math.max(0, Math.round(amount));
+  if (e.marked) d = Math.round(d * 1.18);
   if (e.debuffs?.vulnerable > 0) d = Math.round(d * 1.5);
   if (e.debuffs?.shock > 0) d += Math.min(8, e.debuffs.shock);
   const blocked = Math.min(e.block || 0, d);
@@ -1233,7 +1273,7 @@ function applyDamage(e, amount) {
   d -= blocked;
   e.hp = clamp(e.hp - d, 0, e.maxHp);
   if (d > 0 && e.staggerMax && !e.broken && e.hp > 0) {
-    e.stagger = clamp(Number(e.stagger || 0) + Math.max(1, Math.round(d * 0.46)), 0, e.staggerMax);
+    e.stagger = clamp(Number(e.stagger || 0) + Math.max(1, Math.round(d * 0.46 * Number(e.staggerGainMult || 1))), 0, e.staggerMax);
     if (e.stagger >= e.staggerMax) {
       e.broken = 1;
       e.justBroken = true;
@@ -1497,6 +1537,27 @@ function loseBattle(room) {
   pushRoomEvent(room, 'defeat', '원정대가 쓰러졌습니다.', { floor: room.floor });
 }
 
+function runAffinity(run) {
+  const counts = {};
+  for (const id of run?.runDeck || []) {
+    const c = CARD_BY_ID[id];
+    if (!c) continue;
+    counts[c.element] = Number(counts[c.element] || 0) + 1;
+  }
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([element,count])=>({element,count}));
+}
+function cardSynergy(run, card) {
+  if (!run || !card) return 0;
+  const top = runAffinity(run).slice(0,2).map(x=>x.element);
+  let score = 0;
+  if (top[0] === card.element) score += 2;
+  else if (top[1] === card.element) score += 1;
+  const types = (run.runDeck || []).map(id=>CARD_BY_ID[id]?.type).filter(Boolean);
+  const units = types.filter(x=>x==='unit').length, spells = types.filter(x=>x==='spell').length;
+  if ((units > spells + 3 && card.type === 'spell') || (spells > units + 3 && card.type === 'unit')) score += 1;
+  return clamp(score,0,3);
+}
+
 function rewardCardWeight(room, run, c, tier) {
   let w = Number(RARITY[c.rarity]?.rewardWeight || 0);
   const order = Number(RARITY[c.rarity]?.order || 1);
@@ -1511,6 +1572,10 @@ function rewardCardWeight(room, run, c, tier) {
   if (tier === 'merchant' && ['rare', 'ultra'].includes(c.rarity)) w *= 2.0;
   if (room.floor < 10 && c.rarity === 'legendary') w *= 0.25;
   if (room.floor < 20 && c.rarity === 'mythic') w *= 0.05;
+  const synergy = cardSynergy(run, c);
+  if (synergy === 3) w *= 2.4;
+  else if (synergy === 2) w *= 1.85;
+  else if (synergy === 1) w *= 1.35;
   return w;
 }
 function rewardItemWeight(room, run, item, tier) {
@@ -1563,15 +1628,15 @@ function rewardRelicOptions(room, playerId, n = 2) {
 
 function createPersonalRewardOptions(room, playerId, tier) {
   const run = room.runState[playerId];
-  const extra = clamp(Math.floor(modTotal(run, 'rewardChoices')), 0, 2);
-  const count = 5 + extra;
-  const cardCount = Math.max(3, Math.ceil(count * 0.58));
+  const extra = clamp(Math.floor(modTotal(run, 'rewardChoices')), 0, 1);
+  const count = 3 + extra;
+  const cardCount = Math.max(2, count - 1);
   const itemCount = count - cardCount;
   const cards = rewardCardOptions(room, playerId, cardCount, tier).map(c => ({
-    id: uid('reward'), type: 'card', cardId: c.id, card: publicCard(c), rarity: c.rarity, label: c.name
+    id: uid('reward'), type: 'card', cardId: c.id, card: publicCard(c), rarity: c.rarity, label: c.name, synergy: cardSynergy(run,c)
   }));
   const items = rewardItemOptions(room, playerId, itemCount, tier).map(i => ({
-    id: uid('reward'), type: 'item', itemId: i.id, item: publicItem(i), rarity: i.rarity, label: i.name
+    id: uid('reward'), type: 'item', itemId: i.id, item: publicItem(i), rarity: i.rarity, label: i.name, synergy: 0
   }));
   return shuffle([...cards, ...items]);
 }

@@ -1,44 +1,25 @@
-# RIFT DECK v2.7.0 — One-Screen Game Flow
+# RIFT DECK v3.0.0 — FUN LOOP OVERHAUL
 
-RIFT DECK는 Node 동적 서버 기반의 1~4인 협동 카드 로그라이트입니다. 50층 던전, 일반 여행, 카드 수집/복각 소환, Supabase 로그인/클라우드 저장, 카드 강화, 유물, 원정 서약, 심연 압력, RIFT BREAK, TACTICAL CHAIN을 유지하면서 v2.7에서 플레이 화면을 크게 단순화했습니다.
+RIFT DECK는 Node 동적 서버 기반의 1~4인 협동 카드 로그라이트입니다. v3.0은 화면에 시스템을 계속 쌓기보다, `전투 → 성장 → 3개 보상 → 다음 전투`의 반복 자체가 재미있도록 핵심 루프를 다시 조정한 버전입니다.
 
-## v2.7 핵심
-- 데스크톱 원정/전투/보상/이벤트는 스크롤 없이 한 화면 중심으로 진행합니다.
-- 한 순간에 한 가지 결정만 보여줍니다.
-- 경로 선택: 층/HP/골드/파편/유물만 남기고 서약 또는 3개 경로만 중앙 표시.
-- 전투: 플레이어/유닛은 왼쪽, 적은 오른쪽, 손패는 하단. 기본 화면에서는 HP/에너지/적 의도/손패/턴 종료에 집중.
-- 보상: 야영 → 유물 → 카드/아이템 보상 → 포획 또는 상점 → 다음 층 순서로 단계별 표시.
-- 상세 런 정보는 RUN 버튼, 전투 로그는 LOG 버튼, 덱 정제/카드 제련은 팝업으로 숨겨 화면을 단순하게 유지합니다.
-- 긴 장면 전환을 짧은 픽셀 스와이프로 교체했습니다.
-
-## 유지되는 주요 시스템
-- 카드 315종
-- 유물 22종
-- 50층 던전 / 보통·어려움·지옥
-- 1~4인 협동
-- 일반 여행 카드 봉인
-- 복각 소환
-- Supabase Auth + 클라우드 저장
-- 카드 + / ++ 강화
-- 보상 분해 / 재굴림 / 균열 파편
-- 원정 서약
-- 심연 압력
-- 보스 PHASE II
-- RIFT BREAK
-- TACTICAL CHAIN / OVERDRIVE
+## v3.0 핵심
+- 경로 선택은 일반 층에서 2개로 단순화
+- 층 보상은 기본 3개만 제시
+- 현재 덱과 맞는 카드는 SYNERGY로 표시되고 실제 등장 가중치도 올라감
+- 같은 카드를 반복 사용하면 CARD MASTERY가 쌓여 3회에 +, 8회에 ++로 자동 성장
+- 전투마다 하나의 ENCOUNTER MODIFIER가 등장해 전투 규칙과 운영이 조금씩 달라짐
+- STARTER CORE 1개 선택 후 곧바로 원정 진행
+- 기존 카드 강화, 유물, RIFT BREAK, 보스 2페이즈, 50층 협동, 여행 포획은 유지
 
 ## Render
-Build Command:
-`npm ci && npm run build`
+Build Command: `npm ci && npm run build`
 
-Start Command:
-`npm start`
+Start Command: `npm start`
 
-Health Check:
-`/healthz`
+Health Check: `/healthz`
 
 정상 배포 확인:
-- version: `2.7.0`
-- deployId: `RIFT-V2.7.0-ONE-SCREEN-20260910`
+- version: `3.0.0`
+- deployId: `RIFT-V3.0.0-FUN-LOOP-20260910`
 
-Supabase SQL 구조 변경은 없습니다. v2.6에서 정상 로그인/저장이 되었다면 그대로 사용하면 됩니다.
+Supabase SQL 구조 변경은 없습니다. 기존 로그인/저장이 정상이라면 SQL을 다시 실행할 필요가 없습니다.

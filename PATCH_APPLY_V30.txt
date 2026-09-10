@@ -1,0 +1,20 @@
+RIFT DECK v3.0 FUN LOOP PATCH 적용 방법
+
+1. 현재 GitHub 프로젝트를 백업합니다.
+2. 이 ZIP의 내용물을 GitHub 프로젝트 최상위에 그대로 덮어씁니다.
+3. Commit/Push 합니다.
+4. Render가 자동 재배포되면 /healthz를 확인합니다.
+
+정상 값:
+version: 3.0.0
+deployId: RIFT-V3.0.0-FUN-LOOP-20260910
+
+Supabase SQL은 다시 실행할 필요 없습니다.
+
+핵심 변경:
+- 일반 경로 2개
+- 기본 보상 3개
+- 덱 시너지 기반 카드 보상
+- CARD MASTERY: 3회 사용 + / 8회 사용 ++
+- 전투별 ENCOUNTER MODIFIER
+- STARTER CORE 표현으로 단순화
