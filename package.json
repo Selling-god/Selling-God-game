@@ -1,15 +1,17 @@
 {
   "name": "kx-exchange-static",
-  "version": "10.0.0",
+  "version": "11.0.0",
   "private": true,
   "scripts": {
     "build": "node scripts/build.js",
     "check": "node scripts/release-check.js",
-    "release": "npm run build && npm run check && npm run smoke && npm run logic && npm run rendercheck && npm run quality",
+    "release": "npm run build && npm run check && npm run smoke && npm run logic && npm run rendercheck && npm run startup && npm run routes && npm run quality",
     "smoke": "node scripts/steam-smoke.js",
     "quality": "node scripts/quality-audit.js",
     "logic": "node scripts/game-logic-test.js",
-    "rendercheck": "node scripts/render-matrix-test.js"
+    "rendercheck": "node scripts/render-matrix-test.js",
+    "startup": "node scripts/startup-contract-test.js",
+    "routes": "node scripts/route-integrity-test.js"
   },
   "engines": {
     "node": ">=18"

@@ -1,0 +1,21 @@
+KX CORPORATE V11.0 PATCH APPLY
+
+1) 기존 GitHub 프로젝트를 백업한다.
+2) 이 패치 ZIP의 파일을 같은 상대경로에 덮어쓴다.
+3) GitHub에 commit/push 한다.
+4) Render가 배포하기 전 로컬 가능 환경에서는 `npm run release`를 실행한다.
+5) Render Static Site Publish Directory는 기존대로 `./out`을 사용한다.
+6) 배포가 끝나면 브라우저에서 강력 새로고침(Ctrl+F5)을 1회 수행한다.
+
+V11 자체 때문에 새 Supabase SQL은 필요하지 않다.
+CEO 라운지를 이미 사용 중이라면 기존 DB 구성을 그대로 유지한다.
+
+이번 버전의 핵심 수정은 시작화면 무한대기 구조, 뉴스 시작 오버레이, 회계 수치 불일치, 세부 경영 라우팅, 모바일 메뉴 가시성, 상용 QA 자동검사다.
+
+프로젝트 정리를 원하면 아래 V10 문서는 삭제해도 됩니다(게임 실행과 무관):
+- CLEAN_SOURCE_V1000.md
+- NEXT_CHAT_START_HERE_V1000.md
+- RELEASE_NOTES_V1000.md
+- SOURCE_OF_TRUTH_V1000.md
+- STEAM_RELEASE_GATE_V1000.md
+- scripts/1
