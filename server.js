@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * RIFT DECK: ABYSS EXPEDITION v2
+ * RIFT DECK: ABYSS EXPEDITION v2.5
  * Dynamic, server-authoritative browser card roguelite.
  *
  * Design goals:
@@ -29,8 +29,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '2.3.0';
-const DEPLOY_ID = 'RIFT-V2.3.0-HQ-20260910';
+const VERSION = '2.5.0';
+const DEPLOY_ID = 'RIFT-V2.5.0-ROGUELITE-20260910';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -52,6 +52,22 @@ const RARITY = CATALOG.rarities;
 const ELEMENTS = CATALOG.elements;
 const DIFFICULTIES = CATALOG.difficulties;
 const STARTER_POOL = CATALOG.starterPool;
+
+const RUN_CONTRACTS = [
+  { id: 'vanguard', name: '선봉자의 서약', icon: '⚔', desc: '초반 화력을 얻는 대신 체력을 일부 포기합니다.', detail: '최대 HP -8 · 피해 +6% · 시작 골드 +120' },
+  { id: 'warden', name: '수호자의 서약', icon: '▣', desc: '느리지만 안정적인 생존 빌드를 시작합니다.', detail: '최대 HP +12 · 전투 시작 방어 +6 · 시작 골드 -40' },
+  { id: 'curator', name: '수집가의 서약', icon: '◇', desc: '선택지를 넓혀 원하는 빌드를 찾기 쉬워집니다.', detail: '보상 선택지 +1 · 고등급 보상 확률 +10% · 최대 HP -6' },
+  { id: 'minimalist', name: '정제자의 서약', icon: '✂', desc: '시작 덱을 얇게 만들어 핵심 카드를 더 자주 뽑습니다.', detail: '시작 덱에서 낮은 등급 카드 2장 제거 · 시작 골드 +40' },
+  { id: 'echo', name: '유물 사냥꾼의 서약', icon: '✦', desc: '초기 유물 하나로 런의 방향을 빠르게 정합니다.', detail: '일반/희귀 유물 1개 획득 · 시작 골드 -70' },
+  { id: 'gambler', name: '균열 도박사의 서약', icon: '⬡', desc: '체력을 희생해 보상 재굴림과 선택 폭을 확보합니다.', detail: '최대 HP -10 · 균열 파편 +3 · 재굴림 비용 -30%' }
+];
+const CONTRACT_BY_ID = Object.fromEntries(RUN_CONTRACTS.map(x => [x.id, x]));
+const THREAT_TOKENS = [
+  { id:'ferocity', name:'광폭 파동', icon:'▲', desc:'적 공격력 +4% · 고등급 보상 +5%', atk:0.04, hp:0.00, reward:0.05 },
+  { id:'bulwark', name:'중갑 파동', icon:'■', desc:'적 체력 +6% · 고등급 보상 +5%', atk:0.00, hp:0.06, reward:0.05 },
+  { id:'hunger', name:'심연 포식', icon:'◆', desc:'적 공격력 +2% / 체력 +3% · 고등급 보상 +7%', atk:0.02, hp:0.03, reward:0.07 },
+  { id:'distortion', name:'왜곡 증폭', icon:'✦', desc:'적 공격력 +3% / 체력 +2% · 고등급 보상 +8%', atk:0.03, hp:0.02, reward:0.08 }
+];
 
 const CARD_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
 const ITEM_BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));
@@ -460,26 +476,36 @@ function newRunPlayer(p) {
     runDeck: validDeck(p.deck),
     relics: [],
     items: {},
+    upgrades: {},
+    mods: {},
+    fragments: 0,
     gold: 180,
     cardsAdded: 0,
     itemsAdded: 0,
     revivesUsed: 0,
-    rewardRerolls: 0
+    rewardRerolls: 0,
+    removals: 0,
+    contract: null
   };
 }
 
 function itemStacks(run, itemId) { return Number(run?.items?.[itemId] || 0); }
 function modTotal(run, key) {
-  if (!run?.items) return 0;
-  let total = 0;
-  for (const [id, count] of Object.entries(run.items)) {
+  if (!run) return 0;
+  let total = Number(run.mods?.[key] || 0);
+  for (const [id, count] of Object.entries(run.items || {})) {
     const item = ITEM_BY_ID[id];
     if (!item) continue;
-    const v = Number(item.mod?.[key] || 0);
-    total += v * Number(count || 0);
+    total += Number(item.mod?.[key] || 0) * Number(count || 0);
+  }
+  for (const id of run.relics || []) {
+    const relic = RELIC_BY_ID[id];
+    if (!relic) continue;
+    total += Number(relic.mod?.[key] || 0);
   }
   return total;
 }
+
 function addItemToRun(run, itemId) {
   const item = ITEM_BY_ID[itemId];
   if (!item || !run) throw new Error('아이템을 찾을 수 없습니다.');
@@ -497,8 +523,26 @@ function addItemToRun(run, itemId) {
   return item;
 }
 function addRelic(run, relicId) {
-  if (!run || !RELIC_BY_ID[relicId] || run.relics.includes(relicId)) return;
+  if (!run || !RELIC_BY_ID[relicId] || run.relics.includes(relicId)) return false;
   run.relics.push(relicId);
+  return true;
+}
+
+function effectiveRunCard(run, base) {
+  if (!base) return base;
+  const level = clamp(Number(run?.upgrades?.[base.id] || 0), 0, 2);
+  if (!level) return base;
+  const scale = 1 + level * 0.18;
+  const boostedOps = new Set(['damage','damageAll','damageOthers','block','blockAllies','heal','healAllies','burn','buffUnits','nextAttack']);
+  const c = clone(base);
+  c.upgradeLevel = level;
+  c.name = `${base.name}${level === 1 ? ' +' : ' ++'}`;
+  c.power = Math.round(Number(base.power || 0) * scale);
+  c.block = Math.round(Number(base.block || 0) * scale);
+  c.hp = Math.round(Number(base.hp || 0) * (1 + level * 0.14));
+  if (level >= 2 && Number(base.cost || 0) >= 2) c.cost = Math.max(0, Number(base.cost) - 1);
+  c.effects = (base.effects || []).map(fx => boostedOps.has(fx.op) && Number.isFinite(Number(fx.value)) ? { ...fx, value: Math.max(1, Math.round(Number(fx.value) * scale)) } : { ...fx });
+  return c;
 }
 
 function drawCards(pc, n) {
@@ -538,6 +582,7 @@ function makeCombatant(run, index) {
     ended: false,
     down: false,
     weak: 0,
+    upgrades: { ...(run.upgrades || {}) },
     itemMods: {
       unitPower: modTotal(run, 'unitPower'),
       spellPower: modTotal(run, 'spellPower'),
@@ -589,6 +634,9 @@ function makeRoom(hostProfile, mode = 'dungeon', name = '', difficulty = 'normal
     capture: null,
     event: null,
     runState: {},
+    contractOffers: {},
+    contractClaims: {},
+    threatTokens: [],
     feed: [],
     seq: 0,
     finalClearPending: false,
@@ -625,6 +673,9 @@ function roomView(room) {
     capture: room.capture,
     event: room.event,
     runState: room.runState,
+    contractOffers: room.contractOffers || {},
+    contractClaims: room.contractClaims || {},
+    threatTokens: room.threatTokens || [],
     feed: room.feed.slice(-36),
     seq: room.seq,
     finalClearPending: room.finalClearPending
@@ -651,10 +702,14 @@ function startRoom(room) {
   if (room.status !== 'lobby') throw new Error('이미 시작된 방입니다.');
   if (!room.players.length) throw new Error('플레이어가 없습니다.');
   room.runState = {};
+  room.contractOffers = {};
+  room.contractClaims = {};
+  room.threatTokens = room.threatTokens || [];
   room.startedAt = Date.now();
   for (const rp of room.players) {
     const p = ensureProfile(rp.id, rp.nickname);
     room.runState[rp.id] = newRunPlayer(p);
+    room.contractOffers[rp.id] = shuffle(RUN_CONTRACTS).slice(0, 3);
     if (room.mode === 'dungeon') p.stats.dungeons++;
     else p.stats.journeys++;
   }
@@ -664,7 +719,47 @@ function startRoom(room) {
   room.status = 'route';
   makeRoute(room);
   const label = room.mode === 'journey' ? '일반 여행' : `${DIFFICULTIES[room.difficulty].ko} 난이도 50층 협동 던전`;
-  pushRoomEvent(room, 'start', `${label}에 진입했습니다.`);
+  pushRoomEvent(room, 'start', `${label}에 진입했습니다. 첫 경로를 고르기 전 원정 서약을 선택하세요.`);
+}
+
+function chooseRunContract(room, playerId, contractId) {
+  if (room.status !== 'route') throw new Error('원정 서약은 경로 선택 단계에서 정할 수 있습니다.');
+  if (room.contractClaims?.[playerId]) throw new Error('이미 원정 서약을 선택했습니다.');
+  const offer = (room.contractOffers?.[playerId] || []).find(x => x.id === contractId);
+  if (!offer) throw new Error('제시된 서약이 아닙니다.');
+  const run = room.runState[playerId];
+  run.mods ||= {};
+  run.upgrades ||= {};
+  if (contractId === 'vanguard') {
+    run.maxHp = Math.max(50, run.maxHp - 8); run.hp = Math.min(run.hp, run.maxHp); run.gold += 120; run.mods.damagePct = Number(run.mods.damagePct || 0) + 0.06;
+  } else if (contractId === 'warden') {
+    run.maxHp += 12; run.hp += 12; run.gold = Math.max(0, run.gold - 40); run.mods.startBlock = Number(run.mods.startBlock || 0) + 6;
+  } else if (contractId === 'curator') {
+    run.maxHp = Math.max(50, run.maxHp - 6); run.hp = Math.min(run.hp, run.maxHp); run.mods.rewardChoices = Number(run.mods.rewardChoices || 0) + 1; run.mods.rewardLuck = Number(run.mods.rewardLuck || 0) + 0.10;
+  } else if (contractId === 'minimalist') {
+    const removable = run.runDeck.map((id,idx)=>({id,idx,c:CARD_BY_ID[id]})).filter(x=>x.c).sort((a,b)=>(RARITY[a.c.rarity]?.order||0)-(RARITY[b.c.rarity]?.order||0) || Number(b.c.cost||0)-Number(a.c.cost||0));
+    const ids = removable.slice(0,2).map(x=>x.id); for (const cid of ids) { const i=run.runDeck.indexOf(cid); if(i>=0 && run.runDeck.length>10) run.runDeck.splice(i,1); } run.gold += 40;
+  } else if (contractId === 'echo') {
+    run.gold = Math.max(0, run.gold - 70); const pool=RELICS.filter(r=>['common','rare'].includes(r.rarity)); const relic=choose(pool); if(relic) addRelic(run,relic.id);
+  } else if (contractId === 'gambler') {
+    run.maxHp = Math.max(50, run.maxHp - 10); run.hp = Math.min(run.hp, run.maxHp); run.fragments += 3; run.mods.rerollDiscount = Number(run.mods.rerollDiscount || 0) + 0.30;
+  }
+  run.contract = contractId;
+  room.contractClaims ||= {};
+  room.contractClaims[playerId] = contractId;
+  pushRoomEvent(room, 'contract', `${playerName(room, playerId)} 님이 「${offer.name}」을 선택했습니다.`);
+}
+
+function addThreatToken(room) {
+  if (room.mode !== 'dungeon') return;
+  const token = clone(choose(THREAT_TOKENS));
+  room.threatTokens ||= [];
+  room.threatTokens.push(token);
+  pushRoomEvent(room, 'threat', `심연 압력 상승: ${token.name} — ${token.desc}`);
+}
+
+function threatMods(room) {
+  return (room.threatTokens || []).reduce((a,t)=>({ hp:a.hp+Number(t.hp||0), atk:a.atk+Number(t.atk||0), reward:a.reward+Number(t.reward||0) }), {hp:0,atk:0,reward:0});
 }
 
 function sampleKinds() {
@@ -684,13 +779,13 @@ function kindIcon(k) {
 }
 function kindDesc(k) {
   return ({
-    combat: '카드와 골드를 얻는 일반 전투',
-    elite: '강한 적. 초희귀 이상 보상 확률 상승',
-    boss: '10층마다 등장하는 지역 수호자',
-    event: '선택에 따라 보상 또는 위험 발생',
-    rest: '원정대 체력 회복',
-    treasure: '추가 골드와 고급 보상 운 상승',
-    merchant: '런 골드로 카드·아이템 구매'
+    combat: '안정적인 전투 보상 · 카드/아이템/골드의 기본 루트',
+    elite: '강한 적과 정면 승부 · 승리하면 별도 유물 선택권 획득',
+    boss: '10층마다 등장하는 지역 수호자 · 승리 후 심연 압력 상승',
+    event: '선택에 따라 자원·카드·아이템이 달라지는 사건',
+    rest: '회복 / 카드 강화 / 명상 중 하나를 선택하는 야영지',
+    treasure: '추가 골드 + 별도 유물 선택권',
+    merchant: '런 골드로 카드·아이템 구매 · 덱 정제 가능'
   })[k] || '';
 }
 
@@ -715,6 +810,11 @@ function makeRoute(room) {
 
 function voteRoute(room, playerId, nodeId) {
   if (room.status !== 'route') throw new Error('현재 경로를 고를 수 없습니다.');
+  if (!room.contractClaims?.[playerId]) {
+    room.contractClaims ||= {}; room.contractClaims[playerId] = 'unbound';
+    if (room.runState[playerId]) room.runState[playerId].contract = 'unbound';
+    pushRoomEvent(room, 'contract', `${playerName(room, playerId)} 님이 무서약 상태로 경로를 선택했습니다.`);
+  }
   const node = room.route.find(n => n.id === nodeId);
   if (!node) throw new Error('경로가 없습니다.');
   room.route.forEach(n => n.votes = n.votes.filter(x => x !== playerId));
@@ -728,55 +828,76 @@ function voteRoute(room, playerId, nodeId) {
 
 function roomDifficulty(room) { return DIFFICULTIES[room.difficulty] || DIFFICULTIES.normal; }
 
+function makeEventEncounter(room) {
+  const biome = currentBiome(room);
+  const scenes = {
+    verdant: [
+      {title:'이끼 낀 신호탑',text:'녹슨 송신기 사이에서 아직 살아 있는 잔광 신호가 잡힙니다. 안전하게 철수할지, 더 깊이 손을 뻗을지 결정해야 합니다.'},
+      {title:'유리등 회랑',text:'빛이 늦게 따라오는 회랑입니다. 밝은 길은 안전하지만, 어두운 쪽에는 강한 카드 잔향이 남아 있습니다.'}
+    ],
+    ember: [
+      {title:'꺼지지 않는 제련로',text:'제련로 안쪽에 카드 코어가 박혀 있습니다. 냉각을 기다리면 안전하지만, 지금 꺼내면 더 좋은 전리품을 얻을 수 있습니다.'},
+      {title:'고철 운송선',text:'멈춘 운송선에 보급품이 쌓여 있습니다. 무게 센서가 살아 있어 욕심을 부리면 경보가 울릴 수 있습니다.'}
+    ],
+    frost: [
+      {title:'빙벽 야영 흔적',text:'얼어붙은 화롯가와 부서진 천막이 보입니다. 오래된 원정대가 남긴 자원을 회수할 수 있습니다.'},
+      {title:'균열 아래의 상자',text:'얼음 아래에 봉인된 상자가 보입니다. 안전하게 주변을 녹일지, 체력을 써서 바로 꺼낼지 선택해야 합니다.'}
+    ],
+    astral: [
+      {title:'뒤집힌 성소',text:'중력이 뒤틀린 성소에서 카드들이 허공에 떠다닙니다. 어떤 힘을 붙잡느냐에 따라 원정의 속도가 크게 바뀝니다.'},
+      {title:'잠든 관측소',text:'별의 궤도를 기록한 장치가 아직 작동합니다. 데이터를 해독하면 보상 흐름을 유리하게 만들 수 있습니다.'}
+    ],
+    origin: [
+      {title:'기원의 제단',text:'심연의 중심부에서 금빛 균열이 열립니다. 얻는 힘은 크지만, 다음 수호자를 앞둔 지금의 체력과 덱 밀도를 함께 계산해야 합니다.'},
+      {title:'검은 우편함',text:'이전 원정대가 남긴 마지막 기록이 도착해 있습니다. 봉인을 풀면 강한 보상을 얻을 수 있지만 대가도 큽니다.'}
+    ]
+  };
+  const scene = choose(scenes[biome.id] || scenes.verdant);
+  const late = room.floor >= 31;
+  return {
+    id: uid('event'),
+    title: scene.title,
+    text: scene.text,
+    choices: [
+      { id:'safe', label:'안전하게 정비한다', desc:`체력 ${late?12:10} 회복 · 확실한 생존 선택` },
+      { id:'risk', label:'위험을 감수하고 핵심을 회수한다', desc:`체력 ${late?15:12} 소모 · 희귀 이상 카드 1장 즉시 획득` },
+      { id:'scout', label:'주변을 정찰해 자원을 모은다', desc:`런 골드와 균열 파편 획득 · 이후 재굴림에 활용` },
+      { id:'seal', label:'봉인 의식을 시도한다', desc:'기본 봉인구 1개 사용 · 성공 시 랜덤 런 아이템 획득' }
+    ],
+    chosenBy: {}
+  };
+}
+
 function resolveNode(room, node) {
   if (['combat', 'elite', 'boss'].includes(node.kind)) {
     startBattle(room, node.kind);
     return;
   }
   if (node.kind === 'rest') {
-    for (const rp of room.players) {
-      const run = room.runState[rp.id];
-      if (!run) continue;
-      const bonus = (run.relics.includes('r002') ? 8 : 0) + modTotal(run, 'restFlat');
-      const pct = 0.27 + modTotal(run, 'restPct');
-      run.hp = clamp(run.hp + Math.round(run.maxHp * pct) + bonus, 1, run.maxHp);
-      if (room.mode === 'journey') {
-        const p = profiles[rp.id];
-        p.seals.basic = (p.seals.basic || 0) + 1;
-      }
-    }
-    saveProfiles();
-    createFloorReward(room, 'rest', '별빛 야영지', '체력을 회복했습니다. 이제 이번 층의 무료 보상을 하나 선택하세요.', 'rest');
-    pushRoomEvent(room, 'rest', '원정대가 야영지에서 숨을 고릅니다.');
+    createFloorReward(room, 'rest', '별빛 야영지', '이번 야영에서는 회복, 카드 강화, 명상 중 하나를 먼저 선택합니다. 이후 보상은 필요하면 건너뛰어 덱을 얇게 유지할 수 있습니다.', 'rest', { camp: true, campBy: {} });
+    pushRoomEvent(room, 'rest', '원정대가 별빛 야영지에 도착했습니다.');
     return;
   }
   if (node.kind === 'treasure') {
     const bonusGold = 90 + room.floor * 4;
-    for (const rp of room.players) room.runState[rp.id].gold += bonusGold;
-    createFloorReward(room, 'treasure', '봉인된 금고', `각자 런 골드 ${bonusGold}G를 획득했습니다. 보물층은 보상 등급이 조금 더 높습니다.`, 'elite');
+    for (const rp of room.players) {
+      const run=room.runState[rp.id];
+      run.gold += Math.round(bonusGold * (1 + modTotal(run,'goldPct')));
+    }
+    createFloorReward(room, 'treasure', '봉인된 금고', `각자 런 골드 ${bonusGold}G 이상을 획득했습니다. 금고에서는 별도의 유물 선택권도 제공됩니다.`, 'elite');
     pushRoomEvent(room, 'treasure', '오래된 금고가 열렸습니다.');
     return;
   }
   if (node.kind === 'merchant') {
     const shop = makeMerchantStock(room);
-    createFloorReward(room, 'merchant', '유랑 상점', '무료 보상 1개를 고른 뒤, 런 골드가 남는다면 상점 상품도 구매할 수 있습니다.', 'merchant', { shop, purchased: {} });
+    createFloorReward(room, 'merchant', '유랑 상점', '무료 보상은 선택하거나 분해할 수 있습니다. 상점에서는 카드·아이템 구매와 덱 정제도 가능합니다.', 'merchant', { shop, purchased: {} });
     pushRoomEvent(room, 'merchant', '등불을 든 상인이 길을 막아섰습니다.');
     return;
   }
   if (node.kind === 'event') {
-    room.event = {
-      id: uid('event'),
-      title: choose(['금이 간 거울문', '잠든 관측소', '뒤집힌 성소', '검은 우편함']),
-      text: '심연이 세 가지 대가를 제시합니다. 선택은 각 원정대원에게 개별 적용됩니다.',
-      choices: [
-        { id: 'safe', label: '숨을 고른다', desc: '체력 10 회복' },
-        { id: 'risk', label: '심연에 손을 넣는다', desc: '체력 12 소모 · 희귀 이상 카드 획득' },
-        { id: 'seal', label: '봉인 의식을 시도한다', desc: '기본 봉인구 1개 · 랜덤 런 아이템 획득 시도' }
-      ],
-      chosenBy: {}
-    };
+    room.event = makeEventEncounter(room);
     room.status = 'event';
-    pushRoomEvent(room, 'event', '미지의 사건이 발생했습니다.');
+    pushRoomEvent(room, 'event', `${room.event.title} 사건이 발생했습니다.`);
   }
 }
 
@@ -804,16 +925,23 @@ function chooseEvent(room, playerId, choiceId) {
   const p = profiles[playerId];
   let message = '';
   if (choiceId === 'safe') {
-    run.hp = clamp(run.hp + 10, 1, run.maxHp);
-    message = '체력 10을 회복했습니다.';
+    const heal = room.floor >= 31 ? 12 : 10;
+    run.hp = clamp(run.hp + heal, 1, run.maxHp);
+    message = `체력 ${heal}을 회복했습니다.`;
   } else if (choiceId === 'risk') {
-    run.hp = Math.max(1, run.hp - 12);
+    const loss = room.floor >= 31 ? 15 : 12;
+    run.hp = Math.max(1, run.hp - loss);
     const pool = CARDS.filter(c => !c.limited && c.rarity !== 'common');
-    const c = weighted(pool, c => Number(RARITY[c.rarity].travelWeight));
+    const c = weighted(pool, c => Number(RARITY[c.rarity].travelWeight) * (room.floor >= 31 && ['ultra','legendary','mythic'].includes(c.rarity) ? 1.7 : 1));
     addCardToProfile(p, c.id, 1, false);
-    if (run.runDeck.length < 36) run.runDeck.push(c.id);
+    if (run.runDeck.length < 40) run.runDeck.push(c.id);
     run.cardsAdded++;
-    message = `체력 12를 대가로 「${c.name}」 획득.`;
+    message = `체력 ${loss}를 대가로 「${c.name}」 획득.`;
+  } else if (choiceId === 'scout') {
+    const gold = 34 + room.floor * 3;
+    run.gold += Math.round(gold * (1 + modTotal(run,'goldPct')));
+    run.fragments = Number(run.fragments || 0) + 1 + (room.floor >= 25 ? 1 : 0);
+    message = `런 골드 ${gold}G 이상과 균열 파편을 획득했습니다.`;
   } else if (choiceId === 'seal') {
     if ((p.seals.basic || 0) < 1) throw new Error('기본 봉인구가 없습니다.');
     p.seals.basic--;
@@ -827,7 +955,7 @@ function chooseEvent(room, playerId, choiceId) {
   saveProfiles();
   if (Object.keys(room.event.chosenBy).length >= room.players.length) {
     room.event = null;
-    createFloorReward(room, 'event', '사건 통과', '모든 원정대원이 선택을 마쳤습니다. 이번 층의 무료 보상을 고르세요.', 'event');
+    createFloorReward(room, 'event', '사건 통과', '사건을 통과했습니다. 보상을 하나 선택하거나 분해해 덱 밀도를 유지하세요.', 'event');
   }
   pushRoomEvent(room, 'event-choice', `${playerName(room, playerId)}: ${message}`);
 }
@@ -859,8 +987,9 @@ function startBattle(room, tier) {
       else if (room.floor < 8) pool = pool.filter(e => e.tier !== 'ultra');
       base = clone(choose(pool.length ? pool : ENEMIES));
     }
-    const floorHp = 1 + (room.floor - 1) * 0.022;
-    const floorAtk = 1 + (room.floor - 1) * 0.012;
+    const threat = threatMods(room);
+    const floorHp = (1 + (room.floor - 1) * 0.022) * (1 + threat.hp);
+    const floorAtk = (1 + (room.floor - 1) * 0.012) * (1 + threat.atk);
     const partyHp = (1 + (scale - 1) * 0.48) * diff.partyScale;
     const eliteScale = tier === 'elite' ? 1.24 : 1;
     base.uid = uid('enemy');
@@ -921,7 +1050,9 @@ function playCard(room, playerId, handIndex, targetUid) {
   if (!pc || pc.down || pc.ended) throw new Error('행동할 수 없습니다.');
   const index = Number(handIndex);
   const cid = pc.hand[index];
-  const c = CARD_BY_ID[cid];
+  const base = CARD_BY_ID[cid];
+  const run = room.runState[playerId];
+  const c = effectiveRunCard(run, base);
   if (!c) throw new Error('카드가 없습니다.');
   const previewCost = Math.max(0, c.cost - (pc.buffs.anyDiscount > 0 ? 1 : (c.type === 'spell' && pc.buffs.spellDiscount > 0 ? 1 : 0)));
   if (pc.energy < previewCost) throw new Error('에너지가 부족합니다.');
@@ -937,7 +1068,7 @@ function playCard(room, playerId, handIndex, targetUid) {
   const chainResult = updateTacticalChain(room, pc, c);
   const phaseShifts = updateBossPhase(room);
   if (checkBattleEnd(room)) return;
-  pushRoomEvent(room, 'card', `${pc.nickname}: ${c.name}`, { playerId: pc.playerId, cardId: c.id, cardName: c.name, cardType: c.type, element: c.element, targetUid: target?.uid || null, cost, chainCount: chainResult.displayCount, chainStage: chainResult.stage });
+  pushRoomEvent(room, 'card', `${pc.nickname}: ${c.name}`, { playerId: pc.playerId, cardId: c.id, cardName: c.name, cardType: c.type, element: c.element, targetUid: target?.uid || null, cost, chainCount: chainResult.displayCount, chainStage: chainResult.stage, upgradeLevel:c.upgradeLevel||0 });
   if (chainResult.stage) pushRoomEvent(room, 'chain', `${pc.nickname} ${chainResult.stage === 'overdrive' ? '오버드라이브' : '전술 연쇄'} 발동!`, { playerId: pc.playerId, stage: chainResult.stage, count: chainResult.displayCount });
   for (const e of phaseShifts) pushRoomEvent(room, 'boss-phase', `${e.name}이(가) 2단계로 돌입했습니다!`, { enemyUid: e.uid, enemyName: e.name, phase: 2 });
 }
@@ -1291,6 +1422,8 @@ function winBattle(room) {
     const goldPct = 1 + modTotal(run, 'goldPct');
     const gemPct = 1 + modTotal(run, 'gemPct');
     run.gold += Math.round(baseGold * diff.gold * goldPct);
+    if (b.tier === 'elite') run.fragments = Number(run.fragments||0) + 1;
+    if (boss) run.fragments = Number(run.fragments||0) + 2;
     p.gems += Math.round(baseGems * diff.gems * gemPct);
     const pc = b.party.find(x => x.playerId === rp.id);
     gradeBy[rp.id] = combatGrade(pc, b);
@@ -1315,7 +1448,7 @@ function winBattle(room) {
   saveProfiles();
   room.finalClearPending = room.mode === 'dungeon' && room.floor === DUNGEON_MAX_FLOOR;
   const title = room.finalClearPending ? '50층 최종 수호자 격파!' : boss ? '지역 보스 격파!' : b.tier === 'elite' ? '정예 격파!' : '전투 승리';
-  const text = `전투 골드와 프리즘을 획득했습니다. 카드 또는 런 아이템 중 하나를 선택하세요.`;
+  const text = `전투 보상을 선택하세요. 필요 없는 보상은 분해해 덱을 얇게 유지할 수 있습니다.${b.tier==='elite'||boss?' 추가 유물 선택권도 열렸습니다.':''}`;
   createFloorReward(room, 'battle', title, text, b.tier);
   room.reward.perfectBy = perfectBy;
   room.reward.gradeBy = gradeBy;
@@ -1343,7 +1476,7 @@ function rewardCardWeight(room, run, c, tier) {
   const order = Number(RARITY[c.rarity]?.order || 1);
   const diffLuck = roomDifficulty(room).rewardLuck;
   const itemLuck = 1 + modTotal(run, 'rewardLuck');
-  const floorLuck = 1 + Math.min(0.55, room.floor / 100);
+  const floorLuck = 1 + Math.min(0.55, room.floor / 100) + threatMods(room).reward;
   if (order >= 3) w *= diffLuck * itemLuck * floorLuck;
   if (tier === 'elite' && order >= 3) w *= 2.4;
   if (tier === 'boss' && order >= 3) w *= 4.8;
@@ -1359,7 +1492,7 @@ function rewardItemWeight(room, run, item, tier) {
   const order = Number(RARITY[item.rarity]?.order || 1);
   const diffLuck = roomDifficulty(room).rewardLuck;
   const itemLuck = 1 + modTotal(run, 'rewardLuck');
-  if (order >= 3) w *= diffLuck * itemLuck * (1 + Math.min(0.45, room.floor / 120));
+  if (order >= 3) w *= diffLuck * itemLuck * (1 + Math.min(0.45, room.floor / 120) + threatMods(room).reward);
   if (tier === 'elite' && order >= 3) w *= 2.2;
   if (tier === 'boss' && order >= 3) w *= 4.0;
   if (tier === 'merchant' && ['rare', 'ultra'].includes(item.rarity)) w *= 2.1;
@@ -1389,6 +1522,19 @@ function rewardItemOptions(room, playerId, n, tier = 'combat') {
   return out;
 }
 
+function rewardRelicOptions(room, playerId, n = 2) {
+  const run = room.runState[playerId];
+  const owned = new Set(run.relics || []);
+  const pool = RELICS.filter(r => !owned.has(r.id));
+  const out = [];
+  while (out.length < n && pool.length) {
+    const r = weighted(pool.filter(x => !out.some(y => y.id === x.id)), x => Number(RARITY[x.rarity]?.rewardWeight || 1) * (['legendary','mythic'].includes(x.rarity) ? (1 + room.floor/80) : 1));
+    if (!r) break;
+    out.push(clone(r));
+  }
+  return out;
+}
+
 function createPersonalRewardOptions(room, playerId, tier) {
   const run = room.runState[playerId];
   const extra = clamp(Math.floor(modTotal(run, 'rewardChoices')), 0, 2);
@@ -1407,9 +1553,12 @@ function createPersonalRewardOptions(room, playerId, tier) {
 function createFloorReward(room, sourceKind, title, text, tier = 'combat', extras = {}) {
   const playerOptions = {};
   const rerolls = {};
+  const relicOptions = {};
   for (const rp of room.players) {
     playerOptions[rp.id] = createPersonalRewardOptions(room, rp.id, tier);
     rerolls[rp.id] = 0;
+    const relicCount = tier === 'boss' ? 3 : (tier === 'elite' || sourceKind === 'treasure' ? 2 : 0);
+    relicOptions[rp.id] = relicCount ? rewardRelicOptions(room, rp.id, relicCount) : [];
   }
   room.reward = {
     kind: sourceKind,
@@ -1420,6 +1569,10 @@ function createFloorReward(room, sourceKind, title, text, tier = 'combat', extra
     claims: {},
     continueBy: [],
     rerolls,
+    relicOptions,
+    relicClaims: {},
+    campBy: extras.campBy || {},
+    camp: Boolean(extras.camp),
     ...extras
   };
   room.status = 'reward';
@@ -1437,6 +1590,72 @@ function makeCaptureEncounter(floor, tier, room) {
     return w;
   });
   return { id: uid('echo'), cardId: c.id, card: publicCard(c), attemptedBy: [], escaped: false, caughtBy: null };
+}
+
+function salvageReward(room, playerId) {
+  if (room.status !== 'reward' || !room.reward) throw new Error('보상 단계가 아닙니다.');
+  if (room.reward.claims[playerId]) throw new Error('이미 보상을 선택했습니다.');
+  const run = room.runState[playerId];
+  const gold = 24 + room.floor * 3;
+  run.gold += Math.round(gold * (1 + modTotal(run,'goldPct')));
+  run.fragments = Number(run.fragments || 0) + 1;
+  room.reward.claims[playerId] = { type:'salvage', id:'salvage', label:`보상 분해 · +${gold}G · 균열 파편 +1` };
+  pushRoomEvent(room, 'salvage', `${playerName(room, playerId)} 님이 보상을 분해해 덱을 얇게 유지했습니다.`);
+}
+
+function claimRelicReward(room, playerId, relicId) {
+  if (room.status !== 'reward' || !room.reward) throw new Error('보상 단계가 아닙니다.');
+  if (room.reward.relicClaims?.[playerId]) throw new Error('이미 유물을 선택했습니다.');
+  const options = room.reward.relicOptions?.[playerId] || [];
+  const relic = options.find(x => x.id === relicId);
+  if (!relic) throw new Error('선택 가능한 유물이 아닙니다.');
+  const run = room.runState[playerId];
+  addRelic(run, relicId);
+  room.reward.relicClaims ||= {};
+  room.reward.relicClaims[playerId] = relicId;
+  pushRoomEvent(room, 'relic', `${playerName(room, playerId)} 님이 유물 「${relic.name}」을 획득했습니다.`);
+}
+
+function trimRewardDeck(room, playerId, cardId) {
+  if (room.status !== 'reward' || !room.reward) throw new Error('보상 단계가 아닙니다.');
+  if (!['merchant','rest'].includes(room.reward.kind)) throw new Error('덱 정제는 상점 또는 야영지에서만 할 수 있습니다.');
+  const run = room.runState[playerId];
+  room.reward.trimBy ||= {};
+  if (room.reward.trimBy[playerId]) throw new Error('이 장소에서는 이미 덱을 정제했습니다.');
+  const idx = run.runDeck.indexOf(cardId);
+  if (idx < 0) throw new Error('현재 런 덱에 없는 카드입니다.');
+  if (run.runDeck.length <= 10) throw new Error('덱이 너무 얇아 더 이상 제거할 수 없습니다.');
+  const cost = 70 + Number(run.removals || 0) * 25;
+  if (run.gold < cost) throw new Error(`런 골드가 부족합니다. 정제 비용 ${cost}G`);
+  run.gold -= cost;
+  run.runDeck.splice(idx,1);
+  run.removals = Number(run.removals || 0) + 1;
+  room.reward.trimBy[playerId] = cardId;
+  pushRoomEvent(room,'deck-trim',`${playerName(room,playerId)} 님이 덱에서 「${CARD_BY_ID[cardId]?.name||cardId}」을 제거했습니다.`);
+  return { cost, cardName:CARD_BY_ID[cardId]?.name||cardId };
+}
+
+function campRewardAction(room, playerId, mode, cardId) {
+  if (room.status !== 'reward' || !room.reward?.camp) throw new Error('야영지 행동 단계가 아닙니다.');
+  room.reward.campBy ||= {};
+  if (room.reward.campBy[playerId]) throw new Error('이번 야영지 행동은 이미 완료했습니다.');
+  const run = room.runState[playerId];
+  let label='';
+  if (mode === 'rest') {
+    const heal = Math.max(12, Math.round(run.maxHp * (0.30 + modTotal(run,'restPct'))) + Math.round(modTotal(run,'restFlat')));
+    const before=run.hp; run.hp=clamp(run.hp+heal,1,run.maxHp); label=`휴식 · HP +${run.hp-before}`;
+  } else if (mode === 'upgrade') {
+    if (!CARD_BY_ID[cardId] || !run.runDeck.includes(cardId)) throw new Error('강화할 카드를 찾을 수 없습니다.');
+    run.upgrades ||= {};
+    const level=Number(run.upgrades[cardId]||0);
+    if (level>=2) throw new Error('이 카드는 이미 최대 강화입니다.');
+    run.upgrades[cardId]=level+1; label=`제련 · ${CARD_BY_ID[cardId].name} ${level+1===1?'+':'++'}`;
+  } else if (mode === 'meditate') {
+    run.fragments = Number(run.fragments||0)+2; run.gold += 40; label='명상 · 균열 파편 +2 · 40G';
+  } else throw new Error('지원하지 않는 야영 행동입니다.');
+  room.reward.campBy[playerId]={mode,cardId:cardId||null,label};
+  pushRoomEvent(room,'camp',`${playerName(room,playerId)}: ${label}`);
+  return { label };
 }
 
 function claimReward(room, playerId, rewardId) {
@@ -1460,22 +1679,28 @@ function claimReward(room, playerId, rewardId) {
   pushRoomEvent(room, 'reward', `${p.nickname} 님이 「${room.reward.claims[playerId].label}」 선택.`);
 }
 
-function rerollReward(room, playerId) {
+function rerollReward(room, playerId, currency = 'gold') {
   if (room.status !== 'reward' || !room.reward) throw new Error('보상 단계가 아닙니다.');
   if (room.reward.claims[playerId]) throw new Error('이미 보상을 선택했습니다.');
   const run = room.runState[playerId];
   const count = Number(room.reward.rerolls?.[playerId] || 0);
   if (count >= 5) throw new Error('이 층에서는 최대 5회까지 재굴림할 수 있습니다.');
-  const discount = Math.min(0.70, modTotal(run, 'rerollDiscount'));
-  const base = 42 + room.floor * 3;
-  const cost = Math.max(20, Math.round(base * Math.pow(1.55, count) * (1 - discount)));
-  if (run.gold < cost) throw new Error(`런 골드가 부족합니다. 재굴림 비용 ${cost}G`);
-  run.gold -= cost;
+  let cost=0;
+  if (currency === 'fragment') {
+    if (Number(run.fragments||0)<1) throw new Error('균열 파편이 부족합니다.');
+    run.fragments -= 1; cost=1;
+  } else {
+    const discount = Math.min(0.70, modTotal(run, 'rerollDiscount'));
+    const base = 42 + room.floor * 3;
+    cost = Math.max(20, Math.round(base * Math.pow(1.55, count) * (1 - discount)));
+    if (run.gold < cost) throw new Error(`런 골드가 부족합니다. 재굴림 비용 ${cost}G`);
+    run.gold -= cost;
+  }
   room.reward.rerolls[playerId] = count + 1;
   room.reward.playerOptions[playerId] = createPersonalRewardOptions(room, playerId, room.reward.tier || 'combat');
   run.rewardRerolls++;
   pushRoomEvent(room, 'reroll', `${playerName(room, playerId)} 님이 보상을 재굴림했습니다.`);
-  return { cost, nextCost: Math.max(20, Math.round(base * Math.pow(1.55, count + 1) * (1 - discount))) };
+  return { cost, currency };
 }
 
 function buyReward(room, playerId, itemId, itemType = 'card') {
@@ -1501,7 +1726,10 @@ function buyReward(room, playerId, itemId, itemType = 'card') {
 function continueAfterReward(room, playerId) {
   if (room.status !== 'reward' || !room.reward) throw new Error('진행할 수 없습니다.');
   const options = room.reward.playerOptions?.[playerId] || [];
-  if (options.length && !room.reward.claims[playerId]) throw new Error('먼저 카드 또는 아이템 보상 1개를 선택해 주세요.');
+  if (options.length && !room.reward.claims[playerId]) throw new Error('보상을 선택하거나 분해해 주세요.');
+  const relicOptions = room.reward.relicOptions?.[playerId] || [];
+  if (relicOptions.length && !room.reward.relicClaims?.[playerId]) claimRelicReward(room, playerId, relicOptions[0].id);
+  if (room.reward.camp && !room.reward.campBy?.[playerId]) campRewardAction(room, playerId, 'rest');
   if (!room.reward.continueBy.includes(playerId)) room.reward.continueBy.push(playerId);
   if (room.reward.continueBy.length < room.players.length) {
     pushRoomEvent(room, 'continue', `${playerName(room, playerId)} 님이 다음 층 준비 완료.`);
@@ -1510,7 +1738,6 @@ function continueAfterReward(room, playerId) {
   if (room.finalClearPending) {
     room.status = 'cleared';
     room.finalClearPending = false;
-    const diff = roomDifficulty(room);
     const clearBonus = room.difficulty === 'hell' ? 1800 : room.difficulty === 'hard' ? 1150 : 750;
     for (const rp of room.players) {
       const p = profiles[rp.id];
@@ -1520,16 +1747,11 @@ function continueAfterReward(room, playerId) {
     }
     recordRunHistory(room, 'clear');
     saveProfiles();
-    room.reward = {
-      kind: 'clear',
-      title: `${DIFFICULTIES[room.difficulty].ko} 난이도 심연 원정 완료`,
-      text: `50층을 돌파했습니다. 원정대 전원에게 클리어 보너스 프리즘 ${clearBonus}개 지급.`,
-      playerOptions: {}, claims: {}, continueBy: []
-    };
+    room.reward = { kind:'clear', title:`${DIFFICULTIES[room.difficulty].ko} 난이도 심연 원정 완료`, text:`50층을 돌파했습니다. 원정대 전원에게 클리어 보너스 프리즘 ${clearBonus}개 지급.`, playerOptions:{}, claims:{}, continueBy:[] };
     pushRoomEvent(room, 'clear', `50층 ${DIFFICULTIES[room.difficulty].ko} 던전을 클리어했습니다!`);
     return;
   }
-
+  if (room.mode === 'dungeon' && room.floor % 10 === 0) addThreatToken(room);
   const oldBiomeIndex = room.biomeIndex;
   room.floor++;
   room.biomeIndex = room.mode === 'dungeon' ? Math.min(BIOMES.length - 1, Math.floor((room.floor - 1) / 10)) : Math.floor((room.floor - 1) / 10) % BIOMES.length;
@@ -1812,11 +2034,17 @@ const server = http.createServer(async (req, res) => {
         const b = await parseBody(req); const prof = await authProfile(req, res, b); assertMember(room, prof.id);
         if (action === 'start') { if (room.hostId !== prof.id) throw new Error('방장만 시작할 수 있습니다.'); startRoom(room); return ok(res, { room: roomView(room) }); }
         if (action === 'vote') { voteRoute(room, prof.id, b.nodeId); return ok(res, { room: roomView(room) }); }
+        if (action === 'contract') { chooseRunContract(room, prof.id, b.contractId); return ok(res, { room: roomView(room) }); }
         if (action === 'play') { playCard(room, prof.id, b.handIndex, b.targetUid); return ok(res, { room: roomView(room) }); }
         if (action === 'end-turn') { endTurn(room, prof.id); return ok(res, { room: roomView(room) }); }
         if (action === 'event') { chooseEvent(room, prof.id, b.choiceId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
         if (action === 'reward') { claimReward(room, prof.id, b.rewardId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
-        if (action === 'reroll') { const result = rerollReward(room, prof.id); return ok(res, { result, room: roomView(room) }); }
+        if (action === 'salvage') { salvageReward(room, prof.id); return ok(res, { room: roomView(room) }); }
+        if (action === 'relic') { claimRelicReward(room, prof.id, b.relicId); return ok(res, { room: roomView(room) }); }
+        if (action === 'camp') { const result=campRewardAction(room, prof.id, b.mode, b.cardId); return ok(res, { result, room: roomView(room) }); }
+        if (action === 'trim') { const result=trimRewardDeck(room, prof.id, b.cardId); return ok(res, { result, room: roomView(room) }); }
+        if (action === 'reroll') { const result = rerollReward(room, prof.id, 'gold'); return ok(res, { result, room: roomView(room) }); }
+        if (action === 'reroll-fragment') { const result = rerollReward(room, prof.id, 'fragment'); return ok(res, { result, room: roomView(room) }); }
         if (action === 'buy') { buyReward(room, prof.id, b.itemId, b.itemType); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
         if (action === 'continue') { continueAfterReward(room, prof.id); return ok(res, { room: roomView(room) }); }
         if (action === 'capture') { const result = attemptCapture(room, prof.id, b.sealType); return ok(res, { result, room: roomView(room), profile: profileView(profiles[prof.id]) }); }
