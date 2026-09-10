@@ -10,7 +10,7 @@ const errors=[],notes=[];
 const need=(ok,msg)=>{if(!ok)errors.push(msg);else notes.push(msg)};
 const count=(needle,hay=app)=>hay.split(needle).length-1;
 
-need(app.includes("const KX_COMPANY_BUILD='10.0.0-STEAM-QUALITY-GATE'"),'V10 release marker');
+need(app.includes("const KX_COMPANY_BUILD='11.0.0-STEAM-RETAIL-CANDIDATE'"),'V11 release marker');
 need(app.includes('minlength="4"')&&app.includes('password.length<4'),'password rule is consistently minimum 4 characters');
 need(!app.includes('비밀번호는 최소 6자')&&!app.includes('minlength="6"'),'no stale 6-character password rule');
 need(count("if(f==='미국')")===1,'market filter has one US branch');
@@ -30,6 +30,16 @@ need(app.includes('function retireLegacyCaches(')&&app.includes('navigator.servi
 need(app.includes("x.holder_company_id!=null||String(x.holder_name||'').trim()||String(x.holder_ticker||'').trim()"),'incoming shareholder sanitizer retains ID/ticker-only valid rows');
 need(app.includes('companyActionBusy')&&app.includes('bankActionBusy')&&app.includes('communitySending'),'economic/community double-submit guards present');
 need(app.includes('const KX_SERVER_AUTHORITY=true'),'commercial build uses server-authoritative economic/talent state');
+need(app.includes('function renderCompanyLoadingRoom(')&&app.includes('startupHydrating'),'startup has a player-safe progressive hydration screen');
+need(app.includes('function renderCeoMoneyBridge(')&&app.includes('MONEY TRACE'),'CEO home centralizes the money trail before deep financial drill-down');
+need(app.includes('function companyFinanceSnapshot(')&&app.includes('operating_expenses')&&app.includes('net_profit'),'management accounting reconciler handles server field aliases');
+need(app.includes('accountingCashFlow')&&app.includes('집계 대기'),'unknown cash-flow data is not displayed as false zero');
+need(app.includes('WORKING CAPITAL')&&!app.includes('<b>BALANCE SHEET</b>'),'partial accounting data is not misrepresented as a balanced statutory balance sheet');
+need(app.includes('재무현금흐름')&&app.includes('운전자본 변동'),'cash-flow desk separates flows from working-capital balances');
+need(app.includes('startupWatchdog')&&app.includes('},8000);'),'startup cannot remain on hydration state indefinitely');
+need(app.includes('companySnapshotEpoch')&&app.includes('epoch!==companySnapshotEpoch'),'stale optional company responses are rejected');
+need(app.includes('function queueLiveFlash(')&&app.includes('flushPendingLiveFlash'),'live news is deferred until the main UI is ready');
+need(!app.includes('data-company-section-jump="operations"')&&!app.includes('data-company-section-jump="people"')&&!app.includes('data-company-section-jump="competition"'),'core decision buttons avoid broad section-only routing');
 need(app.includes('if(KX_SERVER_AUTHORITY)return false;'),'speculative economic fallback is disabled in commercial mode');
 need(app.includes('if(!KX_SERVER_AUTHORITY&&localTalentPoachFallbackable')&&app.includes('if(!KX_SERVER_AUTHORITY&&localTalentTrainingFallbackable'),'client-only talent success fallbacks are disabled in commercial mode');
 for(const jargon of ['패치 이전 과도 누적분','서버 원시지분','로컬 대체 연수비'])need(!app.includes(jargon),`player-facing developer jargon absent: ${jargon}`);
@@ -56,7 +66,7 @@ const renderDecl=new Set([...app.matchAll(/\bfunction\s+(render[A-Z][A-Za-z0-9_$
 const missing=renderRefs.filter(n=>!renderDecl.has(n));need(!missing.length,missing.length?`all render references defined (${missing.join(', ')})`:'all render references defined');
 
 // Core responsive protection for the densest release screens.
-for(const token of ['.quality-takeover-board','.shareholder-register','.stake-identity','.company-analysis-layout-v646','@media(max-width:760px)']) need(css.includes(token),`CSS safeguard ${token}`);
+for(const token of ['.quality-takeover-board','.shareholder-register','.stake-identity','.company-analysis-layout-v646','.retail-hydration-card','.ceo-money-bridge','.compact-online-banner','.accounting-pending','@media(max-width:760px)','grid-template-columns:repeat(3,minmax(0,1fr))!important']) need(css.includes(token),`CSS safeguard ${token}`);
 
 // Deploy roots must be byte-identical after build.
 const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
@@ -68,9 +78,9 @@ for(const dirName of ['.','public','out','dist','build','site']){
 }
 
 if(errors.length){
-  console.error('[KX QUALITY AUDIT V10] FAILED');
+  console.error('[KX QUALITY AUDIT V11] FAILED');
   for(const e of errors)console.error(' - '+e);
   process.exit(1);
 }
-console.log('[KX QUALITY AUDIT V10] PASS');
+console.log('[KX QUALITY AUDIT V11] PASS');
 for(const n of notes)console.log(' - '+n);

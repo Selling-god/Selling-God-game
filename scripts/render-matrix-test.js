@@ -50,8 +50,8 @@ for(const [section,tab,key] of cases){
     if(!html.includes('company-page'))failures.push(`${section}/${tab}: company page wrapper missing`);
   }catch(err){failures.push(`${section}/${tab}: ${err&&err.stack?err.stack:err}`)}
 }
-if(failures.length){console.error('[KX RENDER MATRIX V10] FAILED');for(const f of failures)console.error(' - '+f);process.exit(1)}
-console.log('[KX RENDER MATRIX V10] PASS');
+if(failures.length){console.error('[KX RENDER MATRIX V11] FAILED');for(const f of failures)console.error(' - '+f);process.exit(1)}
+console.log('[KX RENDER MATRIX V11] PASS');
 console.log(` - ${cases.length} company workspaces rendered without exception/NaN/undefined leakage`);
 console.log(' - dashboard 4 / operations 6 / people 2 / competition 3 / risk 2');
 console.log(' - duplicate DOM IDs / empty button labels rejected');

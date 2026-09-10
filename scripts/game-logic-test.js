@@ -3,7 +3,7 @@ const path=require('path');
 const vm=require('vm');
 const root=path.resolve(__dirname,'..');
 let source=fs.readFileSync(path.join(root,'public','app.js'),'utf8');
-const exportCode=`window.__KX_TEST__={state,formatKrwSmart,holdingStakeValue,companyIncomingDirectStake,aggregateIncomingHoldings,companyExternalOwnershipTotal,ownerStakeOf,companyStakeAgainstMe,sanitizeCompanyPayload,renderTakeoverDesk,emptyCompany,runtimeErrorText};`;
+const exportCode=`window.__KX_TEST__={state,formatKrwSmart,holdingStakeValue,companyIncomingDirectStake,aggregateIncomingHoldings,companyExternalOwnershipTotal,ownerStakeOf,companyStakeAgainstMe,sanitizeCompanyPayload,renderTakeoverDesk,emptyCompany,runtimeErrorText,companyFinanceSnapshot,companyDisplayRevenue,companyDisplayOperatingProfit};`;
 const idx=source.lastIndexOf('boot();');
 if(idx<0)throw new Error('boot() marker not found');
 source=source.slice(0,idx)+exportCode+source.slice(idx+'boot();'.length);
@@ -59,6 +59,19 @@ const dirty={
 const clean=T.sanitizeCompanyPayload(dirty);
 ok(clean.companies.length===2,'duplicate company IDs must be removed from snapshots');
 ok(clean.my_company.profit===-300,'sanitizer must preserve operating losses');
+
+// Accounting invariants: never display a P&L where revenue - COGS - OPEX disagrees with operating profit.
+T.state.company={...T.emptyCompany(),realism_available:true,finance_periods:[{period_no:4,revenue:42000000000,cogs:18300000000,operating_expenses:23100000000,operating_profit:600000000,net_profit:-1250000000}],finance_live:{},supply:{accounts_receivable:900000000,inventory_value:1200000000,accounts_payable:700000000}};
+const financeMy={id:1,cash:8500000000,revenue:42000000000,profit:-1250000000,debt:7200000000,valuation:125000000000};
+const fa=T.companyFinanceSnapshot(financeMy,false);
+ok(near(fa.grossProfit,23700000000,1),'gross profit must always equal revenue minus COGS');
+ok(near(fa.operatingExpenses,23100000000,1),'aggregate operating expense aliases must be recognized');
+ok(near(fa.operatingProfit,600000000,1),'operating profit must reconcile exactly to gross profit minus OPEX');
+ok(near(fa.netIncome,-1250000000,1),'net_profit alias must be honored as the reported bottom line');
+ok(near(fa.nonOperating,1850000000,1),'unclassified non-operating/interest/tax bridge must reconcile operating profit to net income');
+ok(near(fa.ar,900000000,1)&&near(fa.inventory,1200000000,1)&&near(fa.ap,700000000,1),'balance-sheet working-capital values must fall back to supply snapshot');
+ok(!fa.operatingCashFlowKnown&&!fa.investingCashFlowKnown,'missing cash-flow data must remain unknown instead of being presented as exact zero');
+ok(near(T.companyDisplayOperatingProfit(financeMy),600000000,1),'headline operating profit must agree with management accounting when accounting data exists');
 const countClean=T.sanitizeCompanyPayload({my_company:{id:1,name:'Count QA',employees:'5.9',shares_outstanding:'100.8'},companies:[],incoming_holdings:[],my_holdings:[],market_holdings:[]});
 ok(countClean.my_company.employees===5&&countClean.my_company.shares_outstanding===100,'employee/share counts must be non-negative integers');
 ok(clean.incoming_holdings[0].stake===100,'snapshot holder stake must clamp at 100%');
@@ -92,8 +105,8 @@ T.state.company.incoming_holdings=[
 const ag=T.aggregateIncomingHoldings();
 ok(ag.length===1&&near(ag[0].stake,6),'duplicate shareholder records must aggregate into one 6% row');
 
-if(errors.length){console.error('[KX GAME LOGIC TEST V10] FAILED');for(const e of errors)console.error(' - '+e);process.exit(1)}
-console.log('[KX GAME LOGIC TEST V10] PASS');
+if(errors.length){console.error('[KX GAME LOGIC TEST V11] FAILED');for(const e of errors)console.error(' - '+e);process.exit(1)}
+console.log('[KX GAME LOGIC TEST V11] PASS');
 console.log(' - signed loss display');
 console.log(' - ownership invariant 0..100%');
 console.log(' - snapshot duplicate/NaN/count hygiene');
@@ -101,3 +114,5 @@ console.log(' - passive holders != hostile takeover');
 console.log(' - outside ownership reconciles with friendly stake');
 console.log(' - duplicate shareholder aggregation');
 console.log(' - player-facing backend error sanitization');
+console.log(' - P&L / working-capital accounting reconciliation');
+console.log(' - missing cash-flow values stay explicitly unknown');
