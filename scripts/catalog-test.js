@@ -3,6 +3,10 @@ const fs=require('fs');const path=require('path');const c=JSON.parse(fs.readFile
 const ids=new Set(c.cards.map(x=>x.id));if(c.cards.length!==315)throw Error(`cards ${c.cards.length}`);if(ids.size!==315)throw Error('duplicate card ids');
 for(const r of ['common','rare','ultra','legendary','mythic'])if(!c.cards.some(x=>x.rarity===r))throw Error(`missing rarity ${r}`);
 for(const t of ['unit','spell'])if(!c.cards.some(x=>x.type===t))throw Error(`missing type ${t}`);
-if(c.items.length<40)throw Error('not enough items');if(c.biomes.length!==5)throw Error('expected 5 biomes');if(c.bosses.length!==5)throw Error('expected 5 bosses');
+if(c.items.length<96)throw Error('not enough items');if(c.biomes.length!==5)throw Error('expected 5 biomes');if(c.bosses.length!==5)throw Error('expected 5 bosses');
 if(Object.keys(c.difficulties).sort().join(',')!=='hard,hell,normal')throw Error('difficulty catalog mismatch');
+if(c.biomes.some(b=>!Array.isArray(b.scenes)||b.scenes.length<5))throw Error('biome scenes missing');
+if(c.items.some(i=>!i.art||!i.category))throw Error('item visual metadata missing');
+if(c.starterPool.length!==8)throw Error('starter pool should be 8');
+if(c.cards.filter(x=>x.archiveOnly||x.limited).length<25)throw Error('rerun archive pool too small');
 console.log(`CATALOG_OK cards=${c.cards.length} items=${c.items.length} enemies=${c.enemies.length} bosses=${c.bosses.length}`);
