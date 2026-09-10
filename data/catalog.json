@@ -8627,6 +8627,147 @@
       "icon": "✪",
       "text": "최종 10층에서 주는 피해 +8%.",
       "rarity": "legendary"
+    },
+    {
+      "id": "r009",
+      "name": "공명 장갑",
+      "icon": "⌘",
+      "text": "모든 유닛 공격력 +2.",
+      "rarity": "rare",
+      "mod": {
+        "unitPower": 2
+      }
+    },
+    {
+      "id": "r010",
+      "name": "잿빛 주문서",
+      "icon": "✧",
+      "text": "모든 스펠 피해 +2.",
+      "rarity": "rare",
+      "mod": {
+        "spellPower": 2
+      }
+    },
+    {
+      "id": "r011",
+      "name": "파편 렌즈",
+      "icon": "◉",
+      "text": "고등급 보상 확률 +18%.",
+      "rarity": "ultra",
+      "mod": {
+        "rewardLuck": 0.18
+      }
+    },
+    {
+      "id": "r012",
+      "name": "압축 주사위",
+      "icon": "⬡",
+      "text": "보상 재굴림 비용 22% 감소.",
+      "rarity": "rare",
+      "mod": {
+        "rerollDiscount": 0.22
+      }
+    },
+    {
+      "id": "r013",
+      "name": "반향 방패",
+      "icon": "▣",
+      "text": "턴 종료 후 방어도 18% 유지.",
+      "rarity": "ultra",
+      "mod": {
+        "retainBlock": 0.18
+      }
+    },
+    {
+      "id": "r014",
+      "name": "사냥꾼의 눈",
+      "icon": "◈",
+      "text": "보스에게 주는 피해 +12%.",
+      "rarity": "legendary",
+      "mod": {
+        "bossDamagePct": 0.12
+      }
+    },
+    {
+      "id": "r015",
+      "name": "공허 바늘",
+      "icon": "⌁",
+      "text": "일반 여행 봉인 확률 +7%p.",
+      "rarity": "rare",
+      "mod": {
+        "captureBonus": 0.07
+      }
+    },
+    {
+      "id": "r016",
+      "name": "수호막 발전기",
+      "icon": "▤",
+      "text": "전투 시작 방어 +7.",
+      "rarity": "common",
+      "mod": {
+        "startBlock": 7
+      }
+    },
+    {
+      "id": "r017",
+      "name": "탐사 지도편",
+      "icon": "⌖",
+      "text": "보상 선택지 +1.",
+      "rarity": "legendary",
+      "mod": {
+        "rewardChoices": 1
+      }
+    },
+    {
+      "id": "r018",
+      "name": "고요한 촛불",
+      "icon": "♨",
+      "text": "야영지 회복량 +10%p.",
+      "rarity": "rare",
+      "mod": {
+        "restPct": 0.1
+      }
+    },
+    {
+      "id": "r019",
+      "name": "무한 잉크병",
+      "icon": "∞",
+      "text": "손패 한도 +1, 첫 턴 드로우 +1.",
+      "rarity": "ultra",
+      "mod": {
+        "handLimit": 1,
+        "drawBonus": 1
+      }
+    },
+    {
+      "id": "r020",
+      "name": "바람칼 파편",
+      "icon": "✶",
+      "text": "모든 피해 +7%.",
+      "rarity": "legendary",
+      "mod": {
+        "damagePct": 0.07
+      }
+    },
+    {
+      "id": "r021",
+      "name": "철제 망토",
+      "icon": "▧",
+      "text": "받는 피해 7% 감소.",
+      "rarity": "ultra",
+      "mod": {
+        "damageReduction": 0.07
+      }
+    },
+    {
+      "id": "r022",
+      "name": "황금 나침반",
+      "icon": "✥",
+      "text": "상점·재굴림 운영에 유리하도록 런 골드 획득량 +15%.",
+      "rarity": "legendary",
+      "mod": {
+        "goldPct": 0.15
+      }
     }
   ],
   "banner": {
