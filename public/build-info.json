@@ -1,6 +1,7 @@
 {
-  "version": "2.0.0",
-  "builtAt": "2026-09-10T06:50:34.227Z",
+  "version": "2.2.0",
+  "deployId": "RIFT-V2.2-20260910",
+  "builtAt": "2026-09-10T09:45:11.125Z",
   "cards": 315,
   "items": 48,
   "enemies": 55,
@@ -9,5 +10,8 @@
     "normal",
     "hard",
     "hell"
-  ]
+  ],
+  "cloudSchema": 2,
+  "auth": "supabase-auth",
+  "roomSnapshots": true
 }
