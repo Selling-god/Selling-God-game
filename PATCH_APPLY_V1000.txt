@@ -1,0 +1,23 @@
+KX CORPORATE V10.0 - STEAM QUALITY GATE PATCH
+
+기준 버전
+- V9.0 Steam Release Prep 이상 권장
+
+적용 방법
+1. 기존 프로젝트를 백업합니다.
+2. 이 ZIP을 풀고 동일한 경로에 덮어씁니다.
+3. package.json / package-lock.json / scripts / public 파일도 함께 교체합니다.
+4. Node 18 이상에서 `npm run release`를 실행합니다.
+5. 모든 검사가 PASS인지 확인한 뒤 GitHub에 커밋/푸시합니다.
+6. Render는 render.yaml 기준으로 `npm run build` 후 `out/`을 배포합니다.
+7. 배포 직후 기존 브라우저에서 한 번 새로고침합니다. V10 자체가 구형 서비스워커/캐시를 정리하고 빌드 불일치를 감지합니다.
+
+V10 때문에 새 Supabase SQL을 실행할 필요는 없습니다.
+CEO 라운지를 처음 설치하는 환경에서만 기존 V6.7 Community SQL이 필요합니다.
+
+중요
+- V10부터 돈/지분/인재 결과는 온라인 서버 확정값을 우선합니다.
+- 서버 실패를 브라우저에서 성공으로 위장하는 로컬 호환 처리는 상용 모드에서 차단되어 있습니다.
+- `public/`이 원본입니다. root/out/dist/build/site 파일을 직접 고치지 마십시오.
+
+전체 저장소를 깔끔하게 정리하고 싶다면 패치 덮어쓰기보다 V10 FULL SOURCE ZIP으로 교체하는 것을 권장합니다.

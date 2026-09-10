@@ -1991,3 +1991,47 @@ body.kx-reduced-motion *,body.kx-reduced-motion *::before,body.kx-reduced-motion
 @media(max-width:840px){.strategic-priorities{grid-template-columns:1fr 1fr}.strategic-priorities-head{grid-column:1/-1}.executive-rival-row{grid-template-columns:30px minmax(0,1fr) 100px}.executive-rival-row>i{display:none}.ceo-return-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.kx-decision-overlay{padding:10px}.kx-decision-card{border-radius:15px}.kx-decision-actions{grid-template-columns:1fr}.strategic-priorities{grid-template-columns:1fr}.strategic-priorities-head{grid-column:auto}.strategic-stable{grid-column:auto}.ceo-return-grid{grid-template-columns:1fr 1fr}.executive-rival-row{grid-template-columns:28px minmax(0,1fr);gap:8px}.executive-rival-row>span{grid-column:2;text-align:left;font-size:10px}.operating-phase{grid-template-columns:1fr;grid-template-areas:'kicker' 'copy' 'status'}.operating-phase>em{justify-self:start}}
 @media(max-width:420px){.ceo-return-grid{grid-template-columns:1fr}}
+
+/* V10.0 Steam Quality Gate - consistency, stale-sync safety, control desk readability */
+.online-mode-chip.delayed{border-color:#6c5831!important;background:#1b160d!important;color:#ead08a!important}
+.company-mode-banner.sync-delayed{border-color:#5d4d2e!important;background:linear-gradient(90deg,#17130c,#0c151e)!important}
+.company-mode-banner.sync-delayed .online-live-dot{background:#5f4a24!important;color:#f0d58b!important}
+.quality-takeover-board{overflow:hidden}
+.quality-takeover-board .company-section-head{align-items:flex-end}
+.quality-takeover-board .company-section-head>span{max-width:520px;line-height:1.45;text-align:right}
+.takeover-overview-banner.watch{border-color:#4c5868;background:linear-gradient(135deg,#111923,#0c141e)}
+.quality-summary{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.quality-summary article{min-width:0}
+.quality-summary article>b{font-size:19px!important;overflow-wrap:anywhere;word-break:keep-all}
+.stake-panel-head>div{min-width:0;display:grid;gap:3px}
+.stake-panel-head>div>small{font-size:9px;line-height:1.4;color:#7f95aa}
+.shareholder-register,.owned-register{max-height:560px;overflow:auto;overscroll-behavior:contain;padding-right:4px;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#32485e #09131e}
+.shareholder-register .stake-table-head,.owned-register .stake-table-head{position:sticky;top:0;z-index:3;padding:8px 4px;background:#09141f}
+.stake-row.priority{border-color:#6b5730;background:#15150f}
+.stake-identity b,.stake-identity small,.stake-figure b{overflow-wrap:anywhere;word-break:keep-all}
+.stake-figure b{font-variant-numeric:tabular-nums}
+.takeover-overview-stats b,.takeover-summary b{font-variant-numeric:tabular-nums}
+
+/* Generic release-grade overflow protection. Long company/player names must never collide with metrics. */
+.company-page article,.company-page section,.company-page button,.company-page span,.company-page div{min-width:0}
+.company-page h1,.company-page h2,.company-page h3,.company-page b,.company-page strong{overflow-wrap:anywhere}
+.company-browser-row-v646{overflow:hidden}
+.company-v646-identity,.company-v646-stake,.company-v646-finance{min-width:0}
+.company-v646-identity b,.company-v646-identity small,.company-v646-identity em,.company-v646-finance b,.company-v646-finance em{overflow:hidden;text-overflow:ellipsis}
+
+@media(max-width:1180px){
+  .quality-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .shareholder-register,.owned-register{max-height:500px}
+}
+@media(max-width:760px){
+  .quality-takeover-board .company-section-head{align-items:flex-start}
+  .quality-takeover-board .company-section-head>span{text-align:left;max-width:none}
+  .quality-summary{grid-template-columns:1fr 1fr!important}
+  .shareholder-register,.owned-register{max-height:440px}
+  .shareholder-register .stake-table-head,.owned-register .stake-table-head{display:none!important}
+  .stake-row.priority{box-shadow:inset 3px 0 0 #8a6d35}
+}
+@media(max-width:480px){
+  .quality-summary{grid-template-columns:1fr!important}
+  .shareholder-register,.owned-register{max-height:390px}
+}

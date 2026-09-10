@@ -27,6 +27,15 @@ services:
       - path: /styles.css
         name: Cache-Control
         value: no-cache, must-revalidate
+      - path: /service-worker.js
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+      - path: /serviceworker.js
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
     envVars:
       - key: NEXT_PUBLIC_SUPABASE_URL
         sync: false

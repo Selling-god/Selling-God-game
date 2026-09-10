@@ -1,0 +1,15 @@
+V10 CLEAN FULL SOURCE에서는 아래 과거 프로토타입/문서를 제거했습니다.
+패치 적용 시 이 파일들이 기존 저장소에 남아 있어도 현재 Render 정적 런타임에는 사용되지 않습니다.
+
+삭제 가능한 과거 프로토타입:
+- app/
+- lib/
+- next-env.d.ts
+- next.config.mjs
+- tsconfig.json
+- server.js
+- index.js
+- game.js
+
+과거 V6~V9 패치/테스트/Render 수정 안내 문서도 V10 CLEAN FULL SOURCE에서는 정리했습니다.
+확실히 정리하려면 V10 FULL SOURCE를 새 저장소 기준으로 사용하십시오.
