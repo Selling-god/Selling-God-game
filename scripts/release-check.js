@@ -24,10 +24,13 @@ if (fs.existsSync(appPath)) {
   const renderDecl=new Set([...app.matchAll(/\bfunction\s+(render[A-Z][A-Za-z0-9_$]*)\s*\(/g)].map(m=>m[1]));
   const missingRender=renderRefs.filter(n=>!renderDecl.has(n));
   if(missingRender.length) fail(`undefined render function references: ${missingRender.join(', ')}`);
-  if(!app.includes("const KX_COMPANY_BUILD='9.0.0-STEAM-RELEASE-PREP'")) fail('release build marker mismatch');
+  if(!app.includes("const KX_COMPANY_BUILD='10.0.0-STEAM-QUALITY-GATE'")) fail('release build marker mismatch');
   if(/\b(?:alert|confirm)\s*\(/.test(app)) fail('native browser alert/confirm remains; use KX decision UI');
   if(!app.includes('function renderStrategicBrief(')) fail('V9 strategic brief missing');
-  if(!app.includes('function renderCompanyReturnBriefing(')) fail('V9 return briefing missing');
+  if(!app.includes('function renderCompanyReturnBriefing(')) fail('return briefing missing');
+  if(!app.includes('function verifyReleaseAssets(')) fail('runtime asset-version guard missing');
+  if(!app.includes('function aggregateIncomingHoldings(')) fail('shareholder aggregation missing');
+  if(!app.includes('외부 주주 전체')||!app.includes('경영권 위협')) fail('M&A ownership semantics missing');
 }
 const expectedApp=fs.existsSync(file(publicDir,'app.js'))?sha(file(publicDir,'app.js')):'';
 const expectedCss=fs.existsSync(file(publicDir,'styles.css'))?sha(file(publicDir,'styles.css')):'';
