@@ -1,77 +1,43 @@
 # RIFT DECK 다음 작업 시작점
 
-현재 기준 버전: **v2.0.0 / 50F + 315 CARD REBUILD**
+현재 기준: **v2.2.0 / CLOUD LOGIN + PERSISTENT RUN + COMBAT IMPACT UPDATE**
 
-## 이 버전에서 이미 구현된 것
+## 이미 구현
+- Node Web Service / 1~4인 authoritative co-op / SSE
+- 50층 / 보통·어려움·지옥 / 10층 단위 보스
+- 카드 315 / 아이템 48 / 적+보스 55 / 바이옴 5
+- 매 층 개인 카드/아이템 보상 + 재굴림
+- 일반 여행 카드 봉인 / 복각 가챠 / 컬렉션 / 덱
+- Supabase Auth 게임 아이디+비밀번호 로그인
+- HttpOnly 쿠키 세션 / Auth UUID 기반 authoritative player identity
+- Supabase `rift_profiles` 영구 저장 + 최근 20개 원정 history
+- Supabase `rift_rooms` active run snapshot + Render 재시작 후 room restore
+- 게스트 진행도 첫 계정 연결 때 승계
+- 화면 흔들림 3단계 / hit-stop / damage-heal-block popup / shield crack
+- 12속성 particle / slash / card cast / enemy lunge-hit-death / unit summon
+- boss/turn/enemy-phase/victory/defeat presentation
+- layered procedural SFX + FX 토글 / reduced-motion
 
-- Render `Missing script: "build"` 문제 수정
-- `npm run build`, `npm run check`, `npm test` 제공
-- Node 동적 서버 / 서버 권한 전투 / SSE 실시간 동기화
-- 일반 여행 / 협동 던전(1~4인)
-- 던전 난이도 보통 / 어려움 / 지옥
-- 50층 던전 / 10·20·30·40·50층 보스
-- 매 층 완료 후 플레이어별 카드 또는 런 아이템 보상 선택
-- 기본 5개 후보 + 최대 5회 런 골드 재굴림
-- 카드 315종: 일반 96 / 희귀 84 / 초희귀 60 / 전설 48 / 신화 27
-- 유닛 170 / 스펠 145
-- 런 아이템 48종
-- 일반 적 50종 / 보스 5종 / 바이옴 5종
-- 315 카드 아트 + 55 적/보스 + 5 바이옴 = PNG 375개
-- 경로: 전투 / 정예 / 사건 / 휴식 / 보물 / 상점 / 보스
-- 손패/에너지/드로우·버림/방어/적 의도/상태이상 덱빌딩 전투
-- 유닛 3슬롯 + 자동 공격 / 스펠 즉시 효과
-- 일반 여행 카드 흔적 봉인: 기본/은빛/왕가 봉인구
-- 기간 복각 가챠 / 픽업 / 천장 / 중복 잔광
-- 컬렉션 / 시작 덱 8~16종 편성
-- 모바일 대응
+## npm test 검증
+1. 빌드와 콘텐츠 개수
+2. 기본 API/방 생성
+3. 4인 멀티
+4. 실제 카드 전투 -> 보상 -> 다음 층
+5. 지옥 1~50층 완주 + 클리어 history
+6. Mock Supabase 회원가입 -> 쿠키 세션 -> authenticated identity -> 로그아웃
+7. Mock Supabase active room snapshot -> 서버 종료 -> 재시작 -> 방 복구
 
-## 자동 테스트 현황
+## 다음 우선순위
+1. 카드 강화/각성/변이 + 속성/종족 시너지
+2. 보스 2~3페이즈, 패턴 텔레그래프, 전용 컷인
+3. WebSocket animation timeline (행동별 순차 연출)
+4. 친구/초대/비밀번호 방/AFK/턴 타이머/관전
+5. Daily Seed / Challenge / Infinite Abyss / 시즌 운영
+6. 실제 독자 BGM/SFX asset pipeline + sprite frame animation
+7. 계정 복구/비밀번호 변경/운영자 도구/제재·로그 시스템
 
-`npm test`는 다음을 검증하도록 구성됨.
-
-1. 빌드와 315장/48아이템/55적/50층 데이터 검증
-2. 기본 API와 방 생성 smoke test
-3. 4인 동시 참가 + 지옥 난이도 multiplayer test
-4. 실제 카드 사용 전투 → 승리 → 카드+아이템 보상 → 다음 층 test
-5. 1층부터 50층까지 진행 후 지옥 난이도 최종 클리어 기록 test
-
-## 다음에 가장 가치가 큰 제작 순서
-
-1. **Supabase 영구 계정/저장**
-   - Auth
-   - 컬렉션, 덱, 재화, 가챠 천장, 통계
-   - 재접속 시 진행 런 복구
-
-2. **멀티플레이 운영 수준 강화**
-   - WebSocket 또는 durable room adapter
-   - 준비 상태 / 방 비밀번호 / 강퇴 / 방장 위임
-   - 재접속 토큰 / AFK 처리 / 턴 제한시간
-   - 친구 초대 / 매칭 큐 / 관전
-
-3. **전투 깊이 강화**
-   - 속성/종족/키워드 시너지
-   - 카드 강화·변이·각성
-   - 보스별 고유 페이즈와 패턴
-   - 플레이어 직업/특성/궁극기
-   - 협동 전용 대상 지정 카드
-
-4. **콘텐츠 운영**
-   - 오늘의 던전 Seed
-   - 시즌/복각 일정
-   - 무한 심연
-   - 챌린지 룰
-   - 데이터 기반 밸런스 패치
-
-5. **연출/아트 파이프라인**
-   - 현재 오리지널 PNG는 저작권 안전한 절차형 픽셀 자산
-   - 카드별 프레임 애니메이션, 공격/피격/신화 등장 VFX
-   - 보스 페이즈 전용 연출, 바이옴 타일/패럴랙스
-   - BGM/SFX 자산 파이프라인
-
-## 수정 시 지켜야 하는 구조
-
-- 피해/보상/포획/가챠 결과는 클라이언트가 아니라 `server.js`가 판정한다.
-- `public/app.js`는 입력 전송 + 서버 상태 렌더링 중심으로 유지한다.
-- `data/profiles.json`은 공개 서비스 전에 DB 어댑터로 교체한다.
-- Pokemon/PokeRogue의 실제 스프라이트, 로고, 고유 캐릭터/명칭/UI 자산은 복사하지 않는다.
-- 참고하는 것은 로그라이트 진행 감각과 선택 구조이며 세계관/카드/몬스터/아트는 독자적으로 유지한다.
+## 지켜야 할 구조
+- 피해/보상/가챠/포획은 server.js authoritative
+- Secret/service_role key는 Render 서버 환경변수에서만 사용
+- 브라우저에는 Secret/service key 또는 비밀번호 토큰을 저장하지 않음
+- Pokemon/PokeRogue/Slay the Spire의 실제 아트, 로고, 캐릭터, 고유 UI를 복제하지 않음

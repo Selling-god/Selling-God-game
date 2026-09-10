@@ -1,4 +1,4 @@
-RIFT DECK : ABYSS EXPEDITION v2.0.0 - INDEX
+RIFT DECK : ABYSS EXPEDITION v2.2.0 - INDEX
 
 [콘텐츠]
 카드: 315 (일반96 / 희귀84 / 초희귀60 / 전설48 / 신화27)
@@ -10,17 +10,26 @@ RIFT DECK : ABYSS EXPEDITION v2.0.0 - INDEX
 난이도: 보통 / 어려움 / 지옥
 보상: 모든 층 완료 후 플레이어별 카드 또는 아이템 1개 선택
 
+
+[v2.2]
+로그인: Supabase Auth (아이디+비밀번호, HttpOnly cookie)
+영구저장: rift_profiles (컬렉션/덱/재화/천장/통계/최근 원정기록)
+진행복구: rift_rooms (진행 중인 방/전투/런 snapshot, 서버 재시작 복원)
+전투연출: 화면흔들림/hit-stop/데미지팝업/방어파괴/12속성파티클/card cast/적 lunge·recoil·death/보스·승패 배너/다층 WebAudio SFX
+SQL: supabase/RUN_THIS_IN_SUPABASE_RIFT_V22.sql
+설정: SUPABASE_SETUP_V22.txt
+
 [주요 파일]
 server.js                    동적 서버/전투/방/보상/포획/가챠
 data/catalog.json            카드/아이템/적/보스/난이도 데이터
 public/index.html            메인 게임 UI
 public/styles.css            게임 UI/반응형 스타일
-public/app.js                클라이언트 렌더/입력/SSE
+public/app.js                클라이언트 렌더/입력/SSE/로그인 UI/VFX
 assets/cards/                카드 315장 PNG
 assets/enemies/              적/보스 55장 PNG
 assets/biomes/               바이옴 5장 PNG
 scripts/build.js             배포 전 빌드 검증
-scripts/*-test.js            자동 테스트
+scripts/*-test.js            자동 테스트 (auth + cloud room restart 포함)
 render.yaml                  Render Blueprint 설정
 RENDER_DEPLOY.md             Render 오류/배포 안내
 NEXT_CHAT_START_HERE.md      다음 채팅 개발 인계

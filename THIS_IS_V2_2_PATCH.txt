@@ -1,0 +1,5 @@
+RIFT DECK v2.2 PATCH
+기존 v2.1 프로젝트 루트에 이 ZIP의 내용을 그대로 덮어쓰세요.
+그 다음 Supabase SQL Editor에서 supabase/RUN_THIS_IN_SUPABASE_RIFT_V22.sql을 1회 실행하고,
+현재 Render Web Service의 Environment에 SUPABASE_URL + SUPABASE_SECRET_KEY를 설정하세요.
+구형 service_role 키만 있다면 SUPABASE_SERVICE_ROLE_KEY 이름으로 넣어도 됩니다.

@@ -1,32 +1,36 @@
-RIFT DECK : ABYSS EXPEDITION v2.0.0 - 시작 안내
+RIFT DECK : ABYSS EXPEDITION v2.2.0 - 로그인/전투연출 업데이트
 
-[가장 빠른 실행]
-1. Node.js 20~26 설치 (권장: 22)
-2. 압축을 푼 프로젝트 루트에서: npm ci
-3. 빌드 검증: npm run build
-4. 실행: npm start
-5. 브라우저: http://localhost:3000
-6. 전체 테스트: npm test
+[기존 v2.1에서 업데이트하는 가장 간단한 순서]
+1. PATCH ZIP의 파일을 GitHub 저장소 루트에 그대로 덮어쓰기
+2. Supabase -> SQL Editor에서
+   supabase/RUN_THIS_IN_SUPABASE_RIFT_V22.sql 을 1회 실행
+3. Render -> 현재 사용 중인 RIFT DECK Web Service -> Environment에 2개 추가
+   SUPABASE_URL = 기존 Supabase Project URL
+   SUPABASE_SECRET_KEY = sb_secret_... (권장)
+   * 예전 service_role 키만 있으면 SUPABASE_SECRET_KEY 대신
+     SUPABASE_SERVICE_ROLE_KEY 이름으로 넣어도 됨
+4. Save Changes -> 자동 재배포
+5. 게임주소/healthz 에서 version=2.2.0 / auth=supabase 확인
+6. 게임 접속 -> 계정 생성 -> 로그인/저장 테스트
 
-[Render]
+[기존 Web Service 그대로 사용]
 Build Command : npm ci && npm run build
 Start Command : npm start
 Node Version   : 22
 Health Check   : /healthz
 
-이전 Missing script: "build" 오류는 이번 v2에서 package.json의 build 스크립트와 scripts/build.js를 추가해 수정했습니다.
+[v2.2 핵심]
+- Supabase Auth 아이디/비밀번호 로그인 + HttpOnly 쿠키
+- 컬렉션/덱/재화/봉인구/천장/통계/최근 원정 기록 클라우드 저장
+- 진행 중인 방/전투도 Supabase snapshot으로 저장해 Render 재시작 뒤 복구
+- 기존 게스트 기록을 첫 가입/로그인 때 계정으로 승계
+- 화면 흔들림 3단계 / hit-stop / 피격 플래시 / 전투 숫자
+- 12속성 파티클 / 베기 / 방어 파괴 / 카드 cast / 적 돌진·recoil·death
+- 보스·턴·적 페이즈·승패 배너 / 유닛 소환 / 보상 reveal
+- 다층 WebAudio SFX(타격/방어/회복/소환/보스 등)
+- FX 토글 + reduced-motion 대응
 
-[이번 v2 핵심]
-- 50층 던전
-- 난이도: 보통 / 어려움 / 지옥
-- 1~4인 협동
-- 매 층 완료 후 각 플레이어가 랜덤 카드 또는 런 아이템 1개 선택
-- 카드 315종 (기존 63종의 정확히 5배)
-- 런 아이템 48종 / 적 50종 / 보스 5종 / 바이옴 5종
-- 일반 여행 카드 봉인/수집
-- 복각 가챠 / 컬렉션 / 덱 편성
-- 서버 권한 전투 + SSE 실시간 동기화
-- 375개 오리지널 PNG 자산
-
-[주의]
-data/profiles.json은 현재 로컬 JSON 저장입니다. 공개 서비스에서 영구 계정 데이터가 필요하면 Supabase/Postgres 연결이 다음 단계입니다.
+[검증]
+npm ci
+npm test
+npm start

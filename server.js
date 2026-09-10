@@ -29,11 +29,16 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '2.1.0';
-const DEPLOY_ID = 'RIFT-V2.1-20260910';
+const VERSION = '2.2.0';
+const DEPLOY_ID = 'RIFT-V2.2-20260910';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
-const SUPABASE_SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '');
-const SUPABASE_ACTIVE = Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
+const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
+const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
+const SUPABASE_ACTIVE = Boolean(SUPABASE_URL && SUPABASE_ADMIN_KEY);
+const SUPABASE_AUTH_ACTIVE = SUPABASE_ACTIVE;
+const AUTH_COOKIE_ACCESS = 'rift_access';
+const AUTH_COOKIE_REFRESH = 'rift_refresh';
+const AUTH_CACHE = new Map();
 
 const CATALOG = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'catalog.json'), 'utf8'));
 const CARDS = CATALOG.cards;
@@ -93,12 +98,13 @@ function readJson(file, fallback) {
 let supabaseSyncTimer = null;
 let supabaseSyncBusy = false;
 let supabaseSyncAgain = false;
+const roomSyncTimers = new Map();
 
 async function supabaseRequest(pathname, options = {}) {
   if (!SUPABASE_ACTIVE) return null;
   const headers = {
-    apikey: SUPABASE_SERVICE_ROLE_KEY,
-    Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    apikey: SUPABASE_ADMIN_KEY,
+    Authorization: `Bearer ${SUPABASE_ADMIN_KEY}`,
     'Content-Type': 'application/json',
     ...(options.headers || {})
   };
@@ -110,6 +116,128 @@ async function supabaseRequest(pathname, options = {}) {
   if (response.status === 204) return null;
   const text = await response.text();
   return text ? JSON.parse(text) : null;
+}
+
+function parseCookies(req) {
+  const out = {};
+  for (const part of String(req.headers.cookie || '').split(';')) {
+    const i = part.indexOf('=');
+    if (i < 0) continue;
+    const k = part.slice(0, i).trim();
+    const v = part.slice(i + 1).trim();
+    if (!k) continue;
+    try { out[k] = decodeURIComponent(v); } catch { out[k] = v; }
+  }
+  return out;
+}
+function cookieBase(req) {
+  const secure = String(req.headers['x-forwarded-proto'] || '').toLowerCase() === 'https' || Boolean(process.env.RENDER);
+  return `Path=/; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}`;
+}
+function setAuthCookies(req, res, session) {
+  if (!session?.access_token || !session?.refresh_token) return;
+  const base = cookieBase(req);
+  const accessAge = Math.max(300, Number(session.expires_in || 3600));
+  const refreshAge = 60 * 60 * 24 * 30;
+  res.setHeader('Set-Cookie', [
+    `${AUTH_COOKIE_ACCESS}=${encodeURIComponent(session.access_token)}; ${base}; Max-Age=${accessAge}`,
+    `${AUTH_COOKIE_REFRESH}=${encodeURIComponent(session.refresh_token)}; ${base}; Max-Age=${refreshAge}`
+  ]);
+}
+function clearAuthCookies(req, res) {
+  const base = cookieBase(req);
+  res.setHeader('Set-Cookie', [
+    `${AUTH_COOKIE_ACCESS}=; ${base}; Max-Age=0`,
+    `${AUTH_COOKIE_REFRESH}=; ${base}; Max-Age=0`
+  ]);
+}
+function normalizeAccountId(raw) {
+  const id = String(raw || '').trim().toLowerCase();
+  if (!/^[a-z0-9_]{3,20}$/.test(id)) throw new Error('아이디는 영문 소문자, 숫자, _ 조합 3~20자로 입력해 주세요.');
+  return id;
+}
+function validatePassword(raw) {
+  const password = String(raw || '');
+  if (password.length < 6 || password.length > 72) throw new Error('비밀번호는 6~72자로 입력해 주세요.');
+  return password;
+}
+function accountEmail(accountId) { return `${accountId}@players.riftdeck.local`; }
+async function supabaseAuthRequest(pathname, options = {}, admin = false, bearer = '') {
+  if (!SUPABASE_AUTH_ACTIVE) throw new Error('Supabase 로그인이 아직 연결되지 않았습니다.');
+  const key = admin ? SUPABASE_ADMIN_KEY : (SUPABASE_PUBLIC_KEY || SUPABASE_ADMIN_KEY);
+  const headers = {
+    apikey: key,
+    'Content-Type': 'application/json',
+    ...(bearer ? { Authorization: `Bearer ${bearer}` } : admin ? { Authorization: `Bearer ${SUPABASE_ADMIN_KEY}` } : {}),
+    ...(options.headers || {})
+  };
+  const response = await fetch(`${SUPABASE_URL}${pathname}`, { ...options, headers });
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { message: text }; }
+  if (!response.ok) {
+    const msg = data?.msg || data?.message || data?.error_description || data?.error || `Supabase Auth ${response.status}`;
+    const err = new Error(String(msg).slice(0, 300));
+    err.status = response.status;
+    throw err;
+  }
+  return data;
+}
+async function passwordSession(accountId, password) {
+  return supabaseAuthRequest('/auth/v1/token?grant_type=password', {
+    method: 'POST', body: JSON.stringify({ email: accountEmail(accountId), password })
+  });
+}
+async function refreshSession(refreshToken) {
+  return supabaseAuthRequest('/auth/v1/token?grant_type=refresh_token', {
+    method: 'POST', body: JSON.stringify({ refresh_token: refreshToken })
+  });
+}
+async function getAuthUserByToken(token) {
+  if (!token) return null;
+  const cached = AUTH_CACHE.get(token);
+  if (cached && cached.expiresAt > Date.now()) return cached.user;
+  try {
+    const user = await supabaseAuthRequest('/auth/v1/user', { method: 'GET' }, false, token);
+    AUTH_CACHE.set(token, { user, expiresAt: Date.now() + 5 * 60 * 1000 });
+    return user;
+  } catch { return null; }
+}
+async function authUserFromRequest(req, res, tryRefresh = true) {
+  if (!SUPABASE_AUTH_ACTIVE) return null;
+  const cookies = parseCookies(req);
+  const access = cookies[AUTH_COOKIE_ACCESS] || '';
+  let user = await getAuthUserByToken(access);
+  if (user) return user;
+  if (!tryRefresh || !cookies[AUTH_COOKIE_REFRESH]) return null;
+  try {
+    const session = await refreshSession(cookies[AUTH_COOKIE_REFRESH]);
+    setAuthCookies(req, res, session);
+    user = session.user || await getAuthUserByToken(session.access_token);
+    return user || null;
+  } catch {
+    clearAuthCookies(req, res);
+    return null;
+  }
+}
+function accountIdFromUser(user) {
+  const meta = user?.user_metadata || {};
+  if (meta.account_id) return String(meta.account_id);
+  const email = String(user?.email || '');
+  return email.endsWith('@players.riftdeck.local') ? email.slice(0, -'@players.riftdeck.local'.length) : email;
+}
+function mergeGuestProfileInto(targetId, guestProfileId, nickname, accountId) {
+  const source = profiles[String(guestProfileId || '')];
+  if (!source || source.id === targetId || profiles[targetId]) return ensureProfile(targetId, nickname);
+  const merged = migrateProfile(clone(source));
+  merged.id = targetId;
+  merged.nickname = sanitizeName(nickname || merged.nickname);
+  merged.createdAt = Date.now();
+  merged.lastSeenAt = Date.now();
+  merged.cloud = true;
+  merged.accountId = accountId;
+  profiles[targetId] = merged;
+  return merged;
 }
 
 async function hydrateProfilesFromSupabase() {
@@ -136,7 +264,7 @@ async function flushProfilesToSupabase() {
   if (supabaseSyncBusy) { supabaseSyncAgain = true; return; }
   supabaseSyncBusy = true;
   try {
-    const rows = Object.values(profiles).map(profile => ({
+    const rows = Object.values(profiles).filter(profile => profile.cloud).map(profile => ({
       profile_id: profile.id,
       data: profile,
       updated_at: new Date().toISOString()
@@ -169,6 +297,58 @@ function saveProfiles() {
   fs.renameSync(tmp, PROFILE_FILE);
   queueSupabaseSync();
 }
+
+async function persistRoomToSupabase(room) {
+  if (!SUPABASE_ACTIVE || !room?.id) return;
+  try {
+    await supabaseRequest('/rest/v1/rift_rooms?on_conflict=room_id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify([{ room_id: room.id, data: room, updated_at: new Date().toISOString() }])
+    });
+  } catch (err) {
+    console.warn(`[RIFT DECK] room ${room.id} snapshot failed:`, err.message);
+  }
+}
+function queueRoomSync(room) {
+  if (!SUPABASE_ACTIVE || !room?.id) return;
+  const old = roomSyncTimers.get(room.id);
+  if (old) clearTimeout(old);
+  const timer = setTimeout(() => { roomSyncTimers.delete(room.id); persistRoomToSupabase(room); }, 180);
+  timer.unref?.();
+  roomSyncTimers.set(room.id, timer);
+}
+async function deleteRoomSnapshot(roomId) {
+  if (!SUPABASE_ACTIVE || !roomId) return;
+  try { await supabaseRequest(`/rest/v1/rift_rooms?room_id=eq.${encodeURIComponent(roomId)}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } }); }
+  catch (err) { console.warn(`[RIFT DECK] room ${roomId} snapshot cleanup skipped:`, err.message); }
+}
+async function hydrateRoomsFromSupabase() {
+  if (!SUPABASE_ACTIVE) return;
+  try {
+    const since = new Date(Date.now() - ROOM_TTL).toISOString();
+    const rows = await supabaseRequest(`/rest/v1/rift_rooms?select=room_id,data,updated_at&updated_at=gte.${encodeURIComponent(since)}&limit=500`);
+    let loaded = 0;
+    if (Array.isArray(rows)) for (const row of rows) {
+      const room = row?.data;
+      if (!room || !/^\d{6}$/.test(String(room.id || row.room_id || ''))) continue;
+      room.id = String(room.id || row.room_id);
+      room.feed = Array.isArray(room.feed) ? room.feed.slice(-100) : [];
+      room.seq = Number(room.seq || room.feed.at(-1)?.seq || 0);
+      room.createdAt = Number(room.createdAt || Date.now());
+      room.updatedAt = Number(room.updatedAt || new Date(row.updated_at || Date.now()).getTime());
+      room.startedAt = Number(room.startedAt || 0);
+      rooms.set(room.id, room);
+      loaded++;
+    }
+    if (loaded) console.log(`[RIFT DECK] restored ${loaded} active room snapshots from Supabase`);
+    try {
+      await supabaseRequest(`/rest/v1/rift_rooms?updated_at=lt.${encodeURIComponent(since)}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+    } catch {}
+  } catch (err) {
+    console.warn('[RIFT DECK] Supabase room restore skipped:', err.message);
+  }
+}
 function sanitizeName(s) {
   return String(s || '방랑자').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 14) || '방랑자';
 }
@@ -179,6 +359,8 @@ function publicCard(c) { return clone(c); }
 function publicItem(i) { return clone(i); }
 
 function migrateProfile(p) {
+  p.cloud = Boolean(p.cloud);
+  p.accountId = p.accountId ? String(p.accountId) : '';
   p.gems = Number(p.gems ?? 2200);
   p.dust = Number(p.dust ?? 0);
   p.seals = p.seals || { basic: 15, silver: 6, royal: 1 };
@@ -199,9 +381,11 @@ function migrateProfile(p) {
     journeys: 0, dungeons: 0, dungeonClears: 0, bosses: 0, cardsCaught: 0,
     bestDungeonFloor: 0, bestJourneyFloor: 0, gachaPulls: 0,
     normalClears: 0, hardClears: 0, hellClears: 0,
-    bestNormalFloor: 0, bestHardFloor: 0, bestHellFloor: 0
+    bestNormalFloor: 0, bestHardFloor: 0, bestHellFloor: 0,
+    loginCount: 0, lastLoginAt: 0
   };
   for (const [k, v] of Object.entries(defaults)) if (p.stats[k] == null) p.stats[k] = v;
+  p.history = Array.isArray(p.history) ? p.history.filter(x => x && typeof x === 'object').slice(0, 20) : [];
   return p;
 }
 
@@ -219,7 +403,10 @@ function ensureProfile(profileId, nickname) {
       pity: { legendary: 0, mythic: 0 },
       collection: {},
       deck: STARTER_POOL.slice(0, 10),
-      stats: {}
+      stats: {},
+      history: [],
+      cloud: false,
+      accountId: ''
     };
   }
   migrateProfile(p);
@@ -248,8 +435,11 @@ function profileView(p) {
     collection: p.collection,
     deck: p.deck,
     stats: p.stats,
+    history: p.history || [],
     ownedCount: Object.keys(p.collection).length,
-    totalCards: CARDS.length
+    totalCards: CARDS.length,
+    cloud: Boolean(p.cloud),
+    accountId: p.accountId || ''
   };
 }
 
@@ -400,7 +590,8 @@ function makeRoom(hostProfile, mode = 'dungeon', name = '', difficulty = 'normal
     runState: {},
     feed: [],
     seq: 0,
-    finalClearPending: false
+    finalClearPending: false,
+    startedAt: 0
   };
   rooms.set(code, room);
   pushRoomEvent(room, 'room', '방이 생성되었습니다.');
@@ -441,8 +632,10 @@ function roomView(room) {
 
 function pushRoomEvent(room, type, message, payload = {}) {
   room.seq++;
-  room.feed.push({ seq: room.seq, time: Date.now(), type, message, payload });
+  room.updatedAt = Date.now();
+  room.feed.push({ seq: room.seq, time: room.updatedAt, type, message, payload });
   if (room.feed.length > 100) room.feed.shift();
+  queueRoomSync(room);
   broadcast(room.id, 'room-update', roomView(room));
 }
 function broadcast(roomId, event, data) {
@@ -457,6 +650,7 @@ function startRoom(room) {
   if (room.status !== 'lobby') throw new Error('이미 시작된 방입니다.');
   if (!room.players.length) throw new Error('플레이어가 없습니다.');
   room.runState = {};
+  room.startedAt = Date.now();
   for (const rp of room.players) {
     const p = ensureProfile(rp.id, rp.nickname);
     room.runState[rp.id] = newRunPlayer(p);
@@ -681,7 +875,7 @@ function startBattle(room, tier) {
   }
   room.battle = { tier, turn: 1, phase: 'players', party, enemies, log: [], teamSpellCount: 0 };
   battleLog(room, `${tier === 'boss' ? '보스' : tier === 'elite' ? '정예' : '적'} 조우!`);
-  pushRoomEvent(room, 'battle-start', '전투가 시작되었습니다.');
+  pushRoomEvent(room, 'battle-start', '전투가 시작되었습니다.', { tier, floor: room.floor, enemyIds: enemies.map(e => e.uid) });
 }
 
 function rollIntent(e, tier, difficulty = 'normal') {
@@ -737,7 +931,7 @@ function playCard(room, playerId, handIndex, targetUid) {
   else castSpell(room, pc, c, target);
   pc.discard.push(cid);
   if (checkBattleEnd(room)) return;
-  pushRoomEvent(room, 'card', `${pc.nickname}: ${c.name}`);
+  pushRoomEvent(room, 'card', `${pc.nickname}: ${c.name}`, { playerId: pc.playerId, cardId: c.id, cardName: c.name, cardType: c.type, element: c.element, targetUid: target?.uid || null, cost });
 }
 
 function summonUnit(room, pc, c, target) {
@@ -986,6 +1180,30 @@ function syncRunHealth(room) {
   }
 }
 
+function recordRunHistory(room, result) {
+  const endedAt = Date.now();
+  for (const rp of room.players) {
+    const p = profiles[rp.id];
+    const run = room.runState[rp.id];
+    if (!p || !run) continue;
+    p.history ||= [];
+    const entry = {
+      id: uid('history'),
+      mode: room.mode,
+      difficulty: room.mode === 'dungeon' ? room.difficulty : 'journey',
+      result,
+      floor: room.floor,
+      startedAt: Number(room.startedAt || room.createdAt || endedAt),
+      endedAt,
+      cardsAdded: Number(run.cardsAdded || 0),
+      itemsAdded: Number(run.itemsAdded || 0),
+      gold: Number(run.gold || 0)
+    };
+    p.history.unshift(entry);
+    p.history = p.history.slice(0, 20);
+  }
+}
+
 function winBattle(room) {
   const b = room.battle;
   syncRunHealth(room);
@@ -1017,7 +1235,7 @@ function winBattle(room) {
   createFloorReward(room, 'battle', title, text, b.tier);
   if (room.mode === 'journey' && Math.random() < (boss ? 0.70 : b.tier === 'elite' ? 0.42 : 0.27)) room.capture = makeCaptureEncounter(room.floor, b.tier, room);
   battleLog(room, '승리!');
-  pushRoomEvent(room, 'win', '전투에서 승리했습니다.');
+  pushRoomEvent(room, 'win', '전투에서 승리했습니다.', { tier: b.tier, floor: room.floor, final: room.finalClearPending });
 }
 
 function loseBattle(room) {
@@ -1029,7 +1247,9 @@ function loseBattle(room) {
     text: `${room.floor}층에서 탐험이 종료되었습니다. 영구 획득한 카드와 재화는 유지됩니다.`,
     playerOptions: {}, claims: {}, continueBy: []
   };
-  pushRoomEvent(room, 'defeat', '원정대가 쓰러졌습니다.');
+  recordRunHistory(room, 'defeat');
+  saveProfiles();
+  pushRoomEvent(room, 'defeat', '원정대가 쓰러졌습니다.', { floor: room.floor });
 }
 
 function rewardCardWeight(room, run, c, tier) {
@@ -1212,6 +1432,7 @@ function continueAfterReward(room, playerId) {
       p.stats[`${room.difficulty}Clears`] = Number(p.stats[`${room.difficulty}Clears`] || 0) + 1;
       p.gems += clearBonus;
     }
+    recordRunHistory(room, 'clear');
     saveProfiles();
     room.reward = {
       kind: 'clear',
@@ -1363,10 +1584,23 @@ function serveStatic(res, pathname) {
   });
 }
 
-function authProfile(body) {
+async function authProfile(req, res, body) {
+  const user = await authUserFromRequest(req, res);
+  if (user?.id) {
+    const accountId = accountIdFromUser(user);
+    const existing = profiles[user.id];
+    const fallbackNickname = existing?.nickname || user.user_metadata?.nickname || accountId || '방랑자';
+    const prof = ensureProfile(user.id, fallbackNickname);
+    if (body.rename && body.nickname) prof.nickname = sanitizeName(body.nickname);
+    prof.cloud = true;
+    prof.accountId = accountId;
+    return prof;
+  }
   const pid = String(body.profileId || '').trim();
   if (!pid || pid.length > 96) throw new Error('프로필 ID가 필요합니다.');
-  return ensureProfile(pid, body.nickname);
+  const prof = ensureProfile(pid, body.nickname);
+  prof.cloud = false;
+  return prof;
 }
 function assertMember(room, pid) {
   if (!room.players.some(x => x.id === pid)) throw new Error('방 참가자가 아닙니다.');
@@ -1382,22 +1616,71 @@ const server = http.createServer(async (req, res) => {
     }
     const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const p = u.pathname;
-    if (p === '/healthz' || p === '/api/version') return ok(res, { service: 'RIFT_DECK_SERVER', version: VERSION, deployId: DEPLOY_ID, storage: SUPABASE_ACTIVE ? 'supabase+json-fallback' : 'json-local', cards: CARDS.length, items: ITEMS.length, maxDungeonFloor: DUNGEON_MAX_FLOOR, rooms: rooms.size, uptime: Math.round(process.uptime()) });
+    if (p === '/healthz' || p === '/api/version') return ok(res, { service: 'RIFT_DECK_SERVER', version: VERSION, deployId: DEPLOY_ID, storage: SUPABASE_ACTIVE ? 'supabase+json-fallback' : 'json-local', auth: SUPABASE_AUTH_ACTIVE ? 'supabase' : 'guest-only', cards: CARDS.length, items: ITEMS.length, maxDungeonFloor: DUNGEON_MAX_FLOOR, rooms: rooms.size, uptime: Math.round(process.uptime()) });
     if (p === '/api/meta' && req.method === 'GET') return ok(res, {
       cards: CARDS.map(publicCard), items: ITEMS.map(publicItem), rarities: RARITY, elements: ELEMENTS, biomes: BIOMES,
-      relics: RELICS, banner: BANNER, difficulties: DIFFICULTIES, version: VERSION, maxDungeonFloor: DUNGEON_MAX_FLOOR
+      relics: RELICS, banner: BANNER, difficulties: DIFFICULTIES, version: VERSION, maxDungeonFloor: DUNGEON_MAX_FLOOR, authEnabled: SUPABASE_AUTH_ACTIVE
     });
+    if (p === '/api/auth/status' && req.method === 'GET') {
+      const user = await authUserFromRequest(req, res);
+      return ok(res, { enabled: SUPABASE_AUTH_ACTIVE, authenticated: Boolean(user), user: user ? { id: user.id, accountId: accountIdFromUser(user), nickname: user.user_metadata?.nickname || accountIdFromUser(user) } : null });
+    }
+    if (p === '/api/auth/signup' && req.method === 'POST') {
+      if (!SUPABASE_AUTH_ACTIVE) throw new Error('Render에 SUPABASE_URL과 Supabase Secret/Service Role 키를 먼저 설정해 주세요.');
+      const b = await parseBody(req);
+      const accountId = normalizeAccountId(b.accountId);
+      const password = validatePassword(b.password);
+      const nickname = sanitizeName(b.nickname || accountId);
+      try {
+        await supabaseAuthRequest('/auth/v1/admin/users', {
+          method: 'POST',
+          body: JSON.stringify({ email: accountEmail(accountId), password, email_confirm: true, user_metadata: { account_id: accountId, nickname } })
+        }, true);
+      } catch (err) {
+        const m = String(err.message || '').toLowerCase();
+        if (m.includes('already') || m.includes('registered') || m.includes('duplicate')) throw new Error('이미 사용 중인 아이디입니다.');
+        throw err;
+      }
+      const session = await passwordSession(accountId, password);
+      setAuthCookies(req, res, session);
+      const user = session.user;
+      let prof = mergeGuestProfileInto(user.id, b.guestProfileId, nickname, accountId);
+      prof.cloud = true; prof.accountId = accountId; prof.nickname = nickname;
+      prof.stats.loginCount = Number(prof.stats.loginCount || 0) + 1; prof.stats.lastLoginAt = Date.now();
+      saveProfiles();
+      return ok(res, { user: { id: user.id, accountId, nickname }, profile: profileView(prof) });
+    }
+    if (p === '/api/auth/login' && req.method === 'POST') {
+      if (!SUPABASE_AUTH_ACTIVE) throw new Error('Render에 Supabase 환경변수를 먼저 설정해 주세요.');
+      const b = await parseBody(req);
+      const accountId = normalizeAccountId(b.accountId);
+      const password = validatePassword(b.password);
+      let session;
+      try { session = await passwordSession(accountId, password); }
+      catch { throw new Error('아이디 또는 비밀번호가 올바르지 않습니다.'); }
+      setAuthCookies(req, res, session);
+      const nickname = sanitizeName(session.user?.user_metadata?.nickname || accountId);
+      let prof = mergeGuestProfileInto(session.user.id, b.guestProfileId, nickname, accountId);
+      prof.cloud = true; prof.accountId = accountId;
+      prof.stats.loginCount = Number(prof.stats.loginCount || 0) + 1; prof.stats.lastLoginAt = Date.now();
+      saveProfiles();
+      return ok(res, { user: { id: session.user.id, accountId, nickname: prof.nickname }, profile: profileView(prof) });
+    }
+    if (p === '/api/auth/logout' && req.method === 'POST') {
+      clearAuthCookies(req, res);
+      return ok(res, { authenticated: false });
+    }
     if (p === '/api/profile' && req.method === 'POST') {
-      const b = await parseBody(req); const prof = authProfile(b); saveProfiles(); return ok(res, { profile: profileView(prof) });
+      const b = await parseBody(req); const prof = await authProfile(req, res, b); saveProfiles(); return ok(res, { profile: profileView(prof) });
     }
     if (p === '/api/deck' && req.method === 'POST') {
-      const b = await parseBody(req); const prof = authProfile(b); const seen = new Set();
+      const b = await parseBody(req); const prof = await authProfile(req, res, b); const seen = new Set();
       const deck = (Array.isArray(b.deck) ? b.deck : []).filter(cid => CARD_BY_ID[cid] && prof.collection[cid] > 0 && !seen.has(cid) && seen.add(cid)).slice(0, 16);
       if (deck.length < 8) throw new Error('덱은 보유 카드 8~16종으로 구성해 주세요.');
       prof.deck = deck; saveProfiles(); return ok(res, { profile: profileView(prof) });
     }
     if (p === '/api/gacha/pull' && req.method === 'POST') {
-      const b = await parseBody(req); const prof = authProfile(b); return ok(res, pullGacha(prof, b.count));
+      const b = await parseBody(req); const prof = await authProfile(req, res, b); return ok(res, pullGacha(prof, b.count));
     }
     if (p === '/api/rooms' && req.method === 'GET') {
       const list = [...rooms.values()].filter(r => r.mode === 'dungeon' && r.status === 'lobby' && r.players.length < r.maxPlayers).map(r => ({
@@ -1407,13 +1690,13 @@ const server = http.createServer(async (req, res) => {
       return ok(res, { rooms: list });
     }
     if (p === '/api/rooms/create' && req.method === 'POST') {
-      const b = await parseBody(req); const prof = authProfile(b);
+      const b = await parseBody(req); const prof = await authProfile(req, res, b);
       const mode = b.mode === 'journey' ? 'journey' : 'dungeon';
       const room = makeRoom(prof, mode, b.name, b.difficulty || 'normal');
       return ok(res, { room: roomView(room) });
     }
     if (p === '/api/rooms/join' && req.method === 'POST') {
-      const b = await parseBody(req); const prof = authProfile(b); const room = rooms.get(String(b.roomId || ''));
+      const b = await parseBody(req); const prof = await authProfile(req, res, b); const room = rooms.get(String(b.roomId || ''));
       if (!room) throw new Error('방을 찾을 수 없습니다.');
       if (room.status !== 'lobby') throw new Error('이미 시작된 방입니다.');
       if (room.players.length >= room.maxPlayers && !room.players.some(x => x.id === prof.id)) throw new Error('방이 가득 찼습니다.');
@@ -1429,7 +1712,7 @@ const server = http.createServer(async (req, res) => {
       const action = m[2] || '';
       if (!action && req.method === 'GET') return ok(res, { room: roomView(room) });
       if (action === 'stream' && req.method === 'GET') {
-        const pid = u.searchParams.get('profileId'); assertMember(room, pid);
+        const authUser = await authUserFromRequest(req, res); const pid = authUser?.id || u.searchParams.get('profileId'); assertMember(room, pid);
         res.writeHead(200, {
           'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', 'Connection': 'keep-alive', 'Access-Control-Allow-Origin': '*'
         });
@@ -1440,7 +1723,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       if (req.method === 'POST') {
-        const b = await parseBody(req); const prof = authProfile(b); assertMember(room, prof.id);
+        const b = await parseBody(req); const prof = await authProfile(req, res, b); assertMember(room, prof.id);
         if (action === 'start') { if (room.hostId !== prof.id) throw new Error('방장만 시작할 수 있습니다.'); startRoom(room); return ok(res, { room: roomView(room) }); }
         if (action === 'vote') { voteRoute(room, prof.id, b.nodeId); return ok(res, { room: roomView(room) }); }
         if (action === 'play') { playCard(room, prof.id, b.handIndex, b.targetUid); return ok(res, { room: roomView(room) }); }
@@ -1469,15 +1752,20 @@ const server = http.createServer(async (req, res) => {
 setInterval(() => {
   for (const set of clientsByRoom.values()) for (const res of set) { try { res.write(': ping\n\n'); } catch {} }
   const now = Date.now();
-  for (const [id, r] of rooms) if (now - r.createdAt > ROOM_TTL) { rooms.delete(id); clientsByRoom.delete(id); }
+  for (const [id, r] of rooms) if (now - Number(r.updatedAt || r.createdAt || now) > ROOM_TTL) {
+    rooms.delete(id); clientsByRoom.delete(id);
+    const timer = roomSyncTimers.get(id); if (timer) clearTimeout(timer); roomSyncTimers.delete(id);
+    deleteRoomSnapshot(id);
+  }
 }, 15000).unref();
 
 if (require.main === module) {
   (async () => {
     await hydrateProfilesFromSupabase();
+    await hydrateRoomsFromSupabase();
     server.listen(PORT, HOST, () => {
       console.log(`[RIFT DECK v${VERSION}] ${DEPLOY_ID} dynamic server listening on http://${HOST}:${PORT}`);
-      console.log(`[RIFT DECK] persistence=${SUPABASE_ACTIVE ? 'Supabase + JSON fallback' : 'JSON local (Supabase env not configured)'}`);
+      console.log(`[RIFT DECK] persistence=${SUPABASE_ACTIVE ? 'Supabase + JSON fallback' : 'JSON local (Supabase env not configured)'} auth=${SUPABASE_AUTH_ACTIVE ? 'Supabase Auth' : 'guest-only'}`);
     });
   })().catch(err => { console.error('[RIFT DECK] boot failed', err); process.exit(1); });
 }

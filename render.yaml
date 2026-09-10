@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: rift-deck-v21-server
+    name: rift-deck-v22-server
     runtime: node
     plan: free
     buildCommand: npm ci && npm run build
@@ -12,5 +12,7 @@ services:
         value: 22
       - key: SUPABASE_URL
         sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
         sync: false
