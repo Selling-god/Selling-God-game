@@ -1,0 +1,13 @@
+{
+  "version": "2.0.0",
+  "builtAt": "2026-09-10T06:50:34.227Z",
+  "cards": 315,
+  "items": 48,
+  "enemies": 55,
+  "maxDungeonFloor": 50,
+  "difficulties": [
+    "normal",
+    "hard",
+    "hell"
+  ]
+}
