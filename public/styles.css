@@ -2035,3 +2035,63 @@ body.kx-reduced-motion *,body.kx-reduced-motion *::before,body.kx-reduced-motion
   .quality-summary{grid-template-columns:1fr!important}
   .shareholder-register,.owned-register{max-height:390px}
 }
+
+/* V11.0 Steam Retail Candidate - progressive startup, finance trace, context-safe navigation */
+.online-mode-chip.syncing{border-color:#51687f!important;background:#0f1d2a!important;color:#b9d4ea!important}
+.company-mode-banner.sync-pending{border-color:#34516b!important;background:linear-gradient(90deg,#0d1a27,#0a131d)!important}
+.company-mode-banner.sync-pending .online-live-dot{background:#183c58!important;color:#c8e5fa!important}
+.commercial-terminal-loading{min-height:calc(100vh - 88px);display:grid;grid-template-rows:auto 1fr;align-items:start}
+.retail-hydration-card{width:min(880px,calc(100% - 36px));margin:clamp(48px,10vh,120px) auto;padding:28px;border:1px solid #284158;border-radius:22px;background:linear-gradient(145deg,#0b1723,#08111a);box-shadow:0 28px 80px rgba(0,0,0,.24);display:grid;gap:20px;overflow:hidden;position:relative}
+.retail-hydration-card:before{content:'';position:absolute;inset:0 auto auto 0;width:100%;height:1px;background:linear-gradient(90deg,transparent,#6b8eae,transparent);opacity:.6}
+.retail-hydration-title{display:grid;gap:5px}.retail-hydration-title small{font-size:8px;letter-spacing:.16em;font-weight:900;color:#7897b3}.retail-hydration-title h1{margin:0;color:#edf4fa;font-size:24px;letter-spacing:-.02em}.retail-hydration-title span{font-size:10px;color:#8198ac}
+.retail-hydration-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.retail-hydration-grid article{min-width:0;padding:14px;border:1px solid #22374a;border-radius:13px;background:#0b1621;display:grid;grid-template-columns:14px minmax(0,1fr);gap:4px 9px;align-items:center}.retail-hydration-grid article i{width:9px;height:9px;border:2px solid #50728f;border-top-color:#b6d0e6;border-radius:50%;animation:kxHydrateSpin 1s linear infinite;grid-row:1/3}.retail-hydration-grid article b{font-size:11px;color:#dce7f0}.retail-hydration-grid article span{font-size:8.5px;color:#758da3;overflow-wrap:anywhere}
+.retail-hydration-foot{border-top:1px solid #1f3040;padding-top:12px;display:flex;align-items:center;gap:8px;color:#8197aa}.retail-hydration-foot b{font-size:9px;font-weight:700}.hydration-pulse{width:7px;height:7px;border-radius:50%;background:#6c91b1;box-shadow:0 0 0 0 rgba(108,145,177,.45);animation:kxHydratePulse 1.8s ease-out infinite}
+@keyframes kxHydrateSpin{to{transform:rotate(360deg)}}@keyframes kxHydratePulse{70%{box-shadow:0 0 0 9px rgba(108,145,177,0)}100%{box-shadow:0 0 0 0 rgba(108,145,177,0)}}
+.kx-reduced-motion .retail-hydration-grid article i,.kx-reduced-motion .hydration-pulse{animation:none!important}
+
+.ceo-money-bridge{margin:0 0 14px;padding:14px 15px;border:1px solid #2a3e51;border-radius:15px;background:linear-gradient(135deg,#0a1621,#09131d);display:grid;gap:11px;overflow:hidden}.ceo-money-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.ceo-money-head>div{display:grid;gap:2px}.ceo-money-head small{font-size:8px;letter-spacing:.14em;color:#7792aa;font-weight:900}.ceo-money-head b{font-size:14px;color:#e8f0f6}.ceo-money-head>button{border:1px solid #314a60;border-radius:9px;background:#0e1c29;color:#b7cada;padding:7px 10px;font-size:8.5px;font-weight:900;cursor:pointer;white-space:nowrap}.ceo-money-flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr) 22px);grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr) 22px minmax(0,1fr) 22px minmax(0,1fr) 22px minmax(0,1fr);gap:5px;align-items:stretch}.ceo-money-flow>article{min-width:0;padding:10px;border:1px solid #23384a;border-radius:10px;background:#0b1722;display:grid;align-content:center;gap:3px}.ceo-money-flow>article small{font-size:8px;color:#7d93a6}.ceo-money-flow>article b{font-size:13px;color:#e3ecf3;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}.ceo-money-flow>article span{font-size:8px;color:#72899e;line-height:1.4}.ceo-money-flow>article.positive{border-color:#2d4b40}.ceo-money-flow>article.positive b{color:#9fd0b3}.ceo-money-flow>article.negative{border-color:#5e3b43;background:#160f14}.ceo-money-flow>article.negative b{color:#dfa3aa}.ceo-money-flow>i{display:grid;place-items:center;color:#60798f;font-style:normal;font-size:13px;font-weight:900}
+.agenda-card>div{min-width:0}.agenda-card b,.agenda-card small{overflow-wrap:anywhere}.agenda-card em{white-space:nowrap}
+.company-loading-room .company-shell{padding-bottom:28px}
+
+@media(max-width:980px){.ceo-money-flow{grid-template-columns:repeat(2,minmax(0,1fr));}.ceo-money-flow>i{display:none}.ceo-money-flow>article:last-child{grid-column:1/-1}.retail-hydration-grid{grid-template-columns:1fr 1fr}.retail-hydration-grid article:last-child{grid-column:1/-1}}
+@media(max-width:640px){.retail-hydration-card{width:calc(100% - 20px);margin:24px auto;padding:18px;border-radius:17px}.retail-hydration-title h1{font-size:20px}.retail-hydration-grid{grid-template-columns:1fr}.retail-hydration-grid article:last-child{grid-column:auto}.ceo-money-head{align-items:flex-start}.ceo-money-flow{grid-template-columns:1fr 1fr}.ceo-money-flow>article:last-child{grid-column:1/-1}.ceo-money-flow>article b{font-size:12px}}
+@media(max-width:430px){.ceo-money-flow{grid-template-columns:1fr}.ceo-money-flow>article:last-child{grid-column:auto}.ceo-money-head{display:grid}.ceo-money-head>button{justify-self:start}}
+
+
+/* V11.0 retail QA polish - status legibility, accounting reconciliation, compact mobile hierarchy */
+.compact-online-banner{margin:0 0 10px;padding:7px 10px;border:1px solid #22384b;border-radius:11px;background:#091521;color:#91a7bb;min-height:20px;box-sizing:border-box}
+.compact-online-banner>div{display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap}
+.compact-online-banner .online-live-dot{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:19px;padding:0 7px;border:1px solid #315f4e;border-radius:999px;background:#0b211b;color:#92d1b0;font-size:8px;font-weight:950;letter-spacing:.08em}
+.compact-online-banner b{color:#d5e1eb;font-size:9px;white-space:nowrap}.compact-online-banner span:not(.online-live-dot){font-size:8.5px;color:#748da3}
+.financial-statements .accounting-reconciled{background:rgba(119,98,49,.08)}
+.financial-statements .accounting-reconciled dt{color:#c7ae72!important}.financial-statements .accounting-reconciled dd{color:#d7c28d!important}
+.accounting-pending{color:#7f94a7;font-weight:800;font-size:9px}
+@media(max-width:640px){
+  .compact-online-banner{margin-bottom:8px;padding:6px 8px}.compact-online-banner>div{gap:5px}.compact-online-banner span:not(.online-live-dot){font-size:8px}
+  .workspace-launcher-head>span{display:none!important}
+  .workspace-launcher-head{align-items:flex-end;margin-bottom:9px}
+}
+
+/* V11 retail polish: keep headline monetary units intact on narrow cards. */
+.corporate-ui-refresh .company-hero-metrics article b,
+.corporate-ui-refresh .company-hero-price b{overflow-wrap:normal;word-break:keep-all}
+@media(max-width:430px){
+  .corporate-ui-refresh .company-hero-metrics article b{font-size:18px!important;letter-spacing:-.02em;white-space:nowrap}
+  .corporate-ui-refresh .company-hero-metrics article{padding-left:13px;padding-right:13px}
+}
+
+/* V11 mobile navigation: all workspace choices remain visible; no hidden sideways swipe required. */
+@media(max-width:640px){
+  .workspace-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible;gap:6px;padding:6px}
+  .workspace-tabs button{min-width:0;width:100%;min-height:38px;padding:0 7px;font-size:10px;line-height:1.2;white-space:normal;word-break:keep-all}
+}
+@media(max-width:360px){
+  .workspace-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:640px){
+  .company-page .operations-hub>nav{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;overflow:visible!important;gap:6px!important}
+  .company-page .operations-hub>nav button{min-width:0!important;width:100%!important;min-height:38px!important;padding:0 7px!important;font-size:10px!important;line-height:1.2!important;white-space:normal!important;word-break:keep-all!important}
+}
+@media(max-width:360px){
+  .company-page .operations-hub>nav{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
