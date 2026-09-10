@@ -1,14 +1,14 @@
 {
   "name": "rift-deck-abyss-expedition",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
-  "description": "Fast one-screen card roguelite with card mastery growth, synergy-biased drafting, encounter modifiers, 1-4 player co-op, and 50-floor dungeon progression.",
+  "description": "Dynamic server-authoritative 1-4 player pixel card roguelite with visual-first combat, distinct elemental VFX, cloud accounts, and one-screen run flow.",
   "scripts": {
     "build": "node scripts/build.js",
     "start": "node server.js",
     "dev": "node server.js",
     "check": "node --check server.js && node --check public/app.js && node scripts/catalog-test.js",
-    "test": "npm run build && node scripts/smoke-test.js && node scripts/multiplayer-test.js && node scripts/combat-test.js && node scripts/combat-depth-test.js && node scripts/fifty-floor-test.js && node scripts/auth-test.js && node scripts/cloud-room-test.js && node scripts/fun-loop-test.js"
+    "test": "npm run build && node scripts/smoke-test.js && node scripts/multiplayer-test.js && node scripts/combat-test.js && node scripts/combat-depth-test.js && node scripts/fifty-floor-test.js && node scripts/auth-test.js && node scripts/cloud-room-test.js && node scripts/fun-loop-test.js && node scripts/visual-first-test.js"
   },
   "engines": {
     "node": ">=20 <27"
