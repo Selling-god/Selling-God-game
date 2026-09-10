@@ -1,6 +1,6 @@
 {
   "name": "rift-deck-abyss-expedition",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "private": true,
   "description": "Dynamic server-authoritative 1-4 player card roguelite with Supabase cloud accounts, persistent progression, and impact-heavy combat VFX.",
   "scripts": {

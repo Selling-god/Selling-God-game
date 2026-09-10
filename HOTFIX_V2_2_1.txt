@@ -1,0 +1,15 @@
+RIFT DECK v2.2.1 Render build hotfix
+
+Fix:
+- scripts/build.js no longer treats the one-time Supabase SQL setup file as a runtime-critical build dependency.
+- If the supabase/ folder was not committed to GitHub, Render still builds and starts normally.
+- The SQL is also included at repository root as SUPABASE_SQL_RIFT_V22.txt for easy copy/paste into Supabase SQL Editor.
+
+Apply:
+1. Overwrite the files from this patch at the GitHub repository root.
+2. Commit/push.
+3. Render Web Service will redeploy automatically.
+4. Confirm /healthz shows version 2.2.1 and deployId RIFT-V2.2.1-HOTFIX-20260910.
+
+Login/cloud save:
+- The build can run without the SQL file, but Supabase login/cloud persistence still requires the SQL to be executed once in Supabase and Render environment variables to be present.

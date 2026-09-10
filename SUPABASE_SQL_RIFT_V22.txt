@@ -1,0 +1,38 @@
+-- RIFT DECK v2.2 - cloud account / persistent progression / active run snapshots
+-- SAFE FOR THE EXISTING SUPABASE PROJECT.
+-- This script does NOT drop or alter the previous game's kx_* tables.
+-- Login accounts live in Supabase Auth (auth.users); passwords never live in public tables.
+
+create table if not exists public.rift_profiles (
+  profile_id text primary key,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists rift_profiles_updated_at_idx
+  on public.rift_profiles (updated_at desc);
+
+alter table public.rift_profiles enable row level security;
+revoke all on table public.rift_profiles from anon, authenticated;
+grant select, insert, update, delete on table public.rift_profiles to service_role;
+
+comment on table public.rift_profiles is
+  'RIFT DECK cloud progression. Logged-in profile_id is the Supabase Auth user UUID; data stores collection, deck, currencies, pity, stats and recent expedition history.';
+
+-- Active room/run snapshots let a live expedition survive a Render process restart.
+-- The Node server is authoritative and is the only component allowed to read/write these rows.
+create table if not exists public.rift_rooms (
+  room_id text primary key,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists rift_rooms_updated_at_idx
+  on public.rift_rooms (updated_at desc);
+
+alter table public.rift_rooms enable row level security;
+revoke all on table public.rift_rooms from anon, authenticated;
+grant select, insert, update, delete on table public.rift_rooms to service_role;
+
+comment on table public.rift_rooms is
+  'RIFT DECK authoritative active room snapshots. Used by the Render Node Web Service for restart/reconnect recovery.';
