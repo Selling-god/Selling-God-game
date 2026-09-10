@@ -484,3 +484,33 @@ body.in-run-v27 .screen{min-height:calc(100dvh - 58px)}
   body.in-run-v27{overflow:auto}.run-stage-v27,.battle-stage-v27,.reward-stage-v27{height:auto!important;min-height:calc(100dvh - 58px)!important;overflow:visible!important}.run-hud-v27,.reward-hud-v27{grid-template-columns:1fr;display:flex;height:auto;flex-wrap:wrap}.run-hp-v27{min-width:180px;flex:1}.decision-center-v27,.reward-center-v27{height:auto;min-height:520px}.contract-grid-v27,.path-grid-v27,.three-choice-v27,.relic-grid-v27,.event-grid-v27,.shop-grid-v27{grid-template-columns:1fr}.battle-field-v27{height:auto;min-height:360px;grid-template-columns:1fr}.enemy-zone-v27{order:1;flex-wrap:wrap}.ally-zone-v27{order:2}.battle-dock-v27{height:auto;grid-template-columns:1fr}.hand-dock-v27 .hand{justify-content:flex-start!important}.energy-core-v27{display:none}.turn-box-v27{min-height:100px}.reward-options-v27{flex-wrap:wrap}.forge-grid-v27,.purge-grid-v27{grid-template-columns:repeat(2,minmax(0,1fr))}.run-info-grid-v27{grid-template-columns:repeat(2,1fr)}
 }
 @media(prefers-reduced-motion:reduce){.run-bg-v27,.scene-swipe-v27{animation:none!important}.scene-swipe-v27{display:none!important}}
+
+/* === v3.0 FUN LOOP: less menu, more moment-to-moment play === */
+.contract-grid-v27{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.path-grid-v27{grid-template-columns:repeat(2,minmax(0,1fr))!important;max-width:900px;margin:0 auto}
+.path-choice-v27{min-height:178px!important}
+.path-choice-v27 b{font-size:20px!important}
+.path-choice-v27 p{font-size:12px!important;line-height:1.55!important}
+.battle-label-v27{max-width:520px}
+.battle-mod-v30{display:block;margin-top:5px;font-style:normal;font-size:8px;line-height:1.35;color:#ffe49c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mastery-badge,.synergy-badge{position:absolute;z-index:7;border:1px solid #4e687b;background:rgba(4,12,20,.92);font-size:6px;line-height:1;padding:4px 5px;letter-spacing:.06em;box-shadow:0 3px 8px rgba(0,0,0,.28)}
+.mastery-badge{right:5px;bottom:5px;color:#a8ddff;border-color:#416f8e}
+.synergy-badge{left:5px;top:5px;color:#8cf0d8;border-color:#4b9f8c;background:rgba(6,30,27,.94)}
+.reward-options-v27{gap:16px!important}
+.reward-options-v27 .game-card{width:160px!important;height:246px!important}
+.reward-options-v27 .reward-item{width:174px!important;height:246px!important}
+.reward-options-v27 .card-art{height:96px!important}
+.reward-options-v27 .card-name{font-size:10.5px!important}
+.reward-options-v27 .card-text{font-size:8.2px!important;line-height:1.5!important}
+.reward-options-v27 .card-type,.reward-options-v27 .card-stats span{font-size:7px!important}
+.enemy-hud-v27 em.mark-v30{color:#ffe36b!important;border:1px solid #8f7b34;padding:2px 4px;font-size:6px!important}
+@media(max-height:860px){
+  .reward-options-v27 .game-card{width:140px!important;height:214px!important}
+  .reward-options-v27 .reward-item{width:150px!important;height:214px!important}
+  .reward-options-v27 .card-art{height:76px!important}
+  .battle-mod-v30{font-size:7px}
+}
+@media(max-width:760px){
+  .contract-grid-v27,.path-grid-v27{grid-template-columns:1fr!important}
+  .battle-mod-v30{white-space:normal}
+}
