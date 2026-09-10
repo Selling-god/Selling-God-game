@@ -29,8 +29,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '3.1.0';
-const DEPLOY_ID = 'RIFT-V3.1.0-VISUAL-FIRST-20260910';
+const VERSION = '3.2.0';
+const DEPLOY_ID = 'RIFT-V3.2.0-EXPEDITION-HUNT-20260911';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -392,11 +392,14 @@ function migrateProfile(p) {
   for (const k of ['basic', 'silver', 'royal']) p.seals[k] = Number(p.seals[k] || 0);
   p.pity = p.pity || { legendary: 0, mythic: 0 };
   p.collection = p.collection && typeof p.collection === 'object' ? p.collection : {};
-  for (const id of Object.keys(p.collection)) if (!CARD_BY_ID[id]) delete p.collection[id];
+  p.cardOrigins = p.cardOrigins && typeof p.cardOrigins === 'object' ? p.cardOrigins : {};
+  for (const id of Object.keys(p.collection)) if (!CARD_BY_ID[id]) { delete p.collection[id]; delete p.cardOrigins[id]; }
 
   for (const cid of STARTER_POOL) {
     if (!p.collection[cid]) p.collection[cid] = 1;
+    if (!p.cardOrigins[cid]) p.cardOrigins[cid] = 'starter';
   }
+  for (const cid of Object.keys(p.collection)) if (!p.cardOrigins[cid]) p.cardOrigins[cid] = STARTER_POOL.includes(cid) ? 'starter' : 'legacy';
   p.deck = Array.isArray(p.deck) ? p.deck.filter(id => CARD_BY_ID[id] && p.collection[id] > 0) : [];
   if (p.deck.length < 8) p.deck = STARTER_POOL.slice(0, 10);
   p.deck = [...new Set(p.deck)].slice(0, 16);
@@ -405,6 +408,7 @@ function migrateProfile(p) {
   const defaults = {
     journeys: 0, dungeons: 0, dungeonClears: 0, bosses: 0, cardsCaught: 0,
     bestDungeonFloor: 0, bestJourneyFloor: 0, gachaPulls: 0,
+    journeyUnlocks: 0, dungeonCardsPlayed: 0,
     normalClears: 0, hardClears: 0, hellClears: 0,
     bestNormalFloor: 0, bestHardFloor: 0, bestHellFloor: 0,
     loginCount: 0, lastLoginAt: 0, perfectBattles: 0, bestChain: 0, overdrives: 0
@@ -427,7 +431,8 @@ function ensureProfile(profileId, nickname) {
       seals: { basic: 15, silver: 6, royal: 1 },
       pity: { legendary: 0, mythic: 0 },
       collection: {},
-      deck: STARTER_POOL.slice(0, 10),
+      cardOrigins: {},
+      deck: STARTER_POOL.slice(0, 8),
       stats: {},
       history: [],
       cloud: false,
@@ -440,11 +445,13 @@ function ensureProfile(profileId, nickname) {
   return p;
 }
 
-function addCardToProfile(p, cardId, count = 1, save = true) {
+function addCardToProfile(p, cardId, count = 1, save = true, origin = 'legacy') {
   const c = CARD_BY_ID[cardId];
   if (!c) return;
+  p.cardOrigins ||= {};
   const old = Number(p.collection[cardId] || 0);
   p.collection[cardId] = old + count;
+  if (old === 0) p.cardOrigins[cardId] = origin || 'legacy';
   if (old > 0) p.dust += Number(RARITY[c.rarity]?.dust || 0) * count;
   if (save) saveProfiles();
 }
@@ -458,6 +465,7 @@ function profileView(p) {
     seals: p.seals,
     pity: p.pity,
     collection: p.collection,
+    cardOrigins: p.cardOrigins || {},
     deck: p.deck,
     stats: p.stats,
     history: p.history || [],
@@ -919,10 +927,10 @@ function itemPrice(i) {
 }
 
 function makeMerchantStock(room) {
-  const cards = rewardCardOptions(room, null, 4, 'merchant').map(c => ({
+  const cards = rewardCardOptions(room, null, 1, 'merchant').map(c => ({
     id: uid('shop'), type: 'card', cardId: c.id, card: publicCard(c), price: cardPrice(c)
   }));
-  const items = rewardItemOptions(room, null, 3, 'merchant').map(i => ({
+  const items = rewardItemOptions(room, null, 5, 'merchant').map(i => ({
     id: uid('shop'), type: 'item', itemId: i.id, item: publicItem(i), price: itemPrice(i)
   }));
   return shuffle([...cards, ...items]);
@@ -941,12 +949,11 @@ function chooseEvent(room, playerId, choiceId) {
   } else if (choiceId === 'risk') {
     const loss = room.floor >= 31 ? 15 : 12;
     run.hp = Math.max(1, run.hp - loss);
-    const pool = CARDS.filter(c => !c.limited && c.rarity !== 'common');
+    const pool = CARDS.filter(c => !c.limited && !c.archiveOnly && c.rarity !== 'common');
     const c = weighted(pool, c => Number(RARITY[c.rarity].travelWeight) * (room.floor >= 31 && ['ultra','legendary','mythic'].includes(c.rarity) ? 1.7 : 1));
-    addCardToProfile(p, c.id, 1, false);
     if (run.runDeck.length < 40) run.runDeck.push(c.id);
     run.cardsAdded++;
-    message = `체력 ${loss}를 대가로 「${c.name}」 획득.`;
+    message = `체력 ${loss}를 대가로 「${c.name}」을 이번 원정 덱에 추가했습니다.`;
   } else if (choiceId === 'scout') {
     const gold = 34 + room.floor * 3;
     run.gold += Math.round(gold * (1 + modTotal(run,'goldPct')));
@@ -1518,7 +1525,7 @@ function winBattle(room) {
   createFloorReward(room, 'battle', title, text, b.tier);
   room.reward.perfectBy = perfectBy;
   room.reward.gradeBy = gradeBy;
-  if (room.mode === 'journey' && Math.random() < (boss ? 0.70 : b.tier === 'elite' ? 0.42 : 0.27)) room.capture = makeCaptureEncounter(room.floor, b.tier, room);
+  if (room.mode === 'journey') room.capture = makeCaptureEncounter(room.floor, b.tier, room);
   battleLog(room, '승리!');
   pushRoomEvent(room, 'win', '전투에서 승리했습니다.', { tier: b.tier, floor: room.floor, final: room.finalClearPending, perfectPlayers: Object.keys(perfectBy).length });
 }
@@ -1592,7 +1599,12 @@ function rewardItemWeight(room, run, item, tier) {
 }
 function rewardCardOptions(room, playerId, n, tier = 'combat') {
   const run = playerId ? room.runState[playerId] : null;
-  const pool = CARDS.filter(c => !c.limited);
+  const profile = playerId ? profiles[playerId] : null;
+  let pool = CARDS.filter(c => !c.limited && !c.archiveOnly);
+  if (room.mode === 'dungeon' && profile) {
+    const owned = new Set(Object.keys(profile.collection || {}));
+    pool = pool.filter(c => owned.has(c.id));
+  }
   const out = [];
   let guard = 0;
   while (out.length < n && guard++ < 800) {
@@ -1670,17 +1682,35 @@ function createFloorReward(room, sourceKind, title, text, tier = 'combat', extra
 }
 
 function makeCaptureEncounter(floor, tier, room) {
-  const pool = CARDS.filter(c => !c.limited);
-  const c = weighted(pool, c => {
-    let w = Number(RARITY[c.rarity].travelWeight);
-    if (floor < 10 && c.rarity === 'legendary') w *= 0.10;
-    if (floor < 20 && c.rarity === 'mythic') w *= 0.02;
-    if (tier === 'elite' && ['ultra', 'legendary'].includes(c.rarity)) w *= 2.0;
-    if (tier === 'boss' && ['ultra', 'legendary', 'mythic'].includes(c.rarity)) w *= 3.2;
-    if (room?.difficulty === 'hell' && ['ultra', 'legendary', 'mythic'].includes(c.rarity)) w *= 1.25;
-    return w;
-  });
-  return { id: uid('echo'), cardId: c.id, card: publicCard(c), attemptedBy: [], escaped: false, caughtBy: null };
+  const profile = profiles[room.players?.[0]?.id];
+  const enemyElements = [...new Set((room.battle?.enemies || []).map(e => e.element).filter(Boolean))];
+  const biome = currentBiome(room);
+  const pool = CARDS.filter(c => !c.limited && !c.archiveOnly);
+  const c = process.env.TEST_MODE === '1' && profile
+    ? (pool.find(x => !profile.collection?.[x.id]) || pool[0])
+    : weighted(pool, c => {
+        let w = Number(RARITY[c.rarity].travelWeight);
+        if (enemyElements.includes(c.element)) w *= 3.4;
+        if (profile && !profile.collection?.[c.id]) w *= 2.8;
+        if (floor < 8 && c.rarity === 'legendary') w *= 0.03;
+        if (floor < 18 && c.rarity === 'mythic') w *= 0.005;
+        if (floor >= 10 && ['rare','ultra'].includes(c.rarity)) w *= 1.15 + Math.min(1.1, floor / 45);
+        if (tier === 'elite' && ['ultra', 'legendary'].includes(c.rarity)) w *= 2.6;
+        if (tier === 'boss' && ['ultra', 'legendary', 'mythic'].includes(c.rarity)) w *= 4.2;
+        if (biome && c.element === biome.cardElement) w *= 1.4;
+        return w;
+      });
+  return {
+    id: uid('echo'),
+    cardId: c.id,
+    card: publicCard(c),
+    attemptedBy: [],
+    escaped: false,
+    caughtBy: null,
+    enemyElements,
+    newDiscovery: profile ? !profile.collection?.[c.id] : true,
+    source: 'journey'
+  };
 }
 
 function salvageReward(room, playerId) {
@@ -1759,9 +1789,8 @@ function claimReward(room, playerId, rewardId) {
   const p = profiles[playerId];
   const run = room.runState[playerId];
   if (opt.type === 'card') {
-    addCardToProfile(p, opt.cardId, 1, false);
     if (run && run.runDeck.length < 40) { run.runDeck.push(opt.cardId); run.cardsAdded++; }
-    room.reward.claims[playerId] = { type: 'card', id: opt.cardId, label: CARD_BY_ID[opt.cardId].name };
+    room.reward.claims[playerId] = { type: 'card', id: opt.cardId, label: `${CARD_BY_ID[opt.cardId].name} · RUN` };
   } else if (opt.type === 'item') {
     const item = addItemToRun(run, opt.itemId);
     room.reward.claims[playerId] = { type: 'item', id: opt.itemId, label: item.name };
@@ -1806,7 +1835,6 @@ function buyReward(room, playerId, itemId, itemType = 'card') {
   if (run.gold < product.price) throw new Error('런 골드가 부족합니다.');
   run.gold -= product.price;
   if (product.type === 'card') {
-    addCardToProfile(profiles[playerId], product.cardId, 1, false);
     if (run.runDeck.length < 40) run.runDeck.push(product.cardId);
   } else addItemToRun(run, product.itemId);
   room.reward.purchased[key] = true;
@@ -1816,6 +1844,7 @@ function buyReward(room, playerId, itemId, itemType = 'card') {
 
 function continueAfterReward(room, playerId) {
   if (room.status !== 'reward' || !room.reward) throw new Error('진행할 수 없습니다.');
+  if (room.mode === 'journey' && room.capture && !room.capture.escaped && !room.capture.attemptedBy?.includes(playerId)) throw new Error('먼저 카드 흔적을 봉인하거나 지나가 주세요.');
   const options = room.reward.playerOptions?.[playerId] || [];
   if (options.length && !room.reward.claims[playerId]) throw new Error('보상을 선택하거나 분해해 주세요.');
   const relicOptions = room.reward.relicOptions?.[playerId] || [];
@@ -1874,11 +1903,13 @@ function attemptCapture(room, playerId, sealType) {
   if (run?.relics.includes('r003')) chance += 0.08;
   chance += modTotal(run, 'captureBonus');
   chance = Math.min(c.rarity === 'mythic' ? 0.22 : c.rarity === 'legendary' ? 0.44 : 0.96, chance);
-  const success = Math.random() < chance;
+  const success = process.env.TEST_MODE === '1' ? true : Math.random() < chance;
   if (success) {
-    addCardToProfile(p, c.id, 1, false);
-    if (run.runDeck.length < 40) run.runDeck.push(c.id);
+    const wasNew = !p.collection?.[c.id];
+    addCardToProfile(p, c.id, 1, false, 'journey');
+    if (run.runDeck.length < 40) { run.runDeck.push(c.id); run.cardsAdded++; }
     p.stats.cardsCaught++;
+    if (wasNew) p.stats.journeyUnlocks = Number(p.stats.journeyUnlocks || 0) + 1;
     cap.caughtBy = playerId;
     cap.escaped = true;
     saveProfiles();
@@ -1891,6 +1922,14 @@ function attemptCapture(room, playerId, sealType) {
     pushRoomEvent(room, 'capture-fail', cap.escaped ? `${c.name}의 흔적이 사라졌습니다.` : `${c.name} 봉인 실패. 아직 흔적이 남았습니다.`);
   }
   return { success, chance, escaped: cap.escaped };
+}
+
+function passCapture(room, playerId) {
+  if (room.mode !== 'journey' || room.status !== 'reward' || !room.capture || room.capture.escaped) throw new Error('넘길 카드 흔적이 없습니다.');
+  if (!room.capture.attemptedBy.includes(playerId)) room.capture.attemptedBy.push(playerId);
+  room.capture.escaped = true;
+  pushRoomEvent(room, 'capture-pass', `${playerName(room, playerId)} 님이 카드 흔적을 지나쳤습니다.`);
+  return { passed: true };
 }
 
 function rarityRoll(profile) {
@@ -1915,15 +1954,19 @@ function pullGacha(profile, count) {
   if (profile.gems < cost) throw new Error('프리즘이 부족합니다.');
   profile.gems -= cost;
   const results = [];
+  const archivePool = CARDS.filter(c => c.archiveOnly || c.limited);
   for (let i = 0; i < n; i++) {
     const rarity = rarityRoll(profile);
-    const pool = CARDS.filter(c => c.rarity === rarity);
+    let pool = archivePool.filter(c => c.rarity === rarity);
+    if (!pool.length) {
+      const targetOrder = Number(RARITY[rarity]?.order || 1);
+      pool = archivePool.slice().sort((a,b)=>Math.abs(Number(RARITY[a.rarity]?.order||1)-targetOrder)-Math.abs(Number(RARITY[b.rarity]?.order||1)-targetOrder)).slice(0,12);
+    }
     const featured = pool.filter(c => c.limited && BANNER.featured.includes(c.id));
-    const regular = pool.filter(c => !c.limited);
     let c;
     if (featured.length && Math.random() < 0.55) c = choose(featured);
-    else c = choose(regular.length ? regular : pool);
-    addCardToProfile(profile, c.id, 1, false);
+    else c = choose(pool);
+    addCardToProfile(profile, c.id, 1, false, 'gacha');
     results.push(publicCard(c));
     profile.stats.gachaPulls++;
   }
@@ -2142,6 +2185,7 @@ const server = http.createServer(async (req, res) => {
         if (action === 'buy') { buyReward(room, prof.id, b.itemId, b.itemType); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
         if (action === 'continue') { continueAfterReward(room, prof.id); return ok(res, { room: roomView(room) }); }
         if (action === 'capture') { const result = attemptCapture(room, prof.id, b.sealType); return ok(res, { result, room: roomView(room), profile: profileView(profiles[prof.id]) }); }
+        if (action === 'capture-pass') { const result = passCapture(room, prof.id); return ok(res, { result, room: roomView(room) }); }
         if (action === 'debug-win' && process.env.TEST_MODE === '1') {
           if (room.status === 'battle' && room.battle) room.battle.enemies.forEach(e => e.hp = 0);
           if (room.status === 'battle') winBattle(room);
