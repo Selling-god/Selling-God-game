@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
+  "version": "3.2.0",
   "rarities": {
     "common": {
       "ko": "일반",
@@ -6682,7 +6682,8 @@
       ],
       "unit": {},
       "limited": false,
-      "art": "/assets/cards/c286.png"
+      "art": "/assets/cards/c286.png",
+      "archiveOnly": true
     },
     {
       "id": "c287",
@@ -6700,7 +6701,8 @@
         "onAttack": "bossBonus10"
       },
       "limited": false,
-      "art": "/assets/cards/c287.png"
+      "art": "/assets/cards/c287.png",
+      "archiveOnly": true
     },
     {
       "id": "c288",
@@ -6721,7 +6723,8 @@
       ],
       "unit": {},
       "limited": false,
-      "art": "/assets/cards/c288.png"
+      "art": "/assets/cards/c288.png",
+      "archiveOnly": true
     },
     {
       "id": "c289",
@@ -6745,7 +6748,8 @@
         "onAttack": "weakBonus5"
       },
       "limited": false,
-      "art": "/assets/cards/c289.png"
+      "art": "/assets/cards/c289.png",
+      "archiveOnly": true
     },
     {
       "id": "c290",
@@ -6763,7 +6767,8 @@
         "onAttack": "fullBonus"
       },
       "limited": false,
-      "art": "/assets/cards/c290.png"
+      "art": "/assets/cards/c290.png",
+      "archiveOnly": true
     },
     {
       "id": "c291",
@@ -6789,7 +6794,8 @@
       ],
       "unit": {},
       "limited": false,
-      "art": "/assets/cards/c291.png"
+      "art": "/assets/cards/c291.png",
+      "archiveOnly": true
     },
     {
       "id": "c292",
@@ -6814,7 +6820,8 @@
       ],
       "unit": {},
       "limited": false,
-      "art": "/assets/cards/c292.png"
+      "art": "/assets/cards/c292.png",
+      "archiveOnly": true
     },
     {
       "id": "c293",
@@ -6841,7 +6848,8 @@
       ],
       "unit": {},
       "limited": false,
-      "art": "/assets/cards/c293.png"
+      "art": "/assets/cards/c293.png",
+      "archiveOnly": true
     },
     {
       "id": "c294",
@@ -6862,7 +6870,8 @@
       ],
       "unit": {},
       "limited": false,
-      "art": "/assets/cards/c294.png"
+      "art": "/assets/cards/c294.png",
+      "archiveOnly": true
     },
     {
       "id": "c295",
@@ -6886,7 +6895,8 @@
         "onRound": "healLowest4"
       },
       "limited": false,
-      "art": "/assets/cards/c295.png"
+      "art": "/assets/cards/c295.png",
+      "archiveOnly": true
     },
     {
       "id": "c296",
@@ -6910,7 +6920,8 @@
         "onRound": "oracle"
       },
       "limited": false,
-      "art": "/assets/cards/c296.png"
+      "art": "/assets/cards/c296.png",
+      "archiveOnly": true
     },
     {
       "id": "c297",
@@ -6928,7 +6939,8 @@
         "onAttack": "chainEvery2"
       },
       "limited": false,
-      "art": "/assets/cards/c297.png"
+      "art": "/assets/cards/c297.png",
+      "archiveOnly": true
     },
     {
       "id": "c298",
@@ -6947,7 +6959,8 @@
         "onRound": "healLowest2"
       },
       "limited": false,
-      "art": "/assets/cards/c298.png"
+      "art": "/assets/cards/c298.png",
+      "archiveOnly": true
     },
     {
       "id": "c299",
@@ -6972,7 +6985,8 @@
       ],
       "unit": {},
       "limited": false,
-      "art": "/assets/cards/c299.png"
+      "art": "/assets/cards/c299.png",
+      "archiveOnly": true
     },
     {
       "id": "c300",
@@ -6997,7 +7011,8 @@
       ],
       "unit": {},
       "limited": false,
-      "art": "/assets/cards/c300.png"
+      "art": "/assets/cards/c300.png",
+      "archiveOnly": true
     },
     {
       "id": "c301",
@@ -7019,7 +7034,8 @@
       ],
       "unit": {},
       "limited": false,
-      "art": "/assets/cards/c301.png"
+      "art": "/assets/cards/c301.png",
+      "archiveOnly": true
     },
     {
       "id": "c302",
@@ -7045,7 +7061,8 @@
         "onSpell": "ping2"
       },
       "limited": false,
-      "art": "/assets/cards/c302.png"
+      "art": "/assets/cards/c302.png",
+      "archiveOnly": true
     },
     {
       "id": "c303",
@@ -7074,7 +7091,8 @@
         "onSpell": "echoThird"
       },
       "limited": false,
-      "art": "/assets/cards/c303.png"
+      "art": "/assets/cards/c303.png",
+      "archiveOnly": true
     },
     {
       "id": "c304",
@@ -7092,7 +7110,8 @@
         "onAttack": "killEnergy"
       },
       "limited": false,
-      "art": "/assets/cards/c304.png"
+      "art": "/assets/cards/c304.png",
+      "archiveOnly": true
     },
     {
       "id": "c305",
@@ -7118,7 +7137,8 @@
       ],
       "unit": {},
       "limited": false,
-      "art": "/assets/cards/c305.png"
+      "art": "/assets/cards/c305.png",
+      "archiveOnly": true
     },
     {
       "id": "c306",
@@ -7143,7 +7163,8 @@
       ],
       "unit": {},
       "limited": false,
-      "art": "/assets/cards/c306.png"
+      "art": "/assets/cards/c306.png",
+      "archiveOnly": true
     },
     {
       "id": "c307",
@@ -7163,7 +7184,8 @@
         "aura": "bossGuard1"
       },
       "limited": false,
-      "art": "/assets/cards/c307.png"
+      "art": "/assets/cards/c307.png",
+      "archiveOnly": true
     },
     {
       "id": "c308",
@@ -7184,7 +7206,8 @@
         "aura": "whiteNight"
       },
       "limited": false,
-      "art": "/assets/cards/c308.png"
+      "art": "/assets/cards/c308.png",
+      "archiveOnly": true
     },
     {
       "id": "c309",
@@ -7211,7 +7234,8 @@
       ],
       "unit": {},
       "limited": false,
-      "art": "/assets/cards/c309.png"
+      "art": "/assets/cards/c309.png",
+      "archiveOnly": true
     },
     {
       "id": "c310",
@@ -7238,7 +7262,8 @@
       ],
       "unit": {},
       "limited": false,
-      "art": "/assets/cards/c310.png"
+      "art": "/assets/cards/c310.png",
+      "archiveOnly": true
     },
     {
       "id": "c311",
@@ -7261,7 +7286,8 @@
         "onAttack": "firstBonus4"
       },
       "limited": true,
-      "art": "/assets/cards/c311.png"
+      "art": "/assets/cards/c311.png",
+      "archiveOnly": true
     },
     {
       "id": "c312",
@@ -7287,7 +7313,8 @@
       ],
       "unit": {},
       "limited": true,
-      "art": "/assets/cards/c312.png"
+      "art": "/assets/cards/c312.png",
+      "archiveOnly": true
     },
     {
       "id": "c313",
@@ -7315,7 +7342,8 @@
         "aura": "whiteNight"
       },
       "limited": true,
-      "art": "/assets/cards/c313.png"
+      "art": "/assets/cards/c313.png",
+      "archiveOnly": true
     },
     {
       "id": "c314",
@@ -7340,7 +7368,8 @@
       ],
       "unit": {},
       "limited": true,
-      "art": "/assets/cards/c314.png"
+      "art": "/assets/cards/c314.png",
+      "archiveOnly": true
     },
     {
       "id": "c315",
@@ -7363,7 +7392,8 @@
         "onAttack": "splash40"
       },
       "limited": true,
-      "art": "/assets/cards/c315.png"
+      "art": "/assets/cards/c315.png",
+      "archiveOnly": true
     }
   ],
   "items": [
@@ -7376,7 +7406,9 @@
       "text": "획득 즉시 체력을 12 회복.",
       "mod": {
         "healOnPickup": 12
-      }
+      },
+      "category": "생존",
+      "art": "/assets/items/i001.png"
     },
     {
       "id": "i002",
@@ -7387,7 +7419,9 @@
       "text": "전투 시작 방어 +5.",
       "mod": {
         "startBlock": 5
-      }
+      },
+      "category": "방어",
+      "art": "/assets/items/i002.png"
     },
     {
       "id": "i003",
@@ -7398,7 +7432,9 @@
       "text": "전투 시작 드로우 +1.",
       "mod": {
         "drawBonus": 1
-      }
+      },
+      "category": "에너지",
+      "art": "/assets/items/i003.png"
     },
     {
       "id": "i004",
@@ -7409,7 +7445,9 @@
       "text": "소환 유닛 공격력 +1.",
       "mod": {
         "unitPower": 1
-      }
+      },
+      "category": "유닛",
+      "art": "/assets/items/i004.png"
     },
     {
       "id": "i005",
@@ -7420,7 +7458,9 @@
       "text": "스펠 피해 +2.",
       "mod": {
         "spellPower": 2
-      }
+      },
+      "category": "주문",
+      "art": "/assets/items/i005.png"
     },
     {
       "id": "i006",
@@ -7431,7 +7471,9 @@
       "text": "보상 희귀도 운 +4%.",
       "mod": {
         "rewardLuck": 0.04
-      }
+      },
+      "category": "경제",
+      "art": "/assets/items/i006.png"
     },
     {
       "id": "i007",
@@ -7442,7 +7484,9 @@
       "text": "일반 여행 봉인 확률 +3%p.",
       "mod": {
         "captureBonus": 0.03
-      }
+      },
+      "category": "탐사",
+      "art": "/assets/items/i007.png"
     },
     {
       "id": "i008",
@@ -7453,7 +7497,9 @@
       "text": "전투 골드 획득 +8%.",
       "mod": {
         "goldPct": 0.08
-      }
+      },
+      "category": "경제",
+      "art": "/assets/items/i008.png"
     },
     {
       "id": "i009",
@@ -7464,7 +7510,9 @@
       "text": "야영지 회복량 +6.",
       "mod": {
         "restFlat": 6
-      }
+      },
+      "category": "생존",
+      "art": "/assets/items/i009.png"
     },
     {
       "id": "i010",
@@ -7475,7 +7523,9 @@
       "text": "받는 피해 -2%.",
       "mod": {
         "damageReduction": 0.02
-      }
+      },
+      "category": "방어",
+      "art": "/assets/items/i010.png"
     },
     {
       "id": "i011",
@@ -7486,7 +7536,9 @@
       "text": "첫 턴 에너지 +1.",
       "mod": {
         "firstTurnEnergy": 1
-      }
+      },
+      "category": "에너지",
+      "art": "/assets/items/i011.png"
     },
     {
       "id": "i012",
@@ -7497,7 +7549,9 @@
       "text": "회복 효과 +12%.",
       "mod": {
         "healPct": 0.12
-      }
+      },
+      "category": "생존",
+      "art": "/assets/items/i012.png"
     },
     {
       "id": "i013",
@@ -7508,7 +7562,9 @@
       "text": "방어 획득량 +10%.",
       "mod": {
         "blockPct": 0.1
-      }
+      },
+      "category": "방어",
+      "art": "/assets/items/i013.png"
     },
     {
       "id": "i014",
@@ -7519,7 +7575,9 @@
       "text": "모든 직접 피해 +6%.",
       "mod": {
         "damagePct": 0.06
-      }
+      },
+      "category": "전투",
+      "art": "/assets/items/i014.png"
     },
     {
       "id": "i015",
@@ -7530,7 +7588,9 @@
       "text": "손패 최대치 +1.",
       "mod": {
         "handLimit": 1
-      }
+      },
+      "category": "에너지",
+      "art": "/assets/items/i015.png"
     },
     {
       "id": "i016",
@@ -7541,7 +7601,9 @@
       "text": "전투 승리 시 체력 5 회복.",
       "mod": {
         "healAfterBattle": 5
-      }
+      },
+      "category": "생존",
+      "art": "/assets/items/i016.png"
     },
     {
       "id": "i017",
@@ -7552,7 +7614,9 @@
       "text": "무료 보상 선택지 +1.",
       "mod": {
         "rewardChoices": 1
-      }
+      },
+      "category": "경제",
+      "art": "/assets/items/i017.png"
     },
     {
       "id": "i018",
@@ -7563,7 +7627,9 @@
       "text": "보상 재굴림 비용 -15%.",
       "mod": {
         "rerollDiscount": 0.15
-      }
+      },
+      "category": "경제",
+      "art": "/assets/items/i018.png"
     },
     {
       "id": "i019",
@@ -7574,7 +7640,9 @@
       "text": "전투 시작 첫 카드 비용 -1.",
       "mod": {
         "startDiscount": 1
-      }
+      },
+      "category": "에너지",
+      "art": "/assets/items/i019.png"
     },
     {
       "id": "i020",
@@ -7585,7 +7653,9 @@
       "text": "피격 시 적에게 2 피해.",
       "mod": {
         "thorns": 2
-      }
+      },
+      "category": "방어",
+      "art": "/assets/items/i020.png"
     },
     {
       "id": "i021",
@@ -7596,7 +7666,9 @@
       "text": "최대 체력 +10, 획득 시 같은 양 회복.",
       "mod": {
         "maxHpOnPickup": 10
-      }
+      },
+      "category": "전투",
+      "art": "/assets/items/i021.png"
     },
     {
       "id": "i022",
@@ -7607,7 +7679,9 @@
       "text": "최대 에너지 +1.",
       "mod": {
         "maxEnergy": 1
-      }
+      },
+      "category": "에너지",
+      "art": "/assets/items/i022.png"
     },
     {
       "id": "i023",
@@ -7618,7 +7692,9 @@
       "text": "모든 소환 유닛 공격력 +3.",
       "mod": {
         "unitPower": 3
-      }
+      },
+      "category": "유닛",
+      "art": "/assets/items/i023.png"
     },
     {
       "id": "i024",
@@ -7629,7 +7705,9 @@
       "text": "스펠 피해 +6.",
       "mod": {
         "spellPower": 6
-      }
+      },
+      "category": "주문",
+      "art": "/assets/items/i024.png"
     },
     {
       "id": "i025",
@@ -7640,7 +7718,9 @@
       "text": "전투 시작 방어 +14.",
       "mod": {
         "startBlock": 14
-      }
+      },
+      "category": "방어",
+      "art": "/assets/items/i025.png"
     },
     {
       "id": "i026",
@@ -7651,7 +7731,9 @@
       "text": "보상 희귀도 운 +12%.",
       "mod": {
         "rewardLuck": 0.12
-      }
+      },
+      "category": "경제",
+      "art": "/assets/items/i026.png"
     },
     {
       "id": "i027",
@@ -7662,7 +7744,9 @@
       "text": "일반 여행 봉인 확률 +10%p.",
       "mod": {
         "captureBonus": 0.1
-      }
+      },
+      "category": "탐사",
+      "art": "/assets/items/i027.png"
     },
     {
       "id": "i028",
@@ -7673,7 +7757,9 @@
       "text": "야영지에서 추가로 최대 체력 12% 회복.",
       "mod": {
         "restPct": 0.12
-      }
+      },
+      "category": "생존",
+      "art": "/assets/items/i028.png"
     },
     {
       "id": "i029",
@@ -7684,7 +7770,9 @@
       "text": "매 전투 첫 턴 드로우 +2.",
       "mod": {
         "drawBonus": 2
-      }
+      },
+      "category": "에너지",
+      "art": "/assets/items/i029.png"
     },
     {
       "id": "i030",
@@ -7695,7 +7783,9 @@
       "text": "받는 피해 -7%.",
       "mod": {
         "damageReduction": 0.07
-      }
+      },
+      "category": "방어",
+      "art": "/assets/items/i030.png"
     },
     {
       "id": "i031",
@@ -7706,7 +7796,9 @@
       "text": "원정 중 전투 불능 시 35% 체력로 1회 부활.",
       "mod": {
         "revive": 1
-      }
+      },
+      "category": "전투",
+      "art": "/assets/items/i031.png"
     },
     {
       "id": "i032",
@@ -7718,7 +7810,9 @@
       "mod": {
         "maxEnergy": 1,
         "drawBonus": 1
-      }
+      },
+      "category": "에너지",
+      "art": "/assets/items/i032.png"
     },
     {
       "id": "i033",
@@ -7730,7 +7824,9 @@
       "mod": {
         "rewardChoices": 1,
         "rewardLuck": 0.18
-      }
+      },
+      "category": "경제",
+      "art": "/assets/items/i033.png"
     },
     {
       "id": "i034",
@@ -7741,7 +7837,9 @@
       "text": "최대 체력 +22.",
       "mod": {
         "maxHpOnPickup": 22
-      }
+      },
+      "category": "전투",
+      "art": "/assets/items/i034.png"
     },
     {
       "id": "i035",
@@ -7752,7 +7850,9 @@
       "text": "보스에게 주는 피해 +22%.",
       "mod": {
         "bossDamagePct": 0.22
-      }
+      },
+      "category": "보스",
+      "art": "/assets/items/i035.png"
     },
     {
       "id": "i036",
@@ -7763,7 +7863,9 @@
       "text": "턴 종료 시 방어의 25%를 다음 턴까지 유지.",
       "mod": {
         "retainBlock": 0.25
-      }
+      },
+      "category": "방어",
+      "art": "/assets/items/i036.png"
     },
     {
       "id": "i037",
@@ -7774,7 +7876,9 @@
       "text": "매 턴 최대 에너지 +1.",
       "mod": {
         "maxEnergy": 1
-      }
+      },
+      "category": "에너지",
+      "art": "/assets/items/i037.png"
     },
     {
       "id": "i038",
@@ -7786,7 +7890,9 @@
       "mod": {
         "captureBonus": 0.18,
         "captureEscapeReduction": 0.18
-      }
+      },
+      "category": "탐사",
+      "art": "/assets/items/i038.png"
     },
     {
       "id": "i039",
@@ -7798,7 +7904,9 @@
       "mod": {
         "handLimit": 2,
         "drawBonus": 1
-      }
+      },
+      "category": "에너지",
+      "art": "/assets/items/i039.png"
     },
     {
       "id": "i040",
@@ -7809,7 +7917,9 @@
       "text": "협동 전투에서 아군 전원 시작 방어 +8.",
       "mod": {
         "teamStartBlock": 8
-      }
+      },
+      "category": "방어",
+      "art": "/assets/items/i040.png"
     },
     {
       "id": "i041",
@@ -7821,7 +7931,9 @@
       "mod": {
         "maxHpOnPickup": 35,
         "damageReduction": 0.1
-      }
+      },
+      "category": "방어",
+      "art": "/assets/items/i041.png"
     },
     {
       "id": "i042",
@@ -7832,7 +7944,9 @@
       "text": "최대 에너지 +2.",
       "mod": {
         "maxEnergy": 2
-      }
+      },
+      "category": "에너지",
+      "art": "/assets/items/i042.png"
     },
     {
       "id": "i043",
@@ -7844,7 +7958,9 @@
       "mod": {
         "rewardChoices": 2,
         "rewardLuck": 0.35
-      }
+      },
+      "category": "경제",
+      "art": "/assets/items/i043.png"
     },
     {
       "id": "i044",
@@ -7856,7 +7972,9 @@
       "mod": {
         "damagePct": 0.18,
         "bossDamagePct": 0.18
-      }
+      },
+      "category": "보스",
+      "art": "/assets/items/i044.png"
     },
     {
       "id": "i045",
@@ -7868,7 +7986,9 @@
       "mod": {
         "revive": 1,
         "revivePct": 0.55
-      }
+      },
+      "category": "전투",
+      "art": "/assets/items/i045.png"
     },
     {
       "id": "i046",
@@ -7879,7 +7999,9 @@
       "text": "전투 종료 프리즘 획득 +5%.",
       "mod": {
         "gemPct": 0.05
-      }
+      },
+      "category": "경제",
+      "art": "/assets/items/i046.png"
     },
     {
       "id": "i047",
@@ -7890,7 +8012,9 @@
       "text": "전투 승리 시 체력 2 회복.",
       "mod": {
         "healAfterBattle": 2
-      }
+      },
+      "category": "생존",
+      "art": "/assets/items/i047.png"
     },
     {
       "id": "i048",
@@ -7902,7 +8026,687 @@
       "mod": {
         "rerollDiscount": 0.3,
         "goldPct": 0.12
-      }
+      },
+      "category": "경제",
+      "art": "/assets/items/i048.png"
+    },
+    {
+      "id": "i049",
+      "name": "파수꾼 호루라기",
+      "rarity": "common",
+      "icon": "◆",
+      "category": "전투",
+      "maxStack": 5,
+      "text": "전투 시작 방어 +3 · 소환 유닛 공격력 +1.",
+      "mod": {
+        "startBlock": 3,
+        "unitPower": 1
+      },
+      "art": "/assets/items/i049.png"
+    },
+    {
+      "id": "i050",
+      "name": "정비용 멀티툴",
+      "rarity": "common",
+      "icon": "◆",
+      "category": "야영",
+      "maxStack": 5,
+      "text": "전투 후 HP +3 · 야영 회복 +3.",
+      "mod": {
+        "healAfterBattle": 3,
+        "restFlat": 3
+      },
+      "art": "/assets/items/i050.png"
+    },
+    {
+      "id": "i051",
+      "name": "잔광 표본병",
+      "rarity": "common",
+      "icon": "◆",
+      "category": "탐사",
+      "maxStack": 5,
+      "text": "봉인 확률 +2%p · 보상 운 +2%.",
+      "mod": {
+        "captureBonus": 0.02,
+        "rewardLuck": 0.02
+      },
+      "art": "/assets/items/i051.png"
+    },
+    {
+      "id": "i052",
+      "name": "견습 채집망",
+      "rarity": "common",
+      "icon": "◆",
+      "category": "탐사",
+      "maxStack": 5,
+      "text": "카드 흔적이 도망갈 확률 감소.",
+      "mod": {
+        "captureEscapeReduction": 0.05
+      },
+      "art": "/assets/items/i052.png"
+    },
+    {
+      "id": "i053",
+      "name": "공명 동전",
+      "rarity": "common",
+      "icon": "◆",
+      "category": "경제",
+      "maxStack": 5,
+      "text": "전투 골드 +5% · 프리즘 +2%.",
+      "mod": {
+        "goldPct": 0.05,
+        "gemPct": 0.02
+      },
+      "art": "/assets/items/i053.png"
+    },
+    {
+      "id": "i054",
+      "name": "마른 별약초",
+      "rarity": "common",
+      "icon": "◆",
+      "category": "야영",
+      "maxStack": 5,
+      "text": "획득 즉시 HP +8 · 야영 회복 +4.",
+      "mod": {
+        "healOnPickup": 8,
+        "restFlat": 4
+      },
+      "art": "/assets/items/i054.png"
+    },
+    {
+      "id": "i055",
+      "name": "전투 테이프",
+      "rarity": "common",
+      "icon": "◆",
+      "category": "전투",
+      "maxStack": 5,
+      "text": "최종 피해 +2% · 유닛 공격력 +1.",
+      "mod": {
+        "damagePct": 0.02,
+        "unitPower": 1
+      },
+      "art": "/assets/items/i055.png"
+    },
+    {
+      "id": "i056",
+      "name": "얇은 룬막",
+      "rarity": "common",
+      "icon": "◆",
+      "category": "방어",
+      "maxStack": 5,
+      "text": "전투 시작 방어 +4 · 받는 피해 -1%.",
+      "mod": {
+        "startBlock": 4,
+        "damageReduction": 0.01
+      },
+      "art": "/assets/items/i056.png"
+    },
+    {
+      "id": "i057",
+      "name": "손질된 깃펜",
+      "rarity": "common",
+      "icon": "◆",
+      "category": "주문",
+      "maxStack": 5,
+      "text": "스펠 피해 +1 · 보상 재굴림 비용 -3%.",
+      "mod": {
+        "spellPower": 1,
+        "rerollDiscount": 0.03
+      },
+      "art": "/assets/items/i057.png"
+    },
+    {
+      "id": "i058",
+      "name": "접이식 지도",
+      "rarity": "common",
+      "icon": "◆",
+      "category": "탐사",
+      "maxStack": 3,
+      "text": "보상 운 +3% · 전투 골드 +3%.",
+      "mod": {
+        "rewardLuck": 0.03,
+        "goldPct": 0.03
+      },
+      "art": "/assets/items/i058.png"
+    },
+    {
+      "id": "i059",
+      "name": "수호 리벳",
+      "rarity": "common",
+      "icon": "◆",
+      "category": "방어",
+      "maxStack": 5,
+      "text": "획득하는 방어량 +3%.",
+      "mod": {
+        "blockPct": 0.03
+      },
+      "art": "/assets/items/i059.png"
+    },
+    {
+      "id": "i060",
+      "name": "소형 카드집",
+      "rarity": "common",
+      "icon": "◆",
+      "category": "덱",
+      "maxStack": 3,
+      "text": "손패 최대치 +1.",
+      "mod": {
+        "handLimit": 1
+      },
+      "art": "/assets/items/i060.png"
+    },
+    {
+      "id": "i061",
+      "name": "청동 파수핵",
+      "rarity": "rare",
+      "icon": "◆",
+      "category": "방어",
+      "maxStack": 4,
+      "text": "전투 시작 방어 +8 · 방어 일부 유지.",
+      "mod": {
+        "startBlock": 8,
+        "retainBlock": 0.05
+      },
+      "art": "/assets/items/i061.png"
+    },
+    {
+      "id": "i062",
+      "name": "붉은 점화핀",
+      "rarity": "rare",
+      "icon": "◆",
+      "category": "전투",
+      "maxStack": 4,
+      "text": "피해 +4% · 첫 턴 에너지 +1.",
+      "mod": {
+        "damagePct": 0.04,
+        "firstTurnEnergy": 1
+      },
+      "art": "/assets/items/i062.png"
+    },
+    {
+      "id": "i063",
+      "name": "은빛 투영경",
+      "rarity": "rare",
+      "icon": "◆",
+      "category": "탐사",
+      "maxStack": 4,
+      "text": "봉인 확률 +5%p · 흔적 이탈 감소.",
+      "mod": {
+        "captureBonus": 0.05,
+        "captureEscapeReduction": 0.08
+      },
+      "art": "/assets/items/i063.png"
+    },
+    {
+      "id": "i064",
+      "name": "전술 정리함",
+      "rarity": "rare",
+      "icon": "◆",
+      "category": "덱",
+      "maxStack": 3,
+      "text": "전투 시작 드로우 +1 · 손패 최대치 +1.",
+      "mod": {
+        "drawBonus": 1,
+        "handLimit": 1
+      },
+      "art": "/assets/items/i064.png"
+    },
+    {
+      "id": "i065",
+      "name": "야전 온열팩",
+      "rarity": "rare",
+      "icon": "◆",
+      "category": "야영",
+      "maxStack": 4,
+      "text": "전투 후 HP +4 · 야영 회복량 +5%.",
+      "mod": {
+        "healAfterBattle": 4,
+        "restPct": 0.05
+      },
+      "art": "/assets/items/i065.png"
+    },
+    {
+      "id": "i066",
+      "name": "상인의 청동패",
+      "rarity": "rare",
+      "icon": "◆",
+      "category": "경제",
+      "maxStack": 4,
+      "text": "전투 골드 +10% · 재굴림 비용 -8%.",
+      "mod": {
+        "goldPct": 0.1,
+        "rerollDiscount": 0.08
+      },
+      "art": "/assets/items/i066.png"
+    },
+    {
+      "id": "i067",
+      "name": "정밀 숫돌",
+      "rarity": "rare",
+      "icon": "◆",
+      "category": "유닛",
+      "maxStack": 4,
+      "text": "유닛 공격력 +2 · 최종 피해 +3%.",
+      "mod": {
+        "unitPower": 2,
+        "damagePct": 0.03
+      },
+      "art": "/assets/items/i067.png"
+    },
+    {
+      "id": "i068",
+      "name": "청명 잉크결정",
+      "rarity": "rare",
+      "icon": "◆",
+      "category": "주문",
+      "maxStack": 4,
+      "text": "스펠 피해 +4 · 보상 운 +3%.",
+      "mod": {
+        "spellPower": 4,
+        "rewardLuck": 0.03
+      },
+      "art": "/assets/items/i068.png"
+    },
+    {
+      "id": "i069",
+      "name": "장거리 렌즈",
+      "rarity": "rare",
+      "icon": "◆",
+      "category": "보스",
+      "maxStack": 3,
+      "text": "보스 피해 +8% · 최종 피해 +2%.",
+      "mod": {
+        "bossDamagePct": 0.08,
+        "damagePct": 0.02
+      },
+      "art": "/assets/items/i069.png"
+    },
+    {
+      "id": "i070",
+      "name": "응급 재생캡슐",
+      "rarity": "rare",
+      "icon": "◆",
+      "category": "생존",
+      "maxStack": 3,
+      "text": "회복 효과 +8% · 획득 즉시 HP +6.",
+      "mod": {
+        "healPct": 0.08,
+        "healOnPickup": 6
+      },
+      "art": "/assets/items/i070.png"
+    },
+    {
+      "id": "i071",
+      "name": "쌍날 토큰",
+      "rarity": "rare",
+      "icon": "◆",
+      "category": "전투",
+      "maxStack": 4,
+      "text": "유닛 공격력 +1 · 스펠 피해 +2.",
+      "mod": {
+        "unitPower": 1,
+        "spellPower": 2
+      },
+      "art": "/assets/items/i071.png"
+    },
+    {
+      "id": "i072",
+      "name": "여행 기록계",
+      "rarity": "rare",
+      "icon": "◆",
+      "category": "탐사",
+      "maxStack": 3,
+      "text": "프리즘 +6% · 보상 운 +5%.",
+      "mod": {
+        "gemPct": 0.06,
+        "rewardLuck": 0.05
+      },
+      "art": "/assets/items/i072.png"
+    },
+    {
+      "id": "i073",
+      "name": "견고한 버클",
+      "rarity": "rare",
+      "icon": "◆",
+      "category": "방어",
+      "maxStack": 4,
+      "text": "받는 피해 -3% · 방어량 +5%.",
+      "mod": {
+        "damageReduction": 0.03,
+        "blockPct": 0.05
+      },
+      "art": "/assets/items/i073.png"
+    },
+    {
+      "id": "i074",
+      "name": "개량형 봉인고리",
+      "rarity": "rare",
+      "icon": "◆",
+      "category": "탐사",
+      "maxStack": 3,
+      "text": "봉인 확률 +6%p · 전투 골드 +4%.",
+      "mod": {
+        "captureBonus": 0.06,
+        "goldPct": 0.04
+      },
+      "art": "/assets/items/i074.png"
+    },
+    {
+      "id": "i075",
+      "name": "공명 축전 코어",
+      "rarity": "ultra",
+      "icon": "◆",
+      "category": "에너지",
+      "maxStack": 3,
+      "text": "최대 에너지 +1 · 전투 시작 카드 비용 1회 감소.",
+      "mod": {
+        "maxEnergy": 1,
+        "startDiscount": 1
+      },
+      "art": "/assets/items/i075.png"
+    },
+    {
+      "id": "i076",
+      "name": "유리 성벽판",
+      "rarity": "ultra",
+      "icon": "◆",
+      "category": "방어",
+      "maxStack": 3,
+      "text": "전투 시작 방어 +12 · 방어량 +12%.",
+      "mod": {
+        "startBlock": 12,
+        "blockPct": 0.12
+      },
+      "art": "/assets/items/i076.png"
+    },
+    {
+      "id": "i077",
+      "name": "포식자의 송곳니",
+      "rarity": "ultra",
+      "icon": "◆",
+      "category": "전투",
+      "maxStack": 3,
+      "text": "최종 피해 +9% · 전투 후 HP +3.",
+      "mod": {
+        "damagePct": 0.09,
+        "healAfterBattle": 3
+      },
+      "art": "/assets/items/i077.png"
+    },
+    {
+      "id": "i078",
+      "name": "별궤도 문진",
+      "rarity": "ultra",
+      "icon": "◆",
+      "category": "덱",
+      "maxStack": 3,
+      "text": "드로우 +1 · 보상 선택지 +1.",
+      "mod": {
+        "drawBonus": 1,
+        "rewardChoices": 1
+      },
+      "art": "/assets/items/i078.png"
+    },
+    {
+      "id": "i079",
+      "name": "황혼 봉인구슬",
+      "rarity": "ultra",
+      "icon": "◆",
+      "category": "탐사",
+      "maxStack": 3,
+      "text": "봉인 확률 +12%p · 흔적 이탈 크게 감소.",
+      "mod": {
+        "captureBonus": 0.12,
+        "captureEscapeReduction": 0.12
+      },
+      "art": "/assets/items/i079.png"
+    },
+    {
+      "id": "i080",
+      "name": "중력 주머니",
+      "rarity": "ultra",
+      "icon": "◆",
+      "category": "덱",
+      "maxStack": 3,
+      "text": "손패 최대치 +2 · 재굴림 비용 -12%.",
+      "mod": {
+        "handLimit": 2,
+        "rerollDiscount": 0.12
+      },
+      "art": "/assets/items/i080.png"
+    },
+    {
+      "id": "i081",
+      "name": "피닉스 약병",
+      "rarity": "ultra",
+      "icon": "◆",
+      "category": "생존",
+      "maxStack": 2,
+      "text": "회복 효과 +16% · 최대 HP +8.",
+      "mod": {
+        "healPct": 0.16,
+        "maxHpOnPickup": 8
+      },
+      "art": "/assets/items/i081.png"
+    },
+    {
+      "id": "i082",
+      "name": "전쟁 공명석",
+      "rarity": "ultra",
+      "icon": "◆",
+      "category": "유닛",
+      "maxStack": 3,
+      "text": "유닛 공격력 +3 · 팀 전투 시작 방어 +3.",
+      "mod": {
+        "unitPower": 3,
+        "teamStartBlock": 3
+      },
+      "art": "/assets/items/i082.png"
+    },
+    {
+      "id": "i083",
+      "name": "월광 잉크핵",
+      "rarity": "ultra",
+      "icon": "◆",
+      "category": "주문",
+      "maxStack": 3,
+      "text": "스펠 피해 +7 · 첫 턴 에너지 +1.",
+      "mod": {
+        "spellPower": 7,
+        "firstTurnEnergy": 1
+      },
+      "art": "/assets/items/i083.png"
+    },
+    {
+      "id": "i084",
+      "name": "황금 회전계",
+      "rarity": "ultra",
+      "icon": "◆",
+      "category": "경제",
+      "maxStack": 3,
+      "text": "골드 +18% · 프리즘 +8%.",
+      "mod": {
+        "goldPct": 0.18,
+        "gemPct": 0.08
+      },
+      "art": "/assets/items/i084.png"
+    },
+    {
+      "id": "i085",
+      "name": "거울 갑각",
+      "rarity": "ultra",
+      "icon": "◆",
+      "category": "방어",
+      "maxStack": 3,
+      "text": "받는 피해 -6% · 가시 +2.",
+      "mod": {
+        "damageReduction": 0.06,
+        "thorns": 2
+      },
+      "art": "/assets/items/i085.png"
+    },
+    {
+      "id": "i086",
+      "name": "심층 항법기",
+      "rarity": "ultra",
+      "icon": "◆",
+      "category": "탐사",
+      "maxStack": 3,
+      "text": "보상 운 +14% · 재굴림 비용 -12%.",
+      "mod": {
+        "rewardLuck": 0.14,
+        "rerollDiscount": 0.12
+      },
+      "art": "/assets/items/i086.png"
+    },
+    {
+      "id": "i087",
+      "name": "전장의 심장박동기",
+      "rarity": "legendary",
+      "icon": "◆",
+      "category": "전투",
+      "maxStack": 2,
+      "text": "최대 에너지 +1 · 피해 +9% · 드로우 +1.",
+      "mod": {
+        "maxEnergy": 1,
+        "damagePct": 0.09,
+        "drawBonus": 1
+      },
+      "art": "/assets/items/i087.png"
+    },
+    {
+      "id": "i088",
+      "name": "왕실 보급함",
+      "rarity": "legendary",
+      "icon": "◆",
+      "category": "경제",
+      "maxStack": 2,
+      "text": "골드 +25% · 보상 선택지 +1 · 운 +10%.",
+      "mod": {
+        "goldPct": 0.25,
+        "rewardChoices": 1,
+        "rewardLuck": 0.1
+      },
+      "art": "/assets/items/i088.png"
+    },
+    {
+      "id": "i089",
+      "name": "성역의 등불",
+      "rarity": "legendary",
+      "icon": "◆",
+      "category": "생존",
+      "maxStack": 2,
+      "text": "전투 후 HP +9 · 야영 회복 +15% · 피해 감소.",
+      "mod": {
+        "healAfterBattle": 9,
+        "restPct": 0.15,
+        "damageReduction": 0.04
+      },
+      "art": "/assets/items/i089.png"
+    },
+    {
+      "id": "i090",
+      "name": "천체 봉인장치",
+      "rarity": "legendary",
+      "icon": "◆",
+      "category": "탐사",
+      "maxStack": 2,
+      "text": "봉인 확률 +20%p · 흔적 이탈 크게 감소 · 보상 운 +6%.",
+      "mod": {
+        "captureBonus": 0.2,
+        "captureEscapeReduction": 0.22,
+        "rewardLuck": 0.06
+      },
+      "art": "/assets/items/i090.png"
+    },
+    {
+      "id": "i091",
+      "name": "대장군의 명찰",
+      "rarity": "legendary",
+      "icon": "◆",
+      "category": "유닛",
+      "maxStack": 2,
+      "text": "유닛 공격력 +5 · 팀 전투 시작 방어 +7.",
+      "mod": {
+        "unitPower": 5,
+        "teamStartBlock": 7
+      },
+      "art": "/assets/items/i091.png"
+    },
+    {
+      "id": "i092",
+      "name": "마도왕의 잉크병",
+      "rarity": "legendary",
+      "icon": "◆",
+      "category": "주문",
+      "maxStack": 2,
+      "text": "스펠 피해 +10 · 최대 에너지 +1.",
+      "mod": {
+        "spellPower": 10,
+        "maxEnergy": 1
+      },
+      "art": "/assets/items/i092.png"
+    },
+    {
+      "id": "i093",
+      "name": "불굴의 금속심",
+      "rarity": "legendary",
+      "icon": "◆",
+      "category": "방어",
+      "maxStack": 2,
+      "text": "최대 HP +18 · 피해 감소 · 방어 유지.",
+      "mod": {
+        "maxHpOnPickup": 18,
+        "damageReduction": 0.08,
+        "retainBlock": 0.12
+      },
+      "art": "/assets/items/i093.png"
+    },
+    {
+      "id": "i094",
+      "name": "심연 사냥꾼 표식",
+      "rarity": "legendary",
+      "icon": "◆",
+      "category": "보스",
+      "maxStack": 2,
+      "text": "보스 피해 +28% · 최종 피해 +6%.",
+      "mod": {
+        "bossDamagePct": 0.28,
+        "damagePct": 0.06
+      },
+      "art": "/assets/items/i094.png"
+    },
+    {
+      "id": "i095",
+      "name": "신화·만상 수집함",
+      "rarity": "mythic",
+      "icon": "◆",
+      "category": "탐사",
+      "maxStack": 1,
+      "text": "보상 선택지 +1 · 운/봉인/프리즘을 크게 강화.",
+      "mod": {
+        "rewardChoices": 1,
+        "rewardLuck": 0.28,
+        "captureBonus": 0.18,
+        "gemPct": 0.12
+      },
+      "art": "/assets/items/i095.png"
+    },
+    {
+      "id": "i096",
+      "name": "신화·영겁의 전투핵",
+      "rarity": "mythic",
+      "icon": "◆",
+      "category": "전투",
+      "maxStack": 1,
+      "text": "에너지·드로우·공격·방어를 모두 강화.",
+      "mod": {
+        "maxEnergy": 1,
+        "drawBonus": 2,
+        "damagePct": 0.14,
+        "damageReduction": 0.06
+      },
+      "art": "/assets/items/i096.png"
     }
   ],
   "biomes": [
@@ -7914,8 +8718,35 @@
       "ground": "#20362f",
       "accent": "#92d498",
       "desc": "낮은 유적과 이끼 난간이 이어지는 1구역",
-      "background": "/assets/biomes/verdant.png",
-      "index": 0
+      "background": "/assets/biomes/verdant_1.png",
+      "index": 0,
+      "scenes": [
+        {
+          "name": "청록 외곽",
+          "background": "/assets/biomes/verdant_1.png",
+          "variant": 0
+        },
+        {
+          "name": "이끼 회랑",
+          "background": "/assets/biomes/verdant_2.png",
+          "variant": 1
+        },
+        {
+          "name": "붕괴 교각",
+          "background": "/assets/biomes/verdant_3.png",
+          "variant": 2
+        },
+        {
+          "name": "등불 수목원",
+          "background": "/assets/biomes/verdant_4.png",
+          "variant": 3
+        },
+        {
+          "name": "심층 제단",
+          "background": "/assets/biomes/verdant_5.png",
+          "variant": 4
+        }
+      ]
     },
     {
       "id": "ember",
@@ -7925,8 +8756,35 @@
       "ground": "#35252a",
       "accent": "#f39b5f",
       "desc": "붉은 용광로와 고철 컨베이어가 남은 2구역",
-      "background": "/assets/biomes/ember.png",
-      "index": 1
+      "background": "/assets/biomes/ember_1.png",
+      "index": 1,
+      "scenes": [
+        {
+          "name": "잿불 입구",
+          "background": "/assets/biomes/ember_1.png",
+          "variant": 0
+        },
+        {
+          "name": "용광로 도크",
+          "background": "/assets/biomes/ember_2.png",
+          "variant": 1
+        },
+        {
+          "name": "붉은 컨베이어",
+          "background": "/assets/biomes/ember_3.png",
+          "variant": 2
+        },
+        {
+          "name": "재 폭풍로",
+          "background": "/assets/biomes/ember_4.png",
+          "variant": 3
+        },
+        {
+          "name": "심장 제련실",
+          "background": "/assets/biomes/ember_5.png",
+          "variant": 4
+        }
+      ]
     },
     {
       "id": "frost",
@@ -7936,8 +8794,35 @@
       "ground": "#29394f",
       "accent": "#b9eaff",
       "desc": "얼음 수정과 눈보라가 전장을 가르는 3구역",
-      "background": "/assets/biomes/frost.png",
-      "index": 2
+      "background": "/assets/biomes/frost_1.png",
+      "index": 2,
+      "scenes": [
+        {
+          "name": "유리 평원",
+          "background": "/assets/biomes/frost_1.png",
+          "variant": 0
+        },
+        {
+          "name": "서리 협곡",
+          "background": "/assets/biomes/frost_2.png",
+          "variant": 1
+        },
+        {
+          "name": "빙결 호수",
+          "background": "/assets/biomes/frost_3.png",
+          "variant": 2
+        },
+        {
+          "name": "수정 숲",
+          "background": "/assets/biomes/frost_4.png",
+          "variant": 3
+        },
+        {
+          "name": "백야 관문",
+          "background": "/assets/biomes/frost_5.png",
+          "variant": 4
+        }
+      ]
     },
     {
       "id": "astral",
@@ -7947,8 +8832,35 @@
       "ground": "#211f3d",
       "accent": "#d1b6ff",
       "desc": "별빛 균열과 고대 관측소가 떠 있는 4구역",
-      "background": "/assets/biomes/astral.png",
-      "index": 3
+      "background": "/assets/biomes/astral_1.png",
+      "index": 3,
+      "scenes": [
+        {
+          "name": "별빛 외곽",
+          "background": "/assets/biomes/astral_1.png",
+          "variant": 0
+        },
+        {
+          "name": "부유 관측소",
+          "background": "/assets/biomes/astral_2.png",
+          "variant": 1
+        },
+        {
+          "name": "혜성 교량",
+          "background": "/assets/biomes/astral_3.png",
+          "variant": 2
+        },
+        {
+          "name": "공허 서고",
+          "background": "/assets/biomes/astral_4.png",
+          "variant": 3
+        },
+        {
+          "name": "성좌 회랑",
+          "background": "/assets/biomes/astral_5.png",
+          "variant": 4
+        }
+      ]
     },
     {
       "id": "origin",
@@ -7958,8 +8870,35 @@
       "ground": "#181526",
       "accent": "#ffdf92",
       "desc": "50층 최종 수호자에게 이어지는 심연의 중심부",
-      "background": "/assets/biomes/origin.png",
-      "index": 4
+      "background": "/assets/biomes/origin_1.png",
+      "index": 4,
+      "scenes": [
+        {
+          "name": "기원의 전실",
+          "background": "/assets/biomes/origin_1.png",
+          "variant": 0
+        },
+        {
+          "name": "봉인 회랑",
+          "background": "/assets/biomes/origin_2.png",
+          "variant": 1
+        },
+        {
+          "name": "검은 왕좌",
+          "background": "/assets/biomes/origin_3.png",
+          "variant": 2
+        },
+        {
+          "name": "핵심 심연",
+          "background": "/assets/biomes/origin_4.png",
+          "variant": 3
+        },
+        {
+          "name": "최종 문",
+          "background": "/assets/biomes/origin_5.png",
+          "variant": 4
+        }
+      ]
     }
   ],
   "enemies": [
@@ -8840,10 +9779,6 @@
     "c053",
     "c060",
     "c079",
-    "c086",
-    "c105",
-    "c112",
-    "c131",
-    "c138"
+    "c086"
   ]
 }
