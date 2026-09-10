@@ -199,3 +199,98 @@ body{font-size:14px;text-rendering:optimizeLegibility;-webkit-font-smoothing:ant
   .chain-meter{padding:6px;margin:6px 0}.chain-head b{font-size:7px}.chain-head span{font-size:13px}.chain-meter small{font-size:6.8px!important}.chain-pips i{height:5px}.hand-hint{font-size:7px}.battle-grade{padding:7px 10px;gap:8px}.battle-grade>strong{width:38px;height:38px;font-size:22px}.battle-grade small{font-size:8px}
   .card-inspect-grid{grid-template-columns:1fr;gap:10px}.card-inspect{min-width:0}.card-inspect .game-card{width:175px!important;height:282px!important}.card-inspect .game-card .card-art{height:112px!important}.inspect-copy h2{font-size:20px}.inspect-copy p{font-size:11px!important}.inspect-copy strong{font-size:13px}
 }
+
+/* =========================================================
+   RIFT DECK v2.5 - ROGUELITE DEPTH / READABILITY / VIEWPORT FIT
+   ========================================================= */
+:root{
+  --v25-panel:rgba(8,18,32,.94);
+  --v25-panel2:rgba(12,26,44,.91);
+  --v25-line:rgba(120,220,205,.30);
+  --v25-blue:rgba(120,185,245,.28);
+}
+html,body{font-size:15px}
+.small-note{font-size:12px!important;line-height:1.55!important;color:#bfd0dc!important}
+.section-label,.eyebrow{font-size:9px!important;letter-spacing:.17em!important}
+.page-head p,.reward-head p,.event-card>p{font-size:13px!important;line-height:1.65!important;color:#c5d4df!important}
+
+/* Contract / route */
+.route-page-upgraded{max-width:1480px;padding:12px 16px 24px;display:flex;flex-direction:column;gap:11px}
+.route-page-upgraded .party-strip{margin:0}
+.contract-panel,.briefing-panel,.feed-panel,.threat-strip{border:1px solid var(--v25-line);background:linear-gradient(145deg,var(--v25-panel2),var(--v25-panel));box-shadow:0 16px 40px #0005}
+.contract-panel{padding:14px 16px}
+.contract-panel>div:first-child h3{font-size:20px;margin:5px 0 6px}
+.contract-panel>div:first-child p,.contract-panel.selected p{font-size:12px;line-height:1.55;color:#bcd0df;margin:0}
+.contract-panel.selected{display:flex;align-items:center;gap:18px;padding:10px 14px}
+.contract-panel.selected .section-label{min-width:max-content}
+.contract-panel.selected>b{font-size:15px;color:#b8ffe8;min-width:max-content}
+.contract-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:11px}
+.contract-grid button{min-height:122px;border:1px solid #3a5a6e;background:linear-gradient(160deg,#12243a,#0b1726);padding:12px;text-align:left;cursor:pointer;transition:.14s}
+.contract-grid button:hover{transform:translateY(-2px);border-color:#72d8bc;box-shadow:0 10px 24px #0006}
+.contract-grid button>span{font-size:22px;color:#80e7c8;float:right}
+.contract-grid button b{display:block;font-size:14px;margin-bottom:7px}
+.contract-grid button p{font-size:11px;line-height:1.45;color:#bad0de;margin:0 0 7px}
+.contract-grid button small{font-size:10px;line-height:1.45;color:#ffe19d}
+.briefing-panel{display:grid;grid-template-columns:1fr 330px;gap:16px;padding:13px 16px}
+.briefing-panel h3{font-size:22px;margin:5px 0 6px}.briefing-panel p{font-size:12px;line-height:1.55;color:#c6d8e5;margin:0}
+.briefing-meta{display:flex;flex-direction:column;gap:6px}.briefing-meta span{border:1px solid #324e65;background:#0a1522;padding:7px 9px;font-size:10px;color:#b9d8e9}
+.threat-strip{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 11px}
+.threat-strip b{font-size:10px;letter-spacing:.12em;color:#ff9ca8}.threat-strip span{border:1px solid #563845;background:#1c1119;padding:5px 7px;font-size:9px;color:#ffd2d8}
+.route-main-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;align-items:start}
+.route-side-stack{display:flex;flex-direction:column;gap:10px}
+.route-nodes{gap:10px;margin:10px auto 6px;max-width:none}.route-node{width:calc((100% - 20px)/3);min-height:190px;padding:14px}
+.route-node:disabled{opacity:.42;cursor:not-allowed}.route-node b{font-size:15px}.route-node p{font-size:11px!important;line-height:1.5;color:#bdd0de}.route-node small{display:block;margin-top:8px;font-size:9px;color:#8edcc8;line-height:1.45}
+.node-icon{width:56px;height:56px;font-size:23px;margin-bottom:10px}.vote-count{font-size:8px!important}
+.feed-panel{padding:11px}.feed-row{border-top:1px solid #22394d;padding:7px 3px}.feed-row:first-of-type{border-top:0}.feed-row b{font-size:8px;color:#76d7bc;letter-spacing:.12em}.feed-row p{font-size:10px;line-height:1.4;color:#c5d7e2;margin:3px 0 0}
+.upgraded-rack{display:block;padding:10px;overflow:hidden}.run-economy{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:7px}.run-economy strong,.run-economy span{font-size:9px;border:1px solid #31475d;padding:5px 7px;background:#091522}.run-economy strong{color:#ffe29a}.run-rack-row{display:flex;gap:6px;flex-wrap:wrap;max-height:132px;overflow:auto}.run-relic,.run-item-chip{font-size:9px!important;padding:6px 7px!important;border:1px solid #365268!important;background:#101f30!important}.run-relic{color:#aaf5df}
+
+/* Battle: fit 16:9 / 1760x860 while keeping readable text */
+.battle-screen-upgraded{height:calc(100dvh - 98px)!important;min-height:0!important;overflow:hidden!important}
+.battle-screen-upgraded .battle-hud{grid-template-rows:72px minmax(0,1fr) 258px!important;height:100%;min-height:0}
+.battle-screen-upgraded .battle-top{padding:6px 10px;gap:7px;overflow:hidden}
+.battle-screen-upgraded .combatant-chip{width:205px;padding:7px 9px;background:rgba(7,16,28,.92)}
+.battle-screen-upgraded .combatant-chip b{font-size:11px!important}.battle-screen-upgraded .combatant-chip small{font-size:9px!important;line-height:1.35}
+.battle-screen-upgraded .enemy-zone{min-height:0;overflow:hidden}
+.battle-screen-upgraded .enemy-card{width:190px}
+.battle-screen-upgraded .enemy-card:nth-child(1){left:60%;top:44%}.battle-screen-upgraded .enemy-card:nth-child(2){left:78%;top:55%}.battle-screen-upgraded .enemy-card:nth-child(3){left:43%;top:57%}.battle-screen-upgraded .enemy-card:nth-child(4){left:88%;top:31%}
+.battle-screen-upgraded .enemy-sprite{width:140px;height:140px}.battle-screen-upgraded .enemy-card.boss .enemy-sprite{width:165px;height:165px}
+.battle-screen-upgraded .enemy-intent{font-size:10px!important;padding:5px 7px}.battle-screen-upgraded .enemy-intent b{font-size:10px!important}
+.battle-screen-upgraded .enemy-name{padding:6px}.battle-screen-upgraded .enemy-name b{font-size:11px!important}.battle-screen-upgraded .enemy-stats{font-size:9px!important;line-height:1.4;color:#c1d0da}
+.battle-screen-upgraded .unit-board{left:3%;bottom:6px;grid-template-columns:repeat(3,82px);gap:5px}.battle-screen-upgraded .unit-slot{height:94px}.battle-screen-upgraded .unit-slot img{height:66px}.battle-screen-upgraded .unit-slot b{font-size:8px}
+.battle-screen-upgraded .battle-bottom{grid-template-columns:250px minmax(0,1fr) 300px!important;gap:7px;padding:7px;min-height:0}
+.battle-screen-upgraded .player-panel,.battle-screen-upgraded .battle-actions{padding:8px;background:rgba(8,19,33,.95)}
+.battle-screen-upgraded .player-panel h3{font-size:15px!important;margin:0 0 4px}.battle-screen-upgraded .big-hp{font-size:11px!important}.battle-screen-upgraded .energy{font-size:15px!important;margin:6px 0}
+.battle-screen-upgraded .chain-meter{padding:6px;margin:5px 0}.battle-screen-upgraded .chain-head b{font-size:9px!important}.battle-screen-upgraded .chain-head span{font-size:14px}.battle-screen-upgraded .chain-meter small{font-size:9px!important;line-height:1.35}
+.battle-screen-upgraded .pile-stats span{font-size:8px!important;padding:4px 2px}.battle-economy{font-size:9px;margin-top:5px;color:#b9d4e6}
+.battle-screen-upgraded .hand-wrap{min-width:0;overflow-x:auto;overflow-y:hidden;padding:0 3px}.battle-screen-upgraded .hand{height:238px!important;gap:7px;justify-content:center;align-items:flex-end}
+.battle-screen-upgraded .game-card{width:138px!important;height:225px!important;padding:6px!important}.battle-screen-upgraded .card-art{height:84px!important}.battle-screen-upgraded .card-name{font-size:10px!important;height:27px!important;line-height:1.3}.battle-screen-upgraded .card-text{font-size:8.8px!important;height:43px!important;line-height:1.45!important}.battle-screen-upgraded .card-type{font-size:7px!important}.battle-screen-upgraded .card-stats span{font-size:7px!important}.battle-screen-upgraded .rarity-ribbon{font-size:7px!important}.battle-screen-upgraded .cost{width:28px!important;height:28px!important;font-size:11px!important}.battle-screen-upgraded .card-top{grid-template-columns:30px 1fr!important}
+.upgrade-badge{position:absolute;right:5px;top:4px;z-index:8;border:1px solid #7adac1;background:#0c3029;color:#baffeb;font-size:9px;font-weight:1000;padding:2px 5px;box-shadow:0 0 12px #59dfb744}
+.battle-screen-upgraded .hand-hint{font-size:9px;color:#9fb3c1;padding-top:2px}
+.objective-card{border:1px solid #31526a;background:linear-gradient(145deg,#0b1c2b,#0b1624);padding:8px}.objective-card>b{display:block;font-size:11px;margin:4px 0}.objective-card p{font-size:9px;line-height:1.4;color:#c5d7e1;margin:0 0 5px}.objective-card small{font-size:8px;color:#9bcabf}
+.battle-screen-upgraded .intent-help{font-size:9px!important;line-height:1.45;color:#b6c8d4}.battle-screen-upgraded .combat-log{height:74px!important;font-size:9px!important;line-height:1.4;padding:5px}.battle-screen-upgraded .end-turn{min-height:42px;font-size:10px!important}
+
+/* Rewards / relics / camp */
+.reward-page{padding:16px 14px 28px}.reward-shell{max-width:1480px}.reward-head{max-width:980px}.reward-head h1{font-size:28px}.reward-head p{font-size:12px!important}.reward-meta span{font-size:9px!important;padding:6px 8px}
+.reward-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;align-items:start}
+.reward-side{display:flex;flex-direction:column;gap:10px}.reward-options{gap:8px;margin:14px auto;min-height:225px}.reward-options .game-card{width:142px;height:225px}.reward-actions{display:flex;gap:7px;justify-content:center;flex-wrap:wrap}.cta.salvage{border-color:#577077;background:#17252c;color:#c8edf2}
+.relic-draft,.camp-panel,.trim-panel{border:1px solid var(--v25-line);background:linear-gradient(145deg,#0e2135,#0a1727);padding:13px 15px;margin:12px auto;box-shadow:0 16px 35px #0004}
+.relic-draft h3,.camp-panel h3,.trim-panel h3{font-size:18px;margin:5px 0}.relic-draft>p,.trim-panel>p{font-size:11px;line-height:1.5;color:#bdd1df;margin:0 0 9px}
+.relic-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.relic-choice{min-height:105px;border:1px solid #3c566d;background:#0d1928;padding:10px;display:grid;grid-template-columns:42px 1fr;gap:9px;text-align:left;cursor:pointer}.relic-choice:hover:not(:disabled){transform:translateY(-2px);border-color:#6bd8b9}.relic-choice.claimed{opacity:.45}.relic-icon{width:38px;height:38px;display:grid;place-items:center;border:1px solid #46627b;background:#0a1420;font-size:20px;color:#ffe09a}.relic-choice small{font-size:8px;color:#8ca7b7}.relic-choice b{display:block;font-size:12px;margin:3px 0}.relic-choice p{font-size:9px;line-height:1.45;color:#c1d2dd;margin:0}
+.camp-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}.camp-actions button{border:1px solid #46627b;background:#0b1927;padding:10px;text-align:left;cursor:pointer}.camp-actions b{display:block;font-size:12px}.camp-actions small{font-size:9px;color:#b9cbd7}.camp-upgrades>b{font-size:11px}.camp-upgrades>small{font-size:9px;color:#aabfcb;margin-left:6px}.camp-upgrades>div{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:8px}.camp-upgrades button{border:1px solid #36536b;background:#0b1624;padding:8px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;gap:5px}.camp-upgrades button span{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.camp-upgrades button em{font-size:8px;color:#8de6c9;font-style:normal;white-space:nowrap}
+.trim-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.trim-grid button{border:1px solid #365169;background:#0c1725;padding:8px;text-align:left;cursor:pointer}.trim-grid b{display:block;font-size:10px}.trim-grid small{font-size:8px;color:#aabfcd}
+
+/* Events */
+.event-screen{padding:18px}.event-card.rich{width:min(1060px,96vw);padding:24px;border:1px solid var(--v25-line);background:linear-gradient(150deg,#121c31,#0b1422)}.event-card.rich h1{font-size:28px;margin:7px 0}.event-card.rich>p{font-size:13px!important;line-height:1.7!important;color:#cedce5!important}.event-context{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.event-context span{font-size:9px;border:1px solid #39536b;background:#0a1522;padding:6px 8px;color:#aee0d1}.event-choices{display:grid;grid-template-columns:1fr 1fr;gap:8px}.event-choice{min-height:88px;padding:12px}.event-choice b{font-size:12px!important}.event-choice small{font-size:10px!important;line-height:1.5;color:#b9ccd8}
+
+@media(max-height:900px) and (min-width:1041px){
+  .battle-screen-upgraded .battle-hud{grid-template-rows:66px minmax(0,1fr) 242px!important}
+  .battle-screen-upgraded .combatant-chip{padding:5px 7px}.battle-screen-upgraded .enemy-sprite{width:124px;height:124px}.battle-screen-upgraded .enemy-card.boss .enemy-sprite{width:148px;height:148px}
+  .battle-screen-upgraded .unit-board{grid-template-columns:repeat(3,74px)}.battle-screen-upgraded .unit-slot{height:84px}.battle-screen-upgraded .unit-slot img{height:58px}
+  .battle-screen-upgraded .battle-bottom{grid-template-columns:235px minmax(0,1fr) 285px!important;padding:5px;gap:5px}
+  .battle-screen-upgraded .hand{height:224px!important}.battle-screen-upgraded .game-card{width:130px!important;height:213px!important}.battle-screen-upgraded .card-art{height:77px!important}.battle-screen-upgraded .card-text{font-size:8.4px!important;height:40px!important}.battle-screen-upgraded .card-name{font-size:9.6px!important}
+  .battle-screen-upgraded .combat-log{height:62px!important}.objective-card p{font-size:8.5px}
+}
+@media(max-width:1180px){
+  .route-main-grid,.reward-layout,.briefing-panel{grid-template-columns:1fr}.contract-grid{grid-template-columns:1fr}.relic-grid{grid-template-columns:1fr}.camp-upgrades>div{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .battle-screen-upgraded{height:auto!important;min-height:680px!important;overflow:visible!important}.battle-screen-upgraded .battle-hud{grid-template-rows:auto minmax(380px,1fr) auto!important}.battle-screen-upgraded .battle-bottom{grid-template-columns:1fr!important}.battle-screen-upgraded .hand{justify-content:flex-start}.event-choices{grid-template-columns:1fr}
+}
