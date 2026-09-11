@@ -9,5 +9,5 @@ const mustCss=['.battle-stage-v31','.visual-card-v31','.signature-impact-v31','.
 for(const s of mustApp)if(!app.includes(s))throw new Error('VISUAL_FIRST missing app marker '+s);
 for(const s of mustCss)if(!css.includes(s))throw new Error('VISUAL_FIRST missing css marker '+s);
 for(const e of ['fire','water','nature','light','shadow','steel','wind','lightning','star','time','void','crystal'])if(!css.includes(`sig-${e}-v31`))throw new Error('VISUAL_FIRST missing element VFX '+e);
-if(!app.includes('cardKeywords(card,2)'))throw new Error('VISUAL_FIRST battle cards are not condensed');
+if(!app.includes('cardAbilityHtml(card,2)'))throw new Error('VISUAL_FIRST battle cards are not condensed/readable');
 console.log('VISUAL_FIRST_OK elements=12 oneScreen=true condensedCards=true signatureVfx=true');
