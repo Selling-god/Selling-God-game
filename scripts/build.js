@@ -31,7 +31,7 @@ if (!hasSupabaseSetupFile) {
 
 const catalog = JSON.parse(fs.readFileSync(path.join(root, 'data/catalog.json'), 'utf8'));
 if (catalog.cards.length !== 315) throw new Error(`BUILD_FAIL expected 315 cards, got ${catalog.cards.length}`);
-if (catalog.items.length < 96) throw new Error(`BUILD_FAIL expected >=96 items, got ${catalog.items.length}`);
+if (catalog.items.length < 120) throw new Error(`BUILD_FAIL expected >=96 items, got ${catalog.items.length}`);
 if (Object.keys(catalog.difficulties || {}).length !== 3) throw new Error('BUILD_FAIL expected 3 difficulties');
 
 let missing = [];
@@ -60,8 +60,8 @@ for (const e of [...catalog.enemies, ...catalog.bosses]) {
 if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets: ${missing.slice(0, 5).join(', ')}`);
 
 const info = {
-  version: '3.3.0',
-  deployId: 'RIFT-V3.3.0-GAME-FEEL-20260911',
+  version: '3.4.0',
+  deployId: 'RIFT-V3.4.0-EXPEDITION-PARTY-20260911',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,

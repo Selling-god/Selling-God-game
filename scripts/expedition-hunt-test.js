@@ -17,7 +17,7 @@ async function advanceNonBattle(room,u){
   return room;
 }
 (async()=>{try{
-  const hz=await ready(); if(hz.version!=='3.3.0')throw Error(`wrong version ${hz.version}`);
+  const hz=await ready(); if(hz.version!=='3.4.0')throw Error(`wrong version ${hz.version}`);
   const meta=await req('GET','/api/meta');
   if(meta.items.length<96)throw Error(`items ${meta.items.length}`);
   if(meta.biomes.some(b=>!Array.isArray(b.scenes)||b.scenes.length<5))throw Error('biome scenes missing');
