@@ -1,0 +1,34 @@
+RIFT DECK v4.1.0 ACTIVE MONSTER BATTLE - CONTENT CHECK
+
+PATCH target:
+- RIFT DECK v4.0 MONSTER EVOLUTION FULL FIXED
+
+PATCH packaging rule:
+- Only files changed by v4.1 are included.
+- v4.1 adds no replacement art assets, so assets/ is intentionally NOT present in the PATCH.
+- No placeholder/empty asset folders are included in the PATCH.
+
+Core v4.1 changes:
+- Clean title/main menu
+- Fresh account: exactly 3 starter monsters
+- Party edit persistence fixed
+- Party: up to 6 captured monsters / 10P budget
+- Single battle: 1 active monster
+- Double battle: 2 active monsters
+- Each monster: 4 move slots
+- Moves unlock with level
+- Post-battle Skill Disc can replace one of the 4 moves
+- Spell cards remain secondary tactics (max 2 per turn)
+- Evolution / Fusion / Resonance / Rift Bloom retained
+
+FULL asset verification:
+- assets/cards: 315 PNG
+- assets/enemies: 205 PNG
+- assets/monsters/forms: 615 PNG
+- assets/items: 120 PNG
+- assets/relics: 22 PNG
+- assets/biomes: 30 files
+- assets/ui: 4 files
+
+Version: 4.1.0
+Deploy ID: RIFT-V4.1.0-ACTIVE-MONSTER-BATTLE-20260911

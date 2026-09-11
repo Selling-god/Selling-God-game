@@ -1,0 +1,20 @@
+RIFT DECK v4.1 PATCH 적용
+
+권장 기준: v4.0 MONSTER EVOLUTION FULL FIXED
+
+1. 현재 프로젝트를 백업합니다.
+2. v4.1 PATCH ZIP을 압축 해제합니다.
+3. 압축 안의 파일/폴더를 GitHub 프로젝트 루트에 그대로 덮어씁니다.
+4. Commit / Push 합니다.
+5. Render Web Service가 자동 재배포되도록 기다립니다.
+6. /healthz 에서 아래 값을 확인합니다.
+   version: 4.1.0
+   deployId: RIFT-V4.1.0-ACTIVE-MONSTER-BATTLE-20260911
+
+Render
+- Build Command: npm ci && npm run build
+- Start Command: npm start
+
+Supabase
+- 기존 로그인/클라우드 저장이 정상이라면 SQL을 다시 실행할 필요 없습니다.
+- Render Environment에는 SUPABASE_URL + SUPABASE_SECRET_KEY (또는 레거시 SUPABASE_SERVICE_ROLE_KEY)가 있어야 합니다.
