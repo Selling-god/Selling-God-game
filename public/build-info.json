@@ -1,10 +1,10 @@
 {
-  "version": "3.3.0",
-  "deployId": "RIFT-V3.3.0-GAME-FEEL-20260911",
-  "builtAt": "2026-09-11T00:30:00.134Z",
+  "version": "4.0.0",
+  "deployId": "RIFT-V4.0.0-MONSTER-EVOLUTION-20260911",
+  "builtAt": "2026-09-11T02:00:49.638Z",
   "cards": 315,
-  "items": 96,
-  "enemies": 55,
+  "items": 120,
+  "enemies": 205,
   "maxDungeonFloor": 50,
   "difficulties": [
     "normal",
