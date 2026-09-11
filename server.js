@@ -30,7 +30,7 @@ const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
 const VERSION = '4.1.0';
-const DEPLOY_ID = 'RIFT-V4.1.0-WAVE-SPELL-PATCH-20260911';
+const DEPLOY_ID = 'RIFT-V4.1.0-PROGRESSION-EVOLUTION-REWARD-PATCH-20260911';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -41,6 +41,8 @@ const AUTH_COOKIE_REFRESH = 'rift_refresh';
 const AUTH_CACHE = new Map();
 
 const CATALOG = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'catalog.json'), 'utf8'));
+const MOVE_SYSTEM = require('./data/move-library');
+const { MOVE_LIBRARY, speciesLearnset, initialMoves, levelMovesBetween, discChoices, evolutionLevel, xpNeededForLevel, battleXpForFloor, movePoolCountFor } = MOVE_SYSTEM;
 const CARDS = CATALOG.cards;
 const ITEMS = CATALOG.items;
 const BIOMES = CATALOG.biomes;
@@ -66,64 +68,42 @@ const ELEMENT_ADVANTAGE = {
   '별':['그림자','시간'], '시간':['자연','공허'], '공허':['별','수정'], '수정':['빛','바람']
 };
 
-const BATTLE_RULES = Object.assign({ singleActive:1, doubleActive:2, tacticCardsPerTurn:2, moveSlots:4, doubleBattleEvery:8, moveUnlockLevels:[1,1,3,6] }, CATALOG.battleRules || {});
-const ELEMENT_MOVE_NAMES = {
-  '화염':['불씨 베기','화염구','홍련 장막','태양 폭발'],
-  '물':['물결 치기','압축 수탄','해류 장막','해일 분쇄'],
-  '자연':['덩굴 채찍','씨앗 포격','생명의 막','거목 분쇄'],
-  '빛':['광휘 일격','프리즘 광선','성광 수호','천광 낙하'],
-  '그림자':['그림자 할퀴기','암영 탄환','흑막 은신','심연 절단'],
-  '강철':['철편 베기','자력 포탄','합금 장벽','궤도 강타'],
-  '바람':['돌풍 치기','진공 칼날','회오리 장막','폭풍 난무'],
-  '번개':['전격 찌르기','연쇄 번개','전하 보호막','낙뢰 폭주'],
-  '별':['성편 타격','혜성 투사','별무리 장막','초신성 낙하'],
-  '시간':['시차 타격','시간 파동','역행 방벽','크로노 붕괴'],
-  '공허':['공허 물기','중력탄','무공 장막','붕괴점'],
-  '수정':['수정 찌르기','결정 포화','결정 갑주','빙정 폭쇄']
-};
-const ARCHETYPE_SKILLS = {
-  slime:{name:'점액 증식',kind:'guard',shield:9,heal:4,cooldown:1},
-  wing:{name:'급강하',kind:'attack',ratio:1.18,cooldown:1},
-  beast:{name:'야성 돌진',kind:'attack',ratio:1.25,cooldown:1},
-  spirit:{name:'정령 공명',kind:'status',resonance:2,shield:5,cooldown:2},
-  watcher:{name:'관측 광선',kind:'attack',ratio:1.15,stagger:8,cooldown:1},
-  insect:{name:'키틴 수호',kind:'guard',shield:13,cooldown:1},
-  golem:{name:'지각 분쇄',kind:'attack',ratio:1.34,cooldown:2},
-  mimic:{name:'탐욕 복제',kind:'status',draw:1,boost:2,cooldown:2},
-  priest:{name:'성역 기도',kind:'heal',heal:14,shield:5,cooldown:2},
-  knight:{name:'방패 돌진',kind:'attack',ratio:1.15,shield:7,cooldown:1},
-  assassin:{name:'그림자 연참',kind:'attack',ratio:1.42,cooldown:2},
-  wraith:{name:'흡혼',kind:'attack',ratio:1.10,lifesteal:.35,cooldown:1},
-  tyrant:{name:'왕의 압박',kind:'attack',ratio:1.30,vulnerable:1,cooldown:2},
-  serpent:{name:'맹독 송곳니',kind:'attack',ratio:1.05,weak:1,cooldown:1},
-  crab:{name:'갑각 반격',kind:'guard',shield:12,boost:3,cooldown:2},
-  mushroom:{name:'포자 폭발',kind:'attack',ratio:.92,splash:.45,cooldown:1},
-  drone:{name:'정밀 포격',kind:'attack',ratio:1.20,accuracy:100,cooldown:1},
-  leviathan:{name:'파도 압박',kind:'attack',ratio:1.15,splash:.35,cooldown:2},
-  phoenix:{name:'재점화 날개',kind:'heal',heal:10,boost:4,cooldown:2},
-  puppet:{name:'모방 연계',kind:'status',boost:5,draw:1,cooldown:2}
-};
-function buildMonsterMoves(monster){
-  const m=typeof monster==='string'?MONSTER_BY_ID[monster]:monster;if(!m)return[];const names=ELEMENT_MOVE_NAMES[m.element]||['기본 타격','속성 탄환','보호막','결전기'];const pc=monsterPointCost(m);const arch=ARCHETYPE_SKILLS[m.archetype]||{name:'전술 충격',kind:'attack',ratio:1.15,cooldown:1};
-  return [
-    {id:`${m.id}:m1`,name:names[0],kind:'attack',element:m.element,power:Math.round(4+pc*1.8),ratio:.72,accuracy:100,cooldown:0,unlockLevel:1,icon:'⚔',summary:'안정적인 기본 공격'},
-    {id:`${m.id}:m2`,name:names[1],kind:'attack',element:m.element,power:Math.round(7+pc*2.2),ratio:.94,accuracy:95,cooldown:1,unlockLevel:1,icon:'✦',summary:'속성 피해 · 약점 공략'},
-    {id:`${m.id}:m3`,name:arch.name,kind:arch.kind||'attack',element:m.element,power:Math.round(5+pc*1.6),ratio:Number(arch.ratio||0),accuracy:Number(arch.accuracy||96),cooldown:Number(arch.cooldown||1),unlockLevel:3,icon:arch.kind==='guard'?'⬢':arch.kind==='heal'?'✚':arch.kind==='status'?'◇':'➤',summary:'종족 고유 기술',...arch},
-    {id:`${m.id}:m4`,name:names[3],kind:'burst',element:m.element,power:Math.round(10+pc*3),ratio:1.38,accuracy:90,cooldown:2,unlockLevel:6,icon:'★',summary:'고위력 결정기 · BREAK 강함',stagger:12}
-  ];
+const BATTLE_RULES = Object.assign({
+  singleActive:1,doubleActive:2,tacticCardsPerTurn:2,moveSlots:4,doubleBattleEvery:8,
+  moveUnlockLevels:[1,1,1,1],startMonsterLevel:5,maxMonsterLevel:100,
+  progression:'battle-exp',levelMoveMode:'milestone-learnset'
+}, CATALOG.battleRules || {});
+
+function prepareMove(move, monster){
+  if(!move)return null;
+  return {...clone(move),element:move.element||monster?.element||'공허',cooldownRemaining:0,unlockLevel:Number(move.unlockLevel||1)};
 }
-function buildSkillDiscMoves(monster,level=1){
-  const m=typeof monster==='string'?MONSTER_BY_ID[monster]:monster;if(!m)return[];const pc=monsterPointCost(m);const names=ELEMENT_MOVE_NAMES[m.element]||[];
-  return [
-    {id:`${m.id}:disc:a`,name:`${names[2]||'수호'} 개조`,kind:'guard',element:m.element,shield:10+pc*2,heal:pc>=4?4:0,power:0,ratio:0,accuracy:100,cooldown:1,unlockLevel:1,icon:'⬢',summary:'실드 중심 기술'},
-    {id:`${m.id}:disc:b`,name:`${names[1]||'속성탄'} 연쇄`,kind:'attack',element:m.element,power:7+pc*2,ratio:1.02,accuracy:98,cooldown:1,unlockLevel:1,icon:'✧',summary:'안정적인 속성 연속기',resonance:1},
-    {id:`${m.id}:disc:c`,name:`${names[3]||'결전기'} EX`,kind:'burst',element:m.element,power:12+pc*3,ratio:1.52,accuracy:88,cooldown:3,unlockLevel:Math.max(3,level),icon:'✹',summary:'강력하지만 긴 재사용 대기',stagger:18}
-  ];
+function buildMonsterMoves(monster){
+  const m=typeof monster==='string'?MONSTER_BY_ID[monster]:monster;if(!m)return[];
+  return initialMoves(m).slice(0,Number(BATTLE_RULES.moveSlots||4)).map(x=>prepareMove(x,m));
+}
+function buildSkillDiscMoves(monster,level=1,nonce=0){
+  const m=typeof monster==='string'?MONSTER_BY_ID[monster]:monster;if(!m)return[];
+  return discChoices(m,level,3,nonce).map(x=>prepareMove(x,m));
+}
+function monsterLearnset(monster){
+  const m=typeof monster==='string'?MONSTER_BY_ID[monster]:monster;if(!m)return[];
+  return speciesLearnset(m).map(x=>prepareMove(x,m));
 }
 function normalizeMonsterMoves(u){
-  const base=buildMonsterMoves(u.speciesId);u.moves=Array.isArray(u.moves)&&u.moves.length?u.moves.map(x=>({...x})):base.map(x=>({...x}));
-  const known=new Set(u.moves.map(x=>x.id));for(const mv of base)if(!known.has(mv.id)&&u.moves.length<BATTLE_RULES.moveSlots)u.moves.push({...mv});u.moves=u.moves.slice(0,BATTLE_RULES.moveSlots);
-  for(const mv of u.moves){mv.cooldownRemaining=Math.max(0,Number(mv.cooldownRemaining||0));mv.unlockLevel=Number(mv.unlockLevel||1);}
+  const species=MONSTER_BY_ID[u.speciesId];if(!species)return[];
+  const base=buildMonsterMoves(species);
+  const raw=Array.isArray(u.moves)?u.moves.filter(Boolean):[];
+  // v4.1 used four hard-coded :m1~:m4 / :disc:* moves. Existing saves are
+  // migrated into the expanded learnset the first time they enter a battle.
+  const legacy=raw.length>0&&raw.every(x=>String(x.id||'').startsWith(`${u.speciesId}:m`)||String(x.id||'').startsWith(`${u.speciesId}:disc:`));
+  u.moves=(raw.length&&!legacy?raw:base).map(x=>prepareMove(x,species));
+  const known=new Set(u.moves.map(x=>x.id));
+  for(const mv of base){if(!known.has(mv.id)&&u.moves.length<Number(BATTLE_RULES.moveSlots||4)){u.moves.push({...mv});known.add(mv.id);}}
+  u.moves=u.moves.slice(0,Number(BATTLE_RULES.moveSlots||4));
+  while(u.moves.length<Number(BATTLE_RULES.moveSlots||4))u.moves.push({...base[u.moves.length%base.length]});
+  u.evolutionLevel=Number(u.evolutionLevel||evolutionLevel(species));
+  u.pendingLearnMoves=Array.isArray(u.pendingLearnMoves)?u.pendingLearnMoves:[];
   return u.moves;
 }
 
@@ -493,7 +473,7 @@ function publicMonster(m) {
     playerAtk:Number(m.playerAtk||m.atk||8),passive:clone(m.passive||{}),evolutionName:m.evolutionName||`${m.name} · 진화형`,
     resonanceName:m.resonanceName||`공명 ${m.name}`,abyssName:m.abyssName||`균열개화 ${m.name}`,
     evolutionSprite:m.evolutionSprite||m.sprite,resonanceSprite:m.resonanceSprite||m.sprite,riftSprite:m.riftSprite||m.sprite,
-    moves:buildMonsterMoves(m)
+    evolutionLevel:evolutionLevel(m),movePoolCount:movePoolCountFor(m),learnsetCount:speciesLearnset(m).length,moves:buildMonsterMoves(m)
   };
 }
 function createRunMonster(speciesId, index = 0) {
@@ -505,8 +485,8 @@ function createRunMonster(speciesId, index = 0) {
     instanceId: uid('mon'), speciesId:m.id, name:m.name, baseName:m.name, sprite:m.sprite, baseSprite:m.sprite,
     evolutionSprite:m.evolutionSprite||m.sprite,resonanceSprite:m.resonanceSprite||m.sprite,riftSprite:m.riftSprite||m.sprite,fusionSprite:null,
     element:m.element, secondaryElement:null, archetype:m.archetype||'beast', role:m.role||'striker', passive:clone(m.passive||{}),
-    pointCost:monsterPointCost(m), level:1, xp:0, hp:maxHp, maxHp, power, block:startBlock, counter:0,
-    gene:0, resonance:0, rift:0, evolved:false, fused:false, fusionWith:null, resonanceTurns:0, abyssBloom:false,
+    pointCost:monsterPointCost(m), level:Number(BATTLE_RULES.startMonsterLevel||5), xp:0, hp:maxHp, maxHp, power, block:startBlock, counter:0,
+    evolutionLevel:evolutionLevel(m), pendingLearnMoves:[], gene:0, resonance:0, rift:0, evolved:false, fused:false, fusionWith:null, resonanceTurns:0, abyssBloom:false,
     secondaryArchetype:null, secondaryPassive:null, nextAttackBonus:0, kills:0,
     revived:false, firstHitTaken:false, summonedTurn:0, slotOrder:index, acted:false, levelUpsThisBattle:0,
     moves:buildMonsterMoves(m).map(x=>({...x,cooldownRemaining:0}))
@@ -1136,10 +1116,48 @@ function gainCardMastery(room, run, cardId) {
   return { cardId, name: CARD_BY_ID[cardId].name, level: before, xp };
 }
 
-function monsterLevelGain(room, pc, u, amount = 1) {
-  if(!u)return;u.xp=Number(u.xp||0)+amount;const need=2+Number(u.level||1)*2;
-  if(u.xp>=need&&u.level<12){u.xp-=need;const before=u.level;u.level++;u.levelUpsThisBattle=Number(u.levelUpsThisBattle||0)+1;const oldMax=u.maxHp;u.maxHp=Math.round(u.maxHp*1.08+2);u.power=Math.round(u.power*1.08+1);u.hp=Math.min(u.maxHp,u.hp+(u.maxHp-oldMax)+4);normalizeMonsterMoves(u);const unlocked=u.moves.filter(mv=>mv.unlockLevel===u.level).map(mv=>mv.name);battleLog(room,`${u.name} Lv.${u.level}!${unlocked.length?` ${unlocked.join(', ')} 해금!`:''}`);pushRoomEvent(room,'monster-level',`${u.name} 레벨 업!`,{playerId:pc.playerId,instanceId:u.instanceId,level:u.level,unlocked});}
+function applyStandardEvolution(room,playerId,u,{natural=false,emit=true,eventQueue=null}={}){
+  if(!u||u.evolved)return null;
+  const species=MONSTER_BY_ID[u.speciesId];if(!species)return null;
+  const fromName=u.name,fromSprite=u.evolved?(u.evolutionSprite||u.sprite):(u.sprite||u.baseSprite);
+  u.evolved=true;
+  u.maxHp=Math.round(u.maxHp*1.24);u.hp=Math.min(u.maxHp,Math.round(u.hp*1.24+8));u.power=Math.round(u.power*1.22+2);
+  u.name=species.evolutionName||`${u.baseName} · 진화형`;
+  const prof=profiles[playerId];if(prof?.stats)prof.stats.evolutions=Number(prof.stats.evolutions||0)+1;
+  const payload={playerId,instanceId:u.instanceId,mode:'evolve',natural,level:u.level,fromName,toName:u.name,fromSprite,toSprite:u.evolutionSprite||species.evolutionSprite||u.sprite,element:u.element};
+  const ev={type:'monster-evolve',message:`${fromName}이(가) ${u.name}(으)로 진화했다!`,payload};
+  if(eventQueue)eventQueue.push(ev);else if(emit)pushRoomEvent(room,ev.type,ev.message,ev.payload);
+  return ev;
 }
+
+function monsterLevelGain(room,pc,u,amount=0,eventQueue=[]){
+  if(!u)return null;
+  const species=MONSTER_BY_ID[u.speciesId];if(!species)return null;
+  normalizeMonsterMoves(u);
+  const fromLevel=Number(u.level||1),fromXp=Number(u.xp||0);u.xp=fromXp+Math.max(0,Math.round(amount));
+  const learned=[];let levels=0;
+  while(u.level<Number(BATTLE_RULES.maxMonsterLevel||100)){
+    const need=xpNeededForLevel(u.level);if(u.xp<need)break;
+    u.xp-=need;const previous=u.level;u.level++;levels++;u.levelUpsThisBattle=Number(u.levelUpsThisBattle||0)+1;
+    const oldMax=u.maxHp;u.maxHp=Math.round(u.maxHp*1.035+1);u.power=Math.max(u.power+1,Math.round(u.power*1.025+0.5));u.hp=Math.min(u.maxHp,u.hp+(u.maxHp-oldMax)+3);
+    const newMoves=levelMovesBetween(species,previous,u.level);
+    for(const mv of newMoves){if(!(u.pendingLearnMoves||[]).some(x=>x.id===mv.id)&&!(u.moves||[]).some(x=>x.id===mv.id)){const ready=prepareMove(mv,species);u.pendingLearnMoves.push(ready);learned.push(ready);}}
+    eventQueue.push({type:'monster-level',message:`${u.name} Lv.${u.level}!`,payload:{playerId:pc.playerId,instanceId:u.instanceId,level:u.level,fromLevel:previous,unlocked:newMoves.map(x=>x.name)}});
+    if(!u.evolved&&u.level>=Number(u.evolutionLevel||evolutionLevel(species)))applyStandardEvolution(room,pc.playerId,u,{natural:true,emit:false,eventQueue});
+  }
+  battleLog(room,`${u.name} EXP +${Math.round(amount)}${levels?` · Lv.${fromLevel} → Lv.${u.level}`:''}`);
+  return{instanceId:u.instanceId,speciesId:u.speciesId,name:u.name,sprite:u.evolved?(u.evolutionSprite||u.sprite):u.sprite,fromLevel,toLevel:u.level,fromXp,xp:u.xp,xpNeed:xpNeededForLevel(u.level),xpGained:Math.max(0,Math.round(amount)),leveled:levels>0,levelsGained:levels,newMoves:learned.map(x=>({id:x.id,name:x.name,learnLevel:x.learnLevel}))};
+}
+
+function awardBattleMonsterXp(room,pc,tier,eventQueue=[]){
+  const base=battleXpForFloor(room.floor,tier,room.difficulty);const rows=[];const seen=new Set();
+  const grant=(u,mult,role)=>{if(!u||seen.has(u.instanceId))return;seen.add(u.instanceId);const amount=Math.max(1,Math.round(base*mult));const row=monsterLevelGain(room,pc,u,amount,eventQueue);if(row){row.partyRole=role;rows.push(row);}};
+  for(const u of pc.units||[])grant(u,1,'active');
+  for(const u of pc.bench||[])grant(u,.58,'bench');
+  for(const u of pc.ko||[])grant(u,.30,'ko');
+  return rows;
+}
+
 function monsterDamage(room, pc, u, amount, source=null){
   let d=Math.max(0,Math.round(amount)); if(!u)return 0;
   // Monster-specific mitigation happens before shields so the shield value is easy to understand.
@@ -1168,13 +1186,13 @@ function monsterDamage(room, pc, u, amount, source=null){
 
 function evolveMonster(room, playerId, instanceId, mode='evolve'){
   const pc=getPc(room,playerId);if(!pc||pc.down||pc.ended||room.battle?.phase!=='players')throw new Error('지금은 진화할 수 없습니다.');const u=findCombatMonster(pc,instanceId);if(!u)throw new Error('몬스터를 찾을 수 없습니다.');
-  const prof=profiles[playerId];
+  const prof=profiles[playerId];const species=MONSTER_BY_ID[u.speciesId];normalizeMonsterMoves(u);
   if(mode==='evolve'){
-    if(u.evolved)throw new Error('이미 진화했습니다.');if(u.level<3||u.gene<3)throw new Error('진화에는 Lv.3 + GENE 3이 필요합니다.');u.gene-=3;u.evolved=true;u.maxHp=Math.round(u.maxHp*1.28);u.hp=Math.min(u.maxHp,Math.round(u.hp*1.28+8));u.power=Math.round(u.power*1.25+2);u.name=MONSTER_BY_ID[u.speciesId]?.evolutionName||`${u.baseName} · 진화형`;prof.stats.evolutions++;pushRoomEvent(room,'monster-evolve',`${u.name} 진화!`,{playerId,instanceId:u.instanceId,mode:'evolve'});
+    if(u.evolved)throw new Error('이미 진화했습니다.');const natural=Number(u.level||1)>=Number(u.evolutionLevel||evolutionLevel(species));const accelerated=Number(u.level||1)>=3&&Number(u.gene||0)>=3;if(!natural&&!accelerated)throw new Error(`자연 진화는 Lv.${u.evolutionLevel}, 조기 진화에는 Lv.3 + GENE 3이 필요합니다.`);if(!natural)u.gene-=3;applyStandardEvolution(room,playerId,u,{natural,emit:true});
   }else if(mode==='resonance'){
-    if(u.resonanceTurns>0)throw new Error('이미 공명진화 상태입니다.');if(u.resonance<4)throw new Error('공명진화에는 RES 4가 필요합니다.');u.resonance-=4;u.resonanceTurns=3;u.block=Number(u.block||0)+6;prof.stats.resonanceEvolutions++;pushRoomEvent(room,'monster-evolve',`${u.name} 공명진화!`,{playerId,instanceId:u.instanceId,mode:'resonance'});
+    if(u.resonanceTurns>0)throw new Error('이미 공명진화 상태입니다.');if(u.resonance<4)throw new Error('공명진화에는 RES 4가 필요합니다.');const fromSprite=u.evolved?(u.evolutionSprite||u.sprite):u.sprite;u.resonance-=4;u.resonanceTurns=3;u.block=Number(u.block||0)+6;prof.stats.resonanceEvolutions++;pushRoomEvent(room,'monster-evolve',`${u.name} 공명진화!`,{playerId,instanceId:u.instanceId,mode:'resonance',fromName:u.name,toName:u.resonanceName||u.name,fromSprite,toSprite:u.resonanceSprite||fromSprite,element:u.element});
   }else if(mode==='rift'){
-    if(u.abyssBloom)throw new Error('이미 균열개화 상태입니다.');if(u.rift<3||u.hp/u.maxHp>.60)throw new Error('균열개화에는 HP 60% 이하 + RIFT 3이 필요합니다.');u.rift-=3;u.abyssBloom=true;u.nextAttackBonus=Number(u.nextAttackBonus||0)+5;prof.stats.riftBlooms++;pushRoomEvent(room,'monster-evolve',`${u.name} 균열개화!`,{playerId,instanceId:u.instanceId,mode:'rift'});
+    if(u.abyssBloom)throw new Error('이미 균열개화 상태입니다.');if(u.rift<3||u.hp/u.maxHp>.60)throw new Error('균열개화에는 HP 60% 이하 + RIFT 3이 필요합니다.');const fromSprite=u.evolved?(u.evolutionSprite||u.sprite):u.sprite;u.rift-=3;u.abyssBloom=true;u.nextAttackBonus=Number(u.nextAttackBonus||0)+5;prof.stats.riftBlooms++;pushRoomEvent(room,'monster-evolve',`${u.name} 균열개화!`,{playerId,instanceId:u.instanceId,mode:'rift',fromName:u.name,toName:u.abyssName||u.name,fromSprite,toSprite:u.riftSprite||fromSprite,element:u.element});
   }else throw new Error('알 수 없는 진화 방식입니다.');
   saveProfiles();return u;
 }
@@ -1196,7 +1214,8 @@ function playCard(room, playerId, handIndex, targetUid, targetMonsterId) {
   const index=Number(handIndex),cid=pc.hand[index],base=CARD_BY_ID[cid],run=room.runState[playerId],c=effectiveRunCard(run,base);if(!c||c.type!=='spell')throw new Error('스펠 카드가 없습니다.');
   const previewCost=Math.max(0,c.cost-(pc.buffs.anyDiscount>0?1:(pc.buffs.spellDiscount>0?1:0)));if(pc.energy<previewCost)throw new Error('에너지가 부족합니다.');const cost=resolveCost(pc,c);pc.energy-=cost;pc.hand.splice(index,1);pc.stats.cardsPlayed++;pc.tacticsUsed=Number(pc.tacticsUsed||0)+1;
   const target=aliveEnemies(room).find(e=>e.uid===targetUid)||aliveEnemies(room)[0];const monster=findCombatMonster(pc,targetMonsterId)||pc.units[0];castSpell(room,pc,c,target,monster);pc.discard.push(cid);const masteryResult=gainCardMastery(room,run,cid);
-  if(monster){monsterLevelGain(room,pc,monster,1);if(c.element===monster.element){const extra=monster.archetype==='spirit'&&Math.random()<.35?2:1;monster.resonance=clamp(Number(monster.resonance||0)+extra,0,6);}if(c.cardClass==='gene')monster.gene=clamp(Number(monster.gene||0),0,8);}
+  // Monster EXP is awarded only after a battle. Spell use builds resonance/gene, not levels.
+  if(monster){if(c.element===monster.element){const extra=monster.archetype==='spirit'&&Math.random()<.35?2:1;monster.resonance=clamp(Number(monster.resonance||0)+extra,0,6);}if(c.cardClass==='gene')monster.gene=clamp(Number(monster.gene||0),0,8);}
   if(b.modifier?.everyThirdDraw&&pc.stats.cardsPlayed%3===0){drawCards(pc,b.modifier.everyThirdDraw);battleLog(room,`${b.modifier.name}: 카드 1장을 추가로 드로우했습니다.`);}
   const chainResult=updateTacticalChain(room,pc,c,monster,target),phaseShifts=updateBossPhase(room),breakTargets=b.enemies.filter(e=>e.justBroken&&e.hp>0);for(const e of b.enemies)e.justBroken=false;if(checkBattleEnd(room))return;
   pushRoomEvent(room,'card',`${pc.nickname}: ${c.name}`,{playerId:pc.playerId,cardId:c.id,cardName:c.name,cardType:c.type,cardClass:c.cardClass,element:c.element,targetUid:target?.uid||null,targetMonsterId:monster?.instanceId||null,cost,chainCount:chainResult.displayCount,chainStage:chainResult.stage,upgradeLevel:Number(run.upgrades?.[c.id]||0),masteryXp:masteryResult?.xp||0});
@@ -1214,19 +1233,38 @@ function useMonsterMove(room,playerId,instanceId,moveId,targetUid){
   const target=aliveEnemies(room).find(e=>e.uid===targetUid)||aliveEnemies(room)[0];let dealt=0,hit=true;if(move.kind!=='guard'&&move.kind!=='heal'&&move.kind!=='status'){hit=process.env.TEST_MODE==='1'||Math.random()<Number(move.accuracy||100)/100;}
   if(hit&&['attack','burst'].includes(move.kind)&&target){dealt=moveDamage(room,pc,u,target,move);battleLog(room,`${u.name}의 ${move.name}! ${target.name}에게 ${dealt} 피해.`);}else if(!hit){battleLog(room,`${u.name}의 ${move.name} — 빗나갔다!`);}
   if(move.shield){u.block=Number(u.block||0)+Number(move.shield);battleLog(room,`${u.name} 방어막 +${move.shield}.`);}if(move.heal){const before=u.hp;u.hp=clamp(u.hp+Number(move.heal),0,u.maxHp);pc.stats.healing+=u.hp-before;}if(move.boost)u.power+=Number(move.boost);if(move.resonance)u.resonance=clamp(Number(u.resonance||0)+Number(move.resonance),0,6);if(move.draw)drawCards(pc,Number(move.draw));
-  move.cooldownRemaining=Math.max(0,Number(move.cooldown||0));u.acted=true;pc.stats.movesUsed=Number(pc.stats.movesUsed||0)+1;monsterLevelGain(room,pc,u,1);
+  move.cooldownRemaining=Math.max(0,Number(move.cooldown||0));u.acted=true;pc.stats.movesUsed=Number(pc.stats.movesUsed||0)+1;
   pushRoomEvent(room,'monster-move',`${u.name} · ${move.name}`,{playerId,instanceId:u.instanceId,targetUid:target?.uid||null,move:clone(move),damage:dealt,hit,element:move.element||u.element,style:u.archetype,form:monsterFormLabel(u)});
   const phases=updateBossPhase(room);for(const e of phases)pushRoomEvent(room,'boss-phase',`${e.name} 2단계!`,{enemyUid:e.uid,enemyName:e.name,phase:2});const breaks=b.enemies.filter(e=>e.justBroken&&e.hp>0);for(const e of b.enemies)e.justBroken=false;for(const e of breaks)pushRoomEvent(room,'enemy-break',`${e.name}의 자세 붕괴!`,{enemyUid:e.uid,enemyName:e.name});if(checkBattleEnd(room))return{move,dealt,ended:true};
   if(pc.units.filter(x=>x.hp>0).every(x=>x.acted)){pc.ended=true;battleLog(room,`${pc.nickname} 행동 완료.`);if(b.party.filter(x=>!x.down).every(x=>x.ended))enemyTurn(room);}return{move,dealt,ended:pc.ended};
 }
-function skillOfferForPc(room,pc){
-  const mons=[...pc.units,...pc.bench].filter(u=>u.hp>0);if(!mons.length)return null;const leveled=mons.filter(u=>Number(u.levelUpsThisBattle||0)>0);const should=leveled.length||room.battle?.tier==='boss'||room.battle?.tier==='elite'||room.floor%4===0;if(!should)return null;const u=leveled[0]||mons[0],species=MONSTER_BY_ID[u.speciesId];if(!species)return null;const offers=buildSkillDiscMoves(species,u.level).map(x=>({...x,cooldownRemaining:0}));return{instanceId:u.instanceId,monsterName:u.name,monsterSprite:u.sprite,reason:leveled.length?'LEVEL UP':'SKILL DISC',moves:offers,currentMoves:clone(u.moves||[])};
+function makeMoveOffer(u,move,reason='LEVEL MOVE'){
+  return{instanceId:u.instanceId,monsterName:u.name,monsterSprite:u.evolved?(u.evolutionSprite||u.sprite):u.sprite,reason,moves:[clone(move)],currentMoves:clone(u.moves||[]),learnLevel:Number(move.learnLevel||u.level||1),source:'level'};
 }
+function buildSkillQueueForPc(room,pc){
+  const queue=[];const run=room.runState[pc.playerId];const mons=[...(pc.units||[]),...(pc.bench||[]),...(pc.ko||[])];
+  for(const u of mons){normalizeMonsterMoves(u);for(const mv of (u.pendingLearnMoves||[]))queue.push(makeMoveOffer(u,mv,`LEVEL MOVE · Lv.${mv.learnLevel||u.level}`));u.pendingLearnMoves=[];const ru=(run?.monsters||[]).find(x=>x.instanceId===u.instanceId);if(ru)ru.pendingLearnMoves=[];}
+  if(['elite','boss'].includes(room.battle?.tier)){
+    const living=mons.filter(u=>u.hp>0);const u=living[room.floor%Math.max(1,living.length)]||living[0];if(u){const species=MONSTER_BY_ID[u.speciesId];const offers=buildSkillDiscMoves(species,u.level,room.floor+Number(pc.stats?.movesUsed||0));if(offers.length)queue.push({instanceId:u.instanceId,monsterName:u.name,monsterSprite:u.evolved?(u.evolutionSprite||u.sprite):u.sprite,reason:room.battle.tier==='boss'?'BOSS TECH DISC':'WARDEN TECH DISC',moves:offers,currentMoves:clone(u.moves||[]),source:'disc'});}
+  }
+  return queue;
+}
+function refreshSkillOffer(room,playerId){
+  room.reward.skillOffers ||= {};room.reward.skillQueueBy ||= {};room.reward.skillIndexBy ||= {};const queue=room.reward.skillQueueBy[playerId]||[];const idx=Number(room.reward.skillIndexBy[playerId]||0);const offer=queue[idx];
+  if(!offer){delete room.reward.skillOffers[playerId];room.reward.skillClaims ||= {};room.reward.skillClaims[playerId]={completed:true,history:room.reward.skillHistoryBy?.[playerId]||[]};return null;}
+  const run=room.runState[playerId],u=(run?.monsters||[]).find(x=>x.instanceId===offer.instanceId);if(u){normalizeMonsterMoves(u);offer.currentMoves=clone(u.moves);offer.monsterName=u.name;offer.monsterSprite=u.evolved?(u.evolutionSprite||u.sprite):u.sprite;}
+  room.reward.skillOffers[playerId]=offer;return offer;
+}
+function advanceSkillOffer(room,playerId,record){
+  room.reward.skillHistoryBy ||= {};room.reward.skillHistoryBy[playerId] ||= [];room.reward.skillHistoryBy[playerId].push(record);room.reward.skillIndexBy[playerId]=Number(room.reward.skillIndexBy[playerId]||0)+1;return refreshSkillOffer(room,playerId);
+}
+function skillOfferForPc(room,pc){return buildSkillQueueForPc(room,pc)[0]||null;}
 function teachMonsterMove(room,playerId,moveId,replaceIndex){
-  if(room.status!=='reward'||!room.reward)throw new Error('기술을 배울 수 있는 단계가 아닙니다.');room.reward.skillClaims ||= {};if(room.reward.skillClaims[playerId])throw new Error('이번 기술 선택은 이미 완료했습니다.');const offer=room.reward.skillOffers?.[playerId];if(!offer)throw new Error('배울 기술이 없습니다.');const move=(offer.moves||[]).find(x=>x.id===moveId);if(!move)throw new Error('해당 기술을 찾을 수 없습니다.');const run=room.runState[playerId],u=(run.monsters||[]).find(x=>x.instanceId===offer.instanceId);if(!u)throw new Error('몬스터를 찾을 수 없습니다.');normalizeMonsterMoves(u);let idx=Number(replaceIndex);if(!Number.isInteger(idx)||idx<0||idx>=BATTLE_RULES.moveSlots){idx=u.moves.findIndex(x=>u.level<Number(x.unlockLevel||1));if(idx<0)idx=u.moves.length<BATTLE_RULES.moveSlots?u.moves.length:BATTLE_RULES.moveSlots-1;}u.moves[idx]={...clone(move),cooldownRemaining:0};room.reward.skillClaims[playerId]={moveId:move.id,moveName:move.name,replaceIndex:idx,monsterName:u.name};pushRoomEvent(room,'move-learn',`${u.name}이(가) ${move.name}을 익혔다!`,{playerId,instanceId:u.instanceId,move:clone(move),replaceIndex:idx});return room.reward.skillClaims[playerId];
+  if(room.status!=='reward'||!room.reward)throw new Error('기술을 배울 수 있는 단계가 아닙니다.');const offer=room.reward.skillOffers?.[playerId];if(!offer)throw new Error('배울 기술이 없습니다.');const move=(offer.moves||[]).find(x=>x.id===moveId);if(!move)throw new Error('해당 기술을 찾을 수 없습니다.');const run=room.runState[playerId],u=(run.monsters||[]).find(x=>x.instanceId===offer.instanceId);if(!u)throw new Error('몬스터를 찾을 수 없습니다.');normalizeMonsterMoves(u);let idx=Number(replaceIndex);if(!Number.isInteger(idx)||idx<0||idx>=BATTLE_RULES.moveSlots)idx=BATTLE_RULES.moveSlots-1;const old=u.moves[idx];u.moves[idx]={...clone(move),element:move.element||u.element,cooldownRemaining:0,unlockLevel:1};const record={moveId:move.id,moveName:move.name,replaceIndex:idx,replacedMoveName:old?.name||null,monsterName:u.name,source:offer.source};pushRoomEvent(room,'move-learn',`${u.name}이(가) ${move.name}을 익혔다!`,{playerId,instanceId:u.instanceId,move:clone(move),replaceIndex:idx});advanceSkillOffer(room,playerId,record);return record;
 }
-function skipMonsterMoveOffer(room,playerId){if(room.status!=='reward'||!room.reward)throw new Error('기술 선택 단계가 아닙니다.');room.reward.skillClaims ||= {};room.reward.skillClaims[playerId]={skipped:true};return room.reward.skillClaims[playerId];}
-
+function skipMonsterMoveOffer(room,playerId){
+  if(room.status!=='reward'||!room.reward)throw new Error('기술 선택 단계가 아닙니다.');const offer=room.reward.skillOffers?.[playerId];if(!offer){room.reward.skillClaims ||= {};room.reward.skillClaims[playerId]={completed:true};return room.reward.skillClaims[playerId];}const record={skipped:true,moveName:offer.moves?.[0]?.name||null,monsterName:offer.monsterName,source:offer.source};advanceSkillOffer(room,playerId,record);return record;
+}
 
 function summonUnit(room, pc, c, target) {
   const extraPower = Math.round(pc.itemMods.unitPower || 0);
@@ -1507,6 +1545,9 @@ function recordRunHistory(room, result) {
 
 function winBattle(room) {
   const b = room.battle;
+  const progressionEvents = [];
+  const expBy = {};
+  for (const pc of b.party || []) expBy[pc.playerId] = awardBattleMonsterXp(room, pc, b.tier, progressionEvents);
   syncRunHealth(room);
   const boss = b.tier === 'boss';
   const diff = roomDifficulty(room);
@@ -1552,12 +1593,14 @@ function winBattle(room) {
   createFloorReward(room, 'battle', title, text, b.tier, { camp:b.tier==='elite', campBy:{}, shop:shopWave?makeMerchantStock(room):null, purchased:{} });
   room.reward.perfectBy = perfectBy;
   room.reward.gradeBy = gradeBy;
-  room.reward.skillOffers = {}; room.reward.skillClaims = {};
-  for(const rp of room.players){const pc=b.party.find(x=>x.playerId===rp.id),offer=pc?skillOfferForPc(room,pc):null;if(offer)room.reward.skillOffers[rp.id]=offer;}
+  room.reward.expBy = expBy;
+  room.reward.skillOffers = {}; room.reward.skillClaims = {}; room.reward.skillQueueBy = {}; room.reward.skillIndexBy = {}; room.reward.skillHistoryBy = {};
+  for(const rp of room.players){const pc=b.party.find(x=>x.playerId===rp.id);const queue=pc?buildSkillQueueForPc(room,pc):[];room.reward.skillQueueBy[rp.id]=queue;room.reward.skillIndexBy[rp.id]=0;if(queue.length)refreshSkillOffer(room,rp.id);else room.reward.skillClaims[rp.id]={completed:true,history:[]};}
   if (room.mode === 'journey' && b.encounterType !== 'warden') room.capture = makeCaptureEncounter(room.floor, b.tier, room);
   battleLog(room, '승리!');
   for(const rp of room.players) room.runState[rp.id].wavesCleared=Number(room.runState[rp.id].wavesCleared||0)+1;
   pushRoomEvent(room, 'win', `${b.encounterLabel||'전투'} 승리!`, { tier: b.tier, encounterType:b.encounterType, waveInBiome:b.waveInBiome, floor: room.floor, final: room.finalClearPending, perfectPlayers: Object.keys(perfectBy).length });
+  for(const ev of progressionEvents)pushRoomEvent(room,ev.type,ev.message,ev.payload);
 }
 
 function loseBattle(room) {
@@ -1894,7 +1937,7 @@ function continueAfterReward(room, playerId) {
   if (room.mode === 'journey' && room.capture && !room.capture.escaped && !room.capture.attemptedBy?.includes(playerId)) throw new Error('먼저 야생 몬스터를 봉인하거나 지나가 주세요.');
   const options = room.reward.playerOptions?.[playerId] || [];
   if (options.length && !room.reward.claims[playerId]) throw new Error('보상을 선택하거나 분해해 주세요.');
-  const skillOffer=room.reward.skillOffers?.[playerId];if(skillOffer&&!room.reward.skillClaims?.[playerId])room.reward.skillClaims[playerId]={skipped:true};
+  const skillOffer=room.reward.skillOffers?.[playerId];if(skillOffer&&!room.reward.skillClaims?.[playerId]){room.reward.skillHistoryBy ||= {};room.reward.skillHistoryBy[playerId] ||= [];room.reward.skillHistoryBy[playerId].push({skippedAll:true});delete room.reward.skillOffers[playerId];room.reward.skillClaims[playerId]={completed:true,skippedAll:true,history:room.reward.skillHistoryBy[playerId]};}
   const relicOptions = room.reward.relicOptions?.[playerId] || [];
   if (relicOptions.length && !room.reward.relicClaims?.[playerId]) claimRelicReward(room, playerId, relicOptions[0].id);
   if (room.reward.camp && !room.reward.campBy?.[playerId]) campRewardAction(room, playerId, 'rest');
@@ -2069,9 +2112,9 @@ const server = http.createServer(async (req, res) => {
     }
     const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const p = u.pathname;
-    if (p === '/healthz' || p === '/api/version') return ok(res, { service: 'RIFT_DECK_SERVER', version: VERSION, deployId: DEPLOY_ID, storage: SUPABASE_ACTIVE ? 'supabase+json-fallback' : 'json-local', auth: SUPABASE_AUTH_ACTIVE ? 'supabase' : 'guest-only', cards: CARDS.length, items: ITEMS.length, monsters: ENEMIES.length + BOSSES.length, maxDungeonFloor: DUNGEON_MAX_FLOOR, rooms: rooms.size, uptime: Math.round(process.uptime()) });
+    if (p === '/healthz' || p === '/api/version') return ok(res, { service: 'RIFT_DECK_SERVER', version: VERSION, deployId: DEPLOY_ID, storage: SUPABASE_ACTIVE ? 'supabase+json-fallback' : 'json-local', auth: SUPABASE_AUTH_ACTIVE ? 'supabase' : 'guest-only', cards: CARDS.length, items: ITEMS.length, monsters: ENEMIES.length + BOSSES.length, monsterMoves: MOVE_LIBRARY.length, maxDungeonFloor: DUNGEON_MAX_FLOOR, rooms: rooms.size, uptime: Math.round(process.uptime()) });
     if (p === '/api/meta' && req.method === 'GET') return ok(res, {
-      cards: CARDS.map(publicCard), items: ITEMS.map(publicItem), monsters: MONSTERS.map(publicMonster), rarities: RARITY, elements: ELEMENTS, elementMatchups: ELEMENT_ADVANTAGE, monsterRules:{maxSlots:MONSTER_PARTY_MAX,pointBudget:MONSTER_POINT_BUDGET}, spellRules:{min:DECK_MIN,max:DECK_MAX}, battleRules:BATTLE_RULES, biomes: BIOMES,
+      cards: CARDS.map(publicCard), items: ITEMS.map(publicItem), monsters: MONSTERS.map(publicMonster), rarities: RARITY, elements: ELEMENTS, elementMatchups: ELEMENT_ADVANTAGE, monsterRules:{maxSlots:MONSTER_PARTY_MAX,pointBudget:MONSTER_POINT_BUDGET,moveLibraryCount:MOVE_LIBRARY.length}, spellRules:{min:DECK_MIN,max:DECK_MAX}, battleRules:{...BATTLE_RULES,xpModel:'battle-end',moveLibraryCount:MOVE_LIBRARY.length}, biomes: BIOMES,
       relics: RELICS, banner: BANNER, difficulties: DIFFICULTIES, version: VERSION, maxDungeonFloor: DUNGEON_MAX_FLOOR, authEnabled: SUPABASE_AUTH_ACTIVE
     });
     if (p === '/api/auth/status' && req.method === 'GET') {
@@ -2208,7 +2251,7 @@ const server = http.createServer(async (req, res) => {
         if (action === 'capture-pass') { const result = passCapture(room, prof.id); return ok(res, { result, room: roomView(room) }); }
         if (action === 'debug-monster' && process.env.TEST_MODE === '1') {
           const pc=getPc(room,prof.id),unit=findCombatMonster(pc,b.instanceId);if(!pc||!unit)throw new Error('테스트 몬스터를 찾을 수 없습니다.');
-          if(b.level!=null)unit.level=Number(b.level);if(b.gene!=null)unit.gene=Number(b.gene);if(b.resonance!=null)unit.resonance=Number(b.resonance);if(b.rift!=null)unit.rift=Number(b.rift);if(b.hpRatio!=null)unit.hp=Math.max(1,Math.round(unit.maxHp*Number(b.hpRatio)));
+          if(b.level!=null)unit.level=Number(b.level);if(b.xp!=null)unit.xp=Number(b.xp);if(b.gene!=null)unit.gene=Number(b.gene);if(b.resonance!=null)unit.resonance=Number(b.resonance);if(b.rift!=null)unit.rift=Number(b.rift);if(b.hpRatio!=null)unit.hp=Math.max(1,Math.round(unit.maxHp*Number(b.hpRatio)));
           return ok(res,{room:roomView(room)});
         }
         if (action === 'debug-win' && process.env.TEST_MODE === '1') {
