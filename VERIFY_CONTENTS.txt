@@ -1,0 +1,16 @@
+RIFT DECK v4.0 FIXED PATCH - CONTENT CHECK
+==========================================
+This PATCH contains only files changed by v4.0.
+Unchanged v3.4 folders/files are intentionally NOT duplicated in the patch.
+Empty placeholder folders have been removed, so you should no longer see
+blank assets/cards, assets/enemies, assets/biomes, assets/ui, src, or supabase
+folders inside this patch ZIP.
+
+Important v4.0 patch content includes:
+- server.js / public app files / data catalog updates
+- 615 monster evolution/resonance/rift form images
+- updated relic art and the corrected item art
+- v4.0 test/build scripts and release notes
+
+Apply this over an existing v3.4 project root.
+If you are unsure what version you have, use the FIXED FULL package instead.
