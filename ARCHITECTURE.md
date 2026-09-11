@@ -1,43 +1,49 @@
-# RIFT DECK v2.2 Architecture
+# RIFT DECK v4.0 Architecture
 
-## Client
-`public/index.html` + `public/styles.css` + `public/app.js`
-- SPA UI, REST inputs, SSE authoritative room snapshots
-- 로그인은 Node 서버 프록시를 통해 Supabase Auth 사용
-- 브라우저 세션은 HttpOnly access/refresh cookie 사용
-- 전투 VFX는 서버 snapshot 전후 HP/block/unit delta와 room feed event를 조합
-- 카드 cast는 입력 순간 anticipation, 실제 피해/회복/방어는 서버 응답 후 feedback
+## Runtime
+- Node.js dynamic Web Service
+- `server.js`: authoritative run/combat/lobby/auth endpoints
+- `public/app.js`: client rendering, input, combat choreography
+- `public/styles.css`: responsive pixel-game UI and VFX
+- `data/catalog.json`: cards, monsters, items, relics, biomes, rules
 
-## Server
-`server.js`
-- Node `http` Web Service
-- 방/전투/드롭/보상/가챠 authoritative
-- 1~4인 room + SSE
-- Supabase Auth REST 연동
-- 로그인 사용자는 Auth user UUID를 profile/player ID로 강제
-- `rift_profiles`: 영구 progression + 최근 원정 history
-- `rift_rooms`: active room/run snapshot (재시작/재접속 복구)
-- JSON 파일은 로컬 개발 fallback
+## Core ownership model
+- Permanent: account profile, currencies, captured monsters, spell/card ownership, saved loadout, records
+- Run-local: current dungeon/journey roster state, HP, monster forms, spell mastery, relics/items, gold, floor
+- Battle-local: active/bench monsters, shields, GENE/RES/RIFT resources, intent, temporary forms, command link
 
-## Auth flow
-AUTH UI -> `/api/auth/signup|login` -> Supabase Auth -> HttpOnly cookies -> authenticated `/api/profile` -> `rift_profiles`
+## Monster party
+- max 6 selected species
+- 10 point budget
+- strong species cost more points
+- battle starts with first 3 active, remaining members benched
+- switching is server-authoritative
 
-Native EventSource에는 임의 Authorization header를 넣지 않고 같은 HttpOnly cookie로 SSE 사용자를 확인합니다.
+## Combat cards
+All 315 cards are commands/spells in v4.0.
+- attacks and tactical spells
+- protection/healing
+- monster stat boosts
+- GENE / RES / RIFT resource spells
+- immediate linked-monster burst attacks
+
+## Transformations
+- Standard Evolution: Level + GENE
+- Fusion: two monsters contribute GENE and traits
+- Resonance Evolution: RES-driven temporary output form
+- Rift Bloom: low-HP + RIFT high-risk form
+
+Each monster has concrete art paths for base/evolution/resonance/rift forms.
 
 ## Persistence
-영구 저장:
-- collection / deck / currencies / seals / pity
-- dungeon/journey stats and difficulty records
-- recent expedition history (last 20)
-- active room / battle / run state snapshots
+Supabase is used when configured; local JSON remains a development fallback.
+Required Render environment values for cloud auth:
+- SUPABASE_URL
+- SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY
 
-방 snapshot은 서버에서 room event가 발생할 때 debounce하여 저장하고, Render 프로세스가 다시 시작되면 최근 active room을 복원합니다.
+No additional v4 DB SQL migration is required on top of the existing cloud profile structure.
 
-## Combat feedback
-- card cast anticipation
-- snapshot delta -> damage/heal/block popup, shield crack, enemy recoil, player impact
-- screen shake + short hit-stop
-- 12-element particles + slash trails
-- boss aura/cut-in, turn/enemy phase/victory/defeat banners
-- layered procedural WebAudio cues
-- FX toggle + OS reduced-motion fallback
+## Deployment
+Build: `npm ci && npm run build`
+Start: `npm start`
+Health: `/healthz`

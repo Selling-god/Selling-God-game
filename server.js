@@ -1,15 +1,15 @@
 'use strict';
 
 /**
- * RIFT DECK: ABYSS EXPEDITION v2.5
+ * RIFT DECK: ABYSS EXPEDITION v4.0
  * Dynamic, server-authoritative browser card roguelite.
  *
  * Design goals:
  * - 1-4 player synchronous co-op rooms
  * - 50-floor dungeon with three difficulty levels
- * - card/unit/spell combat inspired by deckbuilding roguelites
+ * - captured-monster party combat commanded and evolved through spell cards
  * - after EVERY dungeon floor, each player drafts one free card OR run item
- * - journey encounters can permanently seal/capture cards
+ * - journey encounters can permanently seal/capture monsters
  * - limited rerun gacha and persistent collection/profile
  * - no copyrighted game assets; all shipped art is original procedural pixel art
  */
@@ -29,8 +29,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '3.4.0';
-const DEPLOY_ID = 'RIFT-V3.4.0-EXPEDITION-PARTY-20260911';
+const VERSION = '4.0.0';
+const DEPLOY_ID = 'RIFT-V4.0.0-MONSTER-EVOLUTION-20260911';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -52,10 +52,14 @@ const RARITY = CATALOG.rarities;
 const ELEMENTS = CATALOG.elements;
 const DIFFICULTIES = CATALOG.difficulties;
 const STARTER_POOL = CATALOG.starterPool;
-const DECK_MIN = 8;
-const DECK_MAX = 16;
-const UNIT_DECK_MAX = 6;
-const SPELL_DECK_MAX = 10;
+const DECK_MIN = Number(CATALOG.spellDeck?.min || 8);
+const DECK_MAX = Number(CATALOG.spellDeck?.max || 12);
+const SPELL_DECK_MAX = DECK_MAX;
+const MONSTER_PARTY_MAX = Number(CATALOG.monsterParty?.maxSlots || 6);
+const MONSTER_POINT_BUDGET = Number(CATALOG.monsterParty?.pointBudget || 10);
+const MONSTERS = [...ENEMIES, ...BOSSES];
+const MONSTER_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
+const STARTER_MONSTERS = (CATALOG.monsterParty?.starterIds || ENEMIES.filter(e => e.tier === 'common').slice(0, 4).map(e => e.id)).filter(id => MONSTER_BY_ID[id]);
 const ELEMENT_ADVANTAGE = {
   '화염':['자연','강철'], '물':['화염','수정'], '자연':['물','바람'], '빛':['그림자','공허'],
   '그림자':['빛','시간'], '강철':['수정','별'], '바람':['화염','번개'], '번개':['물','강철'],
@@ -392,18 +396,69 @@ function sanitizeText(s, n = 80) {
 function publicCard(c) { return clone(c); }
 function publicItem(i) { return clone(i); }
 function normalizePersistentDeck(deck, collection = {}) {
-  const seen = new Set(), units = [], spells = [];
+  const seen = new Set(), out = [];
   const take = id => {
-    if (seen.has(id) || !CARD_BY_ID[id] || !collection[id]) return;
     const c = CARD_BY_ID[id];
-    if (c.type === 'unit') { if (units.length >= UNIT_DECK_MAX) return; units.push(id); }
-    else { if (spells.length >= SPELL_DECK_MAX) return; spells.push(id); }
-    seen.add(id);
+    if (!c || c.type !== 'spell' || seen.has(id) || !collection[id]) return;
+    seen.add(id); out.push(id);
   };
   for (const id of Array.isArray(deck) ? deck : []) take(id);
-  for (const id of STARTER_POOL) if (units.length + spells.length < DECK_MIN) take(id);
-  return [...units, ...spells].slice(0, DECK_MAX);
+  for (const id of STARTER_POOL) if (out.length < DECK_MIN) take(id);
+  for (const c of CARDS) if (out.length < DECK_MIN && c.type === 'spell' && collection[c.id]) take(c.id);
+  return out.slice(0, DECK_MAX);
 }
+function monsterPointCost(idOrMonster) {
+  const m = typeof idOrMonster === 'string' ? MONSTER_BY_ID[idOrMonster] : idOrMonster;
+  return Math.max(1, Number(m?.pointCost || 1));
+}
+function monsterPartyCost(ids) { return (ids || []).reduce((sum, id) => sum + monsterPointCost(id), 0); }
+function normalizeMonsterParty(party, owned = {}) {
+  const out = [], seen = new Set(); let points = 0;
+  const take = id => {
+    const m = MONSTER_BY_ID[id]; if (!m || !owned[id] || seen.has(id) || out.length >= MONSTER_PARTY_MAX) return;
+    const cost = monsterPointCost(m); if (points + cost > MONSTER_POINT_BUDGET) return;
+    seen.add(id); out.push(id); points += cost;
+  };
+  for (const id of Array.isArray(party) ? party : []) take(id);
+  for (const id of STARTER_MONSTERS) if (!out.length || out.length < 3) take(id);
+  return out;
+}
+function publicMonster(m) {
+  if (!m) return null;
+  return {
+    id:m.id,name:m.name,tier:m.tier,rarity:m.monsterRarity||m.tier,element:m.element,biome:m.biome,
+    archetype:m.archetype||'beast',role:m.role||'striker',sprite:m.sprite,skill:m.skill,
+    pointCost:monsterPointCost(m),captureBase:Number(m.captureBase||0.25),playerHp:Number(m.playerHp||m.hp||50),
+    playerAtk:Number(m.playerAtk||m.atk||8),passive:clone(m.passive||{}),evolutionName:m.evolutionName||`${m.name} · 진화형`,
+    resonanceName:m.resonanceName||`공명 ${m.name}`,abyssName:m.abyssName||`균열개화 ${m.name}`,
+    evolutionSprite:m.evolutionSprite||m.sprite,resonanceSprite:m.resonanceSprite||m.sprite,riftSprite:m.riftSprite||m.sprite
+  };
+}
+function createRunMonster(speciesId, index = 0) {
+  const m = MONSTER_BY_ID[speciesId] || MONSTER_BY_ID[STARTER_MONSTERS[0]];
+  const maxHp = Math.max(28, Number(m.playerHp || m.hp || 44));
+  const power = Math.max(4, Number(m.playerAtk || m.atk || 7));
+  const startBlock = m.archetype === 'insect' ? 8 : 0;
+  return {
+    instanceId: uid('mon'), speciesId:m.id, name:m.name, baseName:m.name, sprite:m.sprite, baseSprite:m.sprite,
+    evolutionSprite:m.evolutionSprite||m.sprite,resonanceSprite:m.resonanceSprite||m.sprite,riftSprite:m.riftSprite||m.sprite,fusionSprite:null,
+    element:m.element, secondaryElement:null, archetype:m.archetype||'beast', role:m.role||'striker', passive:clone(m.passive||{}),
+    pointCost:monsterPointCost(m), level:1, xp:0, hp:maxHp, maxHp, power, block:startBlock, counter:0,
+    gene:0, resonance:0, rift:0, evolved:false, fused:false, fusionWith:null, resonanceTurns:0, abyssBloom:false,
+    secondaryArchetype:null, secondaryPassive:null, nextAttackBonus:0, kills:0,
+    revived:false, firstHitTaken:false, summonedTurn:0, slotOrder:index
+  };
+}
+function allCombatMonsters(pc) { return [...(pc?.units||[]), ...(pc?.bench||[]), ...(pc?.ko||[])]; }
+function findCombatMonster(pc, instanceId) { return allCombatMonsters(pc).find(m => m.instanceId === instanceId) || pc?.units?.[0] || null; }
+function monsterFormLabel(u) {
+  if (u?.fused) return 'FUSION';
+  if (u?.abyssBloom) return 'RIFT BLOOM';
+  if (Number(u?.resonanceTurns||0)>0) return 'RESONANCE';
+  if (u?.evolved) return 'EVOLVED';
+  return 'BASE';
+}
+
 function elementalMultiplier(attacker, defender) {
   if (!attacker || !defender || attacker === defender) return 1;
   if ((ELEMENT_ADVANTAGE[attacker] || []).includes(defender)) return 1.35;
@@ -425,25 +480,37 @@ function migrateProfile(p) {
   p.collection = p.collection && typeof p.collection === 'object' ? p.collection : {};
   p.cardOrigins = p.cardOrigins && typeof p.cardOrigins === 'object' ? p.cardOrigins : {};
   for (const id of Object.keys(p.collection)) if (!CARD_BY_ID[id]) { delete p.collection[id]; delete p.cardOrigins[id]; }
-
   for (const cid of STARTER_POOL) {
     if (!p.collection[cid]) p.collection[cid] = 1;
     if (!p.cardOrigins[cid]) p.cardOrigins[cid] = 'starter';
   }
   for (const cid of Object.keys(p.collection)) if (!p.cardOrigins[cid]) p.cardOrigins[cid] = STARTER_POOL.includes(cid) ? 'starter' : 'legacy';
+
+  p.monsters = p.monsters && typeof p.monsters === 'object' ? p.monsters : {};
+  for (const id of Object.keys(p.monsters)) if (!MONSTER_BY_ID[id]) delete p.monsters[id];
+  for (const mid of STARTER_MONSTERS) if (!p.monsters[mid]) p.monsters[mid] = 1;
+  // One-time v3 -> v4 migration: veteran unit-card ownership becomes monster ownership.
+  // Fresh v4 profiles skip this so their starter roster stays intentionally small.
+  const migratingLegacyProfile = Number(p.schemaVersion || 0) < 4;
+  if (migratingLegacyProfile) for (const [cid, count] of Object.entries(p.collection)) {
+    const legacy = CARD_BY_ID[cid]?.legacyUnit;
+    if (!legacy || !count) continue;
+    const n = Math.max(0, Number(String(cid).replace(/\D/g,'')) - 1);
+    const m = ENEMIES[n % ENEMIES.length];
+    if (m && !p.monsters[m.id]) p.monsters[m.id] = 1;
+  }
+  p.schemaVersion = 4;
+  p.monsterParty = normalizeMonsterParty(p.monsterParty, p.monsters);
   p.deck = normalizePersistentDeck(p.deck, p.collection);
 
   p.stats = p.stats || {};
   const defaults = {
-    journeys: 0, dungeons: 0, dungeonClears: 0, bosses: 0, cardsCaught: 0,
-    bestDungeonFloor: 0, bestJourneyFloor: 0, gachaPulls: 0,
-    journeyUnlocks: 0, dungeonCardsPlayed: 0,
-    normalClears: 0, hardClears: 0, hellClears: 0,
-    bestNormalFloor: 0, bestHardFloor: 0, bestHellFloor: 0,
-    loginCount: 0, lastLoginAt: 0, perfectBattles: 0, bestChain: 0, overdrives: 0
+    journeys:0,dungeons:0,dungeonClears:0,bosses:0,cardsCaught:0,monstersCaught:0,bestDungeonFloor:0,bestJourneyFloor:0,gachaPulls:0,
+    journeyUnlocks:0,dungeonCardsPlayed:0,normalClears:0,hardClears:0,hellClears:0,bestNormalFloor:0,bestHardFloor:0,bestHellFloor:0,
+    loginCount:0,lastLoginAt:0,perfectBattles:0,bestChain:0,overdrives:0,evolutions:0,fusions:0,resonanceEvolutions:0,riftBlooms:0
   };
-  for (const [k, v] of Object.entries(defaults)) if (p.stats[k] == null) p.stats[k] = v;
-  p.history = Array.isArray(p.history) ? p.history.filter(x => x && typeof x === 'object').slice(0, 20) : [];
+  for (const [k,v] of Object.entries(defaults)) if (p.stats[k] == null) p.stats[k]=v;
+  p.history = Array.isArray(p.history) ? p.history.filter(x => x && typeof x === 'object').slice(0,20) : [];
   return p;
 }
 
@@ -451,89 +518,41 @@ function ensureProfile(profileId, nickname) {
   let p = profiles[profileId];
   if (!p) {
     p = profiles[profileId] = {
-      id: profileId,
-      nickname: sanitizeName(nickname),
-      createdAt: Date.now(),
-      lastSeenAt: Date.now(),
-      gems: 2200,
-      dust: 0,
-      seals: { basic: 15, silver: 6, royal: 1 },
-      pity: { legendary: 0, mythic: 0 },
-      collection: {},
-      cardOrigins: {},
-      deck: STARTER_POOL.slice(0, 8),
-      stats: {},
-      history: [],
-      cloud: false,
-      accountId: ''
+      id:profileId,nickname:sanitizeName(nickname),createdAt:Date.now(),lastSeenAt:Date.now(),gems:2200,dust:0,
+      seals:{basic:15,silver:6,royal:1},pity:{legendary:0,mythic:0},collection:{},cardOrigins:{},deck:STARTER_POOL.slice(0,DECK_MIN),
+      monsters:{},monsterParty:STARTER_MONSTERS.slice(0,3),stats:{},history:[],cloud:false,accountId:'',schemaVersion:4
     };
   }
-  migrateProfile(p);
-  p.nickname = sanitizeName(nickname || p.nickname);
-  p.lastSeenAt = Date.now();
-  return p;
+  migrateProfile(p); p.nickname=sanitizeName(nickname||p.nickname); p.lastSeenAt=Date.now(); return p;
 }
 
 function addCardToProfile(p, cardId, count = 1, save = true, origin = 'legacy') {
-  const c = CARD_BY_ID[cardId];
-  if (!c) return;
-  p.cardOrigins ||= {};
-  const old = Number(p.collection[cardId] || 0);
-  p.collection[cardId] = old + count;
-  if (old === 0) p.cardOrigins[cardId] = origin || 'legacy';
-  if (old > 0) p.dust += Number(RARITY[c.rarity]?.dust || 0) * count;
-  if (save) saveProfiles();
+  const c = CARD_BY_ID[cardId]; if (!c) return;
+  p.cardOrigins ||= {}; const old=Number(p.collection[cardId]||0); p.collection[cardId]=old+count;
+  if(old===0)p.cardOrigins[cardId]=origin||'legacy'; if(old>0)p.dust+=Number(RARITY[c.rarity]?.dust||0)*count; if(save)saveProfiles();
 }
-
+function addMonsterToProfile(p, monsterId, count = 1, save = true) {
+  const m=MONSTER_BY_ID[monsterId]; if(!m)return false; p.monsters ||= {}; const wasNew=!p.monsters[monsterId]; p.monsters[monsterId]=Number(p.monsters[monsterId]||0)+count;
+  if(wasNew && p.monsterParty.length<3 && monsterPartyCost([...p.monsterParty,monsterId])<=MONSTER_POINT_BUDGET)p.monsterParty.push(monsterId);
+  if(save)saveProfiles(); return wasNew;
+}
 function profileView(p) {
-  return {
-    id: p.id,
-    nickname: p.nickname,
-    gems: p.gems,
-    dust: p.dust,
-    seals: p.seals,
-    pity: p.pity,
-    collection: p.collection,
-    cardOrigins: p.cardOrigins || {},
-    deck: p.deck,
-    stats: p.stats,
-    history: p.history || [],
-    ownedCount: Object.keys(p.collection).length,
-    totalCards: CARDS.length,
-    cloud: Boolean(p.cloud),
-    accountId: p.accountId || ''
-  };
+  return { id:p.id,nickname:p.nickname,gems:p.gems,dust:p.dust,seals:p.seals,pity:p.pity,collection:p.collection,cardOrigins:p.cardOrigins||{},deck:p.deck,
+    monsters:p.monsters||{},monsterParty:p.monsterParty||[],monsterPartyCost:monsterPartyCost(p.monsterParty||[]),monsterPointBudget:MONSTER_POINT_BUDGET,
+    stats:p.stats,history:p.history||[],ownedCount:Object.keys(p.collection).length,totalCards:CARDS.length,monsterOwnedCount:Object.keys(p.monsters||{}).length,
+    totalMonsters:MONSTERS.length,cloud:Boolean(p.cloud),accountId:p.accountId||'' };
 }
 
 function validDeck(deck) {
-  const d = [...new Set((Array.isArray(deck) ? deck : []).filter(x => CARD_BY_ID[x]))];
-  const base = d.length >= 8 ? d : STARTER_POOL.slice(0, 10);
-  const out = [];
-  while (out.length < 14) out.push(base[out.length % base.length]);
-  return out.slice(0, 24);
+  const d=[...new Set((Array.isArray(deck)?deck:[]).filter(x=>CARD_BY_ID[x]?.type==='spell'))];
+  const base=d.length>=DECK_MIN?d:STARTER_POOL.filter(id=>CARD_BY_ID[id]?.type==='spell').slice(0,DECK_MIN);
+  const out=[]; while(out.length<12&&base.length)out.push(base[out.length%base.length]); return out.slice(0,24);
 }
-
 function newRunPlayer(p) {
-  return {
-    playerId: p.id,
-    nickname: p.nickname,
-    maxHp: 92,
-    hp: 92,
-    runDeck: validDeck(p.deck),
-    relics: [],
-    items: {},
-    upgrades: {},
-    mastery: {},
-    mods: {},
-    fragments: 0,
-    gold: 180,
-    cardsAdded: 0,
-    itemsAdded: 0,
-    revivesUsed: 0,
-    rewardRerolls: 0,
-    removals: 0,
-    contract: null
-  };
+  const party=normalizeMonsterParty(p.monsterParty,p.monsters);
+  return { playerId:p.id,nickname:p.nickname,maxHp:100,hp:100,runDeck:validDeck(p.deck),monsterParty:party,
+    monsters:party.map((id,i)=>createRunMonster(id,i)),relics:[],items:{},upgrades:{},mastery:{},mods:{},fragments:0,gold:180,cardsAdded:0,itemsAdded:0,
+    revivesUsed:0,rewardRerolls:0,removals:0,contract:null };
 }
 
 function itemStacks(run, itemId) { return Number(run?.items?.[itemId] || 0); }
@@ -606,58 +625,16 @@ function drawCards(pc, n) {
 }
 
 function makeCombatant(run, index) {
-  const relicEnergy = run.relics.includes('r004') ? 1 : 0;
-  const relicHpPenalty = run.relics.includes('r004') ? 8 : 0;
-  const maxEnergy = 3 + relicEnergy + Math.floor(modTotal(run, 'maxEnergy'));
-  const maxHp = Math.max(45, run.maxHp - relicHpPenalty);
-  const handLimit = 10 + Math.floor(modTotal(run, 'handLimit'));
-  const pc = {
-    playerId: run.playerId,
-    nickname: run.nickname,
-    index,
-    maxHp,
-    hp: Math.min(run.hp, maxHp),
-    block: Math.floor(modTotal(run, 'startBlock')) + (run.relics.includes('r006') ? 10 : 0),
-    energy: maxEnergy + Math.floor(modTotal(run, 'firstTurnEnergy')),
-    maxEnergy,
-    handLimit,
-    drawPile: shuffle(run.runDeck),
-    discard: [],
-    exhaust: [],
-    hand: [],
-    units: [],
-    ended: false,
-    down: false,
-    weak: 0,
-    upgrades: { ...(run.upgrades || {}) },
-    itemMods: {
-      unitPower: modTotal(run, 'unitPower'),
-      spellPower: modTotal(run, 'spellPower'),
-      damagePct: modTotal(run, 'damagePct'),
-      bossDamagePct: modTotal(run, 'bossDamagePct'),
-      blockPct: modTotal(run, 'blockPct'),
-      healPct: modTotal(run, 'healPct'),
-      damageReduction: Math.min(0.55, modTotal(run, 'damageReduction')),
-      retainBlock: Math.min(0.75, modTotal(run, 'retainBlock')),
-      thorns: modTotal(run, 'thorns')
-    },
-    buffs: {
-      nextAttack: run.relics.includes('r001') ? 4 : 0,
-      spellDiscount: 0,
-      anyDiscount: Math.floor(modTotal(run, 'startDiscount')),
-      debuffImmune: false,
-      thorns: modTotal(run, 'thorns'),
-      nextUnitBlock: 0,
-      teamSpellCount: 0,
-      energyDebt: 0
-    },
-    relics: run.relics.slice(),
-    chain: { count: 0, lastType: null, best: 0, overdrives: 0 },
-    recallsUsed: 0,
-    stats: { cardsPlayed: 0, damage: 0, healing: 0, hpDamageTaken: 0 }
-  };
-  drawCards(pc, 5 + Math.floor(modTotal(run, 'drawBonus')) + (run.relics.includes('r007') ? 1 : 0));
-  return pc;
+  const relicEnergy=run.relics.includes('r004')?1:0, relicHpPenalty=run.relics.includes('r004')?8:0;
+  const maxEnergy=3+relicEnergy+Math.floor(modTotal(run,'maxEnergy')), maxHp=Math.max(55,run.maxHp-relicHpPenalty), handLimit=10+Math.floor(modTotal(run,'handLimit'));
+  const roster=(run.monsters?.length?run.monsters:(run.monsterParty||[]).map((id,i)=>createRunMonster(id,i))).map(clone);
+  const active=roster.filter(m=>m.hp>0).slice(0,3), bench=roster.filter(m=>m.hp>0).slice(3), ko=roster.filter(m=>m.hp<=0);
+  const pc={ playerId:run.playerId,nickname:run.nickname,index,maxHp,hp:Math.min(run.hp,maxHp),block:Math.floor(modTotal(run,'startBlock'))+(run.relics.includes('r006')?10:0),
+    energy:maxEnergy+Math.floor(modTotal(run,'firstTurnEnergy')),maxEnergy,handLimit,drawPile:shuffle(run.runDeck),discard:[],exhaust:[],hand:[],units:active,bench,ko,
+    ended:false,down:false,weak:0,upgrades:{...(run.upgrades||{})},itemMods:{unitPower:modTotal(run,'unitPower'),spellPower:modTotal(run,'spellPower'),damagePct:modTotal(run,'damagePct'),bossDamagePct:modTotal(run,'bossDamagePct'),blockPct:modTotal(run,'blockPct'),healPct:modTotal(run,'healPct'),damageReduction:Math.min(.55,modTotal(run,'damageReduction')),retainBlock:Math.min(.75,modTotal(run,'retainBlock')),thorns:modTotal(run,'thorns')},
+    buffs:{nextAttack:run.relics.includes('r001')?4:0,spellDiscount:0,anyDiscount:Math.floor(modTotal(run,'startDiscount')),debuffImmune:false,thorns:modTotal(run,'thorns'),nextUnitBlock:0,teamSpellCount:0,energyDebt:0},
+    relics:run.relics.slice(),chain:{count:0,lastType:null,best:0,overdrives:0},recallsUsed:0,switchesUsed:0,stats:{cardsPlayed:0,damage:0,healing:0,hpDamageTaken:0,monsterDamageTaken:0} };
+  drawCards(pc,5+Math.floor(modTotal(run,'drawBonus'))+(run.relics.includes('r007')?1:0)); return pc;
 }
 
 function makeRoom(hostProfile, mode = 'dungeon', name = '', difficulty = 'normal') {
@@ -788,7 +765,7 @@ function chooseRunContract(room, playerId, contractId) {
     const removable = run.runDeck.map((id,idx)=>({id,idx,c:CARD_BY_ID[id]})).filter(x=>x.c).sort((a,b)=>(RARITY[a.c.rarity]?.order||0)-(RARITY[b.c.rarity]?.order||0) || Number(b.c.cost||0)-Number(a.c.cost||0));
     const ids = removable.slice(0,2).map(x=>x.id); for (const cid of ids) { const i=run.runDeck.indexOf(cid); if(i>=0 && run.runDeck.length>10) run.runDeck.splice(i,1); } run.gold += 40;
   } else if (contractId === 'echo') {
-    run.gold = Math.max(0, run.gold - 70); const pool=RELICS.filter(r=>['common','rare'].includes(r.rarity)); const relic=choose(pool); if(relic) addRelic(run,relic.id);
+    run.gold = Math.max(0, run.gold - 70); const pool=RELICS.filter(r=>['common','rare'].includes(r.rarity)&&(!Array.isArray(r.modes)||r.modes.includes(room.mode))); const relic=choose(pool); if(relic) addRelic(run,relic.id);
   } else if (contractId === 'gambler') {
     run.maxHp = Math.max(50, run.maxHp - 10); run.hp = Math.min(run.hp, run.maxHp); run.fragments += 3; run.mods.rerollDiscount = Number(run.mods.rerollDiscount || 0) + 0.30;
   }
@@ -1118,43 +1095,70 @@ function gainCardMastery(room, run, cardId) {
   return { cardId, name: CARD_BY_ID[cardId].name, level: before, xp };
 }
 
-function playCard(room, playerId, handIndex, targetUid) {
-  const b = room.battle;
-  if (room.status !== 'battle' || !b || b.phase !== 'players') throw new Error('카드를 사용할 차례가 아닙니다.');
-  const pc = getPc(room, playerId);
-  if (!pc || pc.down || pc.ended) throw new Error('행동할 수 없습니다.');
-  const index = Number(handIndex);
-  const cid = pc.hand[index];
-  const base = CARD_BY_ID[cid];
-  const run = room.runState[playerId];
-  const c = effectiveRunCard(run, base);
-  if (!c) throw new Error('카드가 없습니다.');
-  const previewCost = Math.max(0, c.cost - (pc.buffs.anyDiscount > 0 ? 1 : (c.type === 'spell' && pc.buffs.spellDiscount > 0 ? 1 : 0)));
-  if (pc.energy < previewCost) throw new Error('에너지가 부족합니다.');
-  if (c.type === 'unit' && pc.units.length >= 3) throw new Error('유닛 슬롯은 3칸입니다.');
-  const cost = resolveCost(pc, c);
-  pc.energy -= cost;
-  pc.hand.splice(index, 1);
-  pc.stats.cardsPlayed++;
-  const target = aliveEnemies(room).find(e => e.uid === targetUid) || aliveEnemies(room)[0];
-  if (c.type === 'unit') summonUnit(room, pc, c, target);
-  else castSpell(room, pc, c, target);
-  pc.discard.push(cid);
-  const masteryResult = gainCardMastery(room, run, cid);
-  if (b.modifier?.everyThirdDraw && pc.stats.cardsPlayed % 3 === 0) {
-    drawCards(pc, b.modifier.everyThirdDraw);
-    battleLog(room, `${b.modifier.name}: 카드 1장을 추가로 드로우했습니다.`);
+function monsterLevelGain(room, pc, u, amount = 1) {
+  if(!u)return; u.xp=Number(u.xp||0)+amount; const need=2+Number(u.level||1)*2;
+  if(u.xp>=need && u.level<12){u.xp-=need;u.level++;const oldMax=u.maxHp;u.maxHp=Math.round(u.maxHp*1.08+2);u.power=Math.round(u.power*1.08+1);u.hp=Math.min(u.maxHp,u.hp+(u.maxHp-oldMax)+4);battleLog(room,`${u.name} Lv.${u.level}!`);pushRoomEvent(room,'monster-level',`${u.name} 레벨 업!`,{playerId:pc.playerId,instanceId:u.instanceId,level:u.level});}
+}
+function monsterDamage(room, pc, u, amount, source=null){
+  let d=Math.max(0,Math.round(amount)); if(!u)return 0;
+  // Monster-specific mitigation happens before shields so the shield value is easy to understand.
+  if(u.archetype==='golem'||u.secondaryArchetype==='golem')d=Math.round(d*.90);
+  if((u.archetype==='wing'||u.secondaryArchetype==='wing')&&!u.firstHitTaken){d=Math.round(d*.80);u.firstHitTaken=true;}
+  const beforeMonsterBlock=Number(u.block||0);
+  if(u.block>0){const x=Math.min(u.block,d);u.block-=x;d-=x;}
+  if(beforeMonsterBlock>0&&u.block<=0&&(u.archetype==='crab'||u.secondaryArchetype==='crab')){
+    u.nextAttackBonus=Number(u.nextAttackBonus||0)+4;
+    pushRoomEvent(room,'monster-passive',`${u.name} 갑각 반격 준비!`,{playerId:pc.playerId,instanceId:u.instanceId,passive:'갑각 반격'});
   }
-  const chainResult = updateTacticalChain(room, pc, c);
-  const phaseShifts = updateBossPhase(room);
-  const breakTargets = b.enemies.filter(e => e.justBroken && e.hp > 0);
-  for (const e of b.enemies) e.justBroken = false;
-  if (checkBattleEnd(room)) return;
-  pushRoomEvent(room, 'card', `${pc.nickname}: ${c.name}`, { playerId: pc.playerId, cardId: c.id, cardName: c.name, cardType: c.type, element: c.element, targetUid: target?.uid || null, cost, chainCount: chainResult.displayCount, chainStage: chainResult.stage, upgradeLevel:Number(run.upgrades?.[c.id]||0), masteryXp:masteryResult?.xp||0 });
-  if (masteryResult && masteryResult.level > Number(c.upgradeLevel||0)) pushRoomEvent(room, 'mastery', `${masteryResult.name} 성장! ${masteryResult.level===1?'+':'++'} 단계`, { playerId:pc.playerId, cardId:c.id, level:masteryResult.level, xp:masteryResult.xp });
-  for (const e of breakTargets) pushRoomEvent(room, 'enemy-break', `${e.name}의 균열 자세가 붕괴했습니다!`, { enemyUid:e.uid, enemyName:e.name });
-  if (chainResult.stage) pushRoomEvent(room, 'chain', `${pc.nickname} ${chainResult.stage === 'overdrive' ? '오버드라이브' : '전술 연쇄'} 발동!`, { playerId: pc.playerId, stage: chainResult.stage, count: chainResult.displayCount });
-  for (const e of phaseShifts) pushRoomEvent(room, 'boss-phase', `${e.name}이(가) 2단계로 돌입했습니다!`, { enemyUid: e.uid, enemyName: e.name, phase: 2 });
+  // Team CORE shield is the second protection layer after the active monster's own shield.
+  if(pc.block>0){const x=Math.min(pc.block,d);pc.block-=x;d-=x;}
+  const before=u.hp;u.hp=clamp(u.hp-d,0,u.maxHp);const dealt=before-u.hp;pc.stats.monsterDamageTaken+=dealt;
+  if(dealt>0)u.rift=clamp(Number(u.rift||0)+Math.max(1,Math.ceil(dealt/18)),0,5);
+  let revived=false;
+  if(u.hp<=0&&(u.archetype==='phoenix'||u.secondaryArchetype==='phoenix')&&!u.revived){u.revived=true;u.hp=Math.max(1,Math.round(u.maxHp*.25));revived=true;pushRoomEvent(room,'monster-passive',`${u.name} 재점화!`,{playerId:pc.playerId,instanceId:u.instanceId,passive:'재점화'});}
+  if(!revived&&u.hp<=0){
+    const pos=pc.units.findIndex(x=>x.instanceId===u.instanceId); if(pos>=0)pc.units.splice(pos,1); pc.ko.push(u); pc.hp=Math.max(1,pc.hp-Math.max(4,Math.round(pc.maxHp*.06)));
+    if(pc.bench.length){const next=pc.bench.shift();next.block=Math.max(next.block||0,4);pc.units.splice(Math.min(pos<0?pc.units.length:pos,pc.units.length),0,next);pushRoomEvent(room,'monster-switch',`${next.name} 자동 출전!`,{playerId:pc.playerId,instanceId:next.instanceId,auto:true});}
+    if(!pc.units.length&&!pc.bench.length){pc.down=true;pc.ended=true;}
+  }
+  pushRoomEvent(room,'monster-hit',`${u.name} ${dealt} 피해`,{playerId:pc.playerId,instanceId:u.instanceId,damage:dealt,ko:u.hp<=0&&!revived,revived,shieldBroken:beforeMonsterBlock>0&&u.block<=0});
+  return dealt;
+}
+
+function evolveMonster(room, playerId, instanceId, mode='evolve'){
+  const pc=getPc(room,playerId);if(!pc||pc.down||pc.ended||room.battle?.phase!=='players')throw new Error('지금은 진화할 수 없습니다.');const u=findCombatMonster(pc,instanceId);if(!u)throw new Error('몬스터를 찾을 수 없습니다.');
+  const prof=profiles[playerId];
+  if(mode==='evolve'){
+    if(u.evolved)throw new Error('이미 진화했습니다.');if(u.level<3||u.gene<3)throw new Error('진화에는 Lv.3 + GENE 3이 필요합니다.');u.gene-=3;u.evolved=true;u.maxHp=Math.round(u.maxHp*1.28);u.hp=Math.min(u.maxHp,Math.round(u.hp*1.28+8));u.power=Math.round(u.power*1.25+2);u.name=MONSTER_BY_ID[u.speciesId]?.evolutionName||`${u.baseName} · 진화형`;prof.stats.evolutions++;pushRoomEvent(room,'monster-evolve',`${u.name} 진화!`,{playerId,instanceId:u.instanceId,mode:'evolve'});
+  }else if(mode==='resonance'){
+    if(u.resonanceTurns>0)throw new Error('이미 공명진화 상태입니다.');if(u.resonance<4)throw new Error('공명진화에는 RES 4가 필요합니다.');u.resonance-=4;u.resonanceTurns=3;u.block=Number(u.block||0)+6;prof.stats.resonanceEvolutions++;pushRoomEvent(room,'monster-evolve',`${u.name} 공명진화!`,{playerId,instanceId:u.instanceId,mode:'resonance'});
+  }else if(mode==='rift'){
+    if(u.abyssBloom)throw new Error('이미 균열개화 상태입니다.');if(u.rift<3||u.hp/u.maxHp>.60)throw new Error('균열개화에는 HP 60% 이하 + RIFT 3이 필요합니다.');u.rift-=3;u.abyssBloom=true;u.nextAttackBonus=Number(u.nextAttackBonus||0)+5;prof.stats.riftBlooms++;pushRoomEvent(room,'monster-evolve',`${u.name} 균열개화!`,{playerId,instanceId:u.instanceId,mode:'rift'});
+  }else throw new Error('알 수 없는 진화 방식입니다.');
+  saveProfiles();return u;
+}
+function fuseMonsters(room,playerId,primaryId,secondaryId){
+  const pc=getPc(room,playerId);if(!pc||pc.down||pc.ended||room.battle?.phase!=='players')throw new Error('지금은 융합할 수 없습니다.');
+  const a=findCombatMonster(pc,primaryId),b=findCombatMonster(pc,secondaryId);if(!a||!b||a.instanceId===b.instanceId)throw new Error('서로 다른 몬스터 2마리를 선택하세요.');if(a.gene<2||b.gene<2)throw new Error('융합하려면 두 몬스터 모두 GENE 2가 필요합니다.');
+  const ratioA=a.maxHp?Math.max(.05,a.hp/a.maxHp):1,ratioB=b.maxHp?Math.max(.05,b.hp/b.maxHp):1;a.gene=Math.max(0,a.gene-2);b.gene=Math.max(0,b.gene-2);
+  a.fused=true;a.fusionWith=b.speciesId;a.fusionSprite=b.sprite;a.secondaryElement=b.element;a.secondaryArchetype=b.archetype;a.secondaryPassive=clone(b.passive||{});a.name=`${a.baseName} × ${b.baseName}`;a.maxHp=Math.round((a.maxHp+b.maxHp)*.76);a.hp=Math.round(a.maxHp*((ratioA+ratioB)/2));a.power=Math.round((a.power+b.power)*.72+3);a.pointCost=Math.min(10,Number(a.pointCost||1)+Number(b.pointCost||1));a.resonance=Math.max(a.resonance,b.resonance);a.rift=Math.max(a.rift,b.rift);
+  for(const arr of [pc.units,pc.bench,pc.ko]){const i=arr.findIndex(x=>x.instanceId===b.instanceId);if(i>=0)arr.splice(i,1);} profiles[playerId].stats.fusions++;saveProfiles();pushRoomEvent(room,'monster-fuse',`${a.name} 융합 완성!`,{playerId,instanceId:a.instanceId,secondaryId:b.instanceId});return a;
+}
+function switchMonster(room,playerId,activeId,benchId){
+  const pc=getPc(room,playerId);if(!pc||pc.down||pc.ended||room.battle?.phase!=='players')throw new Error('지금은 교대할 수 없습니다.');if(pc.switchesUsed>=1)throw new Error('몬스터 교대는 턴당 1회입니다.');
+  const ai=pc.units.findIndex(x=>x.instanceId===activeId),bi=pc.bench.findIndex(x=>x.instanceId===benchId);if(ai<0||bi<0)throw new Error('교대 대상을 찾을 수 없습니다.');const a=pc.units[ai],b=pc.bench[bi];pc.units[ai]=b;pc.bench[bi]=a;pc.switchesUsed++;pushRoomEvent(room,'monster-switch',`${a.name} ↔ ${b.name}`,{playerId,activeId,benchId});return b;
+}
+
+function playCard(room, playerId, handIndex, targetUid, targetMonsterId) {
+  const b=room.battle;if(room.status!=='battle'||!b||b.phase!=='players')throw new Error('카드를 사용할 차례가 아닙니다.');const pc=getPc(room,playerId);if(!pc||pc.down||pc.ended)throw new Error('행동할 수 없습니다.');
+  const index=Number(handIndex),cid=pc.hand[index],base=CARD_BY_ID[cid],run=room.runState[playerId],c=effectiveRunCard(run,base);if(!c||c.type!=='spell')throw new Error('스펠 카드가 없습니다.');
+  const previewCost=Math.max(0,c.cost-(pc.buffs.anyDiscount>0?1:(pc.buffs.spellDiscount>0?1:0)));if(pc.energy<previewCost)throw new Error('에너지가 부족합니다.');const cost=resolveCost(pc,c);pc.energy-=cost;pc.hand.splice(index,1);pc.stats.cardsPlayed++;
+  const target=aliveEnemies(room).find(e=>e.uid===targetUid)||aliveEnemies(room)[0];const monster=findCombatMonster(pc,targetMonsterId)||pc.units[0];castSpell(room,pc,c,target,monster);pc.discard.push(cid);const masteryResult=gainCardMastery(room,run,cid);
+  if(monster){monsterLevelGain(room,pc,monster,1);if(c.element===monster.element){const extra=monster.archetype==='spirit'&&Math.random()<.35?2:1;monster.resonance=clamp(Number(monster.resonance||0)+extra,0,6);}if(c.cardClass==='gene')monster.gene=clamp(Number(monster.gene||0),0,8);}
+  if(b.modifier?.everyThirdDraw&&pc.stats.cardsPlayed%3===0){drawCards(pc,b.modifier.everyThirdDraw);battleLog(room,`${b.modifier.name}: 카드 1장을 추가로 드로우했습니다.`);}
+  const chainResult=updateTacticalChain(room,pc,c,monster,target),phaseShifts=updateBossPhase(room),breakTargets=b.enemies.filter(e=>e.justBroken&&e.hp>0);for(const e of b.enemies)e.justBroken=false;if(checkBattleEnd(room))return;
+  pushRoomEvent(room,'card',`${pc.nickname}: ${c.name}`,{playerId:pc.playerId,cardId:c.id,cardName:c.name,cardType:c.type,cardClass:c.cardClass,element:c.element,targetUid:target?.uid||null,targetMonsterId:monster?.instanceId||null,cost,chainCount:chainResult.displayCount,chainStage:chainResult.stage,upgradeLevel:Number(run.upgrades?.[c.id]||0),masteryXp:masteryResult?.xp||0});
+  if(masteryResult&&masteryResult.level>Number(c.upgradeLevel||0))pushRoomEvent(room,'mastery',`${masteryResult.name} 성장!`,{playerId:pc.playerId,cardId:c.id,level:masteryResult.level,xp:masteryResult.xp});for(const e of breakTargets)pushRoomEvent(room,'enemy-break',`${e.name}의 균열 자세 붕괴!`,{enemyUid:e.uid,enemyName:e.name});if(chainResult.stage)pushRoomEvent(room,'chain',`${pc.nickname} ${chainResult.stage==='overdrive'?'오버드라이브':'전술 연쇄'} 발동!`,{playerId:pc.playerId,stage:chainResult.stage,count:chainResult.displayCount});for(const e of phaseShifts)pushRoomEvent(room,'boss-phase',`${e.name} 2단계!`,{enemyUid:e.uid,enemyName:e.name,phase:2});
 }
 
 function summonUnit(room, pc, c, target) {
@@ -1187,50 +1191,45 @@ function recallUnit(room, playerId, instanceId) {
   return u;
 }
 
-function castSpell(room, pc, c, target) {
-  room.battle.teamSpellCount++;
-  applyEffects(room, pc, c.effects, target, c);
-  for (const ally of room.battle.party.filter(x => !x.down)) {
-    for (const u of ally.units) {
-      const def = CARD_BY_ID[u.cardId];
-      if (def?.unit?.onSpell === 'ping2') {
-        const e = choose(aliveEnemies(room));
-        if (e) applyDamage(e, 2);
-      }
-      if (def?.unit?.onSpell === 'echoThird' && room.battle.teamSpellCount % 3 === 0 && c.power > 0 && target) applyDamage(target, Math.max(1, Math.round(c.power * 0.55)));
-      if (def?.unit?.aura === 'whiteNight' && room.battle.teamSpellCount % 3 === 0) aliveEnemies(room).forEach(e => applyDamage(e, 6));
-    }
+function castSpell(room, pc, c, target, targetMonster=null) {
+  room.battle.teamSpellCount++; applyEffects(room,pc,c.effects,target,c,targetMonster);
+  for(const ally of room.battle.party.filter(x=>!x.down))for(const u of ally.units){
+    const drone=(u.archetype==='drone'||u.secondaryArchetype==='drone');
+    const spirit=(u.archetype==='spirit'||u.secondaryArchetype==='spirit');
+    if(drone&&c.element===u.element)u.nextAttackBonus=Number(u.nextAttackBonus||0)+4;
+    if(spirit&&c.element===u.element)u.resonance=clamp(Number(u.resonance||0)+1,0,6);
   }
-  battleLog(room, `${pc.nickname}이(가) ${c.name} 사용.`);
+  battleLog(room,`${pc.nickname}이(가) ${c.name} 사용${targetMonster?` → ${targetMonster.name}`:''}.`);
 }
 
-function updateTacticalChain(room, pc, card) {
-  pc.chain ||= { count: 0, lastType: null, best: 0, overdrives: 0 };
-  const chain = pc.chain;
-  if (chain.lastType && chain.lastType !== card.type) chain.count += 1;
-  else chain.count = 1;
-  chain.lastType = card.type;
-  chain.best = Math.max(Number(chain.best || 0), chain.count);
-  const p = profiles[pc.playerId];
-  if (p) p.stats.bestChain = Math.max(Number(p.stats.bestChain || 0), chain.best);
-  let stage = '';
-  const displayCount = chain.count;
-  if (chain.count === 3) {
-    drawCards(pc, 1);
-    pc.block += 4;
-    stage = 'flow';
-    battleLog(room, `${pc.nickname} 전술 연쇄 3! 드로우 +1 · 방어 +4.`);
-  } else if (chain.count >= 5) {
-    pc.energy += 1;
-    pc.buffs.nextAttack += 6;
-    chain.overdrives += 1;
-    if (p) p.stats.overdrives = Number(p.stats.overdrives || 0) + 1;
-    stage = 'overdrive';
-    battleLog(room, `${pc.nickname} OVERDRIVE! 에너지 +1 · 다음 공격 +6.`);
-    chain.count = 0;
-    chain.lastType = null;
+function updateTacticalChain(room, pc, card, targetMonster=null, targetEnemy=null) {
+  pc.chain ||= { count:0,lastType:null,lastClass:null,lastMonsterId:null,best:0,overdrives:0 };
+  const chain=pc.chain, cls=card.cardClass||'support', sameMonster=targetMonster && chain.lastMonsterId===targetMonster.instanceId;
+  const classChanged=!!chain.lastClass && chain.lastClass!==cls;
+  const affinity=!!targetMonster && card.element===targetMonster.element;
+  // Link grows when commands vary or when a spell resonates with the selected monster.
+  if (!chain.count) chain.count=1;
+  else if (sameMonster && (classChanged || affinity)) chain.count+=1;
+  else chain.count=Math.max(1, affinity?2:1);
+  chain.lastClass=cls; chain.lastType=card.type; chain.lastMonsterId=targetMonster?.instanceId||null;
+  chain.best=Math.max(Number(chain.best||0),chain.count);
+  const p=profiles[pc.playerId]; if(p)p.stats.bestChain=Math.max(Number(p.stats.bestChain||0),chain.best);
+  let stage=''; const displayCount=chain.count;
+  if(chain.count===3 && targetMonster){
+    targetMonster.block+=5; targetMonster.resonance=clamp(Number(targetMonster.resonance||0)+1,0,6); drawCards(pc,1); stage='flow';
+    battleLog(room,`${targetMonster.name} COMMAND LINK ×3 — 실드 +5 · RES +1 · 드로우 +1.`);
+  } else if(chain.count>=5 && targetMonster){
+    pc.energy+=1; targetMonster.gene=clamp(Number(targetMonster.gene||0)+1,0,8); targetMonster.rift=clamp(Number(targetMonster.rift||0)+1,0,5);
+    chain.overdrives+=1; if(p)p.stats.overdrives=Number(p.stats.overdrives||0)+1; stage='overdrive';
+    if(targetEnemy && targetEnemy.hp>0){
+      const burst=modifiedDamage(room,pc,Math.round(targetMonster.power*1.15),{type:'monster',element:targetMonster.element});
+      const dealt=applyElementDamage(targetEnemy,burst,targetMonster.element);pc.stats.damage+=dealt;
+      pushRoomEvent(room,'monster-burst',`${targetMonster.name} RIFT DRIVE!`,{playerId:pc.playerId,instanceId:targetMonster.instanceId,targetUid:targetEnemy.uid,element:targetMonster.element,archetype:targetMonster.archetype,damage:dealt,skill:'RIFT DRIVE'});
+    }
+    battleLog(room,`${targetMonster.name} RIFT DRIVE — 에너지 +1 · GENE +1 · RIFT +1.`);
+    chain.count=0;chain.lastClass=null;chain.lastType=null;chain.lastMonsterId=null;
   }
-  return { stage, displayCount };
+  return {stage,displayCount};
 }
 
 function updateBossPhase(room) {
@@ -1253,8 +1252,9 @@ function updateBossPhase(room) {
 }
 
 function combatGrade(pc, battle) {
-  const taken = Number(pc?.stats?.hpDamageTaken || 0);
-  const ratio = pc?.maxHp ? taken / pc.maxHp : 1;
+  const taken = Number(pc?.stats?.hpDamageTaken || 0) + Number(pc?.stats?.monsterDamageTaken || 0);
+  const teamMonsterMax = [...(pc?.units||[]),...(pc?.bench||[]),...(pc?.ko||[])].reduce((n,u)=>n+Number(u.maxHp||0),0);
+  const ratio = (Number(pc?.maxHp||0)+teamMonsterMax) ? taken / (Number(pc.maxHp||0)+teamMonsterMax) : 1;
   const turn = Number(battle?.turn || 99);
   if (taken === 0 && turn <= 5) return 'S';
   if (ratio <= 0.12 && turn <= 7) return 'A';
@@ -1265,6 +1265,7 @@ function combatGrade(pc, battle) {
 function modifiedDamage(room, pc, base, source) {
   let v = Number(base || 0);
   if (source?.type === 'spell') v += Number(pc.itemMods.spellPower || 0);
+  if (source?.type === 'monster') v += Number(pc.itemMods.unitPower || 0);
   v *= 1 + Number(pc.itemMods.damagePct || 0);
   if (room.battle?.tier === 'boss') v *= 1 + Number(pc.itemMods.bossDamagePct || 0);
   if (room.floor >= 41 && pc.relics.includes('r008')) v *= 1.08;
@@ -1273,7 +1274,7 @@ function modifiedDamage(room, pc, base, source) {
 function modifiedBlock(pc, base) { return Math.max(0, Math.round(Number(base || 0) * (1 + Number(pc.itemMods.blockPct || 0)))); }
 function modifiedHeal(pc, base) { return Math.max(0, Math.round(Number(base || 0) * (1 + Number(pc.itemMods.healPct || 0)))); }
 
-function applyEffects(room, pc, effects, target, source) {
+function applyEffects(room, pc, effects, target, source, targetMonster=null) {
   const b = room.battle;
   for (const fx of effects || []) {
     const v = Number(fx.value || 0);
@@ -1286,9 +1287,9 @@ function applyEffects(room, pc, effects, target, source) {
     else if (fx.op === 'damageAll') aliveEnemies(room).forEach(e => pc.stats.damage += applyElementDamage(e, modifiedDamage(room, pc, v + bonus, source), source?.element));
     else if (fx.op === 'damageOthers') aliveEnemies(room).filter(e => e !== target).forEach(e => pc.stats.damage += applyElementDamage(e, modifiedDamage(room, pc, v, source), source?.element));
     else if (fx.op === 'bossDamage' && target) pc.stats.damage += applyElementDamage(target, modifiedDamage(room, pc, v + bonus + (['elite', 'boss'].includes(b.tier) ? Number(fx.bossBonus || 0) : 0), source), source?.element);
-    else if (fx.op === 'block') pc.block += modifiedBlock(pc, v);
+    else if (fx.op === 'block') { const val=modifiedBlock(pc,v); if(targetMonster) targetMonster.block+=val; else pc.block+=val; }
     else if (fx.op === 'blockAllies') b.party.filter(x => !x.down).forEach(x => x.block += modifiedBlock(x, v));
-    else if (fx.op === 'heal') { const before = pc.hp; pc.hp = clamp(pc.hp + modifiedHeal(pc, v), 0, pc.maxHp); pc.stats.healing += pc.hp - before; }
+    else if (fx.op === 'heal') { const val=modifiedHeal(pc,v); if(targetMonster){const before=targetMonster.hp;targetMonster.hp=clamp(targetMonster.hp+val,0,targetMonster.maxHp);pc.stats.healing+=targetMonster.hp-before;}else{const before=pc.hp;pc.hp=clamp(pc.hp+val,0,pc.maxHp);pc.stats.healing+=pc.hp-before;} }
     else if (fx.op === 'healLowestAlly') { const x = b.party.filter(x => !x.down && x.playerId !== pc.playerId).sort((a, z) => a.hp / a.maxHp - z.hp / z.maxHp)[0]; if (x) x.hp = clamp(x.hp + modifiedHeal(pc, v), 0, x.maxHp); }
     else if (fx.op === 'healAllies') b.party.filter(x => !x.down).forEach(x => x.hp = clamp(x.hp + modifiedHeal(pc, v), 0, x.maxHp));
     else if (fx.op === 'draw') drawCards(pc, v);
@@ -1312,6 +1313,19 @@ function applyEffects(room, pc, effects, target, source) {
     else if (fx.op === 'thorns') pc.buffs.thorns = Math.max(pc.buffs.thorns, v);
     else if (fx.op === 'redraw') { pc.discard.push(...pc.hand); pc.hand = []; drawCards(pc, v); }
     else if (fx.op === 'halveEnemyNext') aliveEnemies(room).forEach(e => e.nextDamageHalf = true);
+    else if (fx.op === 'monsterBoost' && targetMonster) targetMonster.power += Math.max(1,Math.round(v*(1+Number(pc.itemMods.unitPower||0)*.02)));
+    else if (fx.op === 'monsterShield' && targetMonster) targetMonster.block += modifiedBlock(pc,v);
+    else if (fx.op === 'monsterHeal' && targetMonster) targetMonster.hp = clamp(targetMonster.hp + modifiedHeal(pc,v), 0, targetMonster.maxHp);
+    else if (fx.op === 'geneCharge' && targetMonster) targetMonster.gene = clamp(Number(targetMonster.gene||0)+v,0,8);
+    else if (fx.op === 'resonanceCharge' && targetMonster) targetMonster.resonance = clamp(Number(targetMonster.resonance||0)+v,0,6);
+    else if (fx.op === 'riftCharge' && targetMonster) targetMonster.rift = clamp(Number(targetMonster.rift||0)+v,0,5);
+    else if (fx.op === 'monsterBurst' && targetMonster && target) {
+      const burstBase=Math.max(1,Math.round(Number(targetMonster.power||1)*Math.max(.15,v/100)));
+      const burst=modifiedDamage(room,pc,burstBase,{type:'monster',element:targetMonster.element});
+      const dealt=applyElementDamage(target,burst,targetMonster.element); pc.stats.damage+=dealt;
+      battleLog(room,`${targetMonster.name} 연계 공격 → ${target.name} ${dealt} 피해.`);
+      pushRoomEvent(room,'monster-burst',`${targetMonster.name} 연계 공격!`,{playerId:pc.playerId,instanceId:targetMonster.instanceId,targetUid:target.uid,element:targetMonster.element,archetype:targetMonster.archetype,damage:dealt,skill:source?.geneStyle||'연계 공격'});
+    }
     else if (fx.op === 'energyDebt') pc.buffs.energyDebt += v;
   }
 }
@@ -1377,115 +1391,43 @@ function endTurn(room, playerId) {
 }
 
 function enemyTurn(room) {
-  const b = room.battle;
-  b.phase = 'enemies';
-  for (const pc of b.party.filter(x => !x.down)) {
-    for (const u of pc.units) {
-      let target = aliveEnemies(room)[0];
-      if (!target) break;
-      let power = u.power;
-      const def = CARD_BY_ID[u.cardId];
-      const hook = def?.unit?.onAttack;
-      u.counter++;
-      if (hook === 'weakBonus5' && target.debuffs.weak > 0) power += 5;
-      if (hook === 'fullBonus' && target.hp === target.maxHp) power += 3;
-      if (hook === 'firstBonus4' && u.counter === 1) power += 4;
-      if (hook === 'blockBonus6' && target.block > 0) power += 6;
-      if (hook === 'summonDouble' && u.summonedTurn === b.turn) power *= 2;
-      if (hook === 'bossBonus10' && b.tier === 'boss') power += 10;
-      if (pc.relics.includes('r005') && b.tier === 'boss') power += 4;
-      power = modifiedDamage(room, pc, power, def);
-      const dealt = applyElementDamage(target, power, u.element);
-      pc.stats.damage += dealt;
-      battleLog(room, `${u.name} → ${target.name} ${dealt} 피해.`);
-      if (hook === 'weak25' && Math.random() < 0.25) target.debuffs.weak++;
-      if (hook === 'chainEvery2' && u.counter % 2 === 0) aliveEnemies(room).forEach(e => applyDamage(e, 3));
-      if (hook === 'extraEvery2' && u.counter % 2 === 0 && target.hp > 0) pc.stats.damage += applyElementDamage(target, power, u.element);
-      if (hook === 'extra20' && Math.random() < 0.20 && target.hp > 0) pc.stats.damage += applyElementDamage(target, power, u.element);
-      if (hook === 'splash40') aliveEnemies(room).filter(e => e !== target).forEach(e => pc.stats.damage += applyElementDamage(e, power * 0.4, u.element));
-      if (hook === 'teamBlockEvery3' && u.counter % 3 === 0) b.party.filter(x => !x.down).forEach(x => x.block += 8);
-      if (hook === 'mythicPulse' && u.counter % 2 === 0) aliveEnemies(room).forEach(e => applyDamage(e, 12));
-      if (hook === 'killEnergy' && target.hp <= 0 && !u.killPaid) { pc.energy++; u.killPaid = true; }
-      const phaseShifts = updateBossPhase(room);
-      for (const phaseEnemy of phaseShifts) pushRoomEvent(room, 'boss-phase', `${phaseEnemy.name}이(가) 2단계로 돌입했습니다!`, { enemyUid: phaseEnemy.uid, enemyName: phaseEnemy.name, phase: 2 });
-      if (checkBattleEnd(room)) return;
+  const b=room.battle;b.phase='enemies';
+  // Active monsters attack first. Cards are commands/enhancements; monsters are the actual party.
+  for(const pc of b.party.filter(x=>!x.down)){
+    for(const u of [...pc.units]){
+      let target=aliveEnemies(room)[0];if(!target)break;u.counter=Number(u.counter||0)+1;let power=Number(u.power||1);const archetypes=new Set([u.archetype,u.secondaryArchetype].filter(Boolean));
+      if(archetypes.has('beast')&&u.hp/u.maxHp>=.5)power*=1.15;if(archetypes.has('assassin')&&u.counter===1)power*=1.45;if(archetypes.has('knight')&&u.block>0)power*=1.10;if(archetypes.has('tyrant'))u.power+=1;
+      if(archetypes.has('watcher')&&elementalMultiplier(u.element,target.element)>1)power*=1.12;
+      if(archetypes.has('puppet')&&Number(pc.lastMonsterDamage||0)>0)power+=Math.max(1,Math.round(pc.lastMonsterDamage*.15));
+      if(Number(u.nextAttackBonus||0)>0){power+=Number(u.nextAttackBonus);u.nextAttackBonus=0;}
+      if(u.resonanceTurns>0)power*=1.35;if(u.abyssBloom)power*=1.40;if(pc.relics.includes('r005')&&b.tier==='boss')power+=4;power=modifiedDamage(room,pc,power,{type:'monster',element:u.element});
+      const wasAlive=target.hp>0;let dealt=applyElementDamage(target,power,u.element);if(u.secondaryElement){const alt=Math.round(power*elementalMultiplier(u.secondaryElement,target.element));if(alt>dealt){target.hp=clamp(target.hp-(alt-dealt),0,target.maxHp);dealt=alt;}}
+      pc.stats.damage+=dealt;pc.lastMonsterDamage=dealt;monsterLevelGain(room,pc,u,1);
+      if(archetypes.has('wraith')||u.abyssBloom)u.hp=clamp(u.hp+Math.max(1,Math.round(dealt*(u.abyssBloom?.20:.08))),0,u.maxHp);
+      if(archetypes.has('serpent')&&Math.random()<.25)target.debuffs.weak++;
+      if(archetypes.has('mushroom')&&u.counter%3===0)aliveEnemies(room).forEach(e=>{if(e!==target)applyDamage(e,2)});
+      if(archetypes.has('leviathan'))aliveEnemies(room).filter(e=>e!==target).forEach(e=>applyElementDamage(e,Math.round(power*.25),u.element));
+      if(archetypes.has('mimic')&&wasAlive&&target.hp<=0){const run=room.runState[pc.playerId];run.gold+=3;u.kills=Number(u.kills||0)+1;pushRoomEvent(room,'monster-passive',`${u.name} 탐욕 +3G`,{playerId:pc.playerId,instanceId:u.instanceId,passive:'탐욕',gold:3});}
+      battleLog(room,`${u.name} → ${target.name} ${dealt} 피해.`);pushRoomEvent(room,'monster-attack',`${u.name} 공격!`,{playerId:pc.playerId,instanceId:u.instanceId,targetUid:target.uid,element:u.element,archetype:u.archetype,secondaryArchetype:u.secondaryArchetype||null,damage:dealt,form:monsterFormLabel(u),skill:u.passive?.name||u.role||'몬스터 공격'});const phases=updateBossPhase(room);for(const pe of phases)pushRoomEvent(room,'boss-phase',`${pe.name} 2단계!`,{enemyUid:pe.uid,enemyName:pe.name,phase:2});if(checkBattleEnd(room))return;
     }
   }
-
-  for (const e of aliveEnemies(room)) {
-    e.counter++;
-    if (e.debuffs.burn > 0) {
-      const d = applyDamage(e, e.debuffs.burn);
-      e.debuffs.burn = Math.max(0, e.debuffs.burn - 1);
-      battleLog(room, `${e.name} 화상 ${d}.`);
-      if (e.hp <= 0) { if (checkBattleEnd(room)) return; continue; }
-    }
-    if (e.broken > 0) {
-      e.broken = 0;
-      e.stagger = 0;
-      e.debuffs.vulnerable = Math.max(Number(e.debuffs.vulnerable || 0), 1);
-      battleLog(room, `${e.name} RIFT BREAK! 자세를 회복하느라 행동하지 못했습니다.`);
-      e.intent = rollIntent(e, b.tier, room.difficulty);
-      continue;
-    }
-    if (e.debuffs.intentSeal > 0) {
-      e.debuffs.intentSeal--;
-      battleLog(room, `${e.name}의 행동이 봉인됨.`);
-      e.intent = rollIntent(e, b.tier, room.difficulty);
-      continue;
-    }
-    const targets = b.party.filter(x => !x.down);
-    if (!targets.length) break;
-    const t = choose(targets);
-    if (['attack', 'heavy'].includes(e.intent.type)) {
-      let amount = e.intent.value;
-      if (e.debuffs.weak > 0) amount = Math.round(amount * 0.75);
-      if (e.nextDamageHalf) { amount = Math.round(amount * 0.5); e.nextDamageHalf = false; }
-      const bossGuard = t.units.filter(u => CARD_BY_ID[u.cardId]?.unit?.aura === 'bossGuard1').length;
-      if (b.tier === 'boss') amount = Math.max(0, amount - bossGuard);
-      const d = damagePc(room, t, amount, e);
-      battleLog(room, `${e.name} → ${t.nickname} ${d} 피해.`);
-    } else if (e.intent.type === 'guard') {
-      e.block += e.intent.value;
-      battleLog(room, `${e.name} 방어 ${e.intent.value}.`);
-    } else if (e.intent.type === 'debuff') {
-      if (!t.buffs.debuffImmune) { t.weak++; battleLog(room, `${t.nickname} 약화 1.`); }
-    }
-    e.debuffs.vulnerable = Math.max(0, e.debuffs.vulnerable - 1);
-    e.debuffs.weak = Math.max(0, e.debuffs.weak - 1);
-    if (e.staggerMax && !e.broken) e.stagger = Math.max(0, Number(e.stagger || 0) - Math.ceil(e.staggerMax * 0.28));
-    e.intent = rollIntent(e, b.tier, room.difficulty);
+  for(const e of aliveEnemies(room)){
+    e.counter++;if(e.debuffs.burn>0){const d=applyDamage(e,e.debuffs.burn);e.debuffs.burn=Math.max(0,e.debuffs.burn-1);battleLog(room,`${e.name} 화상 ${d}.`);if(e.hp<=0){if(checkBattleEnd(room))return;continue;}}
+    if(e.broken>0){e.broken=0;e.stagger=0;e.debuffs.vulnerable=Math.max(Number(e.debuffs.vulnerable||0),1);battleLog(room,`${e.name} BREAK — 행동 불가.`);e.intent=rollIntent(e,b.tier,room.difficulty);continue;}
+    if(e.debuffs.intentSeal>0){e.debuffs.intentSeal--;battleLog(room,`${e.name} 행동 봉인.`);e.intent=rollIntent(e,b.tier,room.difficulty);continue;}
+    const targets=b.party.filter(x=>!x.down);if(!targets.length)break;const t=choose(targets);
+    if(['attack','heavy'].includes(e.intent.type)){
+      let amount=e.intent.value;if(e.debuffs.weak>0)amount=Math.round(amount*.75);if(e.nextDamageHalf){amount=Math.round(amount*.5);e.nextDamageHalf=false;}
+      const mon=t.units.length?choose(t.units):null;let d=0;if(mon)d=monsterDamage(room,t,mon,amount,e);else d=damagePc(room,t,amount,e);battleLog(room,`${e.name} → ${mon?mon.name:t.nickname} ${d} 피해.`);pushRoomEvent(room,'enemy-attack',`${e.name} 공격`,{enemyUid:e.uid,playerId:t.playerId,targetMonsterId:mon?.instanceId||null,damage:d,style:e.archetype||'beast',element:e.element||'공허',skill:e.skill||e.name,heavy:e.intent.type==='heavy'});
+    }else if(e.intent.type==='guard'){e.block+=e.intent.value;battleLog(room,`${e.name} 방어 ${e.intent.value}.`);}else if(e.intent.type==='debuff'){if(!t.buffs.debuffImmune){t.weak++;battleLog(room,`${t.nickname} 약화 1.`);}}
+    e.debuffs.vulnerable=Math.max(0,e.debuffs.vulnerable-1);e.debuffs.weak=Math.max(0,e.debuffs.weak-1);if(e.staggerMax&&!e.broken)e.stagger=Math.max(0,Number(e.stagger||0)-Math.ceil(e.staggerMax*.28));e.intent=rollIntent(e,b.tier,room.difficulty);
   }
-  if (checkBattleEnd(room)) return;
-  if (b.party.every(x => x.down)) return loseBattle(room);
-
-  b.turn++;
-  for (const pc of b.party) {
-    if (pc.down) continue;
-    pc.block = Math.round(pc.block * Number(pc.itemMods.retainBlock || 0));
-    pc.energy = Math.max(1, pc.maxEnergy - (pc.buffs.energyDebt > 0 ? 1 : 0));
-    pc.buffs.energyDebt = Math.max(0, pc.buffs.energyDebt - 1);
-    pc.ended = false;
-    pc.recallsUsed = 0;
-    pc.buffs.debuffImmune = false;
-    pc.buffs.thorns = Math.max(pc.buffs.thorns, Number(pc.itemMods.thorns || 0));
-    pc.chain ||= { count: 0, lastType: null, best: 0, overdrives: 0 };
-    pc.chain.count = 0;
-    pc.chain.lastType = null;
-    pc.weak = Math.max(0, pc.weak - 1);
-    pc.discard.push(...pc.hand);
-    pc.hand = [];
-    drawCards(pc, 5);
-    for (const u of pc.units) {
-      const h = CARD_BY_ID[u.cardId]?.unit?.onRound;
-      if (h === 'healLowest2') { const x = b.party.filter(x => !x.down).sort((a, z) => a.hp / a.maxHp - z.hp / z.maxHp)[0]; if (x) x.hp = clamp(x.hp + 2, 0, x.maxHp); }
-      if (h === 'healLowest4') { const x = b.party.filter(x => !x.down).sort((a, z) => a.hp / a.maxHp - z.hp / z.maxHp)[0]; if (x) x.hp = clamp(x.hp + 4, 0, x.maxHp); }
-      if (h === 'healAll2') b.party.filter(x => !x.down).forEach(x => x.hp = clamp(x.hp + 2, 0, x.maxHp));
-      if (h === 'oracle') { drawCards(pc, 1); const x = b.party.filter(x => !x.down).sort((a, z) => a.hp / a.maxHp - z.hp / z.maxHp)[0]; if (x) x.hp = clamp(x.hp + 6, 0, x.maxHp); }
-    }
+  if(checkBattleEnd(room))return;if(b.party.every(x=>x.down))return loseBattle(room);b.turn++;
+  for(const pc of b.party){if(pc.down)continue;pc.block=Math.round(pc.block*Number(pc.itemMods.retainBlock||0));pc.energy=Math.max(1,pc.maxEnergy-(pc.buffs.energyDebt>0?1:0));pc.buffs.energyDebt=Math.max(0,pc.buffs.energyDebt-1);pc.ended=false;pc.recallsUsed=0;pc.switchesUsed=0;pc.buffs.debuffImmune=false;pc.buffs.thorns=Math.max(pc.buffs.thorns,Number(pc.itemMods.thorns||0));pc.chain||={count:0,lastType:null,best:0,overdrives:0};pc.chain.count=0;pc.chain.lastType=null;pc.weak=Math.max(0,pc.weak-1);pc.discard.push(...pc.hand);pc.hand=[];drawCards(pc,5);
+    for(const u of pc.units){if(u.resonanceTurns>0)u.resonanceTurns--;if(u.abyssBloom)u.hp=Math.max(1,u.hp-Math.max(1,Math.round(u.maxHp*.05)));if(u.archetype==='slime')u.hp=clamp(u.hp+Math.max(1,Math.round(u.maxHp*.03)),0,u.maxHp);}
+    const priests=pc.units.filter(u=>u.archetype==='priest').length;if(priests){const all=[...pc.units,...pc.bench].filter(u=>u.hp>0).sort((a,z)=>a.hp/a.maxHp-z.hp/z.maxHp);if(all[0])all[0].hp=clamp(all[0].hp+3*priests,0,all[0].maxHp);}
   }
-  b.phase = 'players';
-  pushRoomEvent(room, 'turn', `턴 ${b.turn} 시작.`);
+  b.phase='players';pushRoomEvent(room,'turn',`턴 ${b.turn} 시작.`);
 }
 
 function checkBattleEnd(room) {
@@ -1496,11 +1438,8 @@ function checkBattleEnd(room) {
   return false;
 }
 function syncRunHealth(room) {
-  if (!room.battle) return;
-  for (const pc of room.battle.party) {
-    const run = room.runState[pc.playerId];
-    if (run) run.hp = pc.hp <= 0 ? Math.max(1, Math.round(run.maxHp * 0.20)) : Math.min(run.maxHp, pc.hp);
-  }
+  if(!room.battle)return;
+  for(const pc of room.battle.party){const run=room.runState[pc.playerId];if(!run)continue;run.hp=pc.hp<=0?Math.max(1,Math.round(run.maxHp*.20)):Math.min(run.maxHp,pc.hp);const merged=allCombatMonsters(pc);run.monsters=merged.map(clone);}
 }
 
 function recordRunHistory(room, result) {
@@ -1583,7 +1522,7 @@ function loseBattle(room) {
   room.reward = {
     kind: 'defeat',
     title: '원정 실패',
-    text: `${room.floor}층에서 탐험이 종료되었습니다. 영구 획득한 카드와 재화는 유지됩니다.`,
+    text: `${room.floor}층에서 탐험이 종료되었습니다. 영구 봉인한 몬스터와 보유 스펠·재화는 유지됩니다.`,
     playerOptions: {}, claims: {}, continueBy: []
   };
   recordRunHistory(room, 'defeat');
@@ -1603,12 +1542,12 @@ function runAffinity(run) {
 function cardSynergy(run, card) {
   if (!run || !card) return 0;
   const top = runAffinity(run).slice(0,2).map(x=>x.element);
-  let score = 0;
-  if (top[0] === card.element) score += 2;
-  else if (top[1] === card.element) score += 1;
-  const types = (run.runDeck || []).map(id=>CARD_BY_ID[id]?.type).filter(Boolean);
-  const units = types.filter(x=>x==='unit').length, spells = types.filter(x=>x==='spell').length;
-  if ((units > spells + 3 && card.type === 'spell') || (spells > units + 3 && card.type === 'unit')) score += 1;
+  const monsterElements=(run.monsters||[]).filter(m=>m.hp>0).map(m=>m.element);
+  let score=0;
+  if(monsterElements.includes(card.element))score+=2;
+  else if(top[0]===card.element)score+=1;
+  if(card.cardClass==='gene'&&monsterElements.includes(card.element))score+=1;
+  if(card.cardClass==='support'&&top.length&&monsterElements.some(e=>top.includes(e)))score+=1;
   return clamp(score,0,3);
 }
 
@@ -1675,7 +1614,7 @@ function rewardItemOptions(room, playerId, n, tier = 'combat') {
 function rewardRelicOptions(room, playerId, n = 2) {
   const run = room.runState[playerId];
   const owned = new Set(run.relics || []);
-  const pool = RELICS.filter(r => !owned.has(r.id));
+  const pool = RELICS.filter(r => !owned.has(r.id) && (!Array.isArray(r.modes) || r.modes.includes(room.mode)));
   const out = [];
   while (out.length < n && pool.length) {
     const r = weighted(pool.filter(x => !out.some(y => y.id === x.id)), x => Number(RARITY[x.rarity]?.rewardWeight || 1) * (['legendary','mythic'].includes(x.rarity) ? (1 + room.floor/80) : 1));
@@ -1728,36 +1667,11 @@ function createFloorReward(room, sourceKind, title, text, tier = 'combat', extra
   room.status = 'reward';
 }
 
-function makeCaptureEncounter(floor, tier, room) {
-  const profile = profiles[room.players?.[0]?.id];
-  const enemyElements = [...new Set((room.battle?.enemies || []).map(e => e.element).filter(Boolean))];
-  const biome = currentBiome(room);
-  const pool = CARDS.filter(c => !c.limited && !c.archiveOnly);
-  const c = process.env.TEST_MODE === '1' && profile
-    ? (pool.find(x => !profile.collection?.[x.id]) || pool[0])
-    : weighted(pool, c => {
-        let w = Number(RARITY[c.rarity].travelWeight);
-        if (enemyElements.includes(c.element)) w *= 3.4;
-        if (profile && !profile.collection?.[c.id]) w *= 2.8;
-        if (floor < 8 && c.rarity === 'legendary') w *= 0.03;
-        if (floor < 18 && c.rarity === 'mythic') w *= 0.005;
-        if (floor >= 10 && ['rare','ultra'].includes(c.rarity)) w *= 1.15 + Math.min(1.1, floor / 45);
-        if (tier === 'elite' && ['ultra', 'legendary'].includes(c.rarity)) w *= 2.6;
-        if (tier === 'boss' && ['ultra', 'legendary', 'mythic'].includes(c.rarity)) w *= 4.2;
-        if (biome && c.element === biome.cardElement) w *= 1.4;
-        return w;
-      });
-  return {
-    id: uid('echo'),
-    cardId: c.id,
-    card: publicCard(c),
-    attemptedBy: [],
-    escaped: false,
-    caughtBy: null,
-    enemyElements,
-    newDiscovery: profile ? !profile.collection?.[c.id] : true,
-    source: 'journey'
-  };
+function makeCaptureEncounter(floor,tier,room){
+  const profile=profiles[room.players?.[0]?.id], defeated=(room.battle?.enemies||[]).map(e=>MONSTER_BY_ID[e.id]).filter(Boolean);let pool=defeated.length?defeated:ENEMIES.filter(e=>e.biome===currentBiome(room).id);
+  if(process.env.TEST_MODE==='1'&&profile){pool=[pool.find(m=>!profile.monsters?.[m.id])||pool[0]];}
+  const m=weighted(pool,x=>{let w=x.tier==='ultra'?0.45:x.tier==='rare'?1.3:2.4;if(profile&&!profile.monsters?.[x.id])w*=2.8;if(tier==='elite'&&x.tier==='ultra')w*=2.4;if(tier==='boss'&&x.tier==='boss')w*=4;return w;})||pool[0];
+  return {id:uid('wild'),monsterId:m.id,monster:publicMonster(m),attemptedBy:[],escaped:false,caughtBy:null,newDiscovery:profile?!profile.monsters?.[m.id]:true,source:'journey'};
 }
 
 function salvageReward(room, playerId) {
@@ -1811,7 +1725,9 @@ function campRewardAction(room, playerId, mode, cardId) {
   let label='';
   if (mode === 'rest') {
     const heal = Math.max(12, Math.round(run.maxHp * (0.30 + modTotal(run,'restPct'))) + Math.round(modTotal(run,'restFlat')));
-    const before=run.hp; run.hp=clamp(run.hp+heal,1,run.maxHp); label=`휴식 · HP +${run.hp-before}`;
+    const before=run.hp; run.hp=clamp(run.hp+heal,1,run.maxHp);
+    for(const m of run.monsters||[]){const mh=Math.max(8,Math.round(m.maxHp*.30));m.hp=clamp(m.hp+mh,1,m.maxHp);m.block=0;}
+    label=`휴식 · 코어 HP +${run.hp-before} · 몬스터 HP 30% 회복`;
   } else if (mode === 'upgrade') {
     if (!CARD_BY_ID[cardId] || !run.runDeck.includes(cardId)) throw new Error('강화할 카드를 찾을 수 없습니다.');
     run.upgrades ||= {};
@@ -1891,7 +1807,7 @@ function buyReward(room, playerId, itemId, itemType = 'card') {
 
 function continueAfterReward(room, playerId) {
   if (room.status !== 'reward' || !room.reward) throw new Error('진행할 수 없습니다.');
-  if (room.mode === 'journey' && room.capture && !room.capture.escaped && !room.capture.attemptedBy?.includes(playerId)) throw new Error('먼저 카드 흔적을 봉인하거나 지나가 주세요.');
+  if (room.mode === 'journey' && room.capture && !room.capture.escaped && !room.capture.attemptedBy?.includes(playerId)) throw new Error('먼저 야생 몬스터를 봉인하거나 지나가 주세요.');
   const options = room.reward.playerOptions?.[playerId] || [];
   if (options.length && !room.reward.claims[playerId]) throw new Error('보상을 선택하거나 분해해 주세요.');
   const relicOptions = room.reward.relicOptions?.[playerId] || [];
@@ -1927,57 +1843,20 @@ function continueAfterReward(room, playerId) {
     for (const rp of room.players) {
       const run = room.runState[rp.id];
       run.hp = clamp(run.hp + Math.round(run.maxHp * healPct), 1, run.maxHp);
+      for(const m of run.monsters||[])m.hp=clamp(m.hp+Math.round(m.maxHp*healPct),1,m.maxHp);
     }
   }
   makeRoute(room);
   pushRoomEvent(room, 'floor', `${room.floor}층으로 이동합니다.`);
 }
 
-function attemptCapture(room, playerId, sealType) {
-  if (room.mode !== 'journey' || room.status !== 'reward' || !room.capture || room.capture.escaped) throw new Error('봉인할 카드 흔적이 없습니다.');
-  const cap = room.capture;
-  if (cap.attemptedBy.includes(playerId)) throw new Error('이 흔적에는 이미 시도했습니다.');
-  const p = profiles[playerId];
-  const run = room.runState[playerId];
-  const seal = String(sealType || 'basic');
-  const mult = { basic: 1, silver: 1.75, royal: 3.35 }[seal];
-  if (!mult) throw new Error('봉인구 종류 오류');
-  if ((p.seals[seal] || 0) <= 0) throw new Error('봉인구가 없습니다.');
-  p.seals[seal]--;
-  cap.attemptedBy.push(playerId);
-  const c = CARD_BY_ID[cap.cardId];
-  let chance = Number(RARITY[c.rarity].sealBase) * mult;
-  if (run?.relics.includes('r003')) chance += 0.08;
-  chance += modTotal(run, 'captureBonus');
-  chance = Math.min(c.rarity === 'mythic' ? 0.22 : c.rarity === 'legendary' ? 0.44 : 0.96, chance);
-  const success = process.env.TEST_MODE === '1' ? true : Math.random() < chance;
-  if (success) {
-    const wasNew = !p.collection?.[c.id];
-    addCardToProfile(p, c.id, 1, false, 'journey');
-    if (run.runDeck.length < 40) { run.runDeck.push(c.id); run.cardsAdded++; }
-    p.stats.cardsCaught++;
-    if (wasNew) p.stats.journeyUnlocks = Number(p.stats.journeyUnlocks || 0) + 1;
-    cap.caughtBy = playerId;
-    cap.escaped = true;
-    saveProfiles();
-    pushRoomEvent(room, 'capture', `${c.name} 봉인 성공!`);
-  } else {
-    const escapeReduction = modTotal(run, 'captureEscapeReduction');
-    const escapeChance = Math.max(0.12, 0.42 - escapeReduction);
-    if (Math.random() < escapeChance) cap.escaped = true;
-    saveProfiles();
-    pushRoomEvent(room, 'capture-fail', cap.escaped ? `${c.name}의 흔적이 사라졌습니다.` : `${c.name} 봉인 실패. 아직 흔적이 남았습니다.`);
-  }
-  return { success, chance, escaped: cap.escaped };
+function attemptCapture(room,playerId,sealType){
+  if(room.mode!=='journey'||room.status!=='reward'||!room.capture||room.capture.escaped)throw new Error('봉인할 야생 몬스터가 없습니다.');const cap=room.capture;if(cap.attemptedBy.includes(playerId))throw new Error('이미 봉인을 시도했습니다.');const p=profiles[playerId],run=room.runState[playerId],seal=String(sealType||'basic'),mult={basic:1,silver:1.8,royal:3.5}[seal];if(!mult)throw new Error('봉인구 종류 오류');if((p.seals[seal]||0)<=0)throw new Error('봉인구가 없습니다.');p.seals[seal]--;cap.attemptedBy.push(playerId);const m=MONSTER_BY_ID[cap.monsterId];let chance=Number(m.captureBase||.25)*mult;if(run?.relics.includes('r003'))chance+=.08;chance+=modTotal(run,'captureBonus');const hardCap=m.tier==='boss'?.28:m.tier==='ultra'?.62:m.tier==='rare'?.88:.97;chance=Math.min(hardCap,chance);const success=process.env.TEST_MODE==='1'?true:Math.random()<chance;
+  if(success){const wasNew=addMonsterToProfile(p,m.id,1,false);p.stats.monstersCaught=Number(p.stats.monstersCaught||0)+1;p.stats.cardsCaught=Number(p.stats.cardsCaught||0)+1;if(wasNew)p.stats.journeyUnlocks=Number(p.stats.journeyUnlocks||0)+1;cap.caughtBy=playerId;cap.escaped=true;saveProfiles();pushRoomEvent(room,'capture',`${m.name} 봉인 성공!`,{monsterId:m.id});}
+  else{const escapeReduction=modTotal(run,'captureEscapeReduction'),escapeChance=Math.max(.10,.38-escapeReduction);if(Math.random()<escapeChance)cap.escaped=true;saveProfiles();pushRoomEvent(room,'capture-fail',cap.escaped?`${m.name}이(가) 달아났습니다.`:`${m.name} 봉인 실패. 아직 전장에 남아 있습니다.`,{monsterId:m.id});}
+  return {success,chance,escaped:cap.escaped,monster:publicMonster(m),newDiscovery:!p.monsters?.[m.id]?true:cap.newDiscovery};
 }
-
-function passCapture(room, playerId) {
-  if (room.mode !== 'journey' || room.status !== 'reward' || !room.capture || room.capture.escaped) throw new Error('넘길 카드 흔적이 없습니다.');
-  if (!room.capture.attemptedBy.includes(playerId)) room.capture.attemptedBy.push(playerId);
-  room.capture.escaped = true;
-  pushRoomEvent(room, 'capture-pass', `${playerName(room, playerId)} 님이 카드 흔적을 지나쳤습니다.`);
-  return { passed: true };
-}
+function passCapture(room,playerId){if(room.mode!=='journey'||room.status!=='reward'||!room.capture||room.capture.escaped)throw new Error('지나갈 야생 몬스터가 없습니다.');if(!room.capture.attemptedBy.includes(playerId))room.capture.attemptedBy.push(playerId);room.capture.escaped=true;pushRoomEvent(room,'capture-pass',`${playerName(room,playerId)} 님이 야생 몬스터를 지나쳤습니다.`);return{passed:true};}
 
 function rarityRoll(profile) {
   profile.pity.legendary++;
@@ -2107,7 +1986,7 @@ const server = http.createServer(async (req, res) => {
     const p = u.pathname;
     if (p === '/healthz' || p === '/api/version') return ok(res, { service: 'RIFT_DECK_SERVER', version: VERSION, deployId: DEPLOY_ID, storage: SUPABASE_ACTIVE ? 'supabase+json-fallback' : 'json-local', auth: SUPABASE_AUTH_ACTIVE ? 'supabase' : 'guest-only', cards: CARDS.length, items: ITEMS.length, monsters: ENEMIES.length + BOSSES.length, maxDungeonFloor: DUNGEON_MAX_FLOOR, rooms: rooms.size, uptime: Math.round(process.uptime()) });
     if (p === '/api/meta' && req.method === 'GET') return ok(res, {
-      cards: CARDS.map(publicCard), items: ITEMS.map(publicItem), rarities: RARITY, elements: ELEMENTS, elementMatchups: ELEMENT_ADVANTAGE, biomes: BIOMES,
+      cards: CARDS.map(publicCard), items: ITEMS.map(publicItem), monsters: MONSTERS.map(publicMonster), rarities: RARITY, elements: ELEMENTS, elementMatchups: ELEMENT_ADVANTAGE, monsterRules:{maxSlots:MONSTER_PARTY_MAX,pointBudget:MONSTER_POINT_BUDGET}, spellRules:{min:DECK_MIN,max:DECK_MAX}, biomes: BIOMES,
       relics: RELICS, banner: BANNER, difficulties: DIFFICULTIES, version: VERSION, maxDungeonFloor: DUNGEON_MAX_FLOOR, authEnabled: SUPABASE_AUTH_ACTIVE
     });
     if (p === '/api/auth/status' && req.method === 'GET') {
@@ -2165,15 +2044,12 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/profile' && req.method === 'POST') {
       const b = await parseBody(req); const prof = await authProfile(req, res, b); saveProfiles(); return ok(res, { profile: profileView(prof) });
     }
+    if (p === '/api/loadout' && req.method === 'POST') {
+      const b=await parseBody(req),prof=await authProfile(req,res,b);const party=normalizeMonsterParty(b.monsterParty,prof.monsters||{});if(!party.length)throw new Error('몬스터를 최소 1마리 선택하세요.');if(party.length>MONSTER_PARTY_MAX||monsterPartyCost(party)>MONSTER_POINT_BUDGET)throw new Error(`몬스터 포인트는 ${MONSTER_POINT_BUDGET} 이하여야 합니다.`);
+      const seen=new Set(),deck=(Array.isArray(b.deck)?b.deck:[]).filter(cid=>CARD_BY_ID[cid]?.type==='spell'&&prof.collection[cid]>0&&!seen.has(cid)&&seen.add(cid)).slice(0,DECK_MAX);if(deck.length<DECK_MIN)throw new Error(`스펠 덱은 최소 ${DECK_MIN}종이 필요합니다.`);prof.monsterParty=party;prof.deck=deck;saveProfiles();return ok(res,{profile:profileView(prof)});
+    }
     if (p === '/api/deck' && req.method === 'POST') {
-      const b = await parseBody(req); const prof = await authProfile(req, res, b); const seen = new Set();
-      const raw = (Array.isArray(b.deck) ? b.deck : []).filter(cid => CARD_BY_ID[cid] && prof.collection[cid] > 0 && !seen.has(cid) && seen.add(cid)).slice(0, DECK_MAX);
-      const units = raw.filter(cid => CARD_BY_ID[cid]?.type === 'unit');
-      const spells = raw.filter(cid => CARD_BY_ID[cid]?.type === 'spell');
-      if (raw.length < DECK_MIN) throw new Error(`원정 덱은 최소 ${DECK_MIN}종이 필요합니다.`);
-      if (units.length > UNIT_DECK_MAX) throw new Error(`유닛 코어는 최대 ${UNIT_DECK_MAX}종까지 편성할 수 있습니다.`);
-      if (spells.length > SPELL_DECK_MAX) throw new Error(`스펠 북은 최대 ${SPELL_DECK_MAX}종까지 편성할 수 있습니다.`);
-      prof.deck = raw; saveProfiles(); return ok(res, { profile: profileView(prof) });
+      const b=await parseBody(req),prof=await authProfile(req,res,b),seen=new Set();const raw=(Array.isArray(b.deck)?b.deck:[]).filter(cid=>CARD_BY_ID[cid]?.type==='spell'&&prof.collection[cid]>0&&!seen.has(cid)&&seen.add(cid)).slice(0,DECK_MAX);if(raw.length<DECK_MIN)throw new Error(`스펠 덱은 최소 ${DECK_MIN}종이 필요합니다.`);prof.deck=raw;saveProfiles();return ok(res,{profile:profileView(prof)});
     }
     if (p === '/api/gacha/pull' && req.method === 'POST') {
       const b = await parseBody(req); const prof = await authProfile(req, res, b); return ok(res, pullGacha(prof, b.count));
@@ -2223,8 +2099,11 @@ const server = http.createServer(async (req, res) => {
         if (action === 'start') { if (room.hostId !== prof.id) throw new Error('방장만 시작할 수 있습니다.'); startRoom(room); return ok(res, { room: roomView(room) }); }
         if (action === 'vote') { voteRoute(room, prof.id, b.nodeId); return ok(res, { room: roomView(room) }); }
         if (action === 'contract') { chooseRunContract(room, prof.id, b.contractId); return ok(res, { room: roomView(room) }); }
-        if (action === 'play') { playCard(room, prof.id, b.handIndex, b.targetUid); return ok(res, { room: roomView(room) }); }
+        if (action === 'play') { playCard(room, prof.id, b.handIndex, b.targetUid, b.targetMonsterId); return ok(res, { room: roomView(room) }); }
         if (action === 'recall-unit') { const unit = recallUnit(room, prof.id, b.instanceId); return ok(res, { result:{ name:unit.name, cardId:unit.cardId }, room: roomView(room) }); }
+        if (action === 'monster-evolve') { const unit=evolveMonster(room,prof.id,b.instanceId,b.mode); return ok(res,{result:{name:unit.name,mode:b.mode},room:roomView(room),profile:profileView(profiles[prof.id])}); }
+        if (action === 'monster-fuse') { const unit=fuseMonsters(room,prof.id,b.primaryId,b.secondaryId); return ok(res,{result:{name:unit.name},room:roomView(room),profile:profileView(profiles[prof.id])}); }
+        if (action === 'switch-monster') { const unit=switchMonster(room,prof.id,b.activeId,b.benchId); return ok(res,{result:{name:unit.name},room:roomView(room)}); }
         if (action === 'end-turn') { endTurn(room, prof.id); return ok(res, { room: roomView(room) }); }
         if (action === 'event') { chooseEvent(room, prof.id, b.choiceId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
         if (action === 'reward') { claimReward(room, prof.id, b.rewardId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
@@ -2238,6 +2117,11 @@ const server = http.createServer(async (req, res) => {
         if (action === 'continue') { continueAfterReward(room, prof.id); return ok(res, { room: roomView(room) }); }
         if (action === 'capture') { const result = attemptCapture(room, prof.id, b.sealType); return ok(res, { result, room: roomView(room), profile: profileView(profiles[prof.id]) }); }
         if (action === 'capture-pass') { const result = passCapture(room, prof.id); return ok(res, { result, room: roomView(room) }); }
+        if (action === 'debug-monster' && process.env.TEST_MODE === '1') {
+          const pc=getPc(room,prof.id),unit=findCombatMonster(pc,b.instanceId);if(!pc||!unit)throw new Error('테스트 몬스터를 찾을 수 없습니다.');
+          if(b.level!=null)unit.level=Number(b.level);if(b.gene!=null)unit.gene=Number(b.gene);if(b.resonance!=null)unit.resonance=Number(b.resonance);if(b.rift!=null)unit.rift=Number(b.rift);if(b.hpRatio!=null)unit.hp=Math.max(1,Math.round(unit.maxHp*Number(b.hpRatio)));
+          return ok(res,{room:roomView(room)});
+        }
         if (action === 'debug-win' && process.env.TEST_MODE === '1') {
           if (room.status === 'battle' && room.battle) room.battle.enemies.forEach(e => e.hp = 0);
           if (room.status === 'battle') winBattle(room);
