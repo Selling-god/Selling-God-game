@@ -1,5 +1,5 @@
 {
-  "version": "3.3.0",
+  "version": "3.4.0",
   "rarities": {
     "common": {
       "ko": "일반",
@@ -7408,7 +7408,11 @@
         "healOnPickup": 12
       },
       "category": "생존",
-      "art": "/assets/items/i001.png"
+      "art": "/assets/items/i001.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i002",
@@ -7421,7 +7425,11 @@
         "startBlock": 5
       },
       "category": "방어",
-      "art": "/assets/items/i002.png"
+      "art": "/assets/items/i002.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i003",
@@ -7434,7 +7442,11 @@
         "drawBonus": 1
       },
       "category": "에너지",
-      "art": "/assets/items/i003.png"
+      "art": "/assets/items/i003.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i004",
@@ -7447,7 +7459,11 @@
         "unitPower": 1
       },
       "category": "유닛",
-      "art": "/assets/items/i004.png"
+      "art": "/assets/items/i004.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i005",
@@ -7460,7 +7476,11 @@
         "spellPower": 2
       },
       "category": "주문",
-      "art": "/assets/items/i005.png"
+      "art": "/assets/items/i005.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i006",
@@ -7473,7 +7493,11 @@
         "rewardLuck": 0.04
       },
       "category": "경제",
-      "art": "/assets/items/i006.png"
+      "art": "/assets/items/i006.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i007",
@@ -7486,7 +7510,11 @@
         "captureBonus": 0.03
       },
       "category": "탐사",
-      "art": "/assets/items/i007.png"
+      "art": "/assets/items/i007.png",
+      "modes": [
+        "journey"
+      ],
+      "modeNote": "여행 전용"
     },
     {
       "id": "i008",
@@ -7499,7 +7527,11 @@
         "goldPct": 0.08
       },
       "category": "경제",
-      "art": "/assets/items/i008.png"
+      "art": "/assets/items/i008.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i009",
@@ -7512,7 +7544,11 @@
         "restFlat": 6
       },
       "category": "생존",
-      "art": "/assets/items/i009.png"
+      "art": "/assets/items/i009.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i010",
@@ -7525,7 +7561,11 @@
         "damageReduction": 0.02
       },
       "category": "방어",
-      "art": "/assets/items/i010.png"
+      "art": "/assets/items/i010.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i011",
@@ -7538,7 +7578,11 @@
         "firstTurnEnergy": 1
       },
       "category": "에너지",
-      "art": "/assets/items/i011.png"
+      "art": "/assets/items/i011.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i012",
@@ -7551,7 +7595,11 @@
         "healPct": 0.12
       },
       "category": "생존",
-      "art": "/assets/items/i012.png"
+      "art": "/assets/items/i012.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i013",
@@ -7564,7 +7612,11 @@
         "blockPct": 0.1
       },
       "category": "방어",
-      "art": "/assets/items/i013.png"
+      "art": "/assets/items/i013.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i014",
@@ -7577,7 +7629,11 @@
         "damagePct": 0.06
       },
       "category": "전투",
-      "art": "/assets/items/i014.png"
+      "art": "/assets/items/i014.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i015",
@@ -7590,7 +7646,11 @@
         "handLimit": 1
       },
       "category": "에너지",
-      "art": "/assets/items/i015.png"
+      "art": "/assets/items/i015.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i016",
@@ -7603,7 +7663,11 @@
         "healAfterBattle": 5
       },
       "category": "생존",
-      "art": "/assets/items/i016.png"
+      "art": "/assets/items/i016.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i017",
@@ -7616,7 +7680,11 @@
         "rewardChoices": 1
       },
       "category": "경제",
-      "art": "/assets/items/i017.png"
+      "art": "/assets/items/i017.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i018",
@@ -7629,7 +7697,11 @@
         "rerollDiscount": 0.15
       },
       "category": "경제",
-      "art": "/assets/items/i018.png"
+      "art": "/assets/items/i018.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i019",
@@ -7642,7 +7714,11 @@
         "startDiscount": 1
       },
       "category": "에너지",
-      "art": "/assets/items/i019.png"
+      "art": "/assets/items/i019.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i020",
@@ -7655,7 +7731,11 @@
         "thorns": 2
       },
       "category": "방어",
-      "art": "/assets/items/i020.png"
+      "art": "/assets/items/i020.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i021",
@@ -7668,7 +7748,11 @@
         "maxHpOnPickup": 10
       },
       "category": "전투",
-      "art": "/assets/items/i021.png"
+      "art": "/assets/items/i021.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i022",
@@ -7681,7 +7765,11 @@
         "maxEnergy": 1
       },
       "category": "에너지",
-      "art": "/assets/items/i022.png"
+      "art": "/assets/items/i022.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i023",
@@ -7694,7 +7782,11 @@
         "unitPower": 3
       },
       "category": "유닛",
-      "art": "/assets/items/i023.png"
+      "art": "/assets/items/i023.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i024",
@@ -7707,7 +7799,11 @@
         "spellPower": 6
       },
       "category": "주문",
-      "art": "/assets/items/i024.png"
+      "art": "/assets/items/i024.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i025",
@@ -7720,7 +7816,11 @@
         "startBlock": 14
       },
       "category": "방어",
-      "art": "/assets/items/i025.png"
+      "art": "/assets/items/i025.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i026",
@@ -7733,7 +7833,11 @@
         "rewardLuck": 0.12
       },
       "category": "경제",
-      "art": "/assets/items/i026.png"
+      "art": "/assets/items/i026.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i027",
@@ -7746,7 +7850,11 @@
         "captureBonus": 0.1
       },
       "category": "탐사",
-      "art": "/assets/items/i027.png"
+      "art": "/assets/items/i027.png",
+      "modes": [
+        "journey"
+      ],
+      "modeNote": "여행 전용"
     },
     {
       "id": "i028",
@@ -7759,7 +7867,11 @@
         "restPct": 0.12
       },
       "category": "생존",
-      "art": "/assets/items/i028.png"
+      "art": "/assets/items/i028.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i029",
@@ -7772,7 +7884,11 @@
         "drawBonus": 2
       },
       "category": "에너지",
-      "art": "/assets/items/i029.png"
+      "art": "/assets/items/i029.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i030",
@@ -7785,7 +7901,11 @@
         "damageReduction": 0.07
       },
       "category": "방어",
-      "art": "/assets/items/i030.png"
+      "art": "/assets/items/i030.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i031",
@@ -7798,7 +7918,11 @@
         "revive": 1
       },
       "category": "전투",
-      "art": "/assets/items/i031.png"
+      "art": "/assets/items/i031.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i032",
@@ -7812,7 +7936,11 @@
         "drawBonus": 1
       },
       "category": "에너지",
-      "art": "/assets/items/i032.png"
+      "art": "/assets/items/i032.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i033",
@@ -7826,7 +7954,11 @@
         "rewardLuck": 0.18
       },
       "category": "경제",
-      "art": "/assets/items/i033.png"
+      "art": "/assets/items/i033.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i034",
@@ -7839,7 +7971,11 @@
         "maxHpOnPickup": 22
       },
       "category": "전투",
-      "art": "/assets/items/i034.png"
+      "art": "/assets/items/i034.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i035",
@@ -7852,7 +7988,11 @@
         "bossDamagePct": 0.22
       },
       "category": "보스",
-      "art": "/assets/items/i035.png"
+      "art": "/assets/items/i035.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i036",
@@ -7865,7 +8005,11 @@
         "retainBlock": 0.25
       },
       "category": "방어",
-      "art": "/assets/items/i036.png"
+      "art": "/assets/items/i036.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i037",
@@ -7878,7 +8022,11 @@
         "maxEnergy": 1
       },
       "category": "에너지",
-      "art": "/assets/items/i037.png"
+      "art": "/assets/items/i037.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i038",
@@ -7892,7 +8040,11 @@
         "captureEscapeReduction": 0.18
       },
       "category": "탐사",
-      "art": "/assets/items/i038.png"
+      "art": "/assets/items/i038.png",
+      "modes": [
+        "journey"
+      ],
+      "modeNote": "여행 전용"
     },
     {
       "id": "i039",
@@ -7906,7 +8058,11 @@
         "drawBonus": 1
       },
       "category": "에너지",
-      "art": "/assets/items/i039.png"
+      "art": "/assets/items/i039.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i040",
@@ -7919,7 +8075,11 @@
         "teamStartBlock": 8
       },
       "category": "방어",
-      "art": "/assets/items/i040.png"
+      "art": "/assets/items/i040.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i041",
@@ -7933,7 +8093,11 @@
         "damageReduction": 0.1
       },
       "category": "방어",
-      "art": "/assets/items/i041.png"
+      "art": "/assets/items/i041.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i042",
@@ -7946,7 +8110,11 @@
         "maxEnergy": 2
       },
       "category": "에너지",
-      "art": "/assets/items/i042.png"
+      "art": "/assets/items/i042.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i043",
@@ -7960,7 +8128,11 @@
         "rewardLuck": 0.35
       },
       "category": "경제",
-      "art": "/assets/items/i043.png"
+      "art": "/assets/items/i043.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i044",
@@ -7974,7 +8146,11 @@
         "bossDamagePct": 0.18
       },
       "category": "보스",
-      "art": "/assets/items/i044.png"
+      "art": "/assets/items/i044.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i045",
@@ -7988,7 +8164,11 @@
         "revivePct": 0.55
       },
       "category": "전투",
-      "art": "/assets/items/i045.png"
+      "art": "/assets/items/i045.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i046",
@@ -8001,7 +8181,11 @@
         "gemPct": 0.05
       },
       "category": "경제",
-      "art": "/assets/items/i046.png"
+      "art": "/assets/items/i046.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i047",
@@ -8014,7 +8198,11 @@
         "healAfterBattle": 2
       },
       "category": "생존",
-      "art": "/assets/items/i047.png"
+      "art": "/assets/items/i047.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i048",
@@ -8028,7 +8216,11 @@
         "goldPct": 0.12
       },
       "category": "경제",
-      "art": "/assets/items/i048.png"
+      "art": "/assets/items/i048.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i049",
@@ -8042,7 +8234,11 @@
         "startBlock": 3,
         "unitPower": 1
       },
-      "art": "/assets/items/i049.png"
+      "art": "/assets/items/i049.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i050",
@@ -8056,7 +8252,11 @@
         "healAfterBattle": 3,
         "restFlat": 3
       },
-      "art": "/assets/items/i050.png"
+      "art": "/assets/items/i050.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i051",
@@ -8070,7 +8270,11 @@
         "captureBonus": 0.02,
         "rewardLuck": 0.02
       },
-      "art": "/assets/items/i051.png"
+      "art": "/assets/items/i051.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i052",
@@ -8083,7 +8287,11 @@
       "mod": {
         "captureEscapeReduction": 0.05
       },
-      "art": "/assets/items/i052.png"
+      "art": "/assets/items/i052.png",
+      "modes": [
+        "journey"
+      ],
+      "modeNote": "여행 전용"
     },
     {
       "id": "i053",
@@ -8097,7 +8305,11 @@
         "goldPct": 0.05,
         "gemPct": 0.02
       },
-      "art": "/assets/items/i053.png"
+      "art": "/assets/items/i053.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i054",
@@ -8111,7 +8323,11 @@
         "healOnPickup": 8,
         "restFlat": 4
       },
-      "art": "/assets/items/i054.png"
+      "art": "/assets/items/i054.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i055",
@@ -8125,7 +8341,11 @@
         "damagePct": 0.02,
         "unitPower": 1
       },
-      "art": "/assets/items/i055.png"
+      "art": "/assets/items/i055.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i056",
@@ -8139,7 +8359,11 @@
         "startBlock": 4,
         "damageReduction": 0.01
       },
-      "art": "/assets/items/i056.png"
+      "art": "/assets/items/i056.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i057",
@@ -8153,7 +8377,11 @@
         "spellPower": 1,
         "rerollDiscount": 0.03
       },
-      "art": "/assets/items/i057.png"
+      "art": "/assets/items/i057.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i058",
@@ -8167,7 +8395,11 @@
         "rewardLuck": 0.03,
         "goldPct": 0.03
       },
-      "art": "/assets/items/i058.png"
+      "art": "/assets/items/i058.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i059",
@@ -8180,7 +8412,11 @@
       "mod": {
         "blockPct": 0.03
       },
-      "art": "/assets/items/i059.png"
+      "art": "/assets/items/i059.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i060",
@@ -8193,7 +8429,11 @@
       "mod": {
         "handLimit": 1
       },
-      "art": "/assets/items/i060.png"
+      "art": "/assets/items/i060.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i061",
@@ -8207,7 +8447,11 @@
         "startBlock": 8,
         "retainBlock": 0.05
       },
-      "art": "/assets/items/i061.png"
+      "art": "/assets/items/i061.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i062",
@@ -8221,7 +8465,11 @@
         "damagePct": 0.04,
         "firstTurnEnergy": 1
       },
-      "art": "/assets/items/i062.png"
+      "art": "/assets/items/i062.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i063",
@@ -8235,7 +8483,11 @@
         "captureBonus": 0.05,
         "captureEscapeReduction": 0.08
       },
-      "art": "/assets/items/i063.png"
+      "art": "/assets/items/i063.png",
+      "modes": [
+        "journey"
+      ],
+      "modeNote": "여행 전용"
     },
     {
       "id": "i064",
@@ -8249,7 +8501,11 @@
         "drawBonus": 1,
         "handLimit": 1
       },
-      "art": "/assets/items/i064.png"
+      "art": "/assets/items/i064.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i065",
@@ -8263,7 +8519,11 @@
         "healAfterBattle": 4,
         "restPct": 0.05
       },
-      "art": "/assets/items/i065.png"
+      "art": "/assets/items/i065.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i066",
@@ -8277,7 +8537,11 @@
         "goldPct": 0.1,
         "rerollDiscount": 0.08
       },
-      "art": "/assets/items/i066.png"
+      "art": "/assets/items/i066.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i067",
@@ -8291,7 +8555,11 @@
         "unitPower": 2,
         "damagePct": 0.03
       },
-      "art": "/assets/items/i067.png"
+      "art": "/assets/items/i067.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i068",
@@ -8305,7 +8573,11 @@
         "spellPower": 4,
         "rewardLuck": 0.03
       },
-      "art": "/assets/items/i068.png"
+      "art": "/assets/items/i068.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i069",
@@ -8319,7 +8591,11 @@
         "bossDamagePct": 0.08,
         "damagePct": 0.02
       },
-      "art": "/assets/items/i069.png"
+      "art": "/assets/items/i069.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i070",
@@ -8333,7 +8609,11 @@
         "healPct": 0.08,
         "healOnPickup": 6
       },
-      "art": "/assets/items/i070.png"
+      "art": "/assets/items/i070.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i071",
@@ -8347,7 +8627,11 @@
         "unitPower": 1,
         "spellPower": 2
       },
-      "art": "/assets/items/i071.png"
+      "art": "/assets/items/i071.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i072",
@@ -8361,7 +8645,11 @@
         "gemPct": 0.06,
         "rewardLuck": 0.05
       },
-      "art": "/assets/items/i072.png"
+      "art": "/assets/items/i072.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i073",
@@ -8375,7 +8663,11 @@
         "damageReduction": 0.03,
         "blockPct": 0.05
       },
-      "art": "/assets/items/i073.png"
+      "art": "/assets/items/i073.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i074",
@@ -8389,7 +8681,11 @@
         "captureBonus": 0.06,
         "goldPct": 0.04
       },
-      "art": "/assets/items/i074.png"
+      "art": "/assets/items/i074.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i075",
@@ -8403,7 +8699,11 @@
         "maxEnergy": 1,
         "startDiscount": 1
       },
-      "art": "/assets/items/i075.png"
+      "art": "/assets/items/i075.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i076",
@@ -8417,7 +8717,11 @@
         "startBlock": 12,
         "blockPct": 0.12
       },
-      "art": "/assets/items/i076.png"
+      "art": "/assets/items/i076.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i077",
@@ -8431,7 +8735,11 @@
         "damagePct": 0.09,
         "healAfterBattle": 3
       },
-      "art": "/assets/items/i077.png"
+      "art": "/assets/items/i077.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i078",
@@ -8445,7 +8753,11 @@
         "drawBonus": 1,
         "rewardChoices": 1
       },
-      "art": "/assets/items/i078.png"
+      "art": "/assets/items/i078.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i079",
@@ -8459,7 +8771,11 @@
         "captureBonus": 0.12,
         "captureEscapeReduction": 0.12
       },
-      "art": "/assets/items/i079.png"
+      "art": "/assets/items/i079.png",
+      "modes": [
+        "journey"
+      ],
+      "modeNote": "여행 전용"
     },
     {
       "id": "i080",
@@ -8473,7 +8789,11 @@
         "handLimit": 2,
         "rerollDiscount": 0.12
       },
-      "art": "/assets/items/i080.png"
+      "art": "/assets/items/i080.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i081",
@@ -8487,7 +8807,11 @@
         "healPct": 0.16,
         "maxHpOnPickup": 8
       },
-      "art": "/assets/items/i081.png"
+      "art": "/assets/items/i081.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i082",
@@ -8501,7 +8825,11 @@
         "unitPower": 3,
         "teamStartBlock": 3
       },
-      "art": "/assets/items/i082.png"
+      "art": "/assets/items/i082.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i083",
@@ -8515,7 +8843,11 @@
         "spellPower": 7,
         "firstTurnEnergy": 1
       },
-      "art": "/assets/items/i083.png"
+      "art": "/assets/items/i083.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i084",
@@ -8529,7 +8861,11 @@
         "goldPct": 0.18,
         "gemPct": 0.08
       },
-      "art": "/assets/items/i084.png"
+      "art": "/assets/items/i084.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i085",
@@ -8543,7 +8879,11 @@
         "damageReduction": 0.06,
         "thorns": 2
       },
-      "art": "/assets/items/i085.png"
+      "art": "/assets/items/i085.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i086",
@@ -8557,7 +8897,11 @@
         "rewardLuck": 0.14,
         "rerollDiscount": 0.12
       },
-      "art": "/assets/items/i086.png"
+      "art": "/assets/items/i086.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i087",
@@ -8572,7 +8916,11 @@
         "damagePct": 0.09,
         "drawBonus": 1
       },
-      "art": "/assets/items/i087.png"
+      "art": "/assets/items/i087.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i088",
@@ -8587,7 +8935,11 @@
         "rewardChoices": 1,
         "rewardLuck": 0.1
       },
-      "art": "/assets/items/i088.png"
+      "art": "/assets/items/i088.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i089",
@@ -8602,7 +8954,11 @@
         "restPct": 0.15,
         "damageReduction": 0.04
       },
-      "art": "/assets/items/i089.png"
+      "art": "/assets/items/i089.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i090",
@@ -8617,7 +8973,11 @@
         "captureEscapeReduction": 0.22,
         "rewardLuck": 0.06
       },
-      "art": "/assets/items/i090.png"
+      "art": "/assets/items/i090.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i091",
@@ -8631,7 +8991,11 @@
         "unitPower": 5,
         "teamStartBlock": 7
       },
-      "art": "/assets/items/i091.png"
+      "art": "/assets/items/i091.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i092",
@@ -8645,7 +9009,11 @@
         "spellPower": 10,
         "maxEnergy": 1
       },
-      "art": "/assets/items/i092.png"
+      "art": "/assets/items/i092.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i093",
@@ -8660,7 +9028,11 @@
         "damageReduction": 0.08,
         "retainBlock": 0.12
       },
-      "art": "/assets/items/i093.png"
+      "art": "/assets/items/i093.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i094",
@@ -8674,7 +9046,11 @@
         "bossDamagePct": 0.28,
         "damagePct": 0.06
       },
-      "art": "/assets/items/i094.png"
+      "art": "/assets/items/i094.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i095",
@@ -8690,7 +9066,11 @@
         "captureBonus": 0.18,
         "gemPct": 0.12
       },
-      "art": "/assets/items/i095.png"
+      "art": "/assets/items/i095.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     },
     {
       "id": "i096",
@@ -8706,7 +9086,432 @@
         "damagePct": 0.14,
         "damageReduction": 0.06
       },
-      "art": "/assets/items/i096.png"
+      "art": "/assets/items/i096.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i097",
+      "name": "전열 방진판",
+      "rarity": "common",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "전투 시작 방어 +7.",
+      "mod": {
+        "startBlock": 7
+      },
+      "category": "방어",
+      "art": "/assets/items/i097.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i098",
+      "name": "푸른 에너지 캡슐",
+      "rarity": "common",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "첫 턴 에너지 +1.",
+      "mod": {
+        "firstTurnEnergy": 1
+      },
+      "category": "에너지",
+      "art": "/assets/items/i098.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i099",
+      "name": "돌격용 숫돌",
+      "rarity": "common",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "소환 유닛 공격력 +2.",
+      "mod": {
+        "unitPower": 2
+      },
+      "category": "유닛",
+      "art": "/assets/items/i099.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i100",
+      "name": "마력 증폭 잉크",
+      "rarity": "common",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "스펠 피해 +3.",
+      "mod": {
+        "spellPower": 3
+      },
+      "category": "주문",
+      "art": "/assets/items/i100.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i101",
+      "name": "연금 회복병",
+      "rarity": "common",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "전투 종료 후 체력 3 회복.",
+      "mod": {
+        "healAfterBattle": 3
+      },
+      "category": "생존",
+      "art": "/assets/items/i101.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i102",
+      "name": "균열 나침반",
+      "rarity": "common",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "보상 희귀도 운 +5%.",
+      "mod": {
+        "rewardLuck": 0.05
+      },
+      "category": "경제",
+      "art": "/assets/items/i102.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i103",
+      "name": "강철 반사경",
+      "rarity": "rare",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "방어 효율 +10%.",
+      "mod": {
+        "blockPct": 0.1
+      },
+      "category": "방어",
+      "art": "/assets/items/i103.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i104",
+      "name": "붉은 심장석",
+      "rarity": "rare",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "회복 효율 +12%.",
+      "mod": {
+        "healPct": 0.12
+      },
+      "category": "생존",
+      "art": "/assets/items/i104.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i105",
+      "name": "별가루 탄창",
+      "rarity": "rare",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "전체 피해 +7%.",
+      "mod": {
+        "damagePct": 0.07
+      },
+      "category": "공격",
+      "art": "/assets/items/i105.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i106",
+      "name": "황금 회수망",
+      "rarity": "rare",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "전투 골드 +10%.",
+      "mod": {
+        "goldPct": 0.1
+      },
+      "category": "경제",
+      "art": "/assets/items/i106.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i107",
+      "name": "전술 리본",
+      "rarity": "rare",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "시작 드로우 +1.",
+      "mod": {
+        "drawBonus": 1
+      },
+      "category": "에너지",
+      "art": "/assets/items/i107.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i108",
+      "name": "불굴의 철심",
+      "rarity": "rare",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "받는 피해 -7%.",
+      "mod": {
+        "damageReduction": 0.07
+      },
+      "category": "방어",
+      "art": "/assets/items/i108.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i109",
+      "name": "심연 응축기",
+      "rarity": "ultra",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "최대 에너지 +1.",
+      "mod": {
+        "maxEnergy": 1
+      },
+      "category": "에너지",
+      "art": "/assets/items/i109.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i110",
+      "name": "지휘관의 문장",
+      "rarity": "ultra",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "유닛 공격력 +4 · 전투 시작 방어 +4.",
+      "mod": {
+        "unitPower": 4,
+        "startBlock": 4
+      },
+      "category": "유닛",
+      "art": "/assets/items/i110.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i111",
+      "name": "대마도사의 렌즈",
+      "rarity": "ultra",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "스펠 피해 +5 · 보상 운 +5%.",
+      "mod": {
+        "spellPower": 5,
+        "rewardLuck": 0.05
+      },
+      "category": "주문",
+      "art": "/assets/items/i111.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i112",
+      "name": "수호성의 파편",
+      "rarity": "ultra",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "방어 효율 +18% · 시작 방어 +5.",
+      "mod": {
+        "blockPct": 0.18,
+        "startBlock": 5
+      },
+      "category": "방어",
+      "art": "/assets/items/i112.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i113",
+      "name": "영원의 약병",
+      "rarity": "ultra",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "전투 종료 회복 +7 · 회복 효율 +15%.",
+      "mod": {
+        "healAfterBattle": 7,
+        "healPct": 0.15
+      },
+      "category": "생존",
+      "art": "/assets/items/i113.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i114",
+      "name": "행운의 성좌패",
+      "rarity": "ultra",
+      "icon": "◆",
+      "maxStack": 3,
+      "text": "보상 운 +14% · 골드 +8%.",
+      "mod": {
+        "rewardLuck": 0.14,
+        "goldPct": 0.08
+      },
+      "category": "경제",
+      "art": "/assets/items/i114.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i115",
+      "name": "왕의 전쟁북",
+      "rarity": "legendary",
+      "icon": "◆",
+      "maxStack": 1,
+      "text": "전체 피해 +15% · 보스 피해 +10%.",
+      "mod": {
+        "damagePct": 0.15,
+        "bossDamagePct": 0.1
+      },
+      "category": "공격",
+      "art": "/assets/items/i115.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i116",
+      "name": "성벽 핵심기",
+      "rarity": "legendary",
+      "icon": "◆",
+      "maxStack": 1,
+      "text": "전투 시작 방어 +14 · 방어 효율 +20%.",
+      "mod": {
+        "startBlock": 14,
+        "blockPct": 0.2
+      },
+      "category": "방어",
+      "art": "/assets/items/i116.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i117",
+      "name": "무한 마도서",
+      "rarity": "legendary",
+      "icon": "◆",
+      "maxStack": 1,
+      "text": "시작 드로우 +2 · 첫 턴 에너지 +1.",
+      "mod": {
+        "drawBonus": 2,
+        "firstTurnEnergy": 1
+      },
+      "category": "에너지",
+      "art": "/assets/items/i117.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i118",
+      "name": "불사조 심장",
+      "rarity": "legendary",
+      "icon": "◆",
+      "maxStack": 1,
+      "text": "전투 종료 회복 +12 · 회복 효율 +25%.",
+      "mod": {
+        "healAfterBattle": 12,
+        "healPct": 0.25
+      },
+      "category": "생존",
+      "art": "/assets/items/i118.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i119",
+      "name": "기원의 코어",
+      "rarity": "mythic",
+      "icon": "◆",
+      "maxStack": 1,
+      "text": "최대 에너지 +1 · 전체 피해 +12% · 방어 +12%.",
+      "mod": {
+        "maxEnergy": 1,
+        "damagePct": 0.12,
+        "blockPct": 0.12
+      },
+      "category": "전술",
+      "art": "/assets/items/i119.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
+    },
+    {
+      "id": "i120",
+      "name": "만상 재보관함",
+      "rarity": "mythic",
+      "icon": "◆",
+      "maxStack": 1,
+      "text": "보상 선택지 +1 · 보상 운 +25% · 전투 골드 +12%.",
+      "mod": {
+        "rewardChoices": 1,
+        "rewardLuck": 0.25,
+        "goldPct": 0.12
+      },
+      "category": "경제",
+      "art": "/assets/items/i120.png",
+      "modes": [
+        "journey",
+        "dungeon"
+      ]
     }
   ],
   "biomes": [
@@ -8906,551 +9711,2601 @@
       "id": "e001",
       "name": "이끼 슬라임",
       "tier": "common",
-      "hp": 34,
+      "hp": 32,
       "atk": 7,
       "skill": "강타",
       "element": "화염",
       "biome": "verdant",
+      "archetype": "slime",
+      "variant": 0,
       "sprite": "/assets/enemies/e001.png"
     },
     {
       "id": "e002",
-      "name": "유적 박쥐",
-      "tier": "common",
-      "hp": 38,
-      "atk": 9,
+      "name": "덩굴 슬라임",
+      "tier": "rare",
+      "hp": 45,
+      "atk": 10,
       "skill": "방벽",
-      "element": "물",
+      "element": "강철",
       "biome": "verdant",
+      "archetype": "slime",
+      "variant": 1,
       "sprite": "/assets/enemies/e002.png"
     },
     {
       "id": "e003",
-      "name": "덩굴 사냥개",
+      "name": "청록 박쥐",
       "tier": "common",
-      "hp": 42,
-      "atk": 11,
-      "skill": "약화 파동",
-      "element": "자연",
+      "hp": 35,
+      "atk": 8,
+      "skill": "집중 사격",
+      "element": "물",
       "biome": "verdant",
+      "archetype": "wing",
+      "variant": 0,
       "sprite": "/assets/enemies/e003.png"
     },
     {
       "id": "e004",
-      "name": "꽃가루 요정",
+      "name": "꽃가루 박쥐",
       "tier": "rare",
-      "hp": 46,
-      "atk": 13,
-      "skill": "집중 사격",
-      "element": "빛",
+      "hp": 48,
+      "atk": 11,
+      "skill": "균열 베기",
+      "element": "바람",
       "biome": "verdant",
+      "archetype": "wing",
+      "variant": 1,
       "sprite": "/assets/enemies/e004.png"
     },
     {
       "id": "e005",
-      "name": "초록 감시자",
-      "tier": "rare",
-      "hp": 50,
-      "atk": 15,
-      "skill": "균열 베기",
-      "element": "그림자",
+      "name": "수목 사냥개",
+      "tier": "common",
+      "hp": 38,
+      "atk": 9,
+      "skill": "정신 압박",
+      "element": "자연",
       "biome": "verdant",
+      "archetype": "beast",
+      "variant": 0,
       "sprite": "/assets/enemies/e005.png"
     },
     {
       "id": "e006",
-      "name": "숲 갑각충",
+      "name": "유리 사냥개",
       "tier": "rare",
-      "hp": 54,
-      "atk": 7,
-      "skill": "강타",
-      "element": "강철",
+      "hp": 51,
+      "atk": 12,
+      "skill": "속박",
+      "element": "번개",
       "biome": "verdant",
+      "archetype": "beast",
+      "variant": 1,
       "sprite": "/assets/enemies/e006.png"
     },
     {
       "id": "e007",
-      "name": "고목 골렘",
-      "tier": "rare",
-      "hp": 58,
-      "atk": 9,
-      "skill": "방벽",
-      "element": "바람",
+      "name": "고목 요정",
+      "tier": "common",
+      "hp": 41,
+      "atk": 10,
+      "skill": "재생",
+      "element": "빛",
       "biome": "verdant",
+      "archetype": "spirit",
+      "variant": 0,
       "sprite": "/assets/enemies/e007.png"
     },
     {
       "id": "e008",
-      "name": "바람 토끼",
-      "tier": "ultra",
-      "hp": 62,
-      "atk": 11,
-      "skill": "약화 파동",
-      "element": "번개",
+      "name": "초록 요정",
+      "tier": "rare",
+      "hp": 54,
+      "atk": 13,
+      "skill": "감전",
+      "element": "별",
       "biome": "verdant",
+      "archetype": "spirit",
+      "variant": 1,
       "sprite": "/assets/enemies/e008.png"
     },
     {
       "id": "e009",
-      "name": "청동 포식자",
-      "tier": "rare",
-      "hp": 66,
-      "atk": 13,
-      "skill": "집중 사격",
-      "element": "별",
+      "name": "균사 감시자",
+      "tier": "common",
+      "hp": 44,
+      "atk": 11,
+      "skill": "서리 파동",
+      "element": "그림자",
       "biome": "verdant",
+      "archetype": "watcher",
+      "variant": 0,
       "sprite": "/assets/enemies/e009.png"
     },
     {
       "id": "e010",
-      "name": "균열 사슴",
-      "tier": "ultra",
-      "hp": 70,
-      "atk": 15,
-      "skill": "균열 베기",
+      "name": "수호 감시자",
+      "tier": "rare",
+      "hp": 57,
+      "atk": 14,
+      "skill": "연쇄 공격",
       "element": "시간",
       "biome": "verdant",
+      "archetype": "watcher",
+      "variant": 1,
       "sprite": "/assets/enemies/e010.png"
     },
     {
       "id": "e011",
-      "name": "잿빛 기사",
+      "name": "이끼 갑각충",
       "tier": "common",
-      "hp": 50,
-      "atk": 10,
-      "skill": "강타",
-      "element": "자연",
-      "biome": "ember",
+      "hp": 47,
+      "atk": 7,
+      "skill": "별빛 포격",
+      "element": "강철",
+      "biome": "verdant",
+      "archetype": "insect",
+      "variant": 0,
       "sprite": "/assets/enemies/e011.png"
     },
     {
       "id": "e012",
-      "name": "화로 임프",
-      "tier": "common",
-      "hp": 54,
-      "atk": 12,
-      "skill": "방벽",
-      "element": "빛",
-      "biome": "ember",
+      "name": "덩굴 갑각충",
+      "tier": "rare",
+      "hp": 60,
+      "atk": 10,
+      "skill": "강타",
+      "element": "공허",
+      "biome": "verdant",
+      "archetype": "insect",
+      "variant": 1,
       "sprite": "/assets/enemies/e012.png"
     },
     {
       "id": "e013",
-      "name": "용광 사냥개",
+      "name": "청록 골렘",
       "tier": "common",
-      "hp": 58,
-      "atk": 14,
+      "hp": 50,
+      "atk": 8,
       "skill": "약화 파동",
-      "element": "그림자",
-      "biome": "ember",
+      "element": "바람",
+      "biome": "verdant",
+      "archetype": "golem",
+      "variant": 0,
       "sprite": "/assets/enemies/e013.png"
     },
     {
       "id": "e014",
-      "name": "연소 정령",
+      "name": "꽃가루 골렘",
       "tier": "rare",
-      "hp": 62,
-      "atk": 16,
+      "hp": 63,
+      "atk": 11,
       "skill": "집중 사격",
-      "element": "강철",
-      "biome": "ember",
+      "element": "수정",
+      "biome": "verdant",
+      "archetype": "golem",
+      "variant": 1,
       "sprite": "/assets/enemies/e014.png"
     },
     {
       "id": "e015",
-      "name": "고철 망치병",
-      "tier": "rare",
-      "hp": 66,
-      "atk": 18,
-      "skill": "균열 베기",
-      "element": "바람",
-      "biome": "ember",
+      "name": "수목 미믹",
+      "tier": "common",
+      "hp": 32,
+      "atk": 9,
+      "skill": "폭발탄",
+      "element": "번개",
+      "biome": "verdant",
+      "archetype": "mimic",
+      "variant": 0,
       "sprite": "/assets/enemies/e015.png"
     },
     {
       "id": "e016",
-      "name": "붉은 미믹",
+      "name": "유리 미믹",
       "tier": "rare",
-      "hp": 70,
-      "atk": 10,
-      "skill": "강타",
-      "element": "번개",
-      "biome": "ember",
+      "hp": 45,
+      "atk": 12,
+      "skill": "정신 압박",
+      "element": "화염",
+      "biome": "verdant",
+      "archetype": "mimic",
+      "variant": 1,
       "sprite": "/assets/enemies/e016.png"
     },
     {
       "id": "e017",
-      "name": "재 폭군",
-      "tier": "rare",
-      "hp": 74,
-      "atk": 12,
-      "skill": "방벽",
+      "name": "고목 사제",
+      "tier": "common",
+      "hp": 35,
+      "atk": 10,
+      "skill": "돌진",
       "element": "별",
-      "biome": "ember",
+      "biome": "verdant",
+      "archetype": "priest",
+      "variant": 0,
       "sprite": "/assets/enemies/e017.png"
     },
     {
       "id": "e018",
-      "name": "불꽃 나방",
-      "tier": "ultra",
-      "hp": 78,
-      "atk": 14,
-      "skill": "약화 파동",
-      "element": "시간",
-      "biome": "ember",
+      "name": "초록 사제",
+      "tier": "rare",
+      "hp": 48,
+      "atk": 13,
+      "skill": "재생",
+      "element": "물",
+      "biome": "verdant",
+      "archetype": "priest",
+      "variant": 1,
       "sprite": "/assets/enemies/e018.png"
     },
     {
       "id": "e019",
-      "name": "쇳물 골렘",
+      "name": "균사 기사",
       "tier": "rare",
-      "hp": 82,
-      "atk": 16,
-      "skill": "집중 사격",
-      "element": "공허",
-      "biome": "ember",
+      "hp": 46,
+      "atk": 13,
+      "skill": "화상",
+      "element": "시간",
+      "biome": "verdant",
+      "archetype": "knight",
+      "variant": 0,
       "sprite": "/assets/enemies/e019.png"
     },
     {
       "id": "e020",
-      "name": "연기 암살자",
-      "tier": "ultra",
-      "hp": 86,
-      "atk": 18,
-      "skill": "균열 베기",
-      "element": "수정",
-      "biome": "ember",
+      "name": "수호 기사",
+      "tier": "rare",
+      "hp": 51,
+      "atk": 14,
+      "skill": "서리 파동",
+      "element": "자연",
+      "biome": "verdant",
+      "archetype": "knight",
+      "variant": 1,
       "sprite": "/assets/enemies/e020.png"
     },
     {
       "id": "e021",
-      "name": "서리 버섯",
-      "tier": "common",
-      "hp": 66,
-      "atk": 13,
-      "skill": "강타",
-      "element": "그림자",
-      "biome": "frost",
+      "name": "이끼 암살자",
+      "tier": "rare",
+      "hp": 49,
+      "atk": 9,
+      "skill": "중갑 방벽",
+      "element": "공허",
+      "biome": "verdant",
+      "archetype": "assassin",
+      "variant": 0,
       "sprite": "/assets/enemies/e021.png"
     },
     {
       "id": "e022",
-      "name": "빙벽 기사",
-      "tier": "common",
-      "hp": 70,
-      "atk": 15,
-      "skill": "방벽",
-      "element": "강철",
-      "biome": "frost",
+      "name": "덩굴 암살자",
+      "tier": "rare",
+      "hp": 54,
+      "atk": 10,
+      "skill": "별빛 포격",
+      "element": "빛",
+      "biome": "verdant",
+      "archetype": "assassin",
+      "variant": 1,
       "sprite": "/assets/enemies/e022.png"
     },
     {
       "id": "e023",
-      "name": "유리날개 요정",
-      "tier": "common",
-      "hp": 74,
-      "atk": 17,
-      "skill": "약화 파동",
-      "element": "바람",
-      "biome": "frost",
+      "name": "청록 악령",
+      "tier": "rare",
+      "hp": 52,
+      "atk": 10,
+      "skill": "방벽",
+      "element": "수정",
+      "biome": "verdant",
+      "archetype": "wraith",
+      "variant": 0,
       "sprite": "/assets/enemies/e023.png"
     },
     {
       "id": "e024",
-      "name": "눈보라 늑대",
+      "name": "꽃가루 악령",
       "tier": "rare",
-      "hp": 78,
-      "atk": 19,
-      "skill": "집중 사격",
-      "element": "번개",
-      "biome": "frost",
+      "hp": 57,
+      "atk": 11,
+      "skill": "약화 파동",
+      "element": "그림자",
+      "biome": "verdant",
+      "archetype": "wraith",
+      "variant": 1,
       "sprite": "/assets/enemies/e024.png"
     },
     {
       "id": "e025",
-      "name": "빙정 포식자",
+      "name": "수목 폭군",
       "tier": "rare",
-      "hp": 82,
-      "atk": 21,
+      "hp": 55,
+      "atk": 11,
       "skill": "균열 베기",
-      "element": "별",
-      "biome": "frost",
+      "element": "화염",
+      "biome": "verdant",
+      "archetype": "tyrant",
+      "variant": 0,
       "sprite": "/assets/enemies/e025.png"
     },
     {
       "id": "e026",
-      "name": "푸른 미믹",
+      "name": "유리 폭군",
       "tier": "rare",
-      "hp": 86,
-      "atk": 13,
-      "skill": "강타",
-      "element": "시간",
-      "biome": "frost",
+      "hp": 60,
+      "atk": 12,
+      "skill": "폭발탄",
+      "element": "강철",
+      "biome": "verdant",
+      "archetype": "tyrant",
+      "variant": 1,
       "sprite": "/assets/enemies/e026.png"
     },
     {
       "id": "e027",
-      "name": "결빙 사제",
+      "name": "고목 독사",
       "tier": "rare",
-      "hp": 90,
-      "atk": 15,
-      "skill": "방벽",
-      "element": "공허",
-      "biome": "frost",
+      "hp": 58,
+      "atk": 12,
+      "skill": "속박",
+      "element": "물",
+      "biome": "verdant",
+      "archetype": "serpent",
+      "variant": 0,
       "sprite": "/assets/enemies/e027.png"
     },
     {
       "id": "e028",
-      "name": "수정 사마귀",
-      "tier": "ultra",
-      "hp": 94,
-      "atk": 17,
-      "skill": "약화 파동",
-      "element": "수정",
-      "biome": "frost",
+      "name": "초록 독사",
+      "tier": "rare",
+      "hp": 63,
+      "atk": 13,
+      "skill": "돌진",
+      "element": "바람",
+      "biome": "verdant",
+      "archetype": "serpent",
+      "variant": 1,
       "sprite": "/assets/enemies/e028.png"
     },
     {
       "id": "e029",
-      "name": "빙하 골렘",
+      "name": "균사 게수호자",
       "tier": "rare",
-      "hp": 98,
-      "atk": 19,
-      "skill": "집중 사격",
-      "element": "화염",
-      "biome": "frost",
+      "hp": 40,
+      "atk": 13,
+      "skill": "감전",
+      "element": "자연",
+      "biome": "verdant",
+      "archetype": "crab",
+      "variant": 0,
       "sprite": "/assets/enemies/e029.png"
     },
     {
       "id": "e030",
-      "name": "백설 추적자",
-      "tier": "ultra",
-      "hp": 102,
-      "atk": 21,
-      "skill": "균열 베기",
-      "element": "물",
-      "biome": "frost",
+      "name": "수호 게수호자",
+      "tier": "rare",
+      "hp": 45,
+      "atk": 14,
+      "skill": "화상",
+      "element": "번개",
+      "biome": "verdant",
+      "archetype": "crab",
+      "variant": 1,
       "sprite": "/assets/enemies/e030.png"
     },
     {
       "id": "e031",
-      "name": "별먹는 미믹",
-      "tier": "common",
-      "hp": 82,
-      "atk": 16,
-      "skill": "강타",
-      "element": "바람",
-      "biome": "astral",
+      "name": "이끼 버섯령",
+      "tier": "ultra",
+      "hp": 51,
+      "atk": 11,
+      "skill": "연쇄 공격",
+      "element": "빛",
+      "biome": "verdant",
+      "archetype": "mushroom",
+      "variant": 0,
       "sprite": "/assets/enemies/e031.png"
     },
     {
       "id": "e032",
-      "name": "시간 포식자",
-      "tier": "common",
-      "hp": 86,
-      "atk": 18,
-      "skill": "방벽",
-      "element": "번개",
-      "biome": "astral",
+      "name": "덩굴 버섯령",
+      "tier": "ultra",
+      "hp": 56,
+      "atk": 12,
+      "skill": "중갑 방벽",
+      "element": "별",
+      "biome": "verdant",
+      "archetype": "mushroom",
+      "variant": 1,
       "sprite": "/assets/enemies/e032.png"
     },
     {
       "id": "e033",
-      "name": "성운 사수",
-      "tier": "common",
-      "hp": 90,
-      "atk": 20,
-      "skill": "약화 파동",
-      "element": "별",
-      "biome": "astral",
+      "name": "청록 드론",
+      "tier": "ultra",
+      "hp": 54,
+      "atk": 12,
+      "skill": "강타",
+      "element": "그림자",
+      "biome": "verdant",
+      "archetype": "drone",
+      "variant": 0,
       "sprite": "/assets/enemies/e033.png"
     },
     {
       "id": "e034",
-      "name": "천구 기사",
-      "tier": "rare",
-      "hp": 94,
-      "atk": 22,
-      "skill": "집중 사격",
+      "name": "꽃가루 드론",
+      "tier": "ultra",
+      "hp": 59,
+      "atk": 13,
+      "skill": "방벽",
       "element": "시간",
-      "biome": "astral",
+      "biome": "verdant",
+      "archetype": "drone",
+      "variant": 1,
       "sprite": "/assets/enemies/e034.png"
     },
     {
       "id": "e035",
-      "name": "공명 사제",
-      "tier": "rare",
-      "hp": 98,
-      "atk": 24,
-      "skill": "균열 베기",
-      "element": "공허",
-      "biome": "astral",
+      "name": "수목 거수",
+      "tier": "ultra",
+      "hp": 57,
+      "atk": 13,
+      "skill": "집중 사격",
+      "element": "강철",
+      "biome": "verdant",
+      "archetype": "leviathan",
+      "variant": 0,
       "sprite": "/assets/enemies/e035.png"
     },
     {
       "id": "e036",
-      "name": "유성 정령",
-      "tier": "rare",
-      "hp": 102,
-      "atk": 16,
-      "skill": "강타",
-      "element": "수정",
-      "biome": "astral",
+      "name": "유리 거수",
+      "tier": "ultra",
+      "hp": 62,
+      "atk": 14,
+      "skill": "균열 베기",
+      "element": "공허",
+      "biome": "verdant",
+      "archetype": "leviathan",
+      "variant": 1,
       "sprite": "/assets/enemies/e036.png"
     },
     {
       "id": "e037",
-      "name": "공허 벌레",
-      "tier": "rare",
-      "hp": 106,
-      "atk": 18,
-      "skill": "방벽",
-      "element": "화염",
-      "biome": "astral",
+      "name": "고목 불사조",
+      "tier": "ultra",
+      "hp": 60,
+      "atk": 14,
+      "skill": "정신 압박",
+      "element": "바람",
+      "biome": "verdant",
+      "archetype": "phoenix",
+      "variant": 0,
       "sprite": "/assets/enemies/e037.png"
     },
     {
       "id": "e038",
-      "name": "시계 악령",
+      "name": "초록 불사조",
       "tier": "ultra",
-      "hp": 110,
-      "atk": 20,
-      "skill": "약화 파동",
-      "element": "물",
-      "biome": "astral",
+      "hp": 65,
+      "atk": 15,
+      "skill": "속박",
+      "element": "수정",
+      "biome": "verdant",
+      "archetype": "phoenix",
+      "variant": 1,
       "sprite": "/assets/enemies/e038.png"
     },
     {
       "id": "e039",
-      "name": "별빛 골렘",
-      "tier": "rare",
-      "hp": 114,
-      "atk": 22,
-      "skill": "집중 사격",
-      "element": "자연",
-      "biome": "astral",
+      "name": "균사 인형사",
+      "tier": "ultra",
+      "hp": 63,
+      "atk": 15,
+      "skill": "재생",
+      "element": "번개",
+      "biome": "verdant",
+      "archetype": "puppet",
+      "variant": 0,
       "sprite": "/assets/enemies/e039.png"
     },
     {
       "id": "e040",
-      "name": "차원 사냥꾼",
+      "name": "수호 인형사",
       "tier": "ultra",
-      "hp": 118,
-      "atk": 24,
-      "skill": "균열 베기",
-      "element": "빛",
-      "biome": "astral",
+      "hp": 68,
+      "atk": 16,
+      "skill": "감전",
+      "element": "화염",
+      "biome": "verdant",
+      "archetype": "puppet",
+      "variant": 1,
       "sprite": "/assets/enemies/e040.png"
     },
     {
       "id": "e041",
-      "name": "영점 감시자",
+      "name": "잿불 슬라임",
       "tier": "common",
-      "hp": 98,
-      "atk": 19,
-      "skill": "강타",
-      "element": "별",
-      "biome": "origin",
+      "hp": 42,
+      "atk": 9,
+      "skill": "방벽",
+      "element": "자연",
+      "biome": "ember",
+      "archetype": "slime",
+      "variant": 0,
       "sprite": "/assets/enemies/e041.png"
     },
     {
       "id": "e042",
-      "name": "심연 문지기",
-      "tier": "common",
-      "hp": 102,
-      "atk": 21,
-      "skill": "방벽",
-      "element": "시간",
-      "biome": "origin",
+      "name": "용광 슬라임",
+      "tier": "rare",
+      "hp": 55,
+      "atk": 12,
+      "skill": "약화 파동",
+      "element": "번개",
+      "biome": "ember",
+      "archetype": "slime",
+      "variant": 1,
       "sprite": "/assets/enemies/e042.png"
     },
     {
       "id": "e043",
-      "name": "무중력 기사",
+      "name": "쇳물 박쥐",
       "tier": "common",
-      "hp": 106,
-      "atk": 23,
-      "skill": "약화 파동",
-      "element": "공허",
-      "biome": "origin",
+      "hp": 45,
+      "atk": 10,
+      "skill": "균열 베기",
+      "element": "빛",
+      "biome": "ember",
+      "archetype": "wing",
+      "variant": 0,
       "sprite": "/assets/enemies/e043.png"
     },
     {
       "id": "e044",
-      "name": "망각 사제",
+      "name": "탄화 박쥐",
       "tier": "rare",
-      "hp": 110,
-      "atk": 25,
-      "skill": "집중 사격",
-      "element": "수정",
-      "biome": "origin",
+      "hp": 58,
+      "atk": 13,
+      "skill": "폭발탄",
+      "element": "별",
+      "biome": "ember",
+      "archetype": "wing",
+      "variant": 1,
       "sprite": "/assets/enemies/e044.png"
     },
     {
       "id": "e045",
-      "name": "기원 파수꾼",
-      "tier": "rare",
-      "hp": 114,
-      "atk": 27,
-      "skill": "균열 베기",
-      "element": "화염",
-      "biome": "origin",
+      "name": "붉은 사냥개",
+      "tier": "common",
+      "hp": 48,
+      "atk": 11,
+      "skill": "속박",
+      "element": "그림자",
+      "biome": "ember",
+      "archetype": "beast",
+      "variant": 0,
       "sprite": "/assets/enemies/e045.png"
     },
     {
       "id": "e046",
-      "name": "검은 성좌",
+      "name": "고철 사냥개",
       "tier": "rare",
-      "hp": 118,
-      "atk": 19,
-      "skill": "강타",
-      "element": "물",
-      "biome": "origin",
+      "hp": 61,
+      "atk": 14,
+      "skill": "돌진",
+      "element": "시간",
+      "biome": "ember",
+      "archetype": "beast",
+      "variant": 1,
       "sprite": "/assets/enemies/e046.png"
     },
     {
       "id": "e047",
-      "name": "공허 거인",
-      "tier": "rare",
-      "hp": 122,
-      "atk": 21,
-      "skill": "방벽",
-      "element": "자연",
-      "biome": "origin",
+      "name": "화염 요정",
+      "tier": "common",
+      "hp": 51,
+      "atk": 12,
+      "skill": "감전",
+      "element": "강철",
+      "biome": "ember",
+      "archetype": "spirit",
+      "variant": 0,
       "sprite": "/assets/enemies/e047.png"
     },
     {
       "id": "e048",
-      "name": "차원 절단자",
-      "tier": "ultra",
-      "hp": 126,
-      "atk": 23,
-      "skill": "약화 파동",
-      "element": "빛",
-      "biome": "origin",
+      "name": "용암 요정",
+      "tier": "rare",
+      "hp": 64,
+      "atk": 15,
+      "skill": "화상",
+      "element": "공허",
+      "biome": "ember",
+      "archetype": "spirit",
+      "variant": 1,
       "sprite": "/assets/enemies/e048.png"
     },
     {
       "id": "e049",
-      "name": "왕관 수호수",
-      "tier": "rare",
-      "hp": 130,
-      "atk": 25,
-      "skill": "집중 사격",
-      "element": "그림자",
-      "biome": "origin",
+      "name": "검댕 감시자",
+      "tier": "common",
+      "hp": 54,
+      "atk": 13,
+      "skill": "연쇄 공격",
+      "element": "바람",
+      "biome": "ember",
+      "archetype": "watcher",
+      "variant": 0,
       "sprite": "/assets/enemies/e049.png"
     },
     {
       "id": "e050",
-      "name": "종말 집행자",
+      "name": "제련 감시자",
+      "tier": "rare",
+      "hp": 67,
+      "atk": 16,
+      "skill": "중갑 방벽",
+      "element": "수정",
+      "biome": "ember",
+      "archetype": "watcher",
+      "variant": 1,
+      "sprite": "/assets/enemies/e050.png"
+    },
+    {
+      "id": "e051",
+      "name": "잿불 갑각충",
+      "tier": "common",
+      "hp": 57,
+      "atk": 9,
+      "skill": "강타",
+      "element": "번개",
+      "biome": "ember",
+      "archetype": "insect",
+      "variant": 0,
+      "sprite": "/assets/enemies/e051.png"
+    },
+    {
+      "id": "e052",
+      "name": "용광 갑각충",
+      "tier": "rare",
+      "hp": 70,
+      "atk": 12,
+      "skill": "방벽",
+      "element": "화염",
+      "biome": "ember",
+      "archetype": "insect",
+      "variant": 1,
+      "sprite": "/assets/enemies/e052.png"
+    },
+    {
+      "id": "e053",
+      "name": "쇳물 골렘",
+      "tier": "common",
+      "hp": 60,
+      "atk": 10,
+      "skill": "집중 사격",
+      "element": "별",
+      "biome": "ember",
+      "archetype": "golem",
+      "variant": 0,
+      "sprite": "/assets/enemies/e053.png"
+    },
+    {
+      "id": "e054",
+      "name": "탄화 골렘",
+      "tier": "rare",
+      "hp": 73,
+      "atk": 13,
+      "skill": "균열 베기",
+      "element": "물",
+      "biome": "ember",
+      "archetype": "golem",
+      "variant": 1,
+      "sprite": "/assets/enemies/e054.png"
+    },
+    {
+      "id": "e055",
+      "name": "붉은 미믹",
+      "tier": "common",
+      "hp": 42,
+      "atk": 11,
+      "skill": "정신 압박",
+      "element": "시간",
+      "biome": "ember",
+      "archetype": "mimic",
+      "variant": 0,
+      "sprite": "/assets/enemies/e055.png"
+    },
+    {
+      "id": "e056",
+      "name": "고철 미믹",
+      "tier": "rare",
+      "hp": 55,
+      "atk": 14,
+      "skill": "속박",
+      "element": "자연",
+      "biome": "ember",
+      "archetype": "mimic",
+      "variant": 1,
+      "sprite": "/assets/enemies/e056.png"
+    },
+    {
+      "id": "e057",
+      "name": "화염 사제",
+      "tier": "common",
+      "hp": 45,
+      "atk": 12,
+      "skill": "재생",
+      "element": "공허",
+      "biome": "ember",
+      "archetype": "priest",
+      "variant": 0,
+      "sprite": "/assets/enemies/e057.png"
+    },
+    {
+      "id": "e058",
+      "name": "용암 사제",
+      "tier": "rare",
+      "hp": 58,
+      "atk": 15,
+      "skill": "감전",
+      "element": "빛",
+      "biome": "ember",
+      "archetype": "priest",
+      "variant": 1,
+      "sprite": "/assets/enemies/e058.png"
+    },
+    {
+      "id": "e059",
+      "name": "검댕 기사",
+      "tier": "rare",
+      "hp": 56,
+      "atk": 15,
+      "skill": "서리 파동",
+      "element": "수정",
+      "biome": "ember",
+      "archetype": "knight",
+      "variant": 0,
+      "sprite": "/assets/enemies/e059.png"
+    },
+    {
+      "id": "e060",
+      "name": "제련 기사",
+      "tier": "rare",
+      "hp": 61,
+      "atk": 16,
+      "skill": "연쇄 공격",
+      "element": "그림자",
+      "biome": "ember",
+      "archetype": "knight",
+      "variant": 1,
+      "sprite": "/assets/enemies/e060.png"
+    },
+    {
+      "id": "e061",
+      "name": "잿불 암살자",
+      "tier": "rare",
+      "hp": 59,
+      "atk": 11,
+      "skill": "별빛 포격",
+      "element": "화염",
+      "biome": "ember",
+      "archetype": "assassin",
+      "variant": 0,
+      "sprite": "/assets/enemies/e061.png"
+    },
+    {
+      "id": "e062",
+      "name": "용광 암살자",
+      "tier": "rare",
+      "hp": 64,
+      "atk": 12,
+      "skill": "강타",
+      "element": "강철",
+      "biome": "ember",
+      "archetype": "assassin",
+      "variant": 1,
+      "sprite": "/assets/enemies/e062.png"
+    },
+    {
+      "id": "e063",
+      "name": "쇳물 악령",
+      "tier": "rare",
+      "hp": 62,
+      "atk": 12,
+      "skill": "약화 파동",
+      "element": "물",
+      "biome": "ember",
+      "archetype": "wraith",
+      "variant": 0,
+      "sprite": "/assets/enemies/e063.png"
+    },
+    {
+      "id": "e064",
+      "name": "탄화 악령",
+      "tier": "rare",
+      "hp": 67,
+      "atk": 13,
+      "skill": "집중 사격",
+      "element": "바람",
+      "biome": "ember",
+      "archetype": "wraith",
+      "variant": 1,
+      "sprite": "/assets/enemies/e064.png"
+    },
+    {
+      "id": "e065",
+      "name": "붉은 폭군",
+      "tier": "rare",
+      "hp": 65,
+      "atk": 13,
+      "skill": "폭발탄",
+      "element": "자연",
+      "biome": "ember",
+      "archetype": "tyrant",
+      "variant": 0,
+      "sprite": "/assets/enemies/e065.png"
+    },
+    {
+      "id": "e066",
+      "name": "고철 폭군",
+      "tier": "rare",
+      "hp": 70,
+      "atk": 14,
+      "skill": "정신 압박",
+      "element": "번개",
+      "biome": "ember",
+      "archetype": "tyrant",
+      "variant": 1,
+      "sprite": "/assets/enemies/e066.png"
+    },
+    {
+      "id": "e067",
+      "name": "화염 독사",
+      "tier": "rare",
+      "hp": 68,
+      "atk": 14,
+      "skill": "돌진",
+      "element": "빛",
+      "biome": "ember",
+      "archetype": "serpent",
+      "variant": 0,
+      "sprite": "/assets/enemies/e067.png"
+    },
+    {
+      "id": "e068",
+      "name": "용암 독사",
+      "tier": "rare",
+      "hp": 73,
+      "atk": 15,
+      "skill": "재생",
+      "element": "별",
+      "biome": "ember",
+      "archetype": "serpent",
+      "variant": 1,
+      "sprite": "/assets/enemies/e068.png"
+    },
+    {
+      "id": "e069",
+      "name": "검댕 게수호자",
+      "tier": "rare",
+      "hp": 50,
+      "atk": 15,
+      "skill": "화상",
+      "element": "그림자",
+      "biome": "ember",
+      "archetype": "crab",
+      "variant": 0,
+      "sprite": "/assets/enemies/e069.png"
+    },
+    {
+      "id": "e070",
+      "name": "제련 게수호자",
+      "tier": "rare",
+      "hp": 55,
+      "atk": 16,
+      "skill": "서리 파동",
+      "element": "시간",
+      "biome": "ember",
+      "archetype": "crab",
+      "variant": 1,
+      "sprite": "/assets/enemies/e070.png"
+    },
+    {
+      "id": "e071",
+      "name": "잿불 버섯령",
       "tier": "ultra",
-      "hp": 134,
-      "atk": 27,
+      "hp": 61,
+      "atk": 13,
+      "skill": "중갑 방벽",
+      "element": "강철",
+      "biome": "ember",
+      "archetype": "mushroom",
+      "variant": 0,
+      "sprite": "/assets/enemies/e071.png"
+    },
+    {
+      "id": "e072",
+      "name": "용광 버섯령",
+      "tier": "ultra",
+      "hp": 66,
+      "atk": 14,
+      "skill": "별빛 포격",
+      "element": "공허",
+      "biome": "ember",
+      "archetype": "mushroom",
+      "variant": 1,
+      "sprite": "/assets/enemies/e072.png"
+    },
+    {
+      "id": "e073",
+      "name": "쇳물 드론",
+      "tier": "ultra",
+      "hp": 64,
+      "atk": 14,
+      "skill": "방벽",
+      "element": "바람",
+      "biome": "ember",
+      "archetype": "drone",
+      "variant": 0,
+      "sprite": "/assets/enemies/e073.png"
+    },
+    {
+      "id": "e074",
+      "name": "탄화 드론",
+      "tier": "ultra",
+      "hp": 69,
+      "atk": 15,
+      "skill": "약화 파동",
+      "element": "수정",
+      "biome": "ember",
+      "archetype": "drone",
+      "variant": 1,
+      "sprite": "/assets/enemies/e074.png"
+    },
+    {
+      "id": "e075",
+      "name": "붉은 거수",
+      "tier": "ultra",
+      "hp": 67,
+      "atk": 15,
+      "skill": "균열 베기",
+      "element": "번개",
+      "biome": "ember",
+      "archetype": "leviathan",
+      "variant": 0,
+      "sprite": "/assets/enemies/e075.png"
+    },
+    {
+      "id": "e076",
+      "name": "고철 거수",
+      "tier": "ultra",
+      "hp": 72,
+      "atk": 16,
+      "skill": "폭발탄",
+      "element": "화염",
+      "biome": "ember",
+      "archetype": "leviathan",
+      "variant": 1,
+      "sprite": "/assets/enemies/e076.png"
+    },
+    {
+      "id": "e077",
+      "name": "화염 불사조",
+      "tier": "ultra",
+      "hp": 70,
+      "atk": 16,
+      "skill": "속박",
+      "element": "별",
+      "biome": "ember",
+      "archetype": "phoenix",
+      "variant": 0,
+      "sprite": "/assets/enemies/e077.png"
+    },
+    {
+      "id": "e078",
+      "name": "용암 불사조",
+      "tier": "ultra",
+      "hp": 75,
+      "atk": 17,
+      "skill": "돌진",
+      "element": "물",
+      "biome": "ember",
+      "archetype": "phoenix",
+      "variant": 1,
+      "sprite": "/assets/enemies/e078.png"
+    },
+    {
+      "id": "e079",
+      "name": "검댕 인형사",
+      "tier": "ultra",
+      "hp": 73,
+      "atk": 17,
+      "skill": "감전",
+      "element": "시간",
+      "biome": "ember",
+      "archetype": "puppet",
+      "variant": 0,
+      "sprite": "/assets/enemies/e079.png"
+    },
+    {
+      "id": "e080",
+      "name": "제련 인형사",
+      "tier": "ultra",
+      "hp": 78,
+      "atk": 18,
+      "skill": "화상",
+      "element": "자연",
+      "biome": "ember",
+      "archetype": "puppet",
+      "variant": 1,
+      "sprite": "/assets/enemies/e080.png"
+    },
+    {
+      "id": "e081",
+      "name": "서리 슬라임",
+      "tier": "common",
+      "hp": 52,
+      "atk": 11,
+      "skill": "약화 파동",
+      "element": "그림자",
+      "biome": "frost",
+      "archetype": "slime",
+      "variant": 0,
+      "sprite": "/assets/enemies/e081.png"
+    },
+    {
+      "id": "e082",
+      "name": "빙결 슬라임",
+      "tier": "rare",
+      "hp": 65,
+      "atk": 14,
+      "skill": "집중 사격",
+      "element": "시간",
+      "biome": "frost",
+      "archetype": "slime",
+      "variant": 1,
+      "sprite": "/assets/enemies/e082.png"
+    },
+    {
+      "id": "e083",
+      "name": "유리 박쥐",
+      "tier": "common",
+      "hp": 55,
+      "atk": 12,
+      "skill": "폭발탄",
+      "element": "강철",
+      "biome": "frost",
+      "archetype": "wing",
+      "variant": 0,
+      "sprite": "/assets/enemies/e083.png"
+    },
+    {
+      "id": "e084",
+      "name": "백야 박쥐",
+      "tier": "rare",
+      "hp": 68,
+      "atk": 15,
+      "skill": "정신 압박",
+      "element": "공허",
+      "biome": "frost",
+      "archetype": "wing",
+      "variant": 1,
+      "sprite": "/assets/enemies/e084.png"
+    },
+    {
+      "id": "e085",
+      "name": "설원 사냥개",
+      "tier": "common",
+      "hp": 58,
+      "atk": 13,
+      "skill": "돌진",
+      "element": "바람",
+      "biome": "frost",
+      "archetype": "beast",
+      "variant": 0,
+      "sprite": "/assets/enemies/e085.png"
+    },
+    {
+      "id": "e086",
+      "name": "수정 사냥개",
+      "tier": "rare",
+      "hp": 71,
+      "atk": 16,
+      "skill": "재생",
+      "element": "수정",
+      "biome": "frost",
+      "archetype": "beast",
+      "variant": 1,
+      "sprite": "/assets/enemies/e086.png"
+    },
+    {
+      "id": "e087",
+      "name": "눈보라 요정",
+      "tier": "common",
+      "hp": 61,
+      "atk": 14,
+      "skill": "화상",
+      "element": "번개",
+      "biome": "frost",
+      "archetype": "spirit",
+      "variant": 0,
+      "sprite": "/assets/enemies/e087.png"
+    },
+    {
+      "id": "e088",
+      "name": "한기 요정",
+      "tier": "rare",
+      "hp": 74,
+      "atk": 17,
+      "skill": "서리 파동",
+      "element": "화염",
+      "biome": "frost",
+      "archetype": "spirit",
+      "variant": 1,
+      "sprite": "/assets/enemies/e088.png"
+    },
+    {
+      "id": "e089",
+      "name": "얼음 감시자",
+      "tier": "common",
+      "hp": 64,
+      "atk": 15,
+      "skill": "중갑 방벽",
+      "element": "별",
+      "biome": "frost",
+      "archetype": "watcher",
+      "variant": 0,
+      "sprite": "/assets/enemies/e089.png"
+    },
+    {
+      "id": "e090",
+      "name": "동결 감시자",
+      "tier": "rare",
+      "hp": 77,
+      "atk": 18,
+      "skill": "별빛 포격",
+      "element": "물",
+      "biome": "frost",
+      "archetype": "watcher",
+      "variant": 1,
+      "sprite": "/assets/enemies/e090.png"
+    },
+    {
+      "id": "e091",
+      "name": "서리 갑각충",
+      "tier": "common",
+      "hp": 67,
+      "atk": 11,
+      "skill": "방벽",
+      "element": "시간",
+      "biome": "frost",
+      "archetype": "insect",
+      "variant": 0,
+      "sprite": "/assets/enemies/e091.png"
+    },
+    {
+      "id": "e092",
+      "name": "빙결 갑각충",
+      "tier": "rare",
+      "hp": 80,
+      "atk": 14,
+      "skill": "약화 파동",
+      "element": "자연",
+      "biome": "frost",
+      "archetype": "insect",
+      "variant": 1,
+      "sprite": "/assets/enemies/e092.png"
+    },
+    {
+      "id": "e093",
+      "name": "유리 골렘",
+      "tier": "common",
+      "hp": 70,
+      "atk": 12,
+      "skill": "균열 베기",
+      "element": "공허",
+      "biome": "frost",
+      "archetype": "golem",
+      "variant": 0,
+      "sprite": "/assets/enemies/e093.png"
+    },
+    {
+      "id": "e094",
+      "name": "백야 골렘",
+      "tier": "rare",
+      "hp": 83,
+      "atk": 15,
+      "skill": "폭발탄",
+      "element": "빛",
+      "biome": "frost",
+      "archetype": "golem",
+      "variant": 1,
+      "sprite": "/assets/enemies/e094.png"
+    },
+    {
+      "id": "e095",
+      "name": "설원 미믹",
+      "tier": "common",
+      "hp": 52,
+      "atk": 13,
+      "skill": "속박",
+      "element": "수정",
+      "biome": "frost",
+      "archetype": "mimic",
+      "variant": 0,
+      "sprite": "/assets/enemies/e095.png"
+    },
+    {
+      "id": "e096",
+      "name": "수정 미믹",
+      "tier": "rare",
+      "hp": 65,
+      "atk": 16,
+      "skill": "돌진",
+      "element": "그림자",
+      "biome": "frost",
+      "archetype": "mimic",
+      "variant": 1,
+      "sprite": "/assets/enemies/e096.png"
+    },
+    {
+      "id": "e097",
+      "name": "눈보라 사제",
+      "tier": "common",
+      "hp": 55,
+      "atk": 14,
+      "skill": "감전",
+      "element": "화염",
+      "biome": "frost",
+      "archetype": "priest",
+      "variant": 0,
+      "sprite": "/assets/enemies/e097.png"
+    },
+    {
+      "id": "e098",
+      "name": "한기 사제",
+      "tier": "rare",
+      "hp": 68,
+      "atk": 17,
+      "skill": "화상",
+      "element": "강철",
+      "biome": "frost",
+      "archetype": "priest",
+      "variant": 1,
+      "sprite": "/assets/enemies/e098.png"
+    },
+    {
+      "id": "e099",
+      "name": "얼음 기사",
+      "tier": "rare",
+      "hp": 66,
+      "atk": 17,
+      "skill": "연쇄 공격",
+      "element": "물",
+      "biome": "frost",
+      "archetype": "knight",
+      "variant": 0,
+      "sprite": "/assets/enemies/e099.png"
+    },
+    {
+      "id": "e100",
+      "name": "동결 기사",
+      "tier": "rare",
+      "hp": 71,
+      "atk": 18,
+      "skill": "중갑 방벽",
+      "element": "바람",
+      "biome": "frost",
+      "archetype": "knight",
+      "variant": 1,
+      "sprite": "/assets/enemies/e100.png"
+    },
+    {
+      "id": "e101",
+      "name": "서리 암살자",
+      "tier": "rare",
+      "hp": 69,
+      "atk": 13,
+      "skill": "강타",
+      "element": "자연",
+      "biome": "frost",
+      "archetype": "assassin",
+      "variant": 0,
+      "sprite": "/assets/enemies/e101.png"
+    },
+    {
+      "id": "e102",
+      "name": "빙결 암살자",
+      "tier": "rare",
+      "hp": 74,
+      "atk": 14,
+      "skill": "방벽",
+      "element": "번개",
+      "biome": "frost",
+      "archetype": "assassin",
+      "variant": 1,
+      "sprite": "/assets/enemies/e102.png"
+    },
+    {
+      "id": "e103",
+      "name": "유리 악령",
+      "tier": "rare",
+      "hp": 72,
+      "atk": 14,
+      "skill": "집중 사격",
+      "element": "빛",
+      "biome": "frost",
+      "archetype": "wraith",
+      "variant": 0,
+      "sprite": "/assets/enemies/e103.png"
+    },
+    {
+      "id": "e104",
+      "name": "백야 악령",
+      "tier": "rare",
+      "hp": 77,
+      "atk": 15,
+      "skill": "균열 베기",
+      "element": "별",
+      "biome": "frost",
+      "archetype": "wraith",
+      "variant": 1,
+      "sprite": "/assets/enemies/e104.png"
+    },
+    {
+      "id": "e105",
+      "name": "설원 폭군",
+      "tier": "rare",
+      "hp": 75,
+      "atk": 15,
+      "skill": "정신 압박",
+      "element": "그림자",
+      "biome": "frost",
+      "archetype": "tyrant",
+      "variant": 0,
+      "sprite": "/assets/enemies/e105.png"
+    },
+    {
+      "id": "e106",
+      "name": "수정 폭군",
+      "tier": "rare",
+      "hp": 80,
+      "atk": 16,
+      "skill": "속박",
+      "element": "시간",
+      "biome": "frost",
+      "archetype": "tyrant",
+      "variant": 1,
+      "sprite": "/assets/enemies/e106.png"
+    },
+    {
+      "id": "e107",
+      "name": "눈보라 독사",
+      "tier": "rare",
+      "hp": 78,
+      "atk": 16,
+      "skill": "재생",
+      "element": "강철",
+      "biome": "frost",
+      "archetype": "serpent",
+      "variant": 0,
+      "sprite": "/assets/enemies/e107.png"
+    },
+    {
+      "id": "e108",
+      "name": "한기 독사",
+      "tier": "rare",
+      "hp": 83,
+      "atk": 17,
+      "skill": "감전",
+      "element": "공허",
+      "biome": "frost",
+      "archetype": "serpent",
+      "variant": 1,
+      "sprite": "/assets/enemies/e108.png"
+    },
+    {
+      "id": "e109",
+      "name": "얼음 게수호자",
+      "tier": "rare",
+      "hp": 60,
+      "atk": 17,
+      "skill": "서리 파동",
+      "element": "바람",
+      "biome": "frost",
+      "archetype": "crab",
+      "variant": 0,
+      "sprite": "/assets/enemies/e109.png"
+    },
+    {
+      "id": "e110",
+      "name": "동결 게수호자",
+      "tier": "rare",
+      "hp": 65,
+      "atk": 18,
+      "skill": "연쇄 공격",
+      "element": "수정",
+      "biome": "frost",
+      "archetype": "crab",
+      "variant": 1,
+      "sprite": "/assets/enemies/e110.png"
+    },
+    {
+      "id": "e111",
+      "name": "서리 버섯령",
+      "tier": "ultra",
+      "hp": 71,
+      "atk": 15,
+      "skill": "별빛 포격",
+      "element": "번개",
+      "biome": "frost",
+      "archetype": "mushroom",
+      "variant": 0,
+      "sprite": "/assets/enemies/e111.png"
+    },
+    {
+      "id": "e112",
+      "name": "빙결 버섯령",
+      "tier": "ultra",
+      "hp": 76,
+      "atk": 16,
+      "skill": "강타",
+      "element": "화염",
+      "biome": "frost",
+      "archetype": "mushroom",
+      "variant": 1,
+      "sprite": "/assets/enemies/e112.png"
+    },
+    {
+      "id": "e113",
+      "name": "유리 드론",
+      "tier": "ultra",
+      "hp": 74,
+      "atk": 16,
+      "skill": "약화 파동",
+      "element": "별",
+      "biome": "frost",
+      "archetype": "drone",
+      "variant": 0,
+      "sprite": "/assets/enemies/e113.png"
+    },
+    {
+      "id": "e114",
+      "name": "백야 드론",
+      "tier": "ultra",
+      "hp": 79,
+      "atk": 17,
+      "skill": "집중 사격",
+      "element": "물",
+      "biome": "frost",
+      "archetype": "drone",
+      "variant": 1,
+      "sprite": "/assets/enemies/e114.png"
+    },
+    {
+      "id": "e115",
+      "name": "설원 거수",
+      "tier": "ultra",
+      "hp": 77,
+      "atk": 17,
+      "skill": "폭발탄",
+      "element": "시간",
+      "biome": "frost",
+      "archetype": "leviathan",
+      "variant": 0,
+      "sprite": "/assets/enemies/e115.png"
+    },
+    {
+      "id": "e116",
+      "name": "수정 거수",
+      "tier": "ultra",
+      "hp": 82,
+      "atk": 18,
+      "skill": "정신 압박",
+      "element": "자연",
+      "biome": "frost",
+      "archetype": "leviathan",
+      "variant": 1,
+      "sprite": "/assets/enemies/e116.png"
+    },
+    {
+      "id": "e117",
+      "name": "눈보라 불사조",
+      "tier": "ultra",
+      "hp": 80,
+      "atk": 18,
+      "skill": "돌진",
+      "element": "공허",
+      "biome": "frost",
+      "archetype": "phoenix",
+      "variant": 0,
+      "sprite": "/assets/enemies/e117.png"
+    },
+    {
+      "id": "e118",
+      "name": "한기 불사조",
+      "tier": "ultra",
+      "hp": 85,
+      "atk": 19,
+      "skill": "재생",
+      "element": "빛",
+      "biome": "frost",
+      "archetype": "phoenix",
+      "variant": 1,
+      "sprite": "/assets/enemies/e118.png"
+    },
+    {
+      "id": "e119",
+      "name": "얼음 인형사",
+      "tier": "ultra",
+      "hp": 83,
+      "atk": 19,
+      "skill": "화상",
+      "element": "수정",
+      "biome": "frost",
+      "archetype": "puppet",
+      "variant": 0,
+      "sprite": "/assets/enemies/e119.png"
+    },
+    {
+      "id": "e120",
+      "name": "동결 인형사",
+      "tier": "ultra",
+      "hp": 88,
+      "atk": 20,
+      "skill": "서리 파동",
+      "element": "그림자",
+      "biome": "frost",
+      "archetype": "puppet",
+      "variant": 1,
+      "sprite": "/assets/enemies/e120.png"
+    },
+    {
+      "id": "e121",
+      "name": "성광 슬라임",
+      "tier": "common",
+      "hp": 62,
+      "atk": 13,
+      "skill": "집중 사격",
+      "element": "바람",
+      "biome": "astral",
+      "archetype": "slime",
+      "variant": 0,
+      "sprite": "/assets/enemies/e121.png"
+    },
+    {
+      "id": "e122",
+      "name": "별빛 슬라임",
+      "tier": "rare",
+      "hp": 75,
+      "atk": 16,
+      "skill": "균열 베기",
+      "element": "수정",
+      "biome": "astral",
+      "archetype": "slime",
+      "variant": 1,
+      "sprite": "/assets/enemies/e122.png"
+    },
+    {
+      "id": "e123",
+      "name": "혜성 박쥐",
+      "tier": "common",
+      "hp": 65,
+      "atk": 14,
+      "skill": "정신 압박",
+      "element": "번개",
+      "biome": "astral",
+      "archetype": "wing",
+      "variant": 0,
+      "sprite": "/assets/enemies/e123.png"
+    },
+    {
+      "id": "e124",
+      "name": "공허 박쥐",
+      "tier": "rare",
+      "hp": 78,
+      "atk": 17,
+      "skill": "속박",
+      "element": "화염",
+      "biome": "astral",
+      "archetype": "wing",
+      "variant": 1,
+      "sprite": "/assets/enemies/e124.png"
+    },
+    {
+      "id": "e125",
+      "name": "성좌 사냥개",
+      "tier": "common",
+      "hp": 68,
+      "atk": 15,
+      "skill": "재생",
+      "element": "별",
+      "biome": "astral",
+      "archetype": "beast",
+      "variant": 0,
+      "sprite": "/assets/enemies/e125.png"
+    },
+    {
+      "id": "e126",
+      "name": "관측 사냥개",
+      "tier": "rare",
+      "hp": 81,
+      "atk": 18,
+      "skill": "감전",
+      "element": "물",
+      "biome": "astral",
+      "archetype": "beast",
+      "variant": 1,
+      "sprite": "/assets/enemies/e126.png"
+    },
+    {
+      "id": "e127",
+      "name": "월광 요정",
+      "tier": "common",
+      "hp": 71,
+      "atk": 16,
+      "skill": "서리 파동",
+      "element": "시간",
+      "biome": "astral",
+      "archetype": "spirit",
+      "variant": 0,
+      "sprite": "/assets/enemies/e127.png"
+    },
+    {
+      "id": "e128",
+      "name": "천체 요정",
+      "tier": "rare",
+      "hp": 84,
+      "atk": 19,
+      "skill": "연쇄 공격",
+      "element": "자연",
+      "biome": "astral",
+      "archetype": "spirit",
+      "variant": 1,
+      "sprite": "/assets/enemies/e128.png"
+    },
+    {
+      "id": "e129",
+      "name": "밤하늘 감시자",
+      "tier": "common",
+      "hp": 74,
+      "atk": 17,
+      "skill": "별빛 포격",
+      "element": "공허",
+      "biome": "astral",
+      "archetype": "watcher",
+      "variant": 0,
+      "sprite": "/assets/enemies/e129.png"
+    },
+    {
+      "id": "e130",
+      "name": "은하 감시자",
+      "tier": "rare",
+      "hp": 87,
+      "atk": 20,
+      "skill": "강타",
+      "element": "빛",
+      "biome": "astral",
+      "archetype": "watcher",
+      "variant": 1,
+      "sprite": "/assets/enemies/e130.png"
+    },
+    {
+      "id": "e131",
+      "name": "성광 갑각충",
+      "tier": "common",
+      "hp": 77,
+      "atk": 13,
+      "skill": "약화 파동",
+      "element": "수정",
+      "biome": "astral",
+      "archetype": "insect",
+      "variant": 0,
+      "sprite": "/assets/enemies/e131.png"
+    },
+    {
+      "id": "e132",
+      "name": "별빛 갑각충",
+      "tier": "rare",
+      "hp": 90,
+      "atk": 16,
+      "skill": "집중 사격",
+      "element": "그림자",
+      "biome": "astral",
+      "archetype": "insect",
+      "variant": 1,
+      "sprite": "/assets/enemies/e132.png"
+    },
+    {
+      "id": "e133",
+      "name": "혜성 골렘",
+      "tier": "common",
+      "hp": 80,
+      "atk": 14,
+      "skill": "폭발탄",
+      "element": "화염",
+      "biome": "astral",
+      "archetype": "golem",
+      "variant": 0,
+      "sprite": "/assets/enemies/e133.png"
+    },
+    {
+      "id": "e134",
+      "name": "공허 골렘",
+      "tier": "rare",
+      "hp": 93,
+      "atk": 17,
+      "skill": "정신 압박",
+      "element": "강철",
+      "biome": "astral",
+      "archetype": "golem",
+      "variant": 1,
+      "sprite": "/assets/enemies/e134.png"
+    },
+    {
+      "id": "e135",
+      "name": "성좌 미믹",
+      "tier": "common",
+      "hp": 62,
+      "atk": 15,
+      "skill": "돌진",
+      "element": "물",
+      "biome": "astral",
+      "archetype": "mimic",
+      "variant": 0,
+      "sprite": "/assets/enemies/e135.png"
+    },
+    {
+      "id": "e136",
+      "name": "관측 미믹",
+      "tier": "rare",
+      "hp": 75,
+      "atk": 18,
+      "skill": "재생",
+      "element": "바람",
+      "biome": "astral",
+      "archetype": "mimic",
+      "variant": 1,
+      "sprite": "/assets/enemies/e136.png"
+    },
+    {
+      "id": "e137",
+      "name": "월광 사제",
+      "tier": "common",
+      "hp": 65,
+      "atk": 16,
+      "skill": "화상",
+      "element": "자연",
+      "biome": "astral",
+      "archetype": "priest",
+      "variant": 0,
+      "sprite": "/assets/enemies/e137.png"
+    },
+    {
+      "id": "e138",
+      "name": "천체 사제",
+      "tier": "rare",
+      "hp": 78,
+      "atk": 19,
+      "skill": "서리 파동",
+      "element": "번개",
+      "biome": "astral",
+      "archetype": "priest",
+      "variant": 1,
+      "sprite": "/assets/enemies/e138.png"
+    },
+    {
+      "id": "e139",
+      "name": "밤하늘 기사",
+      "tier": "rare",
+      "hp": 76,
+      "atk": 19,
+      "skill": "중갑 방벽",
+      "element": "빛",
+      "biome": "astral",
+      "archetype": "knight",
+      "variant": 0,
+      "sprite": "/assets/enemies/e139.png"
+    },
+    {
+      "id": "e140",
+      "name": "은하 기사",
+      "tier": "rare",
+      "hp": 81,
+      "atk": 20,
+      "skill": "별빛 포격",
+      "element": "별",
+      "biome": "astral",
+      "archetype": "knight",
+      "variant": 1,
+      "sprite": "/assets/enemies/e140.png"
+    },
+    {
+      "id": "e141",
+      "name": "성광 암살자",
+      "tier": "rare",
+      "hp": 79,
+      "atk": 15,
+      "skill": "방벽",
+      "element": "그림자",
+      "biome": "astral",
+      "archetype": "assassin",
+      "variant": 0,
+      "sprite": "/assets/enemies/e141.png"
+    },
+    {
+      "id": "e142",
+      "name": "별빛 암살자",
+      "tier": "rare",
+      "hp": 84,
+      "atk": 16,
+      "skill": "약화 파동",
+      "element": "시간",
+      "biome": "astral",
+      "archetype": "assassin",
+      "variant": 1,
+      "sprite": "/assets/enemies/e142.png"
+    },
+    {
+      "id": "e143",
+      "name": "혜성 악령",
+      "tier": "rare",
+      "hp": 82,
+      "atk": 16,
       "skill": "균열 베기",
       "element": "강철",
+      "biome": "astral",
+      "archetype": "wraith",
+      "variant": 0,
+      "sprite": "/assets/enemies/e143.png"
+    },
+    {
+      "id": "e144",
+      "name": "공허 악령",
+      "tier": "rare",
+      "hp": 87,
+      "atk": 17,
+      "skill": "폭발탄",
+      "element": "공허",
+      "biome": "astral",
+      "archetype": "wraith",
+      "variant": 1,
+      "sprite": "/assets/enemies/e144.png"
+    },
+    {
+      "id": "e145",
+      "name": "성좌 폭군",
+      "tier": "rare",
+      "hp": 85,
+      "atk": 17,
+      "skill": "속박",
+      "element": "바람",
+      "biome": "astral",
+      "archetype": "tyrant",
+      "variant": 0,
+      "sprite": "/assets/enemies/e145.png"
+    },
+    {
+      "id": "e146",
+      "name": "관측 폭군",
+      "tier": "rare",
+      "hp": 90,
+      "atk": 18,
+      "skill": "돌진",
+      "element": "수정",
+      "biome": "astral",
+      "archetype": "tyrant",
+      "variant": 1,
+      "sprite": "/assets/enemies/e146.png"
+    },
+    {
+      "id": "e147",
+      "name": "월광 독사",
+      "tier": "rare",
+      "hp": 88,
+      "atk": 18,
+      "skill": "감전",
+      "element": "번개",
+      "biome": "astral",
+      "archetype": "serpent",
+      "variant": 0,
+      "sprite": "/assets/enemies/e147.png"
+    },
+    {
+      "id": "e148",
+      "name": "천체 독사",
+      "tier": "rare",
+      "hp": 93,
+      "atk": 19,
+      "skill": "화상",
+      "element": "화염",
+      "biome": "astral",
+      "archetype": "serpent",
+      "variant": 1,
+      "sprite": "/assets/enemies/e148.png"
+    },
+    {
+      "id": "e149",
+      "name": "밤하늘 게수호자",
+      "tier": "rare",
+      "hp": 70,
+      "atk": 19,
+      "skill": "연쇄 공격",
+      "element": "별",
+      "biome": "astral",
+      "archetype": "crab",
+      "variant": 0,
+      "sprite": "/assets/enemies/e149.png"
+    },
+    {
+      "id": "e150",
+      "name": "은하 게수호자",
+      "tier": "rare",
+      "hp": 75,
+      "atk": 20,
+      "skill": "중갑 방벽",
+      "element": "물",
+      "biome": "astral",
+      "archetype": "crab",
+      "variant": 1,
+      "sprite": "/assets/enemies/e150.png"
+    },
+    {
+      "id": "e151",
+      "name": "성광 버섯령",
+      "tier": "ultra",
+      "hp": 81,
+      "atk": 17,
+      "skill": "강타",
+      "element": "시간",
+      "biome": "astral",
+      "archetype": "mushroom",
+      "variant": 0,
+      "sprite": "/assets/enemies/e151.png"
+    },
+    {
+      "id": "e152",
+      "name": "별빛 버섯령",
+      "tier": "ultra",
+      "hp": 86,
+      "atk": 18,
+      "skill": "방벽",
+      "element": "자연",
+      "biome": "astral",
+      "archetype": "mushroom",
+      "variant": 1,
+      "sprite": "/assets/enemies/e152.png"
+    },
+    {
+      "id": "e153",
+      "name": "혜성 드론",
+      "tier": "ultra",
+      "hp": 84,
+      "atk": 18,
+      "skill": "집중 사격",
+      "element": "공허",
+      "biome": "astral",
+      "archetype": "drone",
+      "variant": 0,
+      "sprite": "/assets/enemies/e153.png"
+    },
+    {
+      "id": "e154",
+      "name": "공허 드론",
+      "tier": "ultra",
+      "hp": 89,
+      "atk": 19,
+      "skill": "균열 베기",
+      "element": "빛",
+      "biome": "astral",
+      "archetype": "drone",
+      "variant": 1,
+      "sprite": "/assets/enemies/e154.png"
+    },
+    {
+      "id": "e155",
+      "name": "성좌 거수",
+      "tier": "ultra",
+      "hp": 87,
+      "atk": 19,
+      "skill": "정신 압박",
+      "element": "수정",
+      "biome": "astral",
+      "archetype": "leviathan",
+      "variant": 0,
+      "sprite": "/assets/enemies/e155.png"
+    },
+    {
+      "id": "e156",
+      "name": "관측 거수",
+      "tier": "ultra",
+      "hp": 92,
+      "atk": 20,
+      "skill": "속박",
+      "element": "그림자",
+      "biome": "astral",
+      "archetype": "leviathan",
+      "variant": 1,
+      "sprite": "/assets/enemies/e156.png"
+    },
+    {
+      "id": "e157",
+      "name": "월광 불사조",
+      "tier": "ultra",
+      "hp": 90,
+      "atk": 20,
+      "skill": "재생",
+      "element": "화염",
+      "biome": "astral",
+      "archetype": "phoenix",
+      "variant": 0,
+      "sprite": "/assets/enemies/e157.png"
+    },
+    {
+      "id": "e158",
+      "name": "천체 불사조",
+      "tier": "ultra",
+      "hp": 95,
+      "atk": 21,
+      "skill": "감전",
+      "element": "강철",
+      "biome": "astral",
+      "archetype": "phoenix",
+      "variant": 1,
+      "sprite": "/assets/enemies/e158.png"
+    },
+    {
+      "id": "e159",
+      "name": "밤하늘 인형사",
+      "tier": "ultra",
+      "hp": 93,
+      "atk": 21,
+      "skill": "서리 파동",
+      "element": "물",
+      "biome": "astral",
+      "archetype": "puppet",
+      "variant": 0,
+      "sprite": "/assets/enemies/e159.png"
+    },
+    {
+      "id": "e160",
+      "name": "은하 인형사",
+      "tier": "ultra",
+      "hp": 98,
+      "atk": 22,
+      "skill": "연쇄 공격",
+      "element": "바람",
+      "biome": "astral",
+      "archetype": "puppet",
+      "variant": 1,
+      "sprite": "/assets/enemies/e160.png"
+    },
+    {
+      "id": "e161",
+      "name": "기원 슬라임",
+      "tier": "common",
+      "hp": 72,
+      "atk": 15,
+      "skill": "균열 베기",
+      "element": "별",
       "biome": "origin",
-      "sprite": "/assets/enemies/e050.png"
+      "archetype": "slime",
+      "variant": 0,
+      "sprite": "/assets/enemies/e161.png"
+    },
+    {
+      "id": "e162",
+      "name": "심연 슬라임",
+      "tier": "rare",
+      "hp": 85,
+      "atk": 18,
+      "skill": "폭발탄",
+      "element": "물",
+      "biome": "origin",
+      "archetype": "slime",
+      "variant": 1,
+      "sprite": "/assets/enemies/e162.png"
+    },
+    {
+      "id": "e163",
+      "name": "봉인 박쥐",
+      "tier": "common",
+      "hp": 75,
+      "atk": 16,
+      "skill": "속박",
+      "element": "시간",
+      "biome": "origin",
+      "archetype": "wing",
+      "variant": 0,
+      "sprite": "/assets/enemies/e163.png"
+    },
+    {
+      "id": "e164",
+      "name": "금빛 박쥐",
+      "tier": "rare",
+      "hp": 88,
+      "atk": 19,
+      "skill": "돌진",
+      "element": "자연",
+      "biome": "origin",
+      "archetype": "wing",
+      "variant": 1,
+      "sprite": "/assets/enemies/e164.png"
+    },
+    {
+      "id": "e165",
+      "name": "원초 사냥개",
+      "tier": "common",
+      "hp": 78,
+      "atk": 17,
+      "skill": "감전",
+      "element": "공허",
+      "biome": "origin",
+      "archetype": "beast",
+      "variant": 0,
+      "sprite": "/assets/enemies/e165.png"
+    },
+    {
+      "id": "e166",
+      "name": "균열 사냥개",
+      "tier": "rare",
+      "hp": 91,
+      "atk": 20,
+      "skill": "화상",
+      "element": "빛",
+      "biome": "origin",
+      "archetype": "beast",
+      "variant": 1,
+      "sprite": "/assets/enemies/e166.png"
+    },
+    {
+      "id": "e167",
+      "name": "검은 요정",
+      "tier": "common",
+      "hp": 81,
+      "atk": 18,
+      "skill": "연쇄 공격",
+      "element": "수정",
+      "biome": "origin",
+      "archetype": "spirit",
+      "variant": 0,
+      "sprite": "/assets/enemies/e167.png"
+    },
+    {
+      "id": "e168",
+      "name": "왕좌 요정",
+      "tier": "rare",
+      "hp": 94,
+      "atk": 21,
+      "skill": "중갑 방벽",
+      "element": "그림자",
+      "biome": "origin",
+      "archetype": "spirit",
+      "variant": 1,
+      "sprite": "/assets/enemies/e168.png"
+    },
+    {
+      "id": "e169",
+      "name": "종말 감시자",
+      "tier": "common",
+      "hp": 84,
+      "atk": 19,
+      "skill": "강타",
+      "element": "화염",
+      "biome": "origin",
+      "archetype": "watcher",
+      "variant": 0,
+      "sprite": "/assets/enemies/e169.png"
+    },
+    {
+      "id": "e170",
+      "name": "만상 감시자",
+      "tier": "rare",
+      "hp": 97,
+      "atk": 22,
+      "skill": "방벽",
+      "element": "강철",
+      "biome": "origin",
+      "archetype": "watcher",
+      "variant": 1,
+      "sprite": "/assets/enemies/e170.png"
+    },
+    {
+      "id": "e171",
+      "name": "기원 갑각충",
+      "tier": "common",
+      "hp": 87,
+      "atk": 15,
+      "skill": "집중 사격",
+      "element": "물",
+      "biome": "origin",
+      "archetype": "insect",
+      "variant": 0,
+      "sprite": "/assets/enemies/e171.png"
+    },
+    {
+      "id": "e172",
+      "name": "심연 갑각충",
+      "tier": "rare",
+      "hp": 100,
+      "atk": 18,
+      "skill": "균열 베기",
+      "element": "바람",
+      "biome": "origin",
+      "archetype": "insect",
+      "variant": 1,
+      "sprite": "/assets/enemies/e172.png"
+    },
+    {
+      "id": "e173",
+      "name": "봉인 골렘",
+      "tier": "common",
+      "hp": 90,
+      "atk": 16,
+      "skill": "정신 압박",
+      "element": "자연",
+      "biome": "origin",
+      "archetype": "golem",
+      "variant": 0,
+      "sprite": "/assets/enemies/e173.png"
+    },
+    {
+      "id": "e174",
+      "name": "금빛 골렘",
+      "tier": "rare",
+      "hp": 103,
+      "atk": 19,
+      "skill": "속박",
+      "element": "번개",
+      "biome": "origin",
+      "archetype": "golem",
+      "variant": 1,
+      "sprite": "/assets/enemies/e174.png"
+    },
+    {
+      "id": "e175",
+      "name": "원초 미믹",
+      "tier": "common",
+      "hp": 72,
+      "atk": 17,
+      "skill": "재생",
+      "element": "빛",
+      "biome": "origin",
+      "archetype": "mimic",
+      "variant": 0,
+      "sprite": "/assets/enemies/e175.png"
+    },
+    {
+      "id": "e176",
+      "name": "균열 미믹",
+      "tier": "rare",
+      "hp": 85,
+      "atk": 20,
+      "skill": "감전",
+      "element": "별",
+      "biome": "origin",
+      "archetype": "mimic",
+      "variant": 1,
+      "sprite": "/assets/enemies/e176.png"
+    },
+    {
+      "id": "e177",
+      "name": "검은 사제",
+      "tier": "common",
+      "hp": 75,
+      "atk": 18,
+      "skill": "서리 파동",
+      "element": "그림자",
+      "biome": "origin",
+      "archetype": "priest",
+      "variant": 0,
+      "sprite": "/assets/enemies/e177.png"
+    },
+    {
+      "id": "e178",
+      "name": "왕좌 사제",
+      "tier": "rare",
+      "hp": 88,
+      "atk": 21,
+      "skill": "연쇄 공격",
+      "element": "시간",
+      "biome": "origin",
+      "archetype": "priest",
+      "variant": 1,
+      "sprite": "/assets/enemies/e178.png"
+    },
+    {
+      "id": "e179",
+      "name": "종말 기사",
+      "tier": "rare",
+      "hp": 86,
+      "atk": 21,
+      "skill": "별빛 포격",
+      "element": "강철",
+      "biome": "origin",
+      "archetype": "knight",
+      "variant": 0,
+      "sprite": "/assets/enemies/e179.png"
+    },
+    {
+      "id": "e180",
+      "name": "만상 기사",
+      "tier": "rare",
+      "hp": 91,
+      "atk": 22,
+      "skill": "강타",
+      "element": "공허",
+      "biome": "origin",
+      "archetype": "knight",
+      "variant": 1,
+      "sprite": "/assets/enemies/e180.png"
+    },
+    {
+      "id": "e181",
+      "name": "기원 암살자",
+      "tier": "rare",
+      "hp": 89,
+      "atk": 17,
+      "skill": "약화 파동",
+      "element": "바람",
+      "biome": "origin",
+      "archetype": "assassin",
+      "variant": 0,
+      "sprite": "/assets/enemies/e181.png"
+    },
+    {
+      "id": "e182",
+      "name": "심연 암살자",
+      "tier": "rare",
+      "hp": 94,
+      "atk": 18,
+      "skill": "집중 사격",
+      "element": "수정",
+      "biome": "origin",
+      "archetype": "assassin",
+      "variant": 1,
+      "sprite": "/assets/enemies/e182.png"
+    },
+    {
+      "id": "e183",
+      "name": "봉인 악령",
+      "tier": "rare",
+      "hp": 92,
+      "atk": 18,
+      "skill": "폭발탄",
+      "element": "번개",
+      "biome": "origin",
+      "archetype": "wraith",
+      "variant": 0,
+      "sprite": "/assets/enemies/e183.png"
+    },
+    {
+      "id": "e184",
+      "name": "금빛 악령",
+      "tier": "rare",
+      "hp": 97,
+      "atk": 19,
+      "skill": "정신 압박",
+      "element": "화염",
+      "biome": "origin",
+      "archetype": "wraith",
+      "variant": 1,
+      "sprite": "/assets/enemies/e184.png"
+    },
+    {
+      "id": "e185",
+      "name": "원초 폭군",
+      "tier": "rare",
+      "hp": 95,
+      "atk": 19,
+      "skill": "돌진",
+      "element": "별",
+      "biome": "origin",
+      "archetype": "tyrant",
+      "variant": 0,
+      "sprite": "/assets/enemies/e185.png"
+    },
+    {
+      "id": "e186",
+      "name": "균열 폭군",
+      "tier": "rare",
+      "hp": 100,
+      "atk": 20,
+      "skill": "재생",
+      "element": "물",
+      "biome": "origin",
+      "archetype": "tyrant",
+      "variant": 1,
+      "sprite": "/assets/enemies/e186.png"
+    },
+    {
+      "id": "e187",
+      "name": "검은 독사",
+      "tier": "rare",
+      "hp": 98,
+      "atk": 20,
+      "skill": "화상",
+      "element": "시간",
+      "biome": "origin",
+      "archetype": "serpent",
+      "variant": 0,
+      "sprite": "/assets/enemies/e187.png"
+    },
+    {
+      "id": "e188",
+      "name": "왕좌 독사",
+      "tier": "rare",
+      "hp": 103,
+      "atk": 21,
+      "skill": "서리 파동",
+      "element": "자연",
+      "biome": "origin",
+      "archetype": "serpent",
+      "variant": 1,
+      "sprite": "/assets/enemies/e188.png"
+    },
+    {
+      "id": "e189",
+      "name": "종말 게수호자",
+      "tier": "rare",
+      "hp": 80,
+      "atk": 21,
+      "skill": "중갑 방벽",
+      "element": "공허",
+      "biome": "origin",
+      "archetype": "crab",
+      "variant": 0,
+      "sprite": "/assets/enemies/e189.png"
+    },
+    {
+      "id": "e190",
+      "name": "만상 게수호자",
+      "tier": "rare",
+      "hp": 85,
+      "atk": 22,
+      "skill": "별빛 포격",
+      "element": "빛",
+      "biome": "origin",
+      "archetype": "crab",
+      "variant": 1,
+      "sprite": "/assets/enemies/e190.png"
+    },
+    {
+      "id": "e191",
+      "name": "기원 버섯령",
+      "tier": "ultra",
+      "hp": 91,
+      "atk": 19,
+      "skill": "방벽",
+      "element": "수정",
+      "biome": "origin",
+      "archetype": "mushroom",
+      "variant": 0,
+      "sprite": "/assets/enemies/e191.png"
+    },
+    {
+      "id": "e192",
+      "name": "심연 버섯령",
+      "tier": "ultra",
+      "hp": 96,
+      "atk": 20,
+      "skill": "약화 파동",
+      "element": "그림자",
+      "biome": "origin",
+      "archetype": "mushroom",
+      "variant": 1,
+      "sprite": "/assets/enemies/e192.png"
+    },
+    {
+      "id": "e193",
+      "name": "봉인 드론",
+      "tier": "ultra",
+      "hp": 94,
+      "atk": 20,
+      "skill": "균열 베기",
+      "element": "화염",
+      "biome": "origin",
+      "archetype": "drone",
+      "variant": 0,
+      "sprite": "/assets/enemies/e193.png"
+    },
+    {
+      "id": "e194",
+      "name": "금빛 드론",
+      "tier": "ultra",
+      "hp": 99,
+      "atk": 21,
+      "skill": "폭발탄",
+      "element": "강철",
+      "biome": "origin",
+      "archetype": "drone",
+      "variant": 1,
+      "sprite": "/assets/enemies/e194.png"
+    },
+    {
+      "id": "e195",
+      "name": "원초 거수",
+      "tier": "ultra",
+      "hp": 97,
+      "atk": 21,
+      "skill": "속박",
+      "element": "물",
+      "biome": "origin",
+      "archetype": "leviathan",
+      "variant": 0,
+      "sprite": "/assets/enemies/e195.png"
+    },
+    {
+      "id": "e196",
+      "name": "균열 거수",
+      "tier": "ultra",
+      "hp": 102,
+      "atk": 22,
+      "skill": "돌진",
+      "element": "바람",
+      "biome": "origin",
+      "archetype": "leviathan",
+      "variant": 1,
+      "sprite": "/assets/enemies/e196.png"
+    },
+    {
+      "id": "e197",
+      "name": "검은 불사조",
+      "tier": "ultra",
+      "hp": 100,
+      "atk": 22,
+      "skill": "감전",
+      "element": "자연",
+      "biome": "origin",
+      "archetype": "phoenix",
+      "variant": 0,
+      "sprite": "/assets/enemies/e197.png"
+    },
+    {
+      "id": "e198",
+      "name": "왕좌 불사조",
+      "tier": "ultra",
+      "hp": 105,
+      "atk": 23,
+      "skill": "화상",
+      "element": "번개",
+      "biome": "origin",
+      "archetype": "phoenix",
+      "variant": 1,
+      "sprite": "/assets/enemies/e198.png"
+    },
+    {
+      "id": "e199",
+      "name": "종말 인형사",
+      "tier": "ultra",
+      "hp": 103,
+      "atk": 23,
+      "skill": "연쇄 공격",
+      "element": "빛",
+      "biome": "origin",
+      "archetype": "puppet",
+      "variant": 0,
+      "sprite": "/assets/enemies/e199.png"
+    },
+    {
+      "id": "e200",
+      "name": "만상 인형사",
+      "tier": "ultra",
+      "hp": 108,
+      "atk": 24,
+      "skill": "중갑 방벽",
+      "element": "별",
+      "biome": "origin",
+      "archetype": "puppet",
+      "variant": 1,
+      "sprite": "/assets/enemies/e200.png"
     }
   ],
   "bosses": [
