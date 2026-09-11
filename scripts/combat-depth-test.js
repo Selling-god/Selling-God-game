@@ -14,8 +14,10 @@ async function ready(){for(let i=0;i<40;i++){try{return await req('GET','/health
  }
  if(room.status!=='battle')throw Error('battle not reached');
  const me=room.battle.party[0];if(!me.chain||me.chain.count!==0)throw Error('chain state missing');
- // The combat catalogue must contain both units and spells in the initial/run deck ecosystem.
- const hasUnit=me.drawPile.concat(me.hand).some(id=>by[id]?.type==='unit');const hasSpell=me.drawPile.concat(me.hand).some(id=>by[id]?.type==='spell');if(!hasUnit||!hasSpell)throw Error('starter ecosystem missing mixed card types');
+ // V4: actual captured monsters form the party and every combat card is a spell command.
+ if(!me.units?.length)throw Error('monster party missing from battle');
+ const hasNonSpell=me.drawPile.concat(me.hand).some(id=>by[id]?.type!=='spell');if(hasNonSpell)throw Error('v4 battle deck contains non-spell card');
+ if(!me.units.every(x=>x.speciesId&&x.instanceId&&Number(x.maxHp)>0))throw Error('battle actors are not persistent monsters');
  // Boss phase structure is validated from server serialization by jumping to floor 10 in test mode.
  room=(await req('POST',`/api/room/${room.id}/debug-win`,u)).room;
  if(!room.reward?.gradeBy?.[u.profileId])throw Error('battle grade missing');

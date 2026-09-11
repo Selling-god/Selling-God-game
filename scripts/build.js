@@ -31,7 +31,10 @@ if (!hasSupabaseSetupFile) {
 
 const catalog = JSON.parse(fs.readFileSync(path.join(root, 'data/catalog.json'), 'utf8'));
 if (catalog.cards.length !== 315) throw new Error(`BUILD_FAIL expected 315 cards, got ${catalog.cards.length}`);
-if (catalog.items.length < 120) throw new Error(`BUILD_FAIL expected >=96 items, got ${catalog.items.length}`);
+if (catalog.items.length < 120) throw new Error(`BUILD_FAIL expected >=120 items, got ${catalog.items.length}`);
+if ((catalog.enemies.length + catalog.bosses.length) < 205) throw new Error('BUILD_FAIL expected >=205 monsters');
+if (catalog.cards.some(c => c.type !== 'spell')) throw new Error('BUILD_FAIL v4 combat catalogue must be spell-only');
+if (catalog.monsterParty?.maxSlots !== 6 || catalog.monsterParty?.pointBudget !== 10) throw new Error('BUILD_FAIL monster party rules mismatch');
 if (Object.keys(catalog.difficulties || {}).length !== 3) throw new Error('BUILD_FAIL expected 3 difficulties');
 
 let missing = [];
@@ -54,14 +57,22 @@ for (const b of catalog.biomes) {
   }
 }
 for (const e of [...catalog.enemies, ...catalog.bosses]) {
-  const p = path.join(root, e.sprite.replace(/^\//, ''));
-  if (!fs.existsSync(p)) missing.push(e.sprite);
+  for (const art of [e.sprite,e.evolutionSprite,e.resonanceSprite,e.riftSprite]) {
+    if (!art) { missing.push(`${e.id}:form-art`); continue; }
+    const p = path.join(root, art.replace(/^\//, ''));
+    if (!fs.existsSync(p)) missing.push(art);
+  }
+}
+for (const r of catalog.relics || []) {
+  if (!r.art) { missing.push(`${r.id}:relic-art`); continue; }
+  const p = path.join(root, r.art.replace(/^\//, ''));
+  if (!fs.existsSync(p)) missing.push(r.art);
 }
 if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets: ${missing.slice(0, 5).join(', ')}`);
 
 const info = {
-  version: '3.4.0',
-  deployId: 'RIFT-V3.4.0-EXPEDITION-PARTY-20260911',
+  version: String(catalog.version || '4.0.0'),
+  deployId: 'RIFT-V4.0.0-MONSTER-EVOLUTION-20260911',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,
