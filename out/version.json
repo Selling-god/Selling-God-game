@@ -1,10 +1,10 @@
 {
-  "version": "3.1.0",
-  "deployId": "RIFT-V3.1.0-VISUAL-FIRST-20260910",
-  "builtAt": "2026-09-10T14:41:43.490Z",
+  "version": "4.1.0",
+  "deployId": "RIFT-V4.1.0-ACTIVE-MONSTER-BATTLE-20260911",
+  "builtAt": "2026-09-11T03:03:55.532Z",
   "cards": 315,
-  "items": 48,
-  "enemies": 55,
+  "items": 120,
+  "enemies": 205,
   "maxDungeonFloor": 50,
   "difficulties": [
     "normal",
