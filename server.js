@@ -29,8 +29,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '3.3.0';
-const DEPLOY_ID = 'RIFT-V3.3.0-GAME-FEEL-20260911';
+const VERSION = '3.4.0';
+const DEPLOY_ID = 'RIFT-V3.4.0-EXPEDITION-PARTY-20260911';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -52,6 +52,15 @@ const RARITY = CATALOG.rarities;
 const ELEMENTS = CATALOG.elements;
 const DIFFICULTIES = CATALOG.difficulties;
 const STARTER_POOL = CATALOG.starterPool;
+const DECK_MIN = 8;
+const DECK_MAX = 16;
+const UNIT_DECK_MAX = 6;
+const SPELL_DECK_MAX = 10;
+const ELEMENT_ADVANTAGE = {
+  '화염':['자연','강철'], '물':['화염','수정'], '자연':['물','바람'], '빛':['그림자','공허'],
+  '그림자':['빛','시간'], '강철':['수정','별'], '바람':['화염','번개'], '번개':['물','강철'],
+  '별':['그림자','시간'], '시간':['자연','공허'], '공허':['별','수정'], '수정':['빛','바람']
+};
 
 const RUN_CONTRACTS = [
   { id: 'vanguard', name: '선봉자의 서약', icon: '⚔', desc: '초반 화력을 얻는 대신 체력을 일부 포기합니다.', detail: '최대 HP -8 · 피해 +6% · 시작 골드 +120' },
@@ -382,6 +391,28 @@ function sanitizeText(s, n = 80) {
 }
 function publicCard(c) { return clone(c); }
 function publicItem(i) { return clone(i); }
+function normalizePersistentDeck(deck, collection = {}) {
+  const seen = new Set(), units = [], spells = [];
+  const take = id => {
+    if (seen.has(id) || !CARD_BY_ID[id] || !collection[id]) return;
+    const c = CARD_BY_ID[id];
+    if (c.type === 'unit') { if (units.length >= UNIT_DECK_MAX) return; units.push(id); }
+    else { if (spells.length >= SPELL_DECK_MAX) return; spells.push(id); }
+    seen.add(id);
+  };
+  for (const id of Array.isArray(deck) ? deck : []) take(id);
+  for (const id of STARTER_POOL) if (units.length + spells.length < DECK_MIN) take(id);
+  return [...units, ...spells].slice(0, DECK_MAX);
+}
+function elementalMultiplier(attacker, defender) {
+  if (!attacker || !defender || attacker === defender) return 1;
+  if ((ELEMENT_ADVANTAGE[attacker] || []).includes(defender)) return 1.35;
+  if ((ELEMENT_ADVANTAGE[defender] || []).includes(attacker)) return 0.75;
+  return 1;
+}
+function applyElementDamage(target, amount, attackerElement) {
+  return applyDamage(target, Math.round(Number(amount || 0) * elementalMultiplier(attackerElement, target?.element)));
+}
 
 function migrateProfile(p) {
   p.cloud = Boolean(p.cloud);
@@ -400,9 +431,7 @@ function migrateProfile(p) {
     if (!p.cardOrigins[cid]) p.cardOrigins[cid] = 'starter';
   }
   for (const cid of Object.keys(p.collection)) if (!p.cardOrigins[cid]) p.cardOrigins[cid] = STARTER_POOL.includes(cid) ? 'starter' : 'legacy';
-  p.deck = Array.isArray(p.deck) ? p.deck.filter(id => CARD_BY_ID[id] && p.collection[id] > 0) : [];
-  if (p.deck.length < 8) p.deck = STARTER_POOL.slice(0, 10);
-  p.deck = [...new Set(p.deck)].slice(0, 16);
+  p.deck = normalizePersistentDeck(p.deck, p.collection);
 
   p.stats = p.stats || {};
   const defaults = {
@@ -624,6 +653,7 @@ function makeCombatant(run, index) {
     },
     relics: run.relics.slice(),
     chain: { count: 0, lastType: null, best: 0, overdrives: 0 },
+    recallsUsed: 0,
     stats: { cardsPlayed: 0, damage: 0, healing: 0, hpDamageTaken: 0 }
   };
   drawCards(pc, 5 + Math.floor(modTotal(run, 'drawBonus')) + (run.relics.includes('r007') ? 1 : 0));
@@ -1141,6 +1171,22 @@ function summonUnit(room, pc, c, target) {
   battleLog(room, `${pc.nickname}이(가) ${c.name}을 소환.`);
 }
 
+function recallUnit(room, playerId, instanceId) {
+  const b = room.battle;
+  if (room.status !== 'battle' || !b || b.phase !== 'players') throw new Error('전투 중에만 전열을 교대할 수 있습니다.');
+  const pc = getPc(room, playerId);
+  if (!pc || pc.down || pc.ended) throw new Error('지금은 유닛을 회수할 수 없습니다.');
+  if (Number(pc.recallsUsed || 0) >= 1) throw new Error('전열 회수는 턴당 1회 가능합니다.');
+  const idx = pc.units.findIndex(u => u.instanceId === instanceId);
+  if (idx < 0) throw new Error('회수할 유닛을 찾을 수 없습니다.');
+  const [u] = pc.units.splice(idx, 1);
+  pc.discard.push(u.cardId);
+  pc.recallsUsed = Number(pc.recallsUsed || 0) + 1;
+  battleLog(room, `${pc.nickname}이(가) ${u.name}을 전열에서 회수했습니다.`);
+  pushRoomEvent(room, 'unit-recall', `${u.name} 전열 회수`, { playerId, instanceId, cardId:u.cardId });
+  return u;
+}
+
 function castSpell(room, pc, c, target) {
   room.battle.teamSpellCount++;
   applyEffects(room, pc, c.effects, target, c);
@@ -1236,10 +1282,10 @@ function applyEffects(room, pc, effects, target, source) {
       bonus = pc.buffs.nextAttack;
       pc.buffs.nextAttack = 0;
     }
-    if (fx.op === 'damage' && target) pc.stats.damage += applyDamage(target, modifiedDamage(room, pc, v + bonus, source));
-    else if (fx.op === 'damageAll') aliveEnemies(room).forEach(e => pc.stats.damage += applyDamage(e, modifiedDamage(room, pc, v + bonus, source)));
-    else if (fx.op === 'damageOthers') aliveEnemies(room).filter(e => e !== target).forEach(e => pc.stats.damage += applyDamage(e, modifiedDamage(room, pc, v, source)));
-    else if (fx.op === 'bossDamage' && target) pc.stats.damage += applyDamage(target, modifiedDamage(room, pc, v + bonus + (['elite', 'boss'].includes(b.tier) ? Number(fx.bossBonus || 0) : 0), source));
+    if (fx.op === 'damage' && target) pc.stats.damage += applyElementDamage(target, modifiedDamage(room, pc, v + bonus, source), source?.element);
+    else if (fx.op === 'damageAll') aliveEnemies(room).forEach(e => pc.stats.damage += applyElementDamage(e, modifiedDamage(room, pc, v + bonus, source), source?.element));
+    else if (fx.op === 'damageOthers') aliveEnemies(room).filter(e => e !== target).forEach(e => pc.stats.damage += applyElementDamage(e, modifiedDamage(room, pc, v, source), source?.element));
+    else if (fx.op === 'bossDamage' && target) pc.stats.damage += applyElementDamage(target, modifiedDamage(room, pc, v + bonus + (['elite', 'boss'].includes(b.tier) ? Number(fx.bossBonus || 0) : 0), source), source?.element);
     else if (fx.op === 'block') pc.block += modifiedBlock(pc, v);
     else if (fx.op === 'blockAllies') b.party.filter(x => !x.down).forEach(x => x.block += modifiedBlock(x, v));
     else if (fx.op === 'heal') { const before = pc.hp; pc.hp = clamp(pc.hp + modifiedHeal(pc, v), 0, pc.maxHp); pc.stats.healing += pc.hp - before; }
@@ -1349,14 +1395,14 @@ function enemyTurn(room) {
       if (hook === 'bossBonus10' && b.tier === 'boss') power += 10;
       if (pc.relics.includes('r005') && b.tier === 'boss') power += 4;
       power = modifiedDamage(room, pc, power, def);
-      const dealt = applyDamage(target, power);
+      const dealt = applyElementDamage(target, power, u.element);
       pc.stats.damage += dealt;
       battleLog(room, `${u.name} → ${target.name} ${dealt} 피해.`);
       if (hook === 'weak25' && Math.random() < 0.25) target.debuffs.weak++;
       if (hook === 'chainEvery2' && u.counter % 2 === 0) aliveEnemies(room).forEach(e => applyDamage(e, 3));
-      if (hook === 'extraEvery2' && u.counter % 2 === 0 && target.hp > 0) pc.stats.damage += applyDamage(target, power);
-      if (hook === 'extra20' && Math.random() < 0.20 && target.hp > 0) pc.stats.damage += applyDamage(target, power);
-      if (hook === 'splash40') aliveEnemies(room).filter(e => e !== target).forEach(e => pc.stats.damage += applyDamage(e, power * 0.4));
+      if (hook === 'extraEvery2' && u.counter % 2 === 0 && target.hp > 0) pc.stats.damage += applyElementDamage(target, power, u.element);
+      if (hook === 'extra20' && Math.random() < 0.20 && target.hp > 0) pc.stats.damage += applyElementDamage(target, power, u.element);
+      if (hook === 'splash40') aliveEnemies(room).filter(e => e !== target).forEach(e => pc.stats.damage += applyElementDamage(e, power * 0.4, u.element));
       if (hook === 'teamBlockEvery3' && u.counter % 3 === 0) b.party.filter(x => !x.down).forEach(x => x.block += 8);
       if (hook === 'mythicPulse' && u.counter % 2 === 0) aliveEnemies(room).forEach(e => applyDamage(e, 12));
       if (hook === 'killEnergy' && target.hp <= 0 && !u.killPaid) { pc.energy++; u.killPaid = true; }
@@ -1420,6 +1466,7 @@ function enemyTurn(room) {
     pc.energy = Math.max(1, pc.maxEnergy - (pc.buffs.energyDebt > 0 ? 1 : 0));
     pc.buffs.energyDebt = Math.max(0, pc.buffs.energyDebt - 1);
     pc.ended = false;
+    pc.recallsUsed = 0;
     pc.buffs.debuffImmune = false;
     pc.buffs.thorns = Math.max(pc.buffs.thorns, Number(pc.itemMods.thorns || 0));
     pc.chain ||= { count: 0, lastType: null, best: 0, overdrives: 0 };
@@ -1615,7 +1662,7 @@ function rewardCardOptions(room, playerId, n, tier = 'combat') {
 }
 function rewardItemOptions(room, playerId, n, tier = 'combat') {
   const run = playerId ? room.runState[playerId] : null;
-  const pool = ITEMS;
+  const pool = ITEMS.filter(i => !Array.isArray(i.modes) || i.modes.includes(room.mode));
   const out = [];
   let guard = 0;
   while (out.length < n && guard++ < 500) {
@@ -2058,9 +2105,9 @@ const server = http.createServer(async (req, res) => {
     }
     const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const p = u.pathname;
-    if (p === '/healthz' || p === '/api/version') return ok(res, { service: 'RIFT_DECK_SERVER', version: VERSION, deployId: DEPLOY_ID, storage: SUPABASE_ACTIVE ? 'supabase+json-fallback' : 'json-local', auth: SUPABASE_AUTH_ACTIVE ? 'supabase' : 'guest-only', cards: CARDS.length, items: ITEMS.length, maxDungeonFloor: DUNGEON_MAX_FLOOR, rooms: rooms.size, uptime: Math.round(process.uptime()) });
+    if (p === '/healthz' || p === '/api/version') return ok(res, { service: 'RIFT_DECK_SERVER', version: VERSION, deployId: DEPLOY_ID, storage: SUPABASE_ACTIVE ? 'supabase+json-fallback' : 'json-local', auth: SUPABASE_AUTH_ACTIVE ? 'supabase' : 'guest-only', cards: CARDS.length, items: ITEMS.length, monsters: ENEMIES.length + BOSSES.length, maxDungeonFloor: DUNGEON_MAX_FLOOR, rooms: rooms.size, uptime: Math.round(process.uptime()) });
     if (p === '/api/meta' && req.method === 'GET') return ok(res, {
-      cards: CARDS.map(publicCard), items: ITEMS.map(publicItem), rarities: RARITY, elements: ELEMENTS, biomes: BIOMES,
+      cards: CARDS.map(publicCard), items: ITEMS.map(publicItem), rarities: RARITY, elements: ELEMENTS, elementMatchups: ELEMENT_ADVANTAGE, biomes: BIOMES,
       relics: RELICS, banner: BANNER, difficulties: DIFFICULTIES, version: VERSION, maxDungeonFloor: DUNGEON_MAX_FLOOR, authEnabled: SUPABASE_AUTH_ACTIVE
     });
     if (p === '/api/auth/status' && req.method === 'GET') {
@@ -2120,9 +2167,13 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/deck' && req.method === 'POST') {
       const b = await parseBody(req); const prof = await authProfile(req, res, b); const seen = new Set();
-      const deck = (Array.isArray(b.deck) ? b.deck : []).filter(cid => CARD_BY_ID[cid] && prof.collection[cid] > 0 && !seen.has(cid) && seen.add(cid)).slice(0, 16);
-      if (deck.length < 8) throw new Error('덱은 보유 카드 8~16종으로 구성해 주세요.');
-      prof.deck = deck; saveProfiles(); return ok(res, { profile: profileView(prof) });
+      const raw = (Array.isArray(b.deck) ? b.deck : []).filter(cid => CARD_BY_ID[cid] && prof.collection[cid] > 0 && !seen.has(cid) && seen.add(cid)).slice(0, DECK_MAX);
+      const units = raw.filter(cid => CARD_BY_ID[cid]?.type === 'unit');
+      const spells = raw.filter(cid => CARD_BY_ID[cid]?.type === 'spell');
+      if (raw.length < DECK_MIN) throw new Error(`원정 덱은 최소 ${DECK_MIN}종이 필요합니다.`);
+      if (units.length > UNIT_DECK_MAX) throw new Error(`유닛 코어는 최대 ${UNIT_DECK_MAX}종까지 편성할 수 있습니다.`);
+      if (spells.length > SPELL_DECK_MAX) throw new Error(`스펠 북은 최대 ${SPELL_DECK_MAX}종까지 편성할 수 있습니다.`);
+      prof.deck = raw; saveProfiles(); return ok(res, { profile: profileView(prof) });
     }
     if (p === '/api/gacha/pull' && req.method === 'POST') {
       const b = await parseBody(req); const prof = await authProfile(req, res, b); return ok(res, pullGacha(prof, b.count));
@@ -2173,6 +2224,7 @@ const server = http.createServer(async (req, res) => {
         if (action === 'vote') { voteRoute(room, prof.id, b.nodeId); return ok(res, { room: roomView(room) }); }
         if (action === 'contract') { chooseRunContract(room, prof.id, b.contractId); return ok(res, { room: roomView(room) }); }
         if (action === 'play') { playCard(room, prof.id, b.handIndex, b.targetUid); return ok(res, { room: roomView(room) }); }
+        if (action === 'recall-unit') { const unit = recallUnit(room, prof.id, b.instanceId); return ok(res, { result:{ name:unit.name, cardId:unit.cardId }, room: roomView(room) }); }
         if (action === 'end-turn') { endTurn(room, prof.id); return ok(res, { room: roomView(room) }); }
         if (action === 'event') { chooseEvent(room, prof.id, b.choiceId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
         if (action === 'reward') { claimReward(room, prof.id, b.rewardId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }

@@ -1,0 +1,9 @@
+RIFT DECK v3.4 적용 방법
+
+1. v3.4 PATCH ZIP을 압축 해제합니다.
+2. 나온 파일/폴더를 현재 GitHub 프로젝트 최상위에 그대로 덮어씁니다.
+3. GitHub Commit/Push 합니다.
+4. Render Web Service가 자동 재배포되면 /healthz 를 확인합니다.
+5. version 3.4.0 / deployId RIFT-V3.4.0-EXPEDITION-PARTY-20260911 이면 완료입니다.
+
+Supabase SQL은 다시 실행할 필요 없습니다.
