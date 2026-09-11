@@ -17,11 +17,11 @@ async function advanceNonBattle(room,u){
   return room;
 }
 (async()=>{try{
-  const hz=await ready(); if(hz.version!=='4.0.0')throw Error(`wrong version ${hz.version}`);
+  const hz=await ready(); if(hz.version!=='4.1.0')throw Error(`wrong version ${hz.version}`);
   const meta=await req('GET','/api/meta'); if(meta.monsters.length<205)throw Error(`monsters ${meta.monsters.length}`); if(meta.monsterRules.pointBudget!==10)throw Error('point budget');
   const u={profileId:'hunt-bot',nickname:'HUNTBOT'};
   let prof=(await req('POST','/api/profile',u)).profile;
-  const starterMonsterCount=prof.monsterOwnedCount;if(starterMonsterCount<4)throw Error(`starter monsters ${starterMonsterCount}`);
+  const starterMonsterCount=prof.monsterOwnedCount;if(starterMonsterCount!==3)throw Error(`starter monsters ${starterMonsterCount}`);
   let room=(await req('POST','/api/rooms/create',{...u,mode:'journey',difficulty:'normal'})).room; room=(await req('POST',`/api/room/${room.id}/start`,u)).room;
   let reached=false;
   for(let tries=0;tries<24;tries++){

@@ -35,6 +35,8 @@ if (catalog.items.length < 120) throw new Error(`BUILD_FAIL expected >=120 items
 if ((catalog.enemies.length + catalog.bosses.length) < 205) throw new Error('BUILD_FAIL expected >=205 monsters');
 if (catalog.cards.some(c => c.type !== 'spell')) throw new Error('BUILD_FAIL v4 combat catalogue must be spell-only');
 if (catalog.monsterParty?.maxSlots !== 6 || catalog.monsterParty?.pointBudget !== 10) throw new Error('BUILD_FAIL monster party rules mismatch');
+if ((catalog.monsterParty?.starterIds || []).length !== 3) throw new Error('BUILD_FAIL expected exactly 3 fresh starters');
+if (catalog.battleRules?.singleActive !== 1 || catalog.battleRules?.moveSlots !== 4) throw new Error('BUILD_FAIL active monster battle rules mismatch');
 if (Object.keys(catalog.difficulties || {}).length !== 3) throw new Error('BUILD_FAIL expected 3 difficulties');
 
 let missing = [];
@@ -71,8 +73,8 @@ for (const r of catalog.relics || []) {
 if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets: ${missing.slice(0, 5).join(', ')}`);
 
 const info = {
-  version: String(catalog.version || '4.0.0'),
-  deployId: 'RIFT-V4.0.0-MONSTER-EVOLUTION-20260911',
+  version: String(catalog.version || '4.1.0'),
+  deployId: 'RIFT-V4.1.0-ACTIVE-MONSTER-BATTLE-20260911',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,
