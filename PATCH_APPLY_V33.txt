@@ -1,0 +1,20 @@
+RIFT DECK v3.3 GAME FEEL PATCH
+
+권장 기준: v3.2.0 EXPEDITION HUNT
+
+1. 현재 프로젝트를 백업합니다.
+2. PATCH ZIP을 풀어 GitHub 프로젝트 최상위에 그대로 덮어씁니다.
+3. Commit/Push 합니다.
+4. Render Web Service가 자동 재배포될 때까지 기다립니다.
+5. /healthz 에서 version 3.3.0 / deployId RIFT-V3.3.0-GAME-FEEL-20260911 확인.
+
+Supabase SQL 재실행은 필요하지 않습니다.
+
+주요 변경 파일
+- public/app.js
+- public/styles.css
+- assets/enemies/*.png (일반 적 50 + 보스 5)
+- server.js / package.json / package-lock.json / data/catalog.json (버전/빌드 정합성)
+- scripts/build.js
+- scripts/visual-first-test.js
+- scripts/game-feel-test.js

@@ -1,14 +1,14 @@
 {
   "name": "rift-deck-abyss-expedition",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "private": true,
-  "description": "Dynamic server-authoritative 1-4 player pixel card roguelite where exploration permanently unlocks cards for dungeon deckbuilding, with 25 scene variants and 96 run items.",
+  "description": "Dynamic server-authoritative 1-4 player pixel card roguelite with exploration unlocks, 55 redesigned creature silhouettes, readable card abilities, persistent shield visuals, and distinct attack choreography.",
   "scripts": {
     "build": "node scripts/build.js",
     "start": "node server.js",
     "dev": "node server.js",
     "check": "node --check server.js && node --check public/app.js && node scripts/catalog-test.js",
-    "test": "npm run build && node scripts/smoke-test.js && node scripts/multiplayer-test.js && node scripts/combat-test.js && node scripts/combat-depth-test.js && node scripts/fifty-floor-test.js && node scripts/auth-test.js && node scripts/cloud-room-test.js && node scripts/fun-loop-test.js && node scripts/visual-first-test.js && node scripts/expedition-hunt-test.js"
+    "test": "npm run build && node scripts/smoke-test.js && node scripts/multiplayer-test.js && node scripts/combat-test.js && node scripts/combat-depth-test.js && node scripts/fifty-floor-test.js && node scripts/auth-test.js && node scripts/cloud-room-test.js && node scripts/fun-loop-test.js && node scripts/visual-first-test.js && node scripts/expedition-hunt-test.js && node scripts/game-feel-test.js"
   },
   "engines": {
     "node": ">=20 <27"
