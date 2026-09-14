@@ -1,7 +1,7 @@
 {
-  "version": "4.1.0",
-  "deployId": "RIFT-V4.1.0-ACTIVE-MONSTER-BATTLE-20260911",
-  "builtAt": "2026-09-11T03:03:55.532Z",
+  "version": "4.2.0",
+  "deployId": "RIFT-V4.2.0-ROGUELITE-RIFT-REWRITE-20260914",
+  "builtAt": "2026-09-14T00:18:51.819Z",
   "cards": 315,
   "items": 120,
   "enemies": 205,
