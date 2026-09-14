@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
+const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
 // Only runtime-critical files may block a Render build.
 // Supabase SQL is a one-time setup aid and is intentionally OPTIONAL here:
@@ -73,8 +74,8 @@ for (const r of catalog.relics || []) {
 if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets: ${missing.slice(0, 5).join(', ')}`);
 
 const info = {
-  version: String(catalog.version || '4.1.0'),
-  deployId: 'RIFT-V4.1.0-ACTIVE-MONSTER-BATTLE-20260911',
+  version: String(pkg.version || catalog.version || '4.2.0'),
+  deployId: 'RIFT-V4.2.0-ROGUELITE-RIFT-REWRITE-20260914',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,

@@ -17,7 +17,7 @@ async function advanceNonBattle(room,u){
   return room;
 }
 (async()=>{try{
-  const hz=await ready(); if(hz.version!=='4.1.0')throw Error(`wrong version ${hz.version}`);
+  const hz=await ready(); if(hz.version!=='4.2.0')throw Error(`wrong version ${hz.version}`);
   const meta=await req('GET','/api/meta'); if(meta.monsters.length<205)throw Error(`monsters ${meta.monsters.length}`); if(meta.monsterRules.pointBudget!==10)throw Error('point budget');
   const u={profileId:'hunt-bot',nickname:'HUNTBOT'};
   let prof=(await req('POST','/api/profile',u)).profile;
