@@ -89,6 +89,21 @@ const MOVE_REWRITES = [
 ];
 const MOVE_REWRITE_BY_ID = Object.fromEntries(MOVE_REWRITES.map(x => [x.id, x]));
 
+const MOVE_MASTERY_THRESHOLDS = [0, 5, 13];
+function moveMasteryStage(uses=0){const n=Math.max(0,Number(uses||0));return n>=MOVE_MASTERY_THRESHOLDS[2]?2:n>=MOVE_MASTERY_THRESHOLDS[1]?1:0;}
+function moveMasteryLabel(stage=0){return Number(stage)>=2?'++':Number(stage)>=1?'+':'';}
+function applyMoveMastery(move,stage=0){
+  const out={...move};const s=Math.max(0,Math.min(2,Number(stage||0)));if(!s)return out;
+  const scale=s===1?1.10:1.22;
+  for(const key of ['power','shield','heal','boost','stagger'])if(Number(out[key]||0)>0)out[key]=Math.max(1,Math.round(Number(out[key])*scale));
+  if(Number(out.ratio||0)>0)out.ratio=Number((Number(out.ratio)*scale).toFixed(3));
+  if(Number(out.lifesteal||0)>0)out.lifesteal=Math.min(.75,Number((Number(out.lifesteal)+(s===1?.03:.07)).toFixed(3)));
+  if(Number(out.splash||0)>0)out.splash=Math.min(.9,Number((Number(out.splash)+(s===1?.04:.09)).toFixed(3)));
+  out.accuracy=Math.min(100,Number(out.accuracy||100)+(s===1?1:3));
+  if(s>=2&&Number(out.cooldown||0)>0)out.cooldown=Math.max(0,Number(out.cooldown)-1);
+  out.masteryStage=s;out.masteryLabel=moveMasteryLabel(s);return out;
+}
+
 function levelCapForFloor(floor) {
   const set = Math.floor((Math.max(1, Number(floor || 1)) - 1) / 10);
   return Math.min(Number(BATTLE_RULES.maxMonsterLevel || 100), 10 + set * 8);
@@ -111,7 +126,7 @@ function biomeForkCandidates(room) {
 
 function prepareMove(move, monster){
   if(!move)return null;
-  return {...clone(move),element:move.element||monster?.element||'공허',cooldownRemaining:0,unlockLevel:Number(move.unlockLevel||1)};
+  return {...clone(move),element:move.element||monster?.element||'공허',cooldownRemaining:Number(move.cooldownRemaining||0),unlockLevel:Number(move.unlockLevel||1),masteryUses:Number(move.masteryUses||0),masteryStage:Number(move.masteryStage||moveMasteryStage(move.masteryUses||0))};
 }
 function buildMonsterMoves(monster){
   const m=typeof monster==='string'?MONSTER_BY_ID[monster]:monster;if(!m)return[];
@@ -536,6 +551,7 @@ function monsterFormLabel(u) {
   if (u?.evolved) return 'EVOLVED';
   return 'BASE';
 }
+function monsterDisplaySpriteServer(u){if(!u)return'';if(u.abyssBloom)return u.riftSprite||u.sprite;if(Number(u.resonanceTurns||0)>0)return u.resonanceSprite||u.sprite;if(u.evolved)return u.evolutionSprite||u.sprite;return u.sprite||u.baseSprite||'';}
 
 function elementalMultiplier(attacker, defender) {
   if (!attacker || !defender || attacker === defender) return 1;
@@ -1212,23 +1228,22 @@ function monsterLevelGain(room,pc,u,amount=0,eventQueue=[]){
   if(!u)return null;
   const species=MONSTER_BY_ID[u.speciesId];if(!species)return null;
   normalizeMonsterMoves(u);
-  const fromLevel=Number(u.level||1),fromXp=Number(u.xp||0),levelCap=levelCapForFloor(room.floor);
+  const fromLevel=Number(u.level||1),fromXp=Number(u.xp||0),fromMaxHp=Number(u.maxHp||0),fromPower=Number(u.power||0),levelCap=levelCapForFloor(room.floor);
   u.xp=fromXp+Math.max(0,Math.round(amount));
   const learned=[];let levels=0;
   while(u.level<Number(BATTLE_RULES.maxMonsterLevel||100) && u.level<levelCap){
     const need=xpNeededForLevel(u.level);if(u.xp<need)break;
     u.xp-=need;const previous=u.level;u.level++;levels++;u.levelUpsThisBattle=Number(u.levelUpsThisBattle||0)+1;
-    const oldMax=u.maxHp;u.maxHp=Math.round(u.maxHp*1.035+1);u.power=Math.max(u.power+1,Math.round(u.power*1.025+0.5));u.hp=Math.min(u.maxHp,u.hp+(u.maxHp-oldMax)+3);
+    const oldMax=u.maxHp,oldPower=u.power;u.maxHp=Math.round(u.maxHp*1.035+1);u.power=Math.max(u.power+1,Math.round(u.power*1.025+0.5));u.hp=Math.min(u.maxHp,u.hp+(u.maxHp-oldMax)+3);
     const newMoves=levelMovesBetween(species,previous,u.level);
     for(const mv of newMoves){if(!(u.pendingLearnMoves||[]).some(x=>x.id===mv.id)&&!(u.moves||[]).some(x=>x.id===mv.id)){const ready=prepareMove(mv,species);u.pendingLearnMoves.push(ready);learned.push(ready);}}
-    eventQueue.push({type:'monster-level',message:`${u.name} Lv.${u.level}!`,payload:{playerId:pc.playerId,instanceId:u.instanceId,level:u.level,fromLevel:previous,unlocked:newMoves.map(x=>x.name),levelCap}});
+    eventQueue.push({type:'monster-level',message:`${u.name} Lv.${u.level}!`,payload:{playerId:pc.playerId,instanceId:u.instanceId,monsterName:u.name,sprite:u.evolved?(u.evolutionSprite||u.sprite):u.sprite,element:u.element,level:u.level,fromLevel:previous,levelCap,unlocked:newMoves.map(x=>x.name),statGain:{hp:u.maxHp-oldMax,power:u.power-oldPower},stats:{hp:u.maxHp,power:u.power}}});
     if(!u.evolved&&u.level>=Number(u.evolutionLevel||evolutionLevel(species)))applyStandardEvolution(room,pc.playerId,u,{natural:true,emit:false,eventQueue});
   }
-  // Level-cap EXP is intentionally not banked into a huge multi-level burst in the next biome.
   const capped=u.level>=levelCap&&u.level<Number(BATTLE_RULES.maxMonsterLevel||100);
   if(capped)u.xp=Math.min(u.xp,Math.max(0,xpNeededForLevel(u.level)-1));
   battleLog(room,`${u.name} EXP +${Math.round(amount)}${levels?` · Lv.${fromLevel} → Lv.${u.level}`:''}${capped?` · CAP ${levelCap}`:''}`);
-  return{instanceId:u.instanceId,speciesId:u.speciesId,name:u.name,sprite:u.evolved?(u.evolutionSprite||u.sprite):u.sprite,fromLevel,toLevel:u.level,fromXp,xp:u.xp,xpNeed:xpNeededForLevel(u.level),xpGained:Math.max(0,Math.round(amount)),leveled:levels>0,levelsGained:levels,newMoves:learned.map(x=>({id:x.id,name:x.name,learnLevel:x.learnLevel})),levelCap,capped};
+  return{instanceId:u.instanceId,speciesId:u.speciesId,name:u.name,sprite:u.evolved?(u.evolutionSprite||u.sprite):u.sprite,fromLevel,toLevel:u.level,fromXp,xp:u.xp,xpNeed:xpNeededForLevel(u.level),xpGained:Math.max(0,Math.round(amount)),leveled:levels>0,levelsGained:levels,newMoves:learned.map(x=>({id:x.id,name:x.name,learnLevel:x.learnLevel})),levelCap,capped,fromStats:{hp:fromMaxHp,power:fromPower},toStats:{hp:u.maxHp,power:u.power},statGain:{hp:u.maxHp-fromMaxHp,power:u.power-fromPower}};
 }
 
 function awardBattleMonsterXp(room,pc,tier,eventQueue=[]){
@@ -1324,8 +1339,9 @@ function useMonsterMove(room,playerId,instanceId,moveId,targetUid){
   const pc=getPc(room,playerId);if(!pc||pc.down||pc.ended)throw new Error('행동할 수 없습니다.');
   const u=pc.units.find(x=>x.instanceId===instanceId)||pc.units[0];if(!u)throw new Error('출전 몬스터가 없습니다.');normalizeMonsterMoves(u);if(u.acted)throw new Error('이 몬스터는 이미 행동했습니다.');
   const move=u.moves.find(x=>x.id===moveId);if(!move)throw new Error('기술을 찾을 수 없습니다.');if(u.level<Number(move.unlockLevel||1))throw new Error(`Lv.${move.unlockLevel}에서 해금되는 기술입니다.`);if(Number(move.cooldownRemaining||0)>0)throw new Error(`재사용까지 ${move.cooldownRemaining}턴 남았습니다.`);
+  move.masteryUses=Number(move.masteryUses||0);move.masteryStage=Math.max(Number(move.masteryStage||0),moveMasteryStage(move.masteryUses));
   const rewrite=move.rewrite?(MOVE_REWRITE_BY_ID[move.rewrite.id]||move.rewrite):null;
-  const effective={...move,rewrite:rewrite?clone(rewrite):null};
+  const effective=applyMoveMastery({...move,rewrite:rewrite?clone(rewrite):null},move.masteryStage);
   if(rewrite?.id==='overclock'){effective.power=Math.round(Number(effective.power||0)*1.18);effective.ratio=Number(effective.ratio||0)*1.18;effective.accuracy=Math.max(50,Number(effective.accuracy||100)-6);effective.cooldown=Math.max(0,Number(effective.cooldown||0)-1);}
   if(rewrite?.id==='breaker')effective.stagger=Number(effective.stagger||0)+16;
   if(rewrite?.id==='feedback'){effective.shield=Math.round(Number(effective.shield||0)*1.35);effective.heal=Math.round(Number(effective.heal||0)*1.35);effective.boost=Math.round(Number(effective.boost||0)*1.35);effective.cooldown=Number(effective.cooldown||0)+1;}
@@ -1347,7 +1363,10 @@ function useMonsterMove(room,playerId,instanceId,moveId,targetUid){
   if(!hit&&rewrite?.id==='zero'){move.cooldownRemaining=0;u.rift=clamp(Number(u.rift||0)+1,0,5);battleLog(room,`${u.name}의 제로 루프 — RIFT +1 · 재사용 대기 초기화.`);}
   u.acted=true;pc.stats.movesUsed=Number(pc.stats.movesUsed||0)+1;
   const run=room.runState[playerId];if(run){run.moveUseCounts ||= {};const key=`${u.instanceId}:${move.id}`;run.moveUseCounts[key]=Number(run.moveUseCounts[key]||0)+1;}
-  pushRoomEvent(room,'monster-move',`${u.name} · ${move.name}`,{playerId,instanceId:u.instanceId,targetUid:target?.uid||null,move:clone({...move,rewrite}),damage:dealt,hit,element:effective.element||u.element,style:u.archetype,form:monsterFormLabel(u),rewrite:rewrite?clone(rewrite):null});
+  move.masteryUses=Number(move.masteryUses||0)+1;const priorMastery=Number(move.masteryStage||0),nextMastery=moveMasteryStage(move.masteryUses);
+  if(nextMastery>priorMastery){move.masteryStage=nextMastery;battleLog(room,`${u.name}의 ${move.name} 숙련 진화 ${moveMasteryLabel(nextMastery)}!`);}
+  pushRoomEvent(room,'monster-move',`${u.name} · ${move.name}`,{playerId,instanceId:u.instanceId,targetUid:target?.uid||null,move:clone({...move,rewrite,masteryStage:move.masteryStage,masteryUses:move.masteryUses}),damage:dealt,hit,element:effective.element||u.element,style:u.archetype,form:monsterFormLabel(u),rewrite:rewrite?clone(rewrite):null});
+  if(nextMastery>priorMastery)pushRoomEvent(room,'move-evolve',`${u.name}의 ${move.name} 숙련 진화!`,{playerId,instanceId:u.instanceId,monsterName:u.name,monsterSprite:monsterDisplaySpriteServer(u),moveId:move.id,moveName:move.name,stage:nextMastery,label:moveMasteryLabel(nextMastery),uses:move.masteryUses,element:move.element||u.element,kind:move.kind,before:priorMastery,after:nextMastery});
   const phases=updateBossPhase(room);for(const e of phases)pushRoomEvent(room,'boss-phase',`${e.name} 2단계!`,{enemyUid:e.uid,enemyName:e.name,phase:2});
   const breaks=b.enemies.filter(e=>e.justBroken&&e.hp>0);for(const e of b.enemies)e.justBroken=false;for(const e of breaks)pushRoomEvent(room,'enemy-break',`${e.name}의 자세 붕괴!`,{enemyUid:e.uid,enemyName:e.name});
   if(checkBattleEnd(room))return{move,dealt,ended:true,rewrite};
@@ -1377,7 +1396,7 @@ function advanceSkillOffer(room,playerId,record){
 }
 function skillOfferForPc(room,pc){return buildSkillQueueForPc(room,pc)[0]||null;}
 function teachMonsterMove(room,playerId,moveId,replaceIndex){
-  if(room.status!=='reward'||!room.reward)throw new Error('기술을 배울 수 있는 단계가 아닙니다.');const offer=room.reward.skillOffers?.[playerId];if(!offer)throw new Error('배울 기술이 없습니다.');const move=(offer.moves||[]).find(x=>x.id===moveId);if(!move)throw new Error('해당 기술을 찾을 수 없습니다.');const run=room.runState[playerId],u=(run.monsters||[]).find(x=>x.instanceId===offer.instanceId);if(!u)throw new Error('몬스터를 찾을 수 없습니다.');normalizeMonsterMoves(u);let idx=Number(replaceIndex);if(!Number.isInteger(idx)||idx<0||idx>=BATTLE_RULES.moveSlots)idx=BATTLE_RULES.moveSlots-1;const old=u.moves[idx];u.moves[idx]={...clone(move),element:move.element||u.element,cooldownRemaining:0,unlockLevel:1};const record={moveId:move.id,moveName:move.name,replaceIndex:idx,replacedMoveName:old?.name||null,monsterName:u.name,source:offer.source};pushRoomEvent(room,'move-learn',`${u.name}이(가) ${move.name}을 익혔다!`,{playerId,instanceId:u.instanceId,move:clone(move),replaceIndex:idx});advanceSkillOffer(room,playerId,record);return record;
+  if(room.status!=='reward'||!room.reward)throw new Error('기술을 배울 수 있는 단계가 아닙니다.');const offer=room.reward.skillOffers?.[playerId];if(!offer)throw new Error('배울 기술이 없습니다.');const move=(offer.moves||[]).find(x=>x.id===moveId);if(!move)throw new Error('해당 기술을 찾을 수 없습니다.');const run=room.runState[playerId],u=(run.monsters||[]).find(x=>x.instanceId===offer.instanceId);if(!u)throw new Error('몬스터를 찾을 수 없습니다.');normalizeMonsterMoves(u);let idx=Number(replaceIndex);if(!Number.isInteger(idx)||idx<0||idx>=BATTLE_RULES.moveSlots)idx=BATTLE_RULES.moveSlots-1;const old=u.moves[idx];u.moves[idx]={...clone(move),element:move.element||u.element,cooldownRemaining:0,unlockLevel:1,masteryUses:0,masteryStage:0};const record={moveId:move.id,moveName:move.name,replaceIndex:idx,replacedMoveName:old?.name||null,monsterName:u.name,source:offer.source};pushRoomEvent(room,'move-learn',`${u.name}이(가) ${move.name}을 익혔다!`,{playerId,instanceId:u.instanceId,move:clone(move),replaceIndex:idx});advanceSkillOffer(room,playerId,record);return record;
 }
 function skipMonsterMoveOffer(room,playerId){
   if(room.status!=='reward'||!room.reward)throw new Error('기술 선택 단계가 아닙니다.');const offer=room.reward.skillOffers?.[playerId];if(!offer){room.reward.skillClaims ||= {};room.reward.skillClaims[playerId]={completed:true};return room.reward.skillClaims[playerId];}const record={skipped:true,moveName:offer.moves?.[0]?.name||null,monsterName:offer.monsterName,source:offer.source};advanceSkillOffer(room,playerId,record);return record;
@@ -2281,7 +2300,7 @@ const server = http.createServer(async (req, res) => {
     const p = u.pathname;
     if (p === '/healthz' || p === '/api/version') return ok(res, { service: 'RIFT_DECK_SERVER', version: VERSION, deployId: DEPLOY_ID, storage: SUPABASE_ACTIVE ? 'supabase+json-fallback' : 'json-local', auth: SUPABASE_AUTH_ACTIVE ? 'supabase' : 'guest-only', cards: CARDS.length, items: ITEMS.length, monsters: ENEMIES.length + BOSSES.length, monsterMoves: MOVE_LIBRARY.length, maxDungeonFloor: DUNGEON_MAX_FLOOR, rooms: rooms.size, uptime: Math.round(process.uptime()) });
     if (p === '/api/meta' && req.method === 'GET') return ok(res, {
-      cards: CARDS.map(publicCard), items: ITEMS.map(publicItem), monsters: MONSTERS.map(publicMonster), rarities: RARITY, elements: ELEMENTS, elementMatchups: ELEMENT_ADVANTAGE, monsterRules:{maxSlots:MONSTER_PARTY_MAX,pointBudget:MONSTER_POINT_BUDGET,moveLibraryCount:MOVE_LIBRARY.length}, spellRules:{min:DECK_MIN,max:DECK_MAX}, battleRules:{...BATTLE_RULES,xpModel:'battle-end',moveLibraryCount:MOVE_LIBRARY.length}, biomes: BIOMES,
+      cards: CARDS.map(publicCard), items: ITEMS.map(publicItem), monsters: MONSTERS.map(publicMonster), rarities: RARITY, elements: ELEMENTS, elementMatchups: ELEMENT_ADVANTAGE, monsterRules:{maxSlots:MONSTER_PARTY_MAX,pointBudget:MONSTER_POINT_BUDGET,moveLibraryCount:MOVE_LIBRARY.length}, spellRules:{min:DECK_MIN,max:DECK_MAX}, battleRules:{...BATTLE_RULES,xpModel:'battle-end',moveLibraryCount:MOVE_LIBRARY.length,moveMasteryThresholds:MOVE_MASTERY_THRESHOLDS}, biomes: BIOMES,
       relics: RELICS, banner: BANNER, difficulties: DIFFICULTIES, version: VERSION, maxDungeonFloor: DUNGEON_MAX_FLOOR, authEnabled: SUPABASE_AUTH_ACTIVE
     });
     if (p === '/api/auth/status' && req.method === 'GET') {
