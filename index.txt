@@ -1,19 +1,27 @@
-RIFT DECK v4.0.0 MONSTER EVOLUTION
-Deploy ID: RIFT-V4.0.0-MONSTER-EVOLUTION-20260911
+RIFT DECK v4.2.0 PATCH INDEX
+============================
+
+PATCH_APPLY_V42.txt
+README.md
+RELEASE_NOTES_v4_2.md
+package.json
+package-lock.json
+server.js
+public/app.js
+public/styles.css
+public/index.html
+public/build-info.json
+data/catalog.json
+scripts/build.js
+scripts/expedition-hunt-test.js
+scripts/v40-monster-evolution-test.js
+scripts/v41-active-monster-test.js
+scripts/v42-rift-rewrite-test.js
 
 핵심
-- 보유/포획 몬스터를 최대 6마리, 10P 안에서 원정 파티로 구성
-- 205종 몬스터 + 615개 변신 폼
-- 315종 카드 전체 스펠/명령 카드화
-- 170종 GENE 성장 스펠 / 6계열
-- 표준 진화 / 융합 / 공명 진화 / 균열개화
-- 전열 3 + 벤치 / 전투 중 교대
-- 12속성 상성 / COMMAND LINK / RIFT DRIVE
-- 몬스터별 방어막/공격 모션 강화
-- 아이템 120종 / 픽셀 유물 22종
-- 여행 전용 포획 보조 보상은 던전 풀에서 제외
-- 여행 포획 몬스터를 계정에 저장하고 이후 던전에서 사용
-- Supabase 로그인/클라우드 저장 유지
-- PC/태블릿/모바일 반응형
-
-적용: PATCH_APPLY_V40.txt 참고
+- 10웨이브 바이옴 진행
+- 5W WARDEN / 7W RIFT HUNTER / 10W BOSS
+- 보스 이후 2갈래 바이옴 선택
+- 구간별 LEVEL CAP
+- 보스 이후 RIFT REWRITE 기술 개조 9종
+- 기존 진화/융합/공명/균열개화 및 기존 콘텐츠 유지
