@@ -75,7 +75,7 @@ if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets
 
 const info = {
   version: String(pkg.version || catalog.version || '4.2.0'),
-  deployId: 'RIFT-V51-COMBAT-UX-20260915',
+  deployId: 'RIFT-V52-CLASSIC-BATTLE-20260915',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,
