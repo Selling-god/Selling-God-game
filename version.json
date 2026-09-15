@@ -1,8 +1,8 @@
 {
-  "release": "RIFT-DECK-V531-RUNMOD-HOTFIX",
-  "buildId": "v53-held-items",
+  "release": "RIFT-DECK-V532-BATTLEFLOW-RESUME-FX",
+  "buildId": "v532-battleflow-resume-fx",
   "generatedAt": "2026-09-15T02:19:10.062152+00:00",
-  "version": "5.3.1",
-  "label": "V53 CLICK-SAFE + HELD ITEMS + READABLE UI",
-  "deployId": "RIFT-V531-RUNMOD-HOTFIX-20260915"
+  "version": "5.3.2",
+  "label": "V53.2 POST-BATTLE + SIGNATURE FX + RELIABLE RESUME",
+  "deployId": "RIFT-V532-BATTLEFLOW-RESUME-FX-20260915"
 }

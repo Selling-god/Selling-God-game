@@ -29,8 +29,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '5.3.1';
-const DEPLOY_ID = 'RIFT-V531-RUNMOD-HOTFIX-20260915';
+const VERSION = '5.3.2';
+const DEPLOY_ID = 'RIFT-V532-BATTLEFLOW-RESUME-FX-20260915';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -566,6 +566,7 @@ function applyElementDamage(target, amount, attackerElement) {
 function migrateProfile(p) {
   p.cloud = Boolean(p.cloud);
   p.accountId = p.accountId ? String(p.accountId) : '';
+  p.activeRoomId = /^\d{6}$/.test(String(p.activeRoomId||'')) ? String(p.activeRoomId) : '';
   p.gems = Number(p.gems ?? 2200);
   p.dust = Number(p.dust ?? 0);
   p.seals = p.seals || { basic: 15, silver: 6, royal: 1 };
@@ -614,7 +615,7 @@ function ensureProfile(profileId, nickname) {
     p = profiles[profileId] = {
       id:profileId,nickname:sanitizeName(nickname),createdAt:Date.now(),lastSeenAt:Date.now(),gems:2200,dust:0,
       seals:{basic:15,silver:6,royal:1},pity:{legendary:0,mythic:0},collection:{},cardOrigins:{},deck:STARTER_POOL.slice(0,DECK_MIN),
-      monsters:{},monsterParty:STARTER_MONSTERS.slice(0,3),stats:{},history:[],cloud:false,accountId:'',schemaVersion:5
+      monsters:{},monsterParty:STARTER_MONSTERS.slice(0,3),stats:{},history:[],cloud:false,accountId:'',activeRoomId:'',schemaVersion:5
     };
   }
   migrateProfile(p); p.nickname=sanitizeName(nickname||p.nickname); p.lastSeenAt=Date.now(); return p;
@@ -634,7 +635,27 @@ function profileView(p) {
   return { id:p.id,nickname:p.nickname,gems:p.gems,dust:p.dust,seals:p.seals,pity:p.pity,collection:p.collection,cardOrigins:p.cardOrigins||{},deck:p.deck,
     monsters:p.monsters||{},monsterParty:p.monsterParty||[],monsterPartyCost:monsterPartyCost(p.monsterParty||[]),monsterPointBudget:MONSTER_POINT_BUDGET,
     stats:p.stats,history:p.history||[],ownedCount:Object.keys(p.collection).length,totalCards:CARDS.length,monsterOwnedCount:Object.keys(p.monsters||{}).length,
-    totalMonsters:MONSTERS.length,cloud:Boolean(p.cloud),accountId:p.accountId||'' };
+    totalMonsters:MONSTERS.length,cloud:Boolean(p.cloud),accountId:p.accountId||'',activeRoomId:p.activeRoomId||'' };
+}
+
+
+function resumableRoomForProfile(profileId) {
+  const pid=String(profileId||'');
+  const profile=profiles[pid];
+  const direct=profile?.activeRoomId ? rooms.get(String(profile.activeRoomId)) : null;
+  if(direct && !['ended','cleared'].includes(direct.status) && direct.players?.some(x=>x.id===pid)) return direct;
+  const found=[...rooms.values()]
+    .filter(r=>!['ended','cleared'].includes(r.status)&&r.players?.some(x=>x.id===pid))
+    .sort((a,b)=>Number(b.updatedAt||b.createdAt||0)-Number(a.updatedAt||a.createdAt||0))[0]||null;
+  return found;
+}
+function setProfileActiveRoom(profileId, roomId) {
+  const p=profiles[String(profileId||'')]; if(!p)return;
+  p.activeRoomId=/^\d{6}$/.test(String(roomId||''))?String(roomId):'';
+}
+function clearProfileActiveRoom(profileId, roomId='') {
+  const p=profiles[String(profileId||'')]; if(!p)return;
+  if(!roomId||String(p.activeRoomId||'')===String(roomId))p.activeRoomId='';
 }
 
 function validDeck(deck) {
@@ -786,6 +807,8 @@ function makeRoom(hostProfile, mode = 'dungeon', name = '', difficulty = 'normal
     startedAt: 0
   };
   rooms.set(code, room);
+  hostProfile.activeRoomId=code;
+  saveProfiles();
   pushRoomEvent(room, 'room', '방이 생성되었습니다.');
   return room;
 }
@@ -858,6 +881,7 @@ function startRoom(room) {
   room.startedAt = Date.now();
   for (const rp of room.players) {
     const p = ensureProfile(rp.id, rp.nickname);
+    p.activeRoomId=room.id;
     room.runState[rp.id] = newRunPlayer(p);
     room.contractOffers[rp.id] = shuffle(RUN_CONTRACTS).slice(0, 3);
     if (room.mode === 'dungeon') p.stats.dungeons++;
@@ -1402,7 +1426,7 @@ function useMonsterMove(room,playerId,instanceId,moveId,targetUid){
   const run=room.runState[playerId];if(run){run.moveUseCounts ||= {};const key=`${u.instanceId}:${move.id}`;run.moveUseCounts[key]=Number(run.moveUseCounts[key]||0)+1;}
   move.masteryUses=Number(move.masteryUses||0)+1;const priorMastery=Number(move.masteryStage||0),nextMastery=moveMasteryStage(move.masteryUses);
   if(nextMastery>priorMastery){move.masteryStage=nextMastery;battleLog(room,`${u.name}의 ${move.name} 숙련 진화 ${moveMasteryLabel(nextMastery)}!`);}
-  pushRoomEvent(room,'monster-move',`${u.name} · ${move.name}`,{playerId,instanceId:u.instanceId,targetUid:target?.uid||null,move:clone({...move,rewrite,masteryStage:move.masteryStage,masteryUses:move.masteryUses}),damage:dealt,hit,element:effective.element||u.element,style:u.archetype,form:monsterFormLabel(u),rewrite:rewrite?clone(rewrite):null});
+  pushRoomEvent(room,'monster-move',`${u.name} · ${move.name}`,{playerId,instanceId:u.instanceId,speciesId:u.speciesId,monsterName:u.name,targetUid:target?.uid||null,move:clone({...move,rewrite,masteryStage:move.masteryStage,masteryUses:move.masteryUses}),skill:move.name,damage:dealt,hit,element:effective.element||u.element,style:u.archetype,archetype:u.archetype,form:monsterFormLabel(u),rewrite:rewrite?clone(rewrite):null,fxSeed:`${u.speciesId}:${move.id}`});
   if(nextMastery>priorMastery)pushRoomEvent(room,'move-evolve',`${u.name}의 ${move.name} 숙련 진화!`,{playerId,instanceId:u.instanceId,monsterName:u.name,monsterSprite:monsterDisplaySpriteServer(u),moveId:move.id,moveName:move.name,stage:nextMastery,label:moveMasteryLabel(nextMastery),uses:move.masteryUses,element:move.element||u.element,kind:move.kind,before:priorMastery,after:nextMastery});
   const phases=updateBossPhase(room);for(const e of phases)pushRoomEvent(room,'boss-phase',`${e.name} 2단계!`,{enemyUid:e.uid,enemyName:e.name,phase:2});
   const breaks=b.enemies.filter(e=>e.justBroken&&e.hp>0);for(const e of b.enemies)e.justBroken=false;for(const e of breaks)pushRoomEvent(room,'enemy-break',`${e.name}의 자세 붕괴!`,{enemyUid:e.uid,enemyName:e.name});
@@ -1716,7 +1740,7 @@ function enemyTurn(room) {
     if(e.debuffs.intentSeal>0){e.debuffs.intentSeal--;battleLog(room,`${e.name} 행동 봉인.`);e.intent=rollIntent(e,b.tier,room.difficulty);continue;}
     const targets=b.party.filter(x=>!x.down);if(!targets.length)break;const t=choose(targets);
     if(['attack','heavy'].includes(e.intent.type)){
-      let amount=e.intent.value;if(e.debuffs.weak>0)amount=Math.round(amount*.75);if(e.nextDamageHalf){amount=Math.round(amount*.5);e.nextDamageHalf=false;}const mon=t.units.length?choose(t.units):null;let d=0;if(mon)d=monsterDamage(room,t,mon,amount,e);else d=damagePc(room,t,amount,e);battleLog(room,`${e.name} → ${mon?mon.name:t.nickname} ${d} 피해.`);pushRoomEvent(room,'enemy-attack',`${e.name} 공격`,{enemyUid:e.uid,playerId:t.playerId,targetMonsterId:mon?.instanceId||null,damage:d,style:e.archetype||'beast',element:e.element||'공허',skill:e.skill||e.name,heavy:e.intent.type==='heavy'});
+      let amount=e.intent.value;if(e.debuffs.weak>0)amount=Math.round(amount*.75);if(e.nextDamageHalf){amount=Math.round(amount*.5);e.nextDamageHalf=false;}const mon=t.units.length?choose(t.units):null;let d=0;if(mon)d=monsterDamage(room,t,mon,amount,e);else d=damagePc(room,t,amount,e);battleLog(room,`${e.name} → ${mon?mon.name:t.nickname} ${d} 피해.`);pushRoomEvent(room,'enemy-attack',`${e.name} 공격`,{enemyUid:e.uid,speciesId:e.id,monsterName:e.name,playerId:t.playerId,targetMonsterId:mon?.instanceId||null,damage:d,style:e.archetype||'beast',archetype:e.archetype||'beast',element:e.element||'공허',skill:e.skill||e.name,heavy:e.intent.type==='heavy',fxSeed:`${e.id}:${e.skill||e.name}`});
     }else if(e.intent.type==='guard'){e.block+=e.intent.value;battleLog(room,`${e.name} 방어 ${e.intent.value}.`);}else if(e.intent.type==='debuff'){if(!t.buffs.debuffImmune){t.weak++;battleLog(room,`${t.nickname} 약화 1.`);}}
     e.debuffs.vulnerable=Math.max(0,e.debuffs.vulnerable-1);e.debuffs.weak=Math.max(0,e.debuffs.weak-1);if(e.staggerMax&&!e.broken)e.stagger=Math.max(0,Number(e.stagger||0)-Math.ceil(e.staggerMax*.28));e.intent=rollIntent(e,b.tier,room.difficulty);
   }
@@ -1841,6 +1865,7 @@ function loseBattle(room) {
     playerOptions: {}, claims: {}, continueBy: []
   };
   recordRunHistory(room, 'defeat');
+  for(const rp of room.players)clearProfileActiveRoom(rp.id,room.id);
   saveProfiles();
   pushRoomEvent(room, 'defeat', '원정대가 쓰러졌습니다.', { floor: room.floor });
 }
@@ -2189,6 +2214,7 @@ function continueAfterReward(room, playerId) {
       p.gems += clearBonus;
     }
     recordRunHistory(room, 'clear');
+    for(const rp of room.players)clearProfileActiveRoom(rp.id,room.id);
     saveProfiles();
     room.reward = { kind:'clear', title:`${DIFFICULTIES[room.difficulty].ko} 난이도 심연 원정 완료`, text:`50층을 돌파했습니다. 원정대 전원에게 클리어 보너스 프리즘 ${clearBonus}개 지급.`, playerOptions:{}, claims:{}, continueBy:[] };
     pushRoomEvent(room, 'clear', `50층 ${DIFFICULTIES[room.difficulty].ko} 던전을 클리어했습니다!`);
@@ -2452,6 +2478,13 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/gacha/pull' && req.method === 'POST') {
       const b = await parseBody(req); const prof = await authProfile(req, res, b); return ok(res, pullGacha(prof, b.count));
     }
+    if (p === '/api/rooms/resume' && req.method === 'POST') {
+      const b=await parseBody(req); const prof=await authProfile(req,res,b);
+      const room=resumableRoomForProfile(prof.id);
+      if(!room){ if(prof.activeRoomId){prof.activeRoomId='';saveProfiles();} return ok(res,{room:null,profile:profileView(prof)}); }
+      prof.activeRoomId=room.id; saveProfiles();
+      return ok(res,{room:roomView(room),profile:profileView(prof)});
+    }
     if (p === '/api/rooms' && req.method === 'GET') {
       const list = [...rooms.values()].filter(r => r.mode === 'dungeon' && r.status === 'lobby' && r.players.length < r.maxPlayers).map(r => ({
         id: r.id, name: r.name, players: r.players.length, maxPlayers: r.maxPlayers, host: r.players[0]?.nickname,
@@ -2471,6 +2504,7 @@ const server = http.createServer(async (req, res) => {
       if (room.status !== 'lobby') throw new Error('이미 시작된 방입니다.');
       if (room.players.length >= room.maxPlayers && !room.players.some(x => x.id === prof.id)) throw new Error('방이 가득 찼습니다.');
       if (!room.players.some(x => x.id === prof.id)) room.players.push({ id: prof.id, nickname: prof.nickname, ready: true, joinedAt: Date.now() });
+      prof.activeRoomId=room.id; saveProfiles();
       pushRoomEvent(room, 'join', `${prof.nickname} 님이 참가했습니다.`);
       return ok(res, { room: roomView(room) });
     }

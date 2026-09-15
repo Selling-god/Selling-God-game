@@ -47,6 +47,8 @@
     encounterStarting: false,
     lastCastFx: null,
     battleEntranceKey: '',
+    battleExitTimer: 0,
+    battleExitFallbackTimer: 0,
     battleMenu: 'root'
   };
   localStorage.setItem('riftdeck.guestProfileId', state.guestProfileId);
@@ -403,15 +405,23 @@
     const after=initial?Number(next?.seq||0):Number(state.lastFxSeq||prev?.seq||0),changed=!!prev&&prev.status!==next?.status;
     const leavingBattle=!initial&&prev?.status==='battle'&&next?.status!=='battle';
     if(leavingBattle){
-      // Keep the old battlefield visible while the final attacks/KO animations play.
-      const choreography=playRoomEvents(next,after);state.lastFxSeq=Math.max(Number(state.lastFxSeq||0),Number(next?.seq||0));
-      const delay=Math.min(2600,Math.max(480,choreography+120));
-      setTimeout(()=>{state.room=next;renderRoom();playSceneCurtain(next);},delay);return;
+      // V53.2: commit the authoritative server state immediately, then let the old battlefield
+      // remain visible only for a short exit animation. This prevents a dead/stuck battle screen.
+      state.room=next;state.lastFxSeq=Math.max(Number(state.lastFxSeq||0),Number(next?.seq||0));
+      let choreography=0;try{choreography=playRoomEvents(next,after)||0;}catch(err){console.warn('[RIFT] battle exit FX skipped',err);}
+      clearTimeout(state.battleExitTimer);clearTimeout(state.battleExitFallbackTimer);
+      const delay=fxOn()?Math.min(1350,Math.max(360,Number(choreography||0)+80)):40;
+      const finish=()=>{if(!state.room||Number(state.room.seq||0)<Number(next.seq||0))return;try{renderRoom();playSceneCurtain(state.room);}catch(err){console.error('[RIFT] post-battle render recovery',err);renderRoom();}};
+      state.battleExitTimer=setTimeout(finish,delay);
+      // Absolute fallback: if an animation callback or browser throttling interferes, force the
+      // reward/route screen instead of leaving the user on an empty battlefield.
+      state.battleExitFallbackTimer=setTimeout(()=>{if(state.current==='battle'&&state.room?.status!=='battle')finish();},1800);
+      return;
     }
     state.room=next;state.lastFxSeq=Math.max(Number(state.lastFxSeq||0),Number(next?.seq||0));
     if(state.current.startsWith('room')||['route','battle','reward','event','end'].includes(state.current)||initial)renderRoom();
     if(changed&&!initial)playSceneCurtain(next);
-    if(!initial)setTimeout(()=>{const choreography=playRoomEvents(next,after);setTimeout(()=>playCombatDelta(prev,next),Math.min(2600,Math.max(120,choreography+80)));},changed?260:0);
+    if(!initial)setTimeout(()=>{let choreography=0;try{choreography=playRoomEvents(next,after)||0;}catch(err){console.warn('[RIFT] room FX skipped',err);}setTimeout(()=>playCombatDelta(prev,next),Math.min(1800,Math.max(120,choreography+80)));},changed?180:0);
   }
   function clearTimers(){clearInterval(state.bannerTimer);clearInterval(state.roomsTimer);state.bannerTimer=0;state.roomsTimer=0;}
   function animateBattleEntrance(){
@@ -552,6 +562,32 @@
   function namedSkillOverlayV45(target,family,payload){
     if(!fxOn()||!target)return;const c=rectCenter(target),root=fxRoot(),el=document.createElement('div'),variant=skillHash(String(payload?.skill||''))%4,ec=elementClass(payload?.element||'공허');el.className=`named-skill-fx-v45 named-skill-fx-v47 family-${family} variant-${variant} sig-${ec}-v31`;el.style.left=`${c.x}px`;el.style.top=`${c.y}px`;el.innerHTML=`<i></i><i></i><i></i><b></b><b></b><b></b><em></em><strong class="skill-glyph-v47">${namedSkillGlyphV47(family)}</strong>`;root.appendChild(el);setTimeout(()=>el.remove(),820);
   }
+  function monsterSignatureProfileV532(payload){
+    const key=String(payload?.fxSeed||payload?.speciesId||payload?.monsterName||payload?.instanceId||payload?.enemyUid||'rift');
+    const seed=skillHash(key),family=namedMoveFamily(payload),glyphs=['✦','◆','◇','✧','ϟ','☽','✺','✹','⬡','◈'];
+    const palette={화염:['#ffb13b','#ff5b35'],물:['#6edbff','#3f7cff'],자연:['#b9ef68','#58b85d'],빛:['#fff1a8','#9df5ff'],그림자:['#be83ff','#5f49d8'],강철:['#e1e7ef','#8292a8'],바람:['#c8fff4','#70d7ca'],번개:['#fff56b','#ffbb34'],별:['#ffd8ff','#82a8ff'],시간:['#efc7ff','#7ad9ff'],공허:['#d68cff','#5c4b91'],수정:['#baf5ff','#8aa9ff']}[payload?.element]||['#c8fff0','#74b8ff'];
+    return{seed,family,variant:seed%8,glyph:glyphs[seed%glyphs.length],a:palette[0],b:palette[1],count:5+(seed%5)};
+  }
+  function monsterSignatureFxV532(anchor,payload,phase='cast'){
+    if(!fxOn()||!anchor)return;const p=monsterSignatureProfileV532(payload),c=rectCenter(anchor),root=fxRoot(),el=document.createElement('div');
+    el.className=`monster-signature-v532 phase-${phase} pattern-${p.variant} family-${p.family}`;el.style.left=`${c.x}px`;el.style.top=`${c.y}px`;el.style.setProperty('--sig-a',p.a);el.style.setProperty('--sig-b',p.b);el.innerHTML=`<strong>${p.glyph}</strong><em></em><b></b>${Array.from({length:p.count},(_,i)=>`<i style="--i:${i};--n:${p.count};--r:${28+(p.seed+i*13)%34}px"></i>`).join('')}`;root.appendChild(el);setTimeout(()=>el.remove(),phase==='impact'?760:920);
+  }
+  function installV532FxStyles(){
+    if(document.getElementById('rift-v532-fx'))return;const st=document.createElement('style');st.id='rift-v532-fx';st.textContent=`
+    .monster-signature-v532{position:fixed;z-index:9100;width:12px;height:12px;pointer-events:none;transform:translate(-50%,-50%);--sig-a:#c8fff0;--sig-b:#74b8ff}
+    .monster-signature-v532 strong{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.45);font-size:34px;color:var(--sig-a);text-shadow:0 0 8px var(--sig-b),0 0 18px var(--sig-a);animation:v532-glyph .74s ease-out forwards}
+    .monster-signature-v532 em,.monster-signature-v532 b{position:absolute;left:50%;top:50%;width:54px;height:54px;border:2px solid var(--sig-a);border-radius:50%;transform:translate(-50%,-50%) scale(.25);opacity:.9;box-shadow:0 0 12px var(--sig-b);animation:v532-ring .8s ease-out forwards}
+    .monster-signature-v532 b{width:32px;height:32px;border-style:dashed;animation:v532-ring2 .7s ease-out forwards}
+    .monster-signature-v532 i{position:absolute;left:50%;top:50%;width:6px;height:6px;background:linear-gradient(135deg,var(--sig-a),var(--sig-b));box-shadow:0 0 8px var(--sig-a);transform:rotate(calc(360deg/var(--n)*var(--i))) translateX(8px);animation:v532-particle .76s cubic-bezier(.12,.8,.2,1) forwards}
+    .monster-signature-v532.pattern-1 i,.monster-signature-v532.pattern-5 i{border-radius:50%}.monster-signature-v532.pattern-2 i,.monster-signature-v532.pattern-6 i{clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+    .monster-signature-v532.pattern-3 em,.monster-signature-v532.pattern-7 em{border-radius:18%;transform:translate(-50%,-50%) rotate(45deg) scale(.25)}
+    .monster-signature-v532.phase-impact strong{font-size:42px}.monster-signature-v532.phase-impact em{width:72px;height:72px}
+    @keyframes v532-ring{0%{transform:translate(-50%,-50%) scale(.18);opacity:.95}75%{opacity:.55}100%{transform:translate(-50%,-50%) scale(1.7);opacity:0}}
+    @keyframes v532-ring2{0%{transform:translate(-50%,-50%) rotate(0) scale(.2);opacity:1}100%{transform:translate(-50%,-50%) rotate(150deg) scale(1.4);opacity:0}}
+    @keyframes v532-glyph{0%{transform:translate(-50%,-50%) scale(.2);opacity:0}28%{transform:translate(-50%,-50%) scale(1.15);opacity:1}100%{transform:translate(-50%,-50%) scale(.82);opacity:0}}
+    @keyframes v532-particle{0%{opacity:0;transform:rotate(calc(360deg/var(--n)*var(--i))) translateX(5px) scale(.45)}20%{opacity:1}100%{opacity:0;transform:rotate(calc(360deg/var(--n)*var(--i))) translateX(var(--r)) scale(1.15)}}`;
+    document.head.appendChild(st);
+  }
   function battleMoveFeedbackV51(payload,enemySide=false){
     if(!payload)return;const target=enemySide?(payload.targetMonsterId?$(`[data-monster="${CSS.escape(payload.targetMonsterId)}"]`):$('.player-field-v51')):$(`[data-enemy="${CSS.escape(payload.targetUid||'')}"]`),actor=enemySide?$(`[data-enemy="${CSS.escape(payload.enemyUid||'')}"]`):$(`[data-monster="${CSS.escape(payload.instanceId||'')}"]`);if(!target)return;
     const c=rectCenter(target),el=document.createElement('div'),d=Number(payload.damage||0),miss=payload.hit===false;el.className=`move-feedback-v51 ${enemySide?'enemy':''} ${miss?'miss':''}`;el.style.left=`${c.x}px`;el.style.top=`${Math.max(74,c.y-62)}px`;el.innerHTML=`<b>${esc(payload.skill||payload.move?.name||'SKILL')}</b><small>${miss?'MISS':d>0?`${d} DAMAGE`:payload.move?.heal?`HEAL ${payload.move.heal}`:payload.move?.shield?`GUARD ${payload.move.shield}`:'ACTION'}</small>`;fxRoot().appendChild(el);target.classList.remove('hit-pulse-v51');void target.offsetWidth;target.classList.add('hit-pulse-v51');setTimeout(()=>target.classList.remove('hit-pulse-v51'),520);setTimeout(()=>el.remove(),1050);if(actor){actor.classList.add('move-focus-v51');setTimeout(()=>actor.classList.remove('move-focus-v51'),700);}
@@ -559,9 +595,11 @@
   async function playNamedMonsterMoveV45(payload,enemySide=false){
     if(!payload)return;battleMoveFeedbackV51(payload,enemySide);const actor=enemySide?$(`[data-enemy="${CSS.escape(payload.enemyUid||'')}"]`):$(`[data-monster="${CSS.escape(payload.instanceId||'')}"]`),target=enemySide?(payload.targetMonsterId?$(`[data-monster="${CSS.escape(payload.targetMonsterId)}"]`):$('.player-field-v44')):$(`[data-enemy="${CSS.escape(payload.targetUid||'')}"]`);if(!actor||!target)return;
     const family=namedMoveFamily(payload),heavy=!!payload.heavy||Number(payload.damage||0)>=22,card=payloadFxCard(payload,heavy),dir=enemySide?-1:1,variant=skillHash(String(payload.skill||''))%4;
+    monsterSignatureFxV532(actor,payload,'cast');
     attackLabelV40(actor,payload.skill||'SKILL',enemySide?'enemy':'ally');attackAfterimageV40(actor,dir);actor.classList.add('attacking-v40');
     try{actor.animate(namedActorFramesV47(family,dir,variant),{duration:heavy?720:580,easing:'cubic-bezier(.14,.82,.16,1)'});}catch{}
     setTimeout(async()=>{
+      monsterSignatureFxV532(['heal','guard'].includes(family)?actor:target,payload,'impact');
       if(family==='heal'){healBloomFx(actor,card);namedSkillOverlayV45(actor,family,payload);}
       else if(family==='guard'){shieldGainFx(actor,Number(payload?.move?.shield||8));namedSkillOverlayV45(actor,family,payload);}
       else if(family==='beam'||family==='mirror'){await beamFx(actor,target,card);namedSkillOverlayV45(target,family,payload);}
@@ -787,7 +825,7 @@
       const d=await api(`/api/auth/${mode}`,{body:{accountId:account,password,nickname,guestProfileId:state.guestProfileId,profileMode}});
       state.auth={enabled:true,authenticated:true,user:d.user};state.profile=d.profile;state.profileId=d.profile.id;state.nickname=d.profile.nickname;state.guestMode=false;state.authFromGuest=false;localStorage.removeItem('riftdeck.guestMode');localStorage.setItem('riftdeck.nickname',state.nickname);state.room=null;state.roomId='';localStorage.removeItem('riftdeck.roomId');updateTopbar();screenFlash('login');sound('reward');
       const msg=mode==='signup'?'계정 생성 완료! 게스트 진행 기록을 클라우드 계정에 연결했습니다.':profileMode==='guest'?'로그인 완료. 현재 게스트 기록으로 클라우드 저장 데이터를 교체했습니다.':'로그인 완료. 기존 클라우드 기록을 불러왔습니다.';
-      toast(msg,'good');renderHome();
+      await recoverRoomSessionV532({connect:false,notify:false});toast(msg,'good');renderHome();
     }catch(e){toast(e.message,'error');sound('error');}finally{setBusy(false);}
   }
   async function logout(){
@@ -1001,8 +1039,16 @@
     setScreen('profile',`<section class="page profile-page"><div class="page-head"><button class="back-btn" data-action="home">← 홈</button><div><div class="section-label">EXPLORER RECORD · ${cloud?'CLOUD SYNC':'GUEST'}</div><h1>탐험 기록</h1></div></div><div class="profile-card"><div class="big-avatar">${esc(state.profile.nickname.slice(0,1))}</div><div><div class="account-line"><span class="cloud-state ${cloud?'on':'off'}">${cloud?'● CLOUD SAVE':'○ GUEST SAVE'}</span>${cloud?`<span>@${esc(account)}</span>`:''}</div><h1>${esc(state.profile.nickname)}</h1><p>${cloud?'이 기록은 Supabase 계정에 연결되어 있습니다. 카드·재화·덱·천장·던전 기록이 서버에 저장됩니다.':'현재 게스트 상태입니다. 로그인 계정을 만들면 현재 진행 기록을 클라우드 계정으로 옮길 수 있습니다.'}</p><div class="field"><input id="nicknameEdit" maxlength="14" value="${esc(state.profile.nickname)}"><button class="cta" data-action="rename">닉네임 변경</button></div><div class="profile-settings"><button class="setting-chip ${state.fx?'on':''}" data-action="fx">✦ 전투 이펙트 ${state.fx?'ON':'OFF'}</button><button class="setting-chip ${state.sound?'on':''}" data-action="sound">♪ 사운드 ${state.sound?'ON':'OFF'}</button>${cloud?'<button class="setting-chip danger" data-action="logout">로그아웃</button>':'<button class="setting-chip" data-action="open-auth">클라우드 로그인</button>'}</div><div class="stat-grid"><div class="stat-box"><b>${s.dungeonClears||0}</b><small>총 던전 클리어</small></div><div class="stat-box"><b>${s.bestDungeonFloor||0}F</b><small>던전 최고층</small></div><div class="stat-box"><b>${s.monstersCaught||0}</b><small>몬스터 봉인</small></div><div class="stat-box"><b>${s.gachaPulls||0}</b><small>복각 소환</small></div><div class="stat-box"><b>${s.bosses||0}</b><small>보스 격파</small></div><div class="stat-box"><b>${s.perfectBattles||0}</b><small>노데미지 전투</small></div><div class="stat-box"><b>${s.bestChain||0}</b><small>최고 COMMAND LINK</small></div><div class="stat-box"><b>${s.overdrives||0}</b><small>RIFT DRIVE</small></div><div class="stat-box"><b>${s.journeys||0}</b><small>일반 여행</small></div><div class="stat-box"><b>${s.dungeons||0}</b><small>던전 원정</small></div><div class="stat-box"><b>${state.profile.monsterOwnedCount||0}</b><small>보유 몬스터</small></div><div class="stat-box"><b>${s.evolutions||0}</b><small>진화</small></div><div class="stat-box"><b>${s.fusions||0}</b><small>융합</small></div></div><div class="difficulty-records">${['normal','hard','hell'].map(k=>`<div class="record-card"><b class="diff-pill ${k}">${difficultyKo(k)}</b><span>${s[`${k}Clears`]||0} CLEAR</span><small>최고 ${s[`best${k[0].toUpperCase()+k.slice(1)}Floor`]||0}F</small></div>`).join('')}</div>${(state.profile.history||[]).length?`<div class="history-panel"><div class="section-label">RECENT EXPEDITIONS · CLOUD HISTORY</div>${(state.profile.history||[]).slice(0,8).map(h=>`<div class="history-row ${h.result==='clear'?'clear':'defeat'}"><b>${h.result==='clear'?'CLEAR':'ENDED'} · ${h.mode==='dungeon'?difficultyKo(h.difficulty):'일반 여행'}</b><span>${h.floor}F</span><small>${new Date(h.endedAt).toLocaleDateString('ko-KR')} · 카드 +${h.cardsAdded||0} · 아이템 +${h.itemsAdded||0}</small></div>`).join('')}</div>`:''}</div></div></section>`);
   }
   async function renameProfile(){const name=$('#nicknameEdit')?.value?.trim();if(!name)return toast('닉네임을 입력해 주세요.','error');state.nickname=name;localStorage.setItem('riftdeck.nickname',name);try{const d=await api('/api/profile',{body:{profileId:state.profileId,nickname:name,rename:true}});state.profile=d.profile;state.nickname=d.profile.nickname;updateTopbar();toast('닉네임을 변경했습니다.','good');renderProfile();}catch(e){toast(e.message,'error');}}
+  async function recoverRoomSessionV532({connect=true,notify=false}={}){
+    try{
+      const d=await api('/api/rooms/resume',{body:{profileId:state.profileId,nickname:state.profile?.nickname||state.nickname||'방랑자'}});
+      if(d.profile)state.profile=d.profile;
+      if(!d.room){state.room=null;state.roomId='';localStorage.removeItem('riftdeck.roomId');return null;}
+      state.room=d.room;state.roomId=d.room.id;localStorage.setItem('riftdeck.roomId',d.room.id);state.lastFxSeq=Number(d.room.seq||0);if(connect)connectStream(d.room.id);if(notify)toast(`${d.room.floor||0}F 원정을 불러왔습니다.`,'good');return d.room;
+    }catch(err){if(notify)toast('이어하기 데이터를 불러오지 못했습니다.','error');return null;}
+  }
   function finishRun(){state.stream?.close();state.stream=null;state.room=null;state.roomId='';localStorage.removeItem('riftdeck.roomId');loadProfile().then(renderHome);}
-  async function resumeRoom(){if(!state.roomId)return;try{const d=await api(`/api/room/${state.roomId}`);state.lastFxSeq=Number(d.room.seq||0);acceptRoomUpdate(d.room,{initial:true});connectStream(state.roomId);}catch(e){localStorage.removeItem('riftdeck.roomId');state.roomId='';state.room=null;toast('이전 원정 방이 만료되었습니다.','error');renderHome();}}
+  async function resumeRoom(){let room=null;if(state.roomId){try{const d=await api(`/api/room/${state.roomId}`);room=d.room?.players?.some(p=>p.id===state.profileId)?d.room:null;}catch{room=null;}}if(!room)room=await recoverRoomSessionV532({connect:false,notify:false});if(!room){localStorage.removeItem('riftdeck.roomId');state.roomId='';state.room=null;toast('이어갈 수 있는 원정이 없습니다.','error');return renderHome();}state.roomId=room.id;localStorage.setItem('riftdeck.roomId',room.id);state.lastFxSeq=Number(room.seq||0);acceptRoomUpdate(room,{initial:true});connectStream(room.id);toast(`${room.floor||0}F 원정을 이어갑니다.`,'good');}
 
   document.addEventListener('input',e=>{if(e.target.id==='collectionSearch'){state.collectionSearch=e.target.value;state.collectionPage=0;const pos=e.target.selectionStart;renderCollectionInner();requestAnimationFrame(()=>{const n=$('#collectionSearch');if(n){n.focus();n.setSelectionRange(pos,pos);}});}});
   document.addEventListener('click',async e=>{
@@ -1116,7 +1162,9 @@
       if(state.auth.enabled&&!state.auth.authenticated&&!state.guestMode){renderAuth();return;}
       if(!state.auth.enabled&&!state.guestMode){state.guestMode=true;localStorage.setItem('riftdeck.guestMode','1');}
       await loadProfile();
-      if(state.roomId){try{const d=await api(`/api/room/${state.roomId}`);state.room=d.room;state.lastFxSeq=Number(d.room.seq||0);}catch{localStorage.removeItem('riftdeck.roomId');state.roomId='';}}
+      if(state.roomId){try{const d=await api(`/api/room/${state.roomId}`);if(d.room?.players?.some(p=>p.id===state.profileId)){state.room=d.room;state.lastFxSeq=Number(d.room.seq||0);}else throw new Error('not member');}catch{localStorage.removeItem('riftdeck.roomId');state.roomId='';state.room=null;}}
+      if(!state.room)await recoverRoomSessionV532({connect:false,notify:false});
+      installV532FxStyles();
       setTimeout(()=>{renderHome();if(state.auth.enabled&&!state.auth.authenticated)toast('게스트 모드입니다. 로그인하면 기록을 클라우드에 저장할 수 있습니다.');},180);
     }catch(e){boot.classList.remove('hidden');app.classList.add('hidden');boot.innerHTML=`<div class="boot-title" style="font-size:26px">SERVER OFFLINE</div><div class="boot-copy" style="margin-top:18px">${esc(e.message)}</div><div class="boot-copy">동적 서버를 실행한 뒤 새로고침해 주세요.</div>`;}
   }
