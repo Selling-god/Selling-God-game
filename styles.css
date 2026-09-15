@@ -1643,3 +1643,123 @@ img{image-rendering:pixelated}
 }
 .held-mon-row-v53:disabled{opacity:.68;cursor:not-allowed}.held-mon-row-v53:disabled:hover{border-color:#36566a;filter:none}
 .reward-money-v53{color:#ffe08a!important;border-color:#6d6543!important;background:#19170e!important;font-size:11px!important;font-weight:900!important}
+
+/* ========================================================================== 
+   RIFT DECK V54 - SIGNATURE MOVE / RIFT LINK / READABLE TURN PACING
+   Keeps original RIFT DECK art; improves information hierarchy and FX variety.
+   ========================================================================== */
+:root{
+  --v54-fire:#ff7659;--v54-shock:#ffd85e;--v54-weak:#7fd4ff;--v54-vuln:#d995ff;
+  --v54-seal:#c2a4ff;--v54-break:#ffb96b;--v54-link:#86f0da;--v54-sig:#ffe783;
+}
+.move-btn-v54{position:relative;overflow:hidden;min-height:76px!important;align-items:center!important}
+.move-btn-v54::after{content:"";position:absolute;inset:auto 0 0 0;height:2px;background:linear-gradient(90deg,transparent,currentColor,transparent);opacity:.32}
+.move-btn-v54.signature-move-v54{border-color:#d6bc5a!important;box-shadow:inset 0 0 0 1px #6b5a28,0 0 13px rgba(255,225,119,.12)!important}
+.move-btn-v54.signature-move-v54>strong{color:var(--v54-sig)!important;text-shadow:0 1px 0 #4d3d00}
+.move-type-line-v54{display:block!important;margin-top:3px!important;color:#d8e9ed!important;font-weight:800!important;letter-spacing:.02em!important}
+.move-effect-tags-v54{display:flex!important;flex-wrap:wrap!important;gap:3px!important;margin-top:4px!important;min-height:15px!important}
+.move-effect-tags-v54 i,.enemy-debuffs-v54 span{display:inline-flex;align-items:center;justify-content:center;border:1px solid #52636d;background:#17222c;color:#e8f4f5;padding:2px 5px;font-style:normal;font-weight:900;font-size:7px;line-height:1.1;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(255,255,255,.035)}
+.move-effect-tags-v54 .effect-signature{border-color:#b99b42;background:#3d3215;color:#ffe68b}
+.move-effect-tags-v54 .effect-burn,.enemy-debuffs-v54 .debuff-burn{border-color:#ad4b36;background:#421c17;color:#ff9b7d}
+.move-effect-tags-v54 .effect-shock,.enemy-debuffs-v54 .debuff-shock{border-color:#aa8932;background:#3a3214;color:#ffe47f}
+.move-effect-tags-v54 .effect-weak,.enemy-debuffs-v54 .debuff-weak{border-color:#3d7ea2;background:#142d3b;color:#9edfff}
+.move-effect-tags-v54 .effect-vulnerable,.enemy-debuffs-v54 .debuff-vulnerable{border-color:#80569e;background:#2d193b;color:#dda8ff}
+.move-effect-tags-v54 .effect-seal,.enemy-debuffs-v54 .debuff-seal{border-color:#6d61a8;background:#231f42;color:#c9b8ff}
+.move-effect-tags-v54 .effect-break,.enemy-debuffs-v54 .debuff-break{border-color:#a66c34;background:#3b2414;color:#ffc278}
+.move-effect-tags-v54 .effect-lifesteal{border-color:#8f3959;background:#361524;color:#ff94b5}
+.move-effect-tags-v54 .effect-splash{border-color:#477c91;background:#162d36;color:#a5e6ff}
+.move-effect-tags-v54 .effect-guard{border-color:#667e96;background:#1d2935;color:#c5ddf4}
+.move-effect-tags-v54 .effect-heal{border-color:#3d8a69;background:#153428;color:#9ff1c9}
+.move-effect-tags-v54 .effect-resonance{border-color:#3d9c89;background:#143c36;color:#98f4df}
+.enemy-debuffs-v54{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;max-width:100%}
+.battle-link-v54{display:inline-flex;align-items:center;gap:4px;margin-left:5px;padding:2px 6px;border:1px solid #3f9e8f;background:#103833;color:#a7ffea;font-size:8px;font-weight:900;white-space:nowrap;animation:v54LinkPulse 1.45s ease-in-out infinite}
+@keyframes v54LinkPulse{50%{box-shadow:0 0 10px rgba(111,255,223,.25);filter:brightness(1.12)}}
+.tactic-command-v54{height:100%;display:flex;flex-direction:column;min-height:0}
+.tactic-guide-v54{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:0 0 5px;padding:5px;border:1px solid #365f61;background:#0e2528}
+.tactic-guide-v54 span{display:flex;align-items:center;justify-content:center;min-height:24px;padding:3px 7px;border:1px solid #3b6b67;background:#143331;color:#b9f8e9;font-size:7.5px;font-weight:800;text-align:center;line-height:1.35}
+.tactic-list-v54{min-height:0;overflow:auto!important}
+.tactic-list-v54 button>div i{display:block;margin-top:3px;color:#8ff1d9;font-size:7px;font-style:normal;font-weight:900;line-height:1.2}
+.tactic-list-v54 button:hover:not(:disabled)>div i{color:#c8fff2}
+.move-feedback-v54{min-width:260px!important;max-width:min(520px,90vw)!important;padding:11px 16px!important;border-width:2px!important;background:rgba(7,14,22,.95)!important;box-shadow:0 0 0 1px #70819a,5px 5px 0 rgba(0,0,0,.35)!important}
+.move-feedback-v54 b{font-size:16px!important;line-height:1.2!important}.move-feedback-v54 small{font-size:9px!important;line-height:1.4!important}.move-feedback-v54 em{font-size:9px!important;font-style:normal!important;color:#bdd1dc!important}.move-feedback-v54 strong{font-size:10px!important;color:#ffd879!important}
+.move-feedback-type-v54{display:flex!important;gap:7px!important;align-items:center!important;margin-top:4px!important;color:#a9d9d0!important;font-weight:900!important}
+.reward-auto-v54{display:flex;align-items:center;justify-content:center;gap:8px;margin:8px auto 0;padding:6px 10px;width:min(420px,90%);border:1px solid #356861;background:#102522;color:#a9eadc;font-size:9px;font-weight:800;overflow:hidden;position:relative}
+.reward-auto-v54::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:100%;background:#7de6d0;transform-origin:left;animation:v54RewardCountdown 3.6s linear forwards}
+@keyframes v54RewardCountdown{to{transform:scaleX(0)}}
+.named-skill-fx-v45.variant-4{transform:translate(-50%,-50%) rotate(18deg) scale(1.15)}
+.named-skill-fx-v45.variant-4 i:nth-child(1){transform:rotate(20deg) translateX(34px)!important}.named-skill-fx-v45.variant-4 i:nth-child(2){transform:rotate(140deg) translateX(28px)!important}.named-skill-fx-v45.variant-4 i:nth-child(3){transform:rotate(260deg) translateX(39px)!important}
+.named-skill-fx-v45.variant-5{transform:translate(-50%,-50%) rotate(-14deg) scale(.92)}
+.named-skill-fx-v45.variant-5 b:nth-of-type(1){transform:rotate(45deg) scaleX(1.4)!important}.named-skill-fx-v45.variant-5 b:nth-of-type(2){transform:rotate(-45deg) scaleX(1.4)!important}
+.named-skill-fx-v45.variant-6{transform:translate(-50%,-50%) scale(1.22)}.named-skill-fx-v45.variant-6 em{border-radius:20%!important;transform:rotate(45deg)!important}
+.named-skill-fx-v45.variant-7{transform:translate(-50%,-50%) rotate(35deg) scale(1.04)}.named-skill-fx-v45.variant-7 strong{transform:rotate(-35deg) scale(1.18)!important}
+.named-skill-fx-v45.signature-v54{filter:drop-shadow(0 0 7px currentColor) drop-shadow(0 0 16px currentColor);z-index:9!important}
+.named-skill-fx-v45.signature-v54::before,.named-skill-fx-v45.signature-v54::after{content:"";position:absolute;inset:-28px;border:2px solid currentColor;opacity:.5;animation:v54SigRing .8s ease-out forwards}
+.named-skill-fx-v45.signature-v54::after{inset:-44px;animation-delay:.08s}
+@keyframes v54SigRing{0%{transform:scale(.35) rotate(0);opacity:.85}100%{transform:scale(1.25) rotate(100deg);opacity:0}}
+.family-bullet .skill-glyph-v47{letter-spacing:8px}.family-thunder .skill-glyph-v47{filter:drop-shadow(0 0 7px #ffe35e)}.family-toxin .skill-glyph-v47{filter:drop-shadow(0 0 7px #ae65d8)}.family-time .skill-glyph-v47{animation:v54TimeSpin .75s ease-out}
+@keyframes v54TimeSpin{to{transform:rotate(270deg) scale(.7);opacity:.2}}
+
+@media(max-width:760px){
+  .move-btn-v54{min-height:68px!important;padding:6px!important}.move-type-line-v54{font-size:7px!important}.move-effect-tags-v54{gap:2px!important;margin-top:2px!important}.move-effect-tags-v54 i,.enemy-debuffs-v54 span{font-size:6px!important;padding:2px 4px!important}
+  .enemy-debuffs-v54{gap:2px;margin-top:2px}.battle-link-v54{font-size:6px;padding:1px 4px;margin-left:2px}
+  .tactic-guide-v54{gap:3px;padding:3px;margin-bottom:3px}.tactic-guide-v54 span{font-size:6px;min-height:20px;padding:2px 4px}.tactic-list-v54 button>div i{font-size:6px!important}
+  .move-feedback-v54{min-width:210px!important;padding:8px 11px!important}.move-feedback-v54 b{font-size:13px!important}.move-feedback-v54 small,.move-feedback-v54 em{font-size:7px!important}.move-feedback-v54 strong{font-size:8px!important}
+  .reward-auto-v54{font-size:7px;padding:5px 7px}
+}
+@media(max-width:420px){
+  .move-btn-v54{min-height:64px!important}.move-effect-tags-v54 i{font-size:5.5px!important;padding:1px 3px!important}.tactic-guide-v54{grid-template-columns:1fr}.tactic-guide-v54 span{min-height:18px}
+}
+.combat-resolving-v54 .command-box-v51{pointer-events:none!important;filter:saturate(.82) brightness(.92)}
+.combat-resolving-v54 .command-box-v51::after{content:"RESOLVING";position:absolute;right:12px;top:7px;z-index:20;color:#9be7d7;font-size:7px;font-weight:900;letter-spacing:.16em;opacity:.72}
+.move-effect-tags-v54 .effect-drain{border-color:#8f3959;background:#361524;color:#ff94b5}
+.move-effect-tags-v54 .effect-res{border-color:#3d9c89;background:#143c36;color:#98f4df}
+
+/* ========================================================================== 
+   RIFT DECK V55 - STATUS THEATER / COMMAND TACTICS / RESUME SAFE UI
+   Original RIFT DECK visual language; clearer, slower monster-battle readability.
+   ========================================================================== */
+:root{--v55-paper:#f3f0d3;--v55-ink:#202830;--v55-mint:#8ef0d8;--v55-panel:#121a27}
+/* Explicit FX setting wins over OS reduced-motion hiding the entire combat layer. */
+@media(prefers-reduced-motion:reduce){.combat-fx-root{display:block!important}.status-effect-fx-v55,.tactic-cast-v55,.monster-signature-v532,.named-skill-fx-v45{animation-duration:.01ms}.status-effect-fx-v55 *,.tactic-cast-v55 *{animation-duration:.55s!important;animation-iteration-count:1!important}}
+
+/* Starter contract readability */
+.starter-choice-v52{width:min(920px,94vw)!important;padding:24px!important;border-color:#75958c!important;background:rgba(10,18,27,.97)!important}
+.starter-choice-v52 header{gap:7px!important;margin-bottom:18px!important}.starter-choice-v52 header small{font-size:10px!important;color:#8df0d9!important;letter-spacing:.16em!important}.starter-choice-v52 header b{font-size:25px!important;line-height:1.25!important;color:#fff5d7!important}.starter-choice-v52 header span{display:block!important;font-size:12px!important;line-height:1.55!important;color:#dce8df!important}
+.starter-grid-v52{gap:14px!important}.starter-grid-v52 button{min-height:156px!important;padding:18px!important;grid-template-columns:64px minmax(0,1fr)!important;align-items:center!important;border:3px solid #111821!important;box-shadow:inset 0 0 0 2px #abb39b,4px 4px 0 #05080d!important}
+.starter-grid-v52 button>span{font-size:38px!important;color:#202830!important}.starter-grid-v52 button b{font-size:18px!important;line-height:1.25!important;color:#202830!important}.starter-grid-v52 button small{font-size:11px!important;line-height:1.65!important;color:#4b554b!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}.starter-grid-v52 button:hover{transform:translateY(-2px);filter:brightness(1.04)}
+
+/* Move/tactic panel: no clipping, enough vertical room for type + effects. */
+.monster-battle-v52{grid-template-rows:58px minmax(300px,1fr) 270px!important}
+.command-box-v52,.command-box-v51{height:270px!important;min-height:270px!important;overflow:visible!important}
+.command-content-v52{height:100%!important;min-height:0!important;overflow:auto!important;padding-bottom:2px!important}
+.subcommand-head-v52{min-height:44px!important;height:auto!important;margin-bottom:7px!important;overflow:visible!important}.subcommand-head-v52>div small{font-size:9px!important;line-height:1.35!important;color:#9fd8ce!important}.subcommand-head-v52>div b{font-size:12px!important;line-height:1.4!important;color:#f1f3e5!important;white-space:normal!important}
+.move-grid-v52{height:auto!important;min-height:calc(100% - 52px)!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:none!important;grid-auto-rows:minmax(96px,auto)!important;align-content:start!important;overflow:visible!important;gap:7px!important;padding-bottom:3px!important}
+.move-btn-v52,.move-btn-v54{min-height:96px!important;height:auto!important;padding:9px 10px!important;grid-template-columns:20px 38px minmax(0,1fr) auto!important;grid-template-rows:auto!important;align-items:center!important;overflow:visible!important}
+.move-btn-v52>span{width:36px!important;height:36px!important;font-size:18px!important}.move-btn-v52>div{min-width:0!important;overflow:visible!important}.move-btn-v52>div b{font-size:13px!important;line-height:1.25!important;white-space:normal!important}.move-btn-v52>div small,.move-type-line-v54{font-size:8.5px!important;line-height:1.4!important;white-space:normal!important;overflow:visible!important}.move-btn-v52>strong{font-size:8px!important;grid-column:auto!important;align-self:start!important;text-align:right!important;white-space:nowrap!important}.move-effect-tags-v54{min-height:18px!important;gap:4px!important}.move-effect-tags-v54 i,.enemy-debuffs-v54 span{font-size:8px!important;padding:3px 6px!important}
+.move-effect-tags-v54 .effect-poison,.enemy-debuffs-v54 .debuff-poison{border-color:#6d8e42!important;background:#243416!important;color:#c7f38d!important}
+.enemy-debuffs-v55{margin-top:6px!important;gap:4px!important}
+
+/* RIFT COMMAND tactics */
+.tactic-command-v55{overflow:hidden!important}.tactic-guide-v55{margin-bottom:7px!important}.tactic-guide-v55 span{min-height:30px!important;font-size:9px!important;line-height:1.4!important}.tactic-list-v55{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:minmax(78px,auto)!important;overflow:auto!important;gap:7px!important;padding-right:3px!important}.tactic-list-v55 button{min-height:78px!important;height:auto!important;padding:8px 9px!important;grid-template-columns:20px 34px minmax(0,1fr) 34px!important;align-items:center!important}.tactic-list-v55 button>span{font-size:19px!important}.tactic-list-v55 button>div b{font-size:11px!important;line-height:1.25!important;color:#f2f4e8!important;white-space:normal!important}.tactic-list-v55 button>div small{font-size:8px!important;line-height:1.35!important;color:#b9d3d3!important}.tactic-list-v55 button>div i{font-size:8px!important;line-height:1.4!important;color:#9df3df!important;white-space:normal!important}.tactic-list-v55 button>strong{font-size:9px!important}
+
+/* Status effect theater */
+.status-effect-fx-v55{position:fixed;z-index:9950;width:10px;height:10px;transform:translate(-50%,-50%);pointer-events:none;color:#fff}.status-effect-fx-v55 strong{position:absolute;left:50%;top:50%;font-size:38px;transform:translate(-50%,-50%) scale(.35);text-shadow:0 0 9px currentColor,0 0 22px currentColor;animation:v55StatusGlyph .88s cubic-bezier(.15,.82,.18,1) forwards}.status-effect-fx-v55 b{position:absolute;left:50%;top:-58px;transform:translateX(-50%);min-width:92px;text-align:center;padding:5px 9px;border:2px solid currentColor;background:#09101bdd;color:currentColor;font-size:11px;line-height:1.2;box-shadow:3px 3px 0 #05070c;animation:v55StatusLabel 1.05s ease-out forwards}.status-effect-fx-v55 span{position:absolute;left:50%;top:50%;width:52px;height:52px;border:3px solid currentColor;border-radius:50%;transform:translate(-50%,-50%) scale(.15);animation:v55StatusRing .82s ease-out forwards}.status-effect-fx-v55 i{position:absolute;left:50%;top:50%;width:6px;height:14px;background:currentColor;border-radius:5px;box-shadow:0 0 8px currentColor;transform:rotate(calc(var(--i)*45deg)) translateY(-8px);animation:v55StatusParticle .9s ease-out forwards}
+.status-burn{color:#ff745a}.status-poison{color:#a9e260}.status-shock{color:#ffe36c}.status-weak{color:#78d8ff}.status-vulnerable{color:#d49aff}.status-intentSeal{color:#c1a8ff}.status-broken,.status-stagger{color:#ffbc6d}.status-guard{color:#a6d4ff}.status-heal{color:#8ef0bd}.status-buff{color:#ffe487}
+.status-weak strong,.status-vulnerable strong{animation:v55StatDown .92s ease-out forwards}.status-poison i{border-radius:50%;width:9px;height:9px}.status-shock i{height:18px;clip-path:polygon(45% 0,100% 0,62% 42%,100% 42%,26% 100%,42% 55%,0 55%)}
+@keyframes v55StatusGlyph{0%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(-18deg)}28%{opacity:1;transform:translate(-50%,-50%) scale(1.25) rotate(5deg)}100%{opacity:0;transform:translate(-50%,-50%) scale(.8)}}
+@keyframes v55StatusLabel{0%{opacity:0;transform:translate(-50%,12px)}20%,72%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-12px)}}
+@keyframes v55StatusRing{0%{opacity:.95;transform:translate(-50%,-50%) scale(.12)}100%{opacity:0;transform:translate(-50%,-50%) scale(2.1)}}
+@keyframes v55StatusParticle{0%{opacity:0;transform:rotate(calc(var(--i)*45deg)) translateY(-8px) scale(.4)}25%{opacity:1}100%{opacity:0;transform:rotate(calc(var(--i)*45deg)) translateY(-68px) scale(1.1)}}
+@keyframes v55StatDown{0%{opacity:0;transform:translate(-50%,-90px) scale(.7)}30%{opacity:1;transform:translate(-50%,-25px) scale(1.2)}100%{opacity:0;transform:translate(-50%,38px) scale(.75)}}
+
+.tactic-cast-v55{position:fixed;z-index:9960;left:50%;top:18%;transform:translateX(-50%);width:min(560px,88vw);padding:12px 16px;border:3px solid #7be7cf;background:linear-gradient(135deg,#0c1825ee,#14302cee);box-shadow:inset 0 0 0 2px #274a54,6px 6px 0 #05080d;text-align:center;animation:v55TacticBanner 1.45s ease-out forwards;pointer-events:none}.tactic-cast-v55 small{display:block;font-size:8px;letter-spacing:.18em;color:#91dbc9}.tactic-cast-v55 b{display:block;margin-top:4px;font-size:17px;color:#fff6d9}.tactic-cast-v55 span{display:block;margin-top:5px;font-size:9px;line-height:1.45;color:#cceae4}.tactic-cast-v55 strong{display:inline-block;margin-top:7px;padding:3px 8px;border:1px solid #55ae9a;color:#a5ffe9;font-size:9px}@keyframes v55TacticBanner{0%{opacity:0;transform:translate(-50%,-18px) scale(.92)}14%,72%{opacity:1;transform:translate(-50%,0) scale(1)}100%{opacity:0;transform:translate(-50%,-10px) scale(.98)}}
+
+.resume-v55.loading{opacity:.7;pointer-events:none}.resume-v55.loading b::after{content:" · 불러오는 중";font-size:.72em;color:#9ff0dc}
+.reward-auto-v54::after{animation-duration:3.2s!important}.reward-step-v51{font-size:9px!important}.reward-simple-v51 header b{font-size:18px!important}.reward-choice-v51 b{font-size:12px!important}.reward-choice-v51 em{font-size:9px!important;line-height:1.45!important}
+
+@media(max-width:900px){
+  .monster-battle-v52{grid-template-rows:46px minmax(230px,1fr) 300px!important}.command-box-v52,.command-box-v51{height:300px!important;min-height:300px!important}.move-grid-v52{grid-auto-rows:minmax(90px,auto)!important}.move-btn-v52,.move-btn-v54{min-height:90px!important}.tactic-list-v55{grid-template-columns:1fr!important;grid-auto-rows:minmax(72px,auto)!important}.starter-choice-v52{padding:16px!important}.starter-grid-v52{grid-template-columns:1fr!important}.starter-grid-v52 button{min-height:104px!important}.starter-choice-v52 header b{font-size:21px!important}
+}
+@media(max-width:600px){
+  .monster-battle-v52{grid-template-rows:44px minmax(210px,1fr) 330px!important}.command-box-v52,.command-box-v51{height:330px!important;min-height:330px!important}.move-grid-v52{grid-template-columns:1fr!important;grid-auto-rows:minmax(82px,auto)!important;overflow:auto!important}.move-btn-v52,.move-btn-v54{min-height:82px!important;grid-template-columns:18px 32px minmax(0,1fr) auto!important}.move-btn-v52>div b{font-size:12px!important}.move-btn-v52>div small,.move-type-line-v54{font-size:8px!important}.move-effect-tags-v54 i,.enemy-debuffs-v54 span{font-size:7px!important}.subcommand-head-v52>div b{font-size:10px!important}.tactic-guide-v55{grid-template-columns:1fr!important}.tactic-list-v55 button>div b{font-size:10px!important}.tactic-list-v55 button>div small,.tactic-list-v55 button>div i{font-size:7.5px!important}.starter-choice-v52 header span{font-size:10px!important}.starter-grid-v52 button b{font-size:15px!important}.starter-grid-v52 button small{font-size:9.5px!important}.status-effect-fx-v55 b{font-size:9px;top:-48px}.tactic-cast-v55 b{font-size:14px}.tactic-cast-v55 span{font-size:8px}
+}

@@ -1,14 +1,14 @@
 {
   "name": "rift-deck-abyss-expedition",
-  "version": "5.4.0",
+  "version": "5.5.0",
   "private": true,
-  "description": "Original pixel monster roguelite with slower readable turn pacing, per-species signature moves, distinct move FX, RIFT LINK tactics, held items, reliable resume, capture, and 205 collectible monsters.",
+  "description": "Original pixel monster roguelite with readable turn pacing, 205 signature moves, distinct move/status FX, RIFT COMMAND tactics, held items, resilient resume, capture, and 205 collectible monsters.",
   "scripts": {
     "build": "node scripts/build.js",
     "start": "node server.js",
     "dev": "node server.js",
     "check": "node --check server.js && node --check public/app.js && node scripts/catalog-test.js",
-    "test": "npm run build && node scripts/smoke-test.js && node scripts/multiplayer-test.js && node scripts/combat-test.js && node scripts/combat-depth-test.js && node scripts/fifty-floor-test.js && node scripts/auth-test.js && node scripts/cloud-room-test.js && node scripts/fun-loop-test.js && node scripts/visual-first-test.js && node scripts/expedition-hunt-test.js && node scripts/game-feel-test.js && node scripts/v40-monster-evolution-test.js && node scripts/v41-active-monster-test.js && node scripts/v42-rift-rewrite-test.js && node scripts/v52-classic-battle-test.js && node scripts/v53-held-item-test.js && node scripts/v531-client-runtime-test.js && node scripts/v532-battleflow-resume-test.js && node scripts/v54-signature-pacing-test.js && node scripts/v47-premium-loop-test.js"
+    "test": "npm run build && node scripts/smoke-test.js && node scripts/multiplayer-test.js && node scripts/combat-test.js && node scripts/combat-depth-test.js && node scripts/fifty-floor-test.js && node scripts/auth-test.js && node scripts/cloud-room-test.js && node scripts/fun-loop-test.js && node scripts/visual-first-test.js && node scripts/expedition-hunt-test.js && node scripts/game-feel-test.js && node scripts/v40-monster-evolution-test.js && node scripts/v41-active-monster-test.js && node scripts/v42-rift-rewrite-test.js && node scripts/v52-classic-battle-test.js && node scripts/v53-held-item-test.js && node scripts/v531-client-runtime-test.js && node scripts/v532-battleflow-resume-test.js && node scripts/v54-signature-pacing-test.js && node scripts/v55-status-command-resume-test.js && node scripts/v47-premium-loop-test.js"
   },
   "engines": {
     "node": ">=20 <27"

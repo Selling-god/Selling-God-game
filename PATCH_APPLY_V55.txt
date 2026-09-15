@@ -1,0 +1,35 @@
+RIFT DECK V55 PATCH APPLY
+=========================
+
+Base:
+- Recommended: V54 full project
+- The patch contains only changed code/data/docs. Existing monster/background images are kept.
+
+Apply:
+1. Back up the current project.
+2. Extract RIFT_DECK_V55_STATUS_COMMAND_RESUME_PATCH.zip.
+3. Copy the extracted files/folders into the project root and overwrite files with the same names.
+4. Do NOT delete assets/enemies or assets/monsters. V55 reuses your current artwork.
+5. Deploy the project as a Render Node Web Service.
+
+Render:
+- Build Command: npm ci && npm run build
+- Start Command: npm start
+
+Verify:
+Open /healthz and confirm:
+- version = 5.5.0
+- deployId = RIFT-V550-STATUS-COMMAND-RESUME-20260915
+
+Browser:
+- Press Ctrl+Shift+R once after deployment.
+- If battle FX was manually turned OFF in Profile settings, turn `전투 이펙트` ON.
+
+Main V55 fixes:
+- post-battle nextRerollCost ReferenceError
+- resume after server restart/redeploy fallback
+- larger expedition bonus text
+- move card clipping/overlap
+- status/stat-down/poison animations
+- combat FX visible even when OS reduced motion is enabled
+- RIFT COMMAND / 공명 지령 naming, effect explanation and cast FX
