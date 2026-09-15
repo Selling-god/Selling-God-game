@@ -1,0 +1,26 @@
+V53 patch files
+- server.js
+- app.js
+- styles.css
+- public/app.js
+- public/styles.css
+- public/index.html
+- public/build-info.json
+- public/version.json
+- index.html
+- version.json
+- data/catalog.json
+- package.json
+- package-lock.json
+- scripts/build.js
+- scripts/expedition-hunt-test.js
+- scripts/v40-monster-evolution-test.js
+- scripts/v41-active-monster-test.js
+- scripts/v52-classic-battle-test.js
+- scripts/v53-held-item-test.js
+- RELEASE_NOTES_V53.md
+- PATCH_APPLY_V53.txt
+- QA_REPORT_V53.md
+- PATCH_MANIFEST_V53.txt
+
+No assets/ images are included in the V53 patch.

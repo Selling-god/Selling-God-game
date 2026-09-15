@@ -29,8 +29,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '4.2.0';
-const DEPLOY_ID = 'RIFT-V52-CLASSIC-BATTLE-20260915';
+const VERSION = '5.3.0';
+const DEPLOY_ID = 'RIFT-V53-HELD-ITEMS-20260915';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -538,7 +538,7 @@ function createRunMonster(speciesId, index = 0) {
     pointCost:monsterPointCost(m), level:Number(BATTLE_RULES.startMonsterLevel||5), xp:0, hp:maxHp, maxHp, power, block:startBlock, counter:0,
     evolutionLevel:evolutionLevel(m), pendingLearnMoves:[], gene:0, resonance:0, rift:0, evolved:false, fused:false, fusionWith:null, resonanceTurns:0, abyssBloom:false,
     secondaryArchetype:null, secondaryPassive:null, nextAttackBonus:0, kills:0,
-    revived:false, firstHitTaken:false, summonedTurn:0, slotOrder:index, acted:false, levelUpsThisBattle:0,
+    revived:false, firstHitTaken:false, summonedTurn:0, slotOrder:index, acted:false, levelUpsThisBattle:0, heldItemId:null, heldItemUsed:false,
     moves:buildMonsterMoves(m).map(x=>({...x,cooldownRemaining:0}))
   };
 }
@@ -645,11 +645,31 @@ function validDeck(deck) {
 function newRunPlayer(p) {
   const party=normalizeMonsterParty(p.monsterParty,p.monsters);
   return { playerId:p.id,nickname:p.nickname,maxHp:100,hp:100,runDeck:validDeck(p.deck),monsterParty:party,
-    monsters:party.map((id,i)=>createRunMonster(id,i)),relics:[],items:{},upgrades:{},mastery:{},mods:{},fragments:0,gold:180,cardsAdded:0,itemsAdded:0,
+    monsters:party.map((id,i)=>createRunMonster(id,i)),relics:[],items:{i121:1},upgrades:{},mastery:{},mods:{},fragments:0,gold:180,cardsAdded:0,itemsAdded:0,
     revivesUsed:0,rewardRerolls:0,removals:0,contract:null,spellCharge:0,wavesCleared:0,moveUseCounts:{},rewriteHistory:[] };
 }
 
 function itemStacks(run, itemId) { return Number(run?.items?.[itemId] || 0); }
+function heldItemDef(monster) { return monster?.heldItemId ? ITEM_BY_ID[monster.heldItemId] || null : null; }
+function equippedHeldCount(run, itemId, exceptInstanceId = '') {
+  return (run?.monsters || []).filter(m => m.instanceId !== exceptInstanceId && m.heldItemId === itemId).length;
+}
+function equipHeldItem(room, playerId, instanceId, itemId) {
+  if (!['route','reward','event'].includes(room.status)) throw new Error('장착 아이템은 전투 밖에서 변경할 수 있습니다.');
+  const run = room.runState?.[playerId]; if (!run) throw new Error('원정 데이터를 찾을 수 없습니다.');
+  const monster = (run.monsters || []).find(m => m.instanceId === instanceId); if (!monster) throw new Error('몬스터를 찾을 수 없습니다.');
+  if (!itemId) {
+    const old = heldItemDef(monster); monster.heldItemId = null; monster.heldItemUsed = false;
+    pushRoomEvent(room,'held-item',`${monster.name}의 장착 아이템을 해제했습니다.`,{playerId,instanceId,itemId:null});
+    return { instanceId, itemId:null, item:old?publicItem(old):null };
+  }
+  const item = ITEM_BY_ID[itemId]; if (!item?.held) throw new Error('이 아이템은 몬스터에게 장착할 수 없습니다.');
+  const owned = itemStacks(run,itemId), used = equippedHeldCount(run,itemId,monster.instanceId);
+  if (owned <= used) throw new Error('장착 가능한 보유 수량이 부족합니다.');
+  monster.heldItemId = itemId; monster.heldItemUsed = false;
+  pushRoomEvent(room,'held-item',`${monster.name}에게 ${item.name} 장착.`,{playerId,instanceId,itemId,itemName:item.name});
+  return { instanceId, itemId, item:publicItem(item) };
+}
 function modTotal(run, key) {
   if (!run) return 0;
   let total = Number(run.mods?.[key] || 0);
@@ -722,7 +742,7 @@ function makeCombatant(run, index, activeSlots = 1) {
   const relicEnergy=run.relics.includes('r004')?1:0, relicHpPenalty=run.relics.includes('r004')?8:0;
   const fieldCharge=clamp(Number(run.spellCharge||0),0,2);
   const maxEnergy=3+relicEnergy+Math.floor(modTotal(run,'maxEnergy')), maxHp=Math.max(55,run.maxHp-relicHpPenalty), handLimit=10+Math.floor(modTotal(run,'handLimit'));
-  const roster=(run.monsters?.length?run.monsters:(run.monsterParty||[]).map((id,i)=>createRunMonster(id,i))).map(x=>{const c=clone(x);normalizeMonsterMoves(c);c.acted=false;c.levelUpsThisBattle=0;return c;});
+  const roster=(run.monsters?.length?run.monsters:(run.monsterParty||[]).map((id,i)=>createRunMonster(id,i))).map(x=>{const c=clone(x);normalizeMonsterMoves(c);c.acted=false;c.levelUpsThisBattle=0;c.heldItemUsed=false;return c;});
   const alive=roster.filter(m=>m.hp>0), active=alive.slice(0,activeSlots), bench=alive.slice(activeSlots), ko=roster.filter(m=>m.hp<=0);
   const pc={ playerId:run.playerId,nickname:run.nickname,index,maxHp,hp:Math.min(run.hp,maxHp),block:Math.floor(modTotal(run,'startBlock'))+(run.relics.includes('r006')?10:0),
     energy:maxEnergy+Math.floor(modTotal(run,'firstTurnEnergy'))+fieldCharge,maxEnergy,handLimit,drawPile:shuffle(run.runDeck),discard:[],exhaust:[],hand:[],units:active,bench,ko,
@@ -1273,6 +1293,15 @@ function monsterDamage(room, pc, u, amount, source=null){
   if(pc.block>0){const x=Math.min(pc.block,d);pc.block-=x;d-=x;}
   const before=u.hp;u.hp=clamp(u.hp-d,0,u.maxHp);const dealt=before-u.hp;pc.stats.monsterDamageTaken+=dealt;
   if(dealt>0)u.rift=clamp(Number(u.rift||0)+Math.max(1,Math.ceil(dealt/18)),0,5);
+  const heldItem=heldItemDef(u), held=heldItem?.held;
+  if(u.hp>0&&!u.heldItemUsed&&held?.kind==='lowHpHeal'&&u.hp/u.maxHp<=Number(held.threshold||.4)){
+    const heal=Math.max(1,Math.round(u.maxHp*Number(held.healPct||.2)));u.hp=clamp(u.hp+heal,0,u.maxHp);u.heldItemUsed=true;
+    pushRoomEvent(room,'held-item',`${u.name}의 ${heldItem.name} 발동 · HP +${heal}`,{playerId:pc.playerId,instanceId:u.instanceId,itemId:heldItem.id,heal});
+  }else if(u.hp>0&&!u.heldItemUsed&&held?.kind==='lowHpGuard'&&u.hp/u.maxHp<=Number(held.threshold||.5)){
+    const guard=Math.max(1,Number(held.block||12));u.block=Number(u.block||0)+guard;u.heldItemUsed=true;
+    pushRoomEvent(room,'held-item',`${u.name}의 ${heldItem.name} 발동 · 방어 +${guard}`,{playerId:pc.playerId,instanceId:u.instanceId,itemId:heldItem.id,block:guard});
+  }
+  if(dealt>0&&source&&held?.kind==='thorns'&&Number(source.hp||0)>0){const reflect=applyDamage(source,Math.max(1,Number(held.damage||4)));if(reflect>0)pushRoomEvent(room,'held-item',`${u.name}의 ${heldItem.name} · 반사 ${reflect}`,{playerId:pc.playerId,instanceId:u.instanceId,itemId:heldItem.id,damage:reflect,enemyUid:source.uid||null});}
   let revived=false;
   if(u.hp<=0&&(u.archetype==='phoenix'||u.secondaryArchetype==='phoenix')&&!u.revived){u.revived=true;u.hp=Math.max(1,Math.round(u.maxHp*.25));revived=true;pushRoomEvent(room,'monster-passive',`${u.name} 재점화!`,{playerId:pc.playerId,instanceId:u.instanceId,passive:'재점화'});}
   if(!revived&&u.hp<=0){
@@ -1324,6 +1353,9 @@ function playCard(room, playerId, handIndex, targetUid, targetMonsterId) {
 
 function moveDamage(room,pc,u,target,move){
   let amount=Math.max(1,Math.round(Number(u.power||1)*Number(move.ratio||0)+Number(move.power||0)+Number(u.nextAttackBonus||0)));u.nextAttackBonus=0;
+  const held=heldItemDef(u)?.held;
+  if(held?.kind==='movePower')amount=Math.max(1,Math.round(amount*(1+Number(held.powerPct||0))));
+  if(held?.kind==='sameElementPower'&&(move.element||u.element)===u.element)amount=Math.max(1,Math.round(amount*(1+Number(held.powerPct||0))));
   amount=modifiedDamage(room,pc,amount,{type:'monster',element:move.element||u.element});
   let dealt=applyElementDamage(target,amount,move.element||u.element);pc.stats.damage+=dealt;pc.lastMonsterDamage=dealt;
   if(move.rewrite?.id==='echo'&&target.hp>0){
@@ -1350,6 +1382,8 @@ function useMonsterMove(room,playerId,instanceId,moveId,targetUid){
   if(rewrite?.id==='feedback'){effective.shield=Math.round(Number(effective.shield||0)*1.35);effective.heal=Math.round(Number(effective.heal||0)*1.35);effective.boost=Math.round(Number(effective.boost||0)*1.35);effective.cooldown=Number(effective.cooldown||0)+1;}
   if(rewrite?.id==='blood'){effective.power=Math.round(Number(effective.power||0)*1.35);effective.ratio=Number(effective.ratio||0)*1.35;}
   if(rewrite?.id==='orbit')effective.cooldown=Number(effective.cooldown||0)+1;
+  const heldItem=heldItemDef(u),held=heldItem?.held;
+  if(!u.heldItemUsed&&held?.kind==='firstMoveResonance'){const gain=Math.max(1,Number(held.resonance||1));u.resonance=clamp(Number(u.resonance||0)+gain,0,6);u.heldItemUsed=true;pushRoomEvent(room,'held-item',`${u.name}의 ${heldItem.name} · 공명 +${gain}`,{playerId,instanceId:u.instanceId,itemId:heldItem.id,resonance:gain});}
   const target=aliveEnemies(room).find(e=>e.uid===targetUid)||aliveEnemies(room)[0];let dealt=0,hit=true;
   if(effective.kind!=='guard'&&effective.kind!=='heal'&&effective.kind!=='status'){hit=process.env.TEST_MODE==='1'||Math.random()<Number(effective.accuracy||100)/100;}
   if(hit&&['attack','burst'].includes(effective.kind)&&target){dealt=moveDamage(room,pc,u,target,effective);battleLog(room,`${u.name}의 ${move.name}! ${target.name}에게 ${dealt} 피해${rewrite?` · ${rewrite.name}`:''}.`);}else if(!hit){battleLog(room,`${u.name}의 ${move.name} — 빗나갔다!`);}
@@ -1745,6 +1779,7 @@ function winBattle(room) {
   for (const rp of room.players) {
     const p = profiles[rp.id];
     const run = room.runState[rp.id];
+    for(const mon of run.monsters||[]){const heldItem=heldItemDef(mon),held=heldItem?.held;if(mon.hp>0&&held?.kind==='afterBattleHeal'){const heal=Math.max(1,Math.round(mon.maxHp*Number(held.healPct||.1)));const before=mon.hp;mon.hp=clamp(mon.hp+heal,0,mon.maxHp);if(mon.hp>before)pushRoomEvent(room,'held-item',`${mon.name}의 ${heldItem.name} · 전투 후 HP +${mon.hp-before}`,{playerId:rp.id,instanceId:mon.instanceId,itemId:heldItem.id,heal:mon.hp-before});}}
     const goldPct = 1 + modTotal(run, 'goldPct');
     const gemPct = 1 + modTotal(run, 'gemPct');
     run.gold += Math.round(baseGold * diff.gold * goldPct);
@@ -2197,6 +2232,7 @@ function attemptBattleCapture(room,playerId,sealType,enemyUid,instanceId){
   if(m.tier==='boss'&&hpRatio>.25)throw new Error('보스는 HP 25% 이하에서 봉인할 수 있습니다.');
   p.seals[seal]--;
   let chance=(Number(m.captureBase||.25)+lowHpBonus)*mult;if(run?.relics?.includes('r003'))chance+=.08;chance+=modTotal(run,'captureBonus');
+  const heldCapture=heldItemDef(u)?.held;if(heldCapture?.kind==='captureBonus')chance+=Number(heldCapture.bonus||0);
   if(target.broken)chance+=.07;if(Number(target.debuffs?.burn||0)>0)chance+=.025;if(Number(target.debuffs?.weak||0)>0)chance+=.025;
   const hardCap=m.tier==='boss'?.32:m.tier==='ultra'?.76:m.tier==='rare'?.92:.98;chance=clamp(chance,.03,hardCap);
   const newDiscovery=!p.monsters?.[m.id],success=process.env.TEST_MODE==='1'?true:Math.random()<chance;
@@ -2461,6 +2497,7 @@ const server = http.createServer(async (req, res) => {
         if (action === 'start') { if (room.hostId !== prof.id) throw new Error('방장만 시작할 수 있습니다.'); startRoom(room); return ok(res, { room: roomView(room) }); }
         if (action === 'vote') { const voteResult=voteRoute(room, prof.id, b.nodeId); return ok(res, { room: roomView(room), voteResult }); }
         if (action === 'contract') { chooseRunContract(room, prof.id, b.contractId); return ok(res, { room: roomView(room) }); }
+        if (action === 'equip-held') { const result=equipHeldItem(room,prof.id,b.instanceId,b.itemId||null); return ok(res,{result,room:roomView(room)}); }
         if (action === 'play') { playCard(room, prof.id, b.handIndex, b.targetUid, b.targetMonsterId); return ok(res, { room: roomView(room) }); }
         if (action === 'move') { const result=useMonsterMove(room,prof.id,b.instanceId,b.moveId,b.targetUid); return ok(res,{result,room:roomView(room)}); }
         if (action === 'recall-unit') { const unit = recallUnit(room, prof.id, b.instanceId); return ok(res, { result:{ name:unit.name, cardId:unit.cardId }, room: roomView(room) }); }
