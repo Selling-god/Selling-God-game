@@ -1,6 +1,6 @@
 {
   "name": "rift-deck-abyss-expedition",
-  "version": "4.9.0",
+  "version": "5.0.0",
   "private": true,
   "description": "Original monster-command roguelite with one-screen battle UI, battle capture, level/move mastery evolution, tactical spells, biome variants, and 205 collectible monsters.",
   "scripts": {
