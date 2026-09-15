@@ -18,7 +18,7 @@ async function advanceNonBattle(room,u){
   return room;
 }
 (async()=>{try{
-  const hz=await ready(); if(hz.version!=='5.3.0')throw Error(`wrong API version ${hz.version}`); if(hz.deployId!=='RIFT-V53-HELD-ITEMS-20260915')throw Error(`wrong deploy id ${hz.deployId}`);
+  const hz=await ready(); if(hz.version!=='5.3.1')throw Error(`wrong API version ${hz.version}`); if(hz.deployId!=='RIFT-V531-RUNMOD-HOTFIX-20260915')throw Error(`wrong deploy id ${hz.deployId}`);
   const meta=await req('GET','/api/meta'); if(meta.monsters.length<205)throw Error(`monsters ${meta.monsters.length}`); if(meta.monsterRules.pointBudget!==10)throw Error('point budget');
   const u={profileId:'hunt-bot',nickname:'HUNTBOT'};
   let prof=(await req('POST','/api/profile',u)).profile;

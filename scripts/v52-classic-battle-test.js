@@ -11,7 +11,7 @@ const proc=cp.spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env
 function req(method,p,body,allowError=false){return new Promise((resolve,reject)=>{const r=http.request({host:'127.0.0.1',port:3352,path:p,method,headers:body?{'Content-Type':'application/json'}:{}},res=>{let s='';res.on('data',c=>s+=c);res.on('end',()=>{let j;try{j=JSON.parse(s)}catch{j={raw:s}};if(res.statusCode>=400&&!allowError)return reject(new Error(j.error||`HTTP ${res.statusCode}`));resolve({status:res.statusCode,...j});});});r.on('error',reject);if(body)r.end(JSON.stringify(body));else r.end();});}
 async function ready(){for(let i=0;i<60;i++){try{return await req('GET','/healthz')}catch{await new Promise(r=>setTimeout(r,100))}}throw Error('server not ready');}
 (async()=>{try{
- const hz=await ready();if(hz.deployId!=='RIFT-V53-HELD-ITEMS-20260915')throw Error(`deploy id ${hz.deployId}`);
+ const hz=await ready();if(hz.deployId!=='RIFT-V531-RUNMOD-HOTFIX-20260915')throw Error(`deploy id ${hz.deployId}`);
  const u={profileId:'v52-bot',nickname:'V52BOT'};await req('POST','/api/profile',u);
  let room=(await req('POST','/api/rooms/create',{...u,mode:'journey',difficulty:'normal',name:'V52 TEST'})).room;
  room=(await req('POST',`/api/room/${room.id}/start`,u)).room;
