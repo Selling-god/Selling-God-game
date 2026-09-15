@@ -1,8 +1,8 @@
 {
-  "release": "RIFT-DECK-V51-COMBAT-UX-HIGHDPI",
-  "buildId": "v51-combat-ux",
-  "generatedAt": "2026-09-15T01:25:00.000Z",
-  "version": "5.2.0",
-  "label": "V51 COMBAT UX + HIGH-DPI",
-  "deployId": "RIFT-V52-CLASSIC-BATTLE-20260915"
+  "release": "RIFT-DECK-V53-HELD-ITEMS",
+  "buildId": "v53-held-items",
+  "generatedAt": "2026-09-15T02:19:10.062365+00:00",
+  "version": "5.3.0",
+  "label": "V53 CLICK-SAFE + HELD ITEMS + READABLE UI",
+  "deployId": "RIFT-V53-HELD-ITEMS-20260915"
 }
