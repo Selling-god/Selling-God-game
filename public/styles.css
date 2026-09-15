@@ -1404,3 +1404,41 @@ img{image-rendering:pixelated}
   .battle-arena-v44{gap:1px!important}.mon-sprite-v44>img,.enemy-sprite-v44>img{max-width:160px!important;max-height:160px!important}.mode-double .mon-sprite-v44>img,.mode-double .enemy-sprite-v44>img{max-width:105px!important;max-height:105px!important}
 }
 @media(prefers-reduced-motion:reduce){.mon-sprite-v44>img,.enemy-sprite-v44>img{animation:none!important}}
+
+/* ========================================================================== 
+   v50 — ORIGINAL PIXEL MONSTER ART PASS
+   Generated artwork is normalized to a 256×256 transparent sprite canvas.
+   These overrides keep the sprite, name panel and intent panel inside each
+   combat cell even in double battles and on narrow screens.
+   ========================================================================== */
+.mon-status-v44>div,.enemy-status-v44>div{min-width:0!important;max-width:calc(100% - 54px)!important}
+.mon-status-v44>div b,.enemy-status-v44>div b{
+  display:block!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;
+  line-height:1.12!important;min-height:2.1em!important;overflow-wrap:anywhere!important;word-break:keep-all!important
+}
+.mon-status-v44>div small,.enemy-status-v44>div small{display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.active-mon-v44,.enemy-mon-v44{min-width:0!important;overflow:hidden!important}
+.mon-sprite-v44,.enemy-sprite-v44{overflow:visible!important;min-width:0!important}
+.mon-sprite-v44>img,.enemy-sprite-v44>img{object-position:50% 100%!important}
+.mode-double .active-mon-v44,.mode-double .enemy-mon-v44{min-width:0!important;max-width:50%!important;overflow:hidden!important}
+.mode-double .mon-sprite-v44,.mode-double .enemy-sprite-v44{left:1%!important;right:1%!important;top:23%!important;bottom:9%!important;overflow:visible!important}
+.mode-double .mon-sprite-v44>img,.mode-double .enemy-sprite-v44>img{width:94%!important;height:94%!important;max-width:250px!important;max-height:250px!important}
+.enemy-mon-v44.is-boss-v50 .enemy-sprite-v44{top:15%!important;bottom:5%!important}
+.enemy-mon-v44.is-boss-v50 .enemy-sprite-v44>img{width:98%!important;height:98%!important;max-width:380px!important;max-height:380px!important}
+.prep-mon-art-v41 img,.hunt-monster-v40 img,.skill-mon-v41 img,.evo-mon-v43 img,.levelup-sprite-v44 img,.learn-mon-v44 img{image-rendering:pixelated!important;object-fit:contain!important}
+
+@media(max-width:1050px){
+  .mode-double .mon-sprite-v44>img,.mode-double .enemy-sprite-v44>img{max-width:205px!important;max-height:205px!important}
+  .enemy-mon-v44.is-boss-v50 .enemy-sprite-v44>img{max-width:300px!important;max-height:300px!important}
+}
+@media(max-width:760px){
+  .mon-status-v44>div,.enemy-status-v44>div{max-width:calc(100% - 34px)!important}
+  .mon-status-v44>div b,.enemy-status-v44>div b{font-size:6px!important;min-height:2.05em!important;line-height:1.04!important}
+  .mode-double .mon-sprite-v44,.mode-double .enemy-sprite-v44{top:25%!important;bottom:9%!important}
+  .mode-double .mon-sprite-v44>img,.mode-double .enemy-sprite-v44>img{max-width:112px!important;max-height:112px!important}
+  .enemy-mon-v44.is-boss-v50 .enemy-sprite-v44>img{max-width:170px!important;max-height:170px!important}
+}
+@media(max-width:460px){
+  .mode-double .mon-sprite-v44>img,.mode-double .enemy-sprite-v44>img{max-width:96px!important;max-height:96px!important}
+  .mon-status-v44>div b,.enemy-status-v44>div b{font-size:5.5px!important}
+}
