@@ -1,7 +1,7 @@
 {
-  "version": "4.9.0",
-  "deployId": "RIFT-V49-RETRO-PIXEL-20260914",
-  "builtAt": "2026-09-14T05:56:34.714Z",
+  "version": "5.1.0",
+  "deployId": "RIFT-V51-COMBAT-UX-20260915",
+  "builtAt": "2026-09-15T01:21:59.112Z",
   "cards": 315,
   "items": 120,
   "enemies": 205,
