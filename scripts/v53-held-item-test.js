@@ -8,7 +8,7 @@ const proc=cp.spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env
 function req(method,p,body){return new Promise((resolve,reject)=>{const r=http.request({host:'127.0.0.1',port:3353,path:p,method,headers:body?{'Content-Type':'application/json'}:{}},res=>{let s='';res.on('data',c=>s+=c);res.on('end',()=>{let j;try{j=JSON.parse(s)}catch{j={raw:s}};if(res.statusCode>=400)return reject(new Error(j.error||`HTTP ${res.statusCode}`));resolve(j);});});r.on('error',reject);body?r.end(JSON.stringify(body)):r.end();});}
 async function ready(){for(let i=0;i<60;i++){try{return await req('GET','/healthz')}catch{await new Promise(r=>setTimeout(r,100))}}throw Error('server not ready');}
 (async()=>{try{
- const hz=await ready();if(hz.version!=='5.3.2'||hz.deployId!=='RIFT-V532-BATTLEFLOW-RESUME-FX-20260915')throw Error(`health ${hz.version}/${hz.deployId}`);if(hz.items<128)throw Error(`items ${hz.items}`);
+ const hz=await ready();if(hz.version!=='5.4.0'||hz.deployId!=='RIFT-V540-SIGNATURE-TACTIC-PACING-20260915')throw Error(`health ${hz.version}/${hz.deployId}`);if(hz.items<128)throw Error(`items ${hz.items}`);
  const meta=await req('GET','/api/meta');for(const id of ['i121','i122','i123','i124','i125','i126','i127','i128']){const it=meta.items.find(x=>x.id===id);if(!it?.held)throw Error(`held item ${id} missing`);}
  const u={profileId:'v53-bot',nickname:'V53BOT'};await req('POST','/api/profile',u);
  let room=(await req('POST','/api/rooms/create',{...u,mode:'journey',difficulty:'normal',name:'V53 TEST'})).room;room=(await req('POST',`/api/room/${room.id}/start`,u)).room;
