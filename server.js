@@ -30,7 +30,7 @@ const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
 const VERSION = '4.2.0';
-const DEPLOY_ID = 'RIFT-V51-COMBAT-UX-20260915';
+const DEPLOY_ID = 'RIFT-V52-CLASSIC-BATTLE-20260915';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -966,14 +966,17 @@ function makeRoute(room) {
 }
 
 function voteRoute(room, playerId, nodeId) {
-  if (room.status !== 'route') throw new Error('현재 경로를 고를 수 없습니다.');
+  // v5.2 race guard: an old tab/timer may submit a route vote after the server
+  // already advanced into battle. Treat it as an idempotent no-op, not HTTP 400.
+  if (room.status !== 'route') return { ignored:true, status:room.status };
   if (!room.contractClaims?.[playerId]) {
     room.contractClaims ||= {}; room.contractClaims[playerId] = 'unbound';
     if (room.runState[playerId]) room.runState[playerId].contract = 'unbound';
     pushRoomEvent(room, 'contract', `${playerName(room, playerId)} 님이 무서약 상태로 경로를 선택했습니다.`);
   }
-  const node = room.route.find(n => n.id === nodeId);
+  const node = room.route.find(n => n.id === nodeId) || (room.route.length === 1 ? room.route[0] : null);
   if (!node) throw new Error('경로가 없습니다.');
+  if (node.votes?.includes(playerId)) return { ignored:true, status:room.status };
   room.route.forEach(n => n.votes = n.votes.filter(x => x !== playerId));
   node.votes.push(playerId);
   const votes = room.route.reduce((s, n) => s + n.votes.length, 0);
@@ -2456,7 +2459,7 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'POST') {
         const b = await parseBody(req); const prof = await authProfile(req, res, b); assertMember(room, prof.id);
         if (action === 'start') { if (room.hostId !== prof.id) throw new Error('방장만 시작할 수 있습니다.'); startRoom(room); return ok(res, { room: roomView(room) }); }
-        if (action === 'vote') { voteRoute(room, prof.id, b.nodeId); return ok(res, { room: roomView(room) }); }
+        if (action === 'vote') { const voteResult=voteRoute(room, prof.id, b.nodeId); return ok(res, { room: roomView(room), voteResult }); }
         if (action === 'contract') { chooseRunContract(room, prof.id, b.contractId); return ok(res, { room: roomView(room) }); }
         if (action === 'play') { playCard(room, prof.id, b.handIndex, b.targetUid, b.targetMonsterId); return ok(res, { room: roomView(room) }); }
         if (action === 'move') { const result=useMonsterMove(room,prof.id,b.instanceId,b.moveId,b.targetUid); return ok(res,{result,room:roomView(room)}); }

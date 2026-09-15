@@ -1,0 +1,19 @@
+RIFT DECK V52 패치 적용법
+
+1. 기존 V51 프로젝트 폴더를 백업합니다.
+2. V52 PATCH ZIP의 파일을 프로젝트 최상위에 그대로 덮어씁니다.
+3. 몬스터 PNG를 다시 넣을 필요가 없습니다. 기존 assets 폴더를 그대로 사용합니다.
+4. 터미널에서 다음을 실행합니다.
+   npm ci
+   npm run build
+   npm test
+5. Render에서는 반드시 Web Service로 재배포합니다.
+   Build Command: npm ci && npm run build
+   Start Command: npm start
+   Health Check: /healthz
+6. 배포 후 /healthz에서 deployId가 아래 값인지 확인합니다.
+   RIFT-V52-CLASSIC-BATTLE-20260915
+
+중요:
+- 브라우저가 구버전 JS/CSS를 잡고 있어도 V52 index.html의 새 cache-buster가 적용됩니다.
+- 콘솔의 /vote 400 오류는 V52 서버에서 race-safe/idempotent 처리됩니다.
