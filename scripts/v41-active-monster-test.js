@@ -4,7 +4,7 @@ const root=path.join(__dirname,'..');
 const catalog=JSON.parse(fs.readFileSync(path.join(root,'data','catalog.json'),'utf8'));
 const app=fs.readFileSync(path.join(root,'public','app.js'),'utf8');
 const css=fs.readFileSync(path.join(root,'public','styles.css'),'utf8');
-if(!['5.3.1','5.3.2','5.4.0'].includes(catalog.version))throw Error(`catalog ${catalog.version}`);
+if(!['5.3.1','5.3.2','5.5.0'].includes(catalog.version))throw Error(`catalog ${catalog.version}`);
 if((catalog.monsterParty?.starterIds||[]).length!==3)throw Error('fresh starter count must be 3');
 if(catalog.battleRules?.singleActive!==1||catalog.battleRules?.doubleActive!==2||catalog.battleRules?.moveSlots!==4)throw Error('battle rules mismatch');
 for(const token of ['home-menu-v41','root-command-v41','move-grid-v41','skill-disc-grid-v41','party-loadout','move-use','SKILL DISC'])if(!app.includes(token)&&!css.includes(token))throw Error(`v41 client token missing ${token}`);
@@ -15,7 +15,7 @@ async function ready(){for(let i=0;i<50;i++){try{return await req('GET','/health
 async function toBattle(room,u){for(let i=0;i<20&&room.status!=='battle';i++){if(room.status==='route'){const n=room.route.find(x=>x.kind==='combat')||room.route[0];room=(await req('POST',`/api/room/${room.id}/vote`,{...u,nodeId:n.id})).room;}else if(room.status==='event'){room=(await req('POST',`/api/room/${room.id}/event`,{...u,choiceId:'safe'})).room;}else if(room.status==='reward'){if(room.reward.skillOffers?.[u.profileId]&&!room.reward.skillClaims?.[u.profileId])room=(await req('POST',`/api/room/${room.id}/skip-move`,u)).room;const opts=room.reward.playerOptions?.[u.profileId]||[];if(opts.length&&!room.reward.claims?.[u.profileId])room=(await req('POST',`/api/room/${room.id}/reward`,{...u,rewardId:opts[0].id})).room;if(room.reward.relicOptions?.[u.profileId]?.length&&!room.reward.relicClaims?.[u.profileId])room=(await req('POST',`/api/room/${room.id}/relic`,{...u,relicId:room.reward.relicOptions[u.profileId][0].id})).room;if(room.reward.camp&&!room.reward.campBy?.[u.profileId])room=(await req('POST',`/api/room/${room.id}/camp`,{...u,mode:'rest'})).room;room=(await req('POST',`/api/room/${room.id}/continue`,u)).room;}}
  return room;}
 (async()=>{try{
- const hz=await ready();if(hz.version!=='5.4.0')throw Error(`health ${hz.version}`);
+ const hz=await ready();if(hz.version!=='5.5.0')throw Error(`health ${hz.version}`);
  const meta=await req('GET','/api/meta');if(meta.battleRules.singleActive!==1||meta.battleRules.moveSlots!==4)throw Error('meta battle rules');
  const u={profileId:'v41-bot',nickname:'V41BOT'};let prof=(await req('POST','/api/profile',u)).profile;
  if(prof.monsterOwnedCount!==3)throw Error(`fresh starters ${prof.monsterOwnedCount}`);
