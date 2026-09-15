@@ -485,6 +485,8 @@
   }
 
 
+  function runMod(run,key){let n=Number(run?.mods?.[key]||0);for(const [id,count] of Object.entries(run?.items||{})){const it=byId(state.meta.items,id);n+=Number(it?.mod?.[key]||0)*Number(count||0);}for(const id of (run?.relics||[])){const r=byId(state.meta.relics,id);n+=Number(r?.mod?.[key]||0);}return n;}
+
   function battleCaptureChanceUi(enemy,seal,run,battle){
     if(!enemy)return{chance:0,reason:'대상 없음'};const mult={basic:1,silver:1.55,royal:2.35}[seal]||1,hpRatio=Math.max(.01,Math.min(1,Number(enemy.hp||0)/Math.max(1,Number(enemy.maxHp||1)))),missing=1-hpRatio;
     const hpFactor=.30+Math.pow(missing,1.18)*2.05,statusBonus=(enemy.broken?.09:0)+(Number(enemy.debuffs?.burn||0)>0?.05:0)+(Number(enemy.debuffs?.weak||0)>0?.035:0)+(Number(enemy.debuffs?.vulnerable||0)>0?.025:0),relic=(run?.relics||[]).includes('r003')?.08:0;
