@@ -1,0 +1,18 @@
+RIFT DECK V54 PATCH
+===================
+Base: V53.2 or later recommended.
+
+1. Stop the local/Render server.
+2. Extract RIFT_DECK_V54_SIGNATURE_PACING_TACTICS_PATCH.zip over the project root.
+3. Allow overwrite of the included code/data files.
+4. Do NOT delete or replace assets/enemies or assets/monsters/forms. V54 reuses the existing art.
+5. Run:
+   npm run check
+   npm test
+6. Redeploy as a Render Web Service.
+7. Verify /healthz:
+   version = 5.4.0
+   deployId = RIFT-V540-SIGNATURE-TACTIC-PACING-20260915
+8. Hard refresh the browser once after deployment.
+
+The patch adds one test file and updates several older version assertions so the full regression suite can run on V54.

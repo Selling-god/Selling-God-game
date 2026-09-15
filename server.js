@@ -29,8 +29,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '5.3.2';
-const DEPLOY_ID = 'RIFT-V532-BATTLEFLOW-RESUME-FX-20260915';
+const VERSION = '5.4.0';
+const DEPLOY_ID = 'RIFT-V540-SIGNATURE-TACTIC-PACING-20260915';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -42,7 +42,7 @@ const AUTH_CACHE = new Map();
 
 const CATALOG = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'catalog.json'), 'utf8'));
 const MOVE_SYSTEM = require('./data/move-library');
-const { MOVE_LIBRARY, speciesLearnset, initialMoves, levelMovesBetween, discChoices, evolutionLevel, xpNeededForLevel, battleXpForFloor, movePoolCountFor } = MOVE_SYSTEM;
+const { MOVE_LIBRARY, speciesSignatureMove, speciesLearnset, initialMoves, levelMovesBetween, discChoices, evolutionLevel, xpNeededForLevel, battleXpForFloor, movePoolCountFor } = MOVE_SYSTEM;
 const CARDS = CATALOG.cards;
 const ITEMS = CATALOG.items;
 const BIOMES = CATALOG.biomes;
@@ -148,6 +148,10 @@ function normalizeMonsterMoves(u){
   // migrated into the expanded learnset the first time they enter a battle.
   const legacy=raw.length>0&&raw.every(x=>String(x.id||'').startsWith(`${u.speciesId}:m`)||String(x.id||'').startsWith(`${u.speciesId}:disc:`));
   u.moves=(raw.length&&!legacy?raw:base).map(x=>prepareMove(x,species));
+  // v5.4 migration: every existing save receives its species signature move without
+  // requiring a fresh run. The signature occupies slot 1; the other learned moves stay.
+  const signature=base.find(x=>x.signature)||prepareMove(speciesSignatureMove(species),species);
+  if(signature&&!u.moves.some(x=>x.id===signature.id))u.moves=[{...signature},...u.moves].slice(0,Number(BATTLE_RULES.moveSlots||4));
   const known=new Set(u.moves.map(x=>x.id));
   for(const mv of base){if(!known.has(mv.id)&&u.moves.length<Number(BATTLE_RULES.moveSlots||4)){u.moves.push({...mv});known.add(mv.id);}}
   u.moves=u.moves.slice(0,Number(BATTLE_RULES.moveSlots||4));
@@ -1368,7 +1372,11 @@ function playCard(room, playerId, handIndex, targetUid, targetMonsterId) {
   const previewCost=Math.max(0,c.cost-(pc.buffs.anyDiscount>0?1:(pc.buffs.spellDiscount>0?1:0)));if(pc.energy<previewCost)throw new Error('에너지가 부족합니다.');const cost=resolveCost(pc,c);pc.energy-=cost;pc.hand.splice(index,1);pc.stats.cardsPlayed++;pc.tacticsUsed=Number(pc.tacticsUsed||0)+1;
   const target=aliveEnemies(room).find(e=>e.uid===targetUid)||aliveEnemies(room)[0];const monster=findCombatMonster(pc,targetMonsterId)||pc.units[0];castSpell(room,pc,c,target,monster);pc.discard.push(cid);const masteryResult=gainCardMastery(room,run,cid);
   // Monster EXP is awarded only after a battle. Spell use builds resonance/gene, not levels.
-  if(monster){if(c.element===monster.element){const extra=monster.archetype==='spirit'&&Math.random()<.35?2:1;monster.resonance=clamp(Number(monster.resonance||0)+extra,0,6);}if(c.cardClass==='gene')monster.gene=clamp(Number(monster.gene||0),0,8);}
+  if(monster){
+    const affinity=c.element===monster.element,amp=affinity?.20:.10;monster.tacticAmp=Math.max(Number(monster.tacticAmp||0),amp);monster.tacticElement=c.element;monster.tacticCardName=c.name;monster.tacticStagger=Math.max(Number(monster.tacticStagger||0),affinity?6:3);
+    if(affinity){const extra=monster.archetype==='spirit'&&Math.random()<.35?2:1;monster.resonance=clamp(Number(monster.resonance||0)+extra,0,6);}if(c.cardClass==='gene')monster.gene=clamp(Number(monster.gene||0),0,8);
+    pushRoomEvent(room,'tactic-link',`${monster.name} RIFT LINK 준비!`,{playerId:pc.playerId,instanceId:monster.instanceId,monsterName:monster.name,cardName:c.name,element:c.element,affinity,amp,stagger:monster.tacticStagger});
+  }
   if(b.modifier?.everyThirdDraw&&pc.stats.cardsPlayed%3===0){drawCards(pc,b.modifier.everyThirdDraw);battleLog(room,`${b.modifier.name}: 카드 1장을 추가로 드로우했습니다.`);}
   const chainResult=updateTacticalChain(room,pc,c,monster,target),phaseShifts=updateBossPhase(room),breakTargets=b.enemies.filter(e=>e.justBroken&&e.hp>0);for(const e of b.enemies)e.justBroken=false;if(checkBattleEnd(room))return;
   pushRoomEvent(room,'card',`${pc.nickname}: ${c.name}`,{playerId:pc.playerId,cardId:c.id,cardName:c.name,cardType:c.type,cardClass:c.cardClass,element:c.element,targetUid:target?.uid||null,targetMonsterId:monster?.instanceId||null,cost,chainCount:chainResult.displayCount,chainStage:chainResult.stage,upgradeLevel:Number(run.upgrades?.[c.id]||0),masteryXp:masteryResult?.xp||0});
@@ -1388,11 +1396,24 @@ function moveDamage(room,pc,u,target,move){
   if(move.lifesteal)u.hp=clamp(u.hp+Math.max(1,Math.round(dealt*Number(move.lifesteal))),0,u.maxHp);
   if(move.weak)target.debuffs.weak=Math.max(Number(target.debuffs.weak||0),Number(move.weak));
   if(move.vulnerable)target.debuffs.vulnerable=Math.max(Number(target.debuffs.vulnerable||0),Number(move.vulnerable));
+  if(move.burn)target.debuffs.burn=Number(target.debuffs.burn||0)+Number(move.burn);
+  if(move.shock)target.debuffs.shock=Number(target.debuffs.shock||0)+Number(move.shock);
+  if(move.intentSeal)target.debuffs.intentSeal=Math.max(Number(target.debuffs.intentSeal||0),Number(move.intentSeal));
   if(move.stagger&&target.hp>0&&!target.broken){target.stagger=clamp(Number(target.stagger||0)+Number(move.stagger),0,target.staggerMax||999);if(target.stagger>=target.staggerMax){target.broken=1;target.justBroken=true;target.debuffs.vulnerable=Math.max(Number(target.debuffs.vulnerable||0),1);}}
   if(move.rewrite?.id==='breaker'&&target.justBroken)u.resonance=clamp(Number(u.resonance||0)+1,0,6);
   if(move.splash){for(const e of aliveEnemies(room)){if(e===target)continue;const splash=applyElementDamage(e,Math.max(1,Math.round(dealt*Number(move.splash))),move.element||u.element);pc.stats.damage+=splash;}}
   return dealt;
 }
+function enemyStatusSnapshot(e){return{weak:Number(e?.debuffs?.weak||0),vulnerable:Number(e?.debuffs?.vulnerable||0),burn:Number(e?.debuffs?.burn||0),shock:Number(e?.debuffs?.shock||0),intentSeal:Number(e?.debuffs?.intentSeal||0),broken:Number(e?.broken||0),stagger:Number(e?.stagger||0)};}
+function enemyStatusDelta(before,after){
+  const labels={burn:'화상',shock:'감전',weak:'약화',vulnerable:'취약',intentSeal:'행동 봉쇄'};const out=[];
+  for(const k of ['burn','shock','weak','vulnerable','intentSeal']){const d=Number(after[k]||0)-Number(before[k]||0);if(d>0)out.push({key:k,label:labels[k],value:d,total:Number(after[k]||0)});}
+  if(!before.broken&&after.broken)out.push({key:'broken',label:'BREAK',value:1,total:1});
+  else if(Number(after.stagger||0)>Number(before.stagger||0))out.push({key:'stagger',label:'BREAK 게이지',value:Number(after.stagger)-Number(before.stagger),total:Number(after.stagger||0)});
+  return out;
+}
+function moveEffectSummary(move){const out=[];if(move?.signature)out.push('전용기');if(move?.burn)out.push(`화상 ${move.burn}`);if(move?.shock)out.push(`감전 ${move.shock}`);if(move?.weak)out.push(`약화 ${move.weak}`);if(move?.vulnerable)out.push(`취약 ${move.vulnerable}`);if(move?.intentSeal)out.push(`행동봉쇄 ${move.intentSeal}`);if(move?.stagger)out.push(`BREAK +${move.stagger}`);if(move?.lifesteal)out.push('흡혈');if(move?.splash)out.push('범위');if(move?.shield)out.push(`방어 +${move.shield}`);if(move?.heal)out.push(`회복 +${move.heal}`);return out;}
+
 function useMonsterMove(room,playerId,instanceId,moveId,targetUid){
   const b=room.battle;if(room.status!=='battle'||!b||b.phase!=='players')throw new Error('기술을 사용할 차례가 아닙니다.');
   const pc=getPc(room,playerId);if(!pc||pc.down||pc.ended)throw new Error('행동할 수 없습니다.');
@@ -1408,7 +1429,9 @@ function useMonsterMove(room,playerId,instanceId,moveId,targetUid){
   if(rewrite?.id==='orbit')effective.cooldown=Number(effective.cooldown||0)+1;
   const heldItem=heldItemDef(u),held=heldItem?.held;
   if(!u.heldItemUsed&&held?.kind==='firstMoveResonance'){const gain=Math.max(1,Number(held.resonance||1));u.resonance=clamp(Number(u.resonance||0)+gain,0,6);u.heldItemUsed=true;pushRoomEvent(room,'held-item',`${u.name}의 ${heldItem.name} · 공명 +${gain}`,{playerId,instanceId:u.instanceId,itemId:heldItem.id,resonance:gain});}
-  const target=aliveEnemies(room).find(e=>e.uid===targetUid)||aliveEnemies(room)[0];let dealt=0,hit=true;
+  const target=aliveEnemies(room).find(e=>e.uid===targetUid)||aliveEnemies(room)[0];const statusBefore=enemyStatusSnapshot(target);let dealt=0,hit=true;
+  const tacticLink=Number(u.tacticAmp||0)>0?{amp:Number(u.tacticAmp||0),element:u.tacticElement||null,cardName:u.tacticCardName||'RIFT LINK',stagger:Number(u.tacticStagger||0)}:null;
+  if(tacticLink){effective.power=Math.round(Number(effective.power||0)*(1+tacticLink.amp));effective.ratio=Number(effective.ratio||0)*(1+tacticLink.amp);effective.stagger=Number(effective.stagger||0)+tacticLink.stagger;}
   if(effective.kind!=='guard'&&effective.kind!=='heal'&&effective.kind!=='status'){hit=process.env.TEST_MODE==='1'||Math.random()<Number(effective.accuracy||100)/100;}
   if(hit&&['attack','burst'].includes(effective.kind)&&target){dealt=moveDamage(room,pc,u,target,effective);battleLog(room,`${u.name}의 ${move.name}! ${target.name}에게 ${dealt} 피해${rewrite?` · ${rewrite.name}`:''}.`);}else if(!hit){battleLog(room,`${u.name}의 ${move.name} — 빗나갔다!`);}
   if(effective.shield){u.block=Number(u.block||0)+Number(effective.shield);battleLog(room,`${u.name} 방어막 +${effective.shield}.`);}
@@ -1422,11 +1445,13 @@ function useMonsterMove(room,playerId,instanceId,moveId,targetUid){
   if(rewrite?.id==='orbit')drawCards(pc,1);
   move.cooldownRemaining=Math.max(0,Number(effective.cooldown||0));
   if(!hit&&rewrite?.id==='zero'){move.cooldownRemaining=0;u.rift=clamp(Number(u.rift||0)+1,0,5);battleLog(room,`${u.name}의 제로 루프 — RIFT +1 · 재사용 대기 초기화.`);}
+  if(tacticLink){battleLog(room,`${u.name} RIFT LINK · ${Math.round(tacticLink.amp*100)}% 증폭.`);u.tacticAmp=0;u.tacticElement=null;u.tacticCardName=null;u.tacticStagger=0;}
   u.acted=true;pc.stats.movesUsed=Number(pc.stats.movesUsed||0)+1;
   const run=room.runState[playerId];if(run){run.moveUseCounts ||= {};const key=`${u.instanceId}:${move.id}`;run.moveUseCounts[key]=Number(run.moveUseCounts[key]||0)+1;}
   move.masteryUses=Number(move.masteryUses||0)+1;const priorMastery=Number(move.masteryStage||0),nextMastery=moveMasteryStage(move.masteryUses);
   if(nextMastery>priorMastery){move.masteryStage=nextMastery;battleLog(room,`${u.name}의 ${move.name} 숙련 진화 ${moveMasteryLabel(nextMastery)}!`);}
-  pushRoomEvent(room,'monster-move',`${u.name} · ${move.name}`,{playerId,instanceId:u.instanceId,speciesId:u.speciesId,monsterName:u.name,targetUid:target?.uid||null,move:clone({...move,rewrite,masteryStage:move.masteryStage,masteryUses:move.masteryUses}),skill:move.name,damage:dealt,hit,element:effective.element||u.element,style:u.archetype,archetype:u.archetype,form:monsterFormLabel(u),rewrite:rewrite?clone(rewrite):null,fxSeed:`${u.speciesId}:${move.id}`});
+  const appliedDebuffs=enemyStatusDelta(statusBefore,enemyStatusSnapshot(target));
+  pushRoomEvent(room,'monster-move',`${u.name} · ${move.name}`,{playerId,instanceId:u.instanceId,speciesId:u.speciesId,monsterName:u.name,targetUid:target?.uid||null,move:clone({...move,rewrite,masteryStage:move.masteryStage,masteryUses:move.masteryUses}),skill:move.name,damage:dealt,hit,element:effective.element||u.element,style:u.archetype,archetype:u.archetype,form:monsterFormLabel(u),rewrite:rewrite?clone(rewrite):null,signature:!!move.signature,fxFamily:move.fxFamily||effective.fxFamily||null,fxVariant:Number(move.fxVariant||0),fxTempo:move.fxTempo||'snap',appliedDebuffs,effectSummary:moveEffectSummary(effective),tacticLink,fxSeed:`${u.speciesId}:${move.id}`});
   if(nextMastery>priorMastery)pushRoomEvent(room,'move-evolve',`${u.name}의 ${move.name} 숙련 진화!`,{playerId,instanceId:u.instanceId,monsterName:u.name,monsterSprite:monsterDisplaySpriteServer(u),moveId:move.id,moveName:move.name,stage:nextMastery,label:moveMasteryLabel(nextMastery),uses:move.masteryUses,element:move.element||u.element,kind:move.kind,before:priorMastery,after:nextMastery});
   const phases=updateBossPhase(room);for(const e of phases)pushRoomEvent(room,'boss-phase',`${e.name} 2단계!`,{enemyUid:e.uid,enemyName:e.name,phase:2});
   const breaks=b.enemies.filter(e=>e.justBroken&&e.hp>0);for(const e of b.enemies)e.justBroken=false;for(const e of breaks)pushRoomEvent(room,'enemy-break',`${e.name}의 자세 붕괴!`,{enemyUid:e.uid,enemyName:e.name});
@@ -1740,12 +1765,12 @@ function enemyTurn(room) {
     if(e.debuffs.intentSeal>0){e.debuffs.intentSeal--;battleLog(room,`${e.name} 행동 봉인.`);e.intent=rollIntent(e,b.tier,room.difficulty);continue;}
     const targets=b.party.filter(x=>!x.down);if(!targets.length)break;const t=choose(targets);
     if(['attack','heavy'].includes(e.intent.type)){
-      let amount=e.intent.value;if(e.debuffs.weak>0)amount=Math.round(amount*.75);if(e.nextDamageHalf){amount=Math.round(amount*.5);e.nextDamageHalf=false;}const mon=t.units.length?choose(t.units):null;let d=0;if(mon)d=monsterDamage(room,t,mon,amount,e);else d=damagePc(room,t,amount,e);battleLog(room,`${e.name} → ${mon?mon.name:t.nickname} ${d} 피해.`);pushRoomEvent(room,'enemy-attack',`${e.name} 공격`,{enemyUid:e.uid,speciesId:e.id,monsterName:e.name,playerId:t.playerId,targetMonsterId:mon?.instanceId||null,damage:d,style:e.archetype||'beast',archetype:e.archetype||'beast',element:e.element||'공허',skill:e.skill||e.name,heavy:e.intent.type==='heavy',fxSeed:`${e.id}:${e.skill||e.name}`});
+      let amount=e.intent.value;if(e.debuffs.weak>0)amount=Math.round(amount*.75);if(e.nextDamageHalf){amount=Math.round(amount*.5);e.nextDamageHalf=false;}const mon=t.units.length?choose(t.units):null;let d=0;if(mon)d=monsterDamage(room,t,mon,amount,e);else d=damagePc(room,t,amount,e);const sig=speciesSignatureMove(MONSTER_BY_ID[e.id]||e),heavyMove=e.intent.type==='heavy',enemyMove=heavyMove?sig:null,enemySkill=enemyMove?.name||e.skill||`${e.name} 공격`;battleLog(room,`${e.name} → ${mon?mon.name:t.nickname} ${d} 피해.`);pushRoomEvent(room,'enemy-attack',`${e.name} 공격`,{enemyUid:e.uid,speciesId:e.id,monsterName:e.name,playerId:t.playerId,targetMonsterId:mon?.instanceId||null,damage:d,style:e.archetype||'beast',archetype:e.archetype||'beast',element:e.element||'공허',skill:enemySkill,move:enemyMove?clone(enemyMove):null,signature:!!enemyMove,fxFamily:enemyMove?.fxFamily||null,fxVariant:Number(enemyMove?.fxVariant||0),heavy:heavyMove,fxSeed:`${e.id}:${enemySkill}`});
     }else if(e.intent.type==='guard'){e.block+=e.intent.value;battleLog(room,`${e.name} 방어 ${e.intent.value}.`);}else if(e.intent.type==='debuff'){if(!t.buffs.debuffImmune){t.weak++;battleLog(room,`${t.nickname} 약화 1.`);}}
     e.debuffs.vulnerable=Math.max(0,e.debuffs.vulnerable-1);e.debuffs.weak=Math.max(0,e.debuffs.weak-1);if(e.staggerMax&&!e.broken)e.stagger=Math.max(0,Number(e.stagger||0)-Math.ceil(e.staggerMax*.28));e.intent=rollIntent(e,b.tier,room.difficulty);
   }
   if(checkBattleEnd(room))return;if(b.party.every(x=>x.down))return loseBattle(room);b.turn++;
-  for(const pc of b.party){if(pc.down)continue;pc.block=Math.round(pc.block*Number(pc.itemMods.retainBlock||0));pc.energy=Math.max(1,pc.maxEnergy-(pc.buffs.energyDebt>0?1:0));pc.buffs.energyDebt=Math.max(0,pc.buffs.energyDebt-1);pc.ended=false;pc.recallsUsed=0;pc.switchesUsed=0;pc.tacticsUsed=0;pc.buffs.debuffImmune=false;pc.buffs.thorns=Math.max(pc.buffs.thorns,Number(pc.itemMods.thorns||0));pc.chain||={count:0,lastType:null,best:0,overdrives:0};pc.chain.count=0;pc.chain.lastType=null;pc.weak=Math.max(0,pc.weak-1);pc.discard.push(...pc.hand);pc.hand=[];drawCards(pc,5);
+  for(const pc of b.party){if(pc.down)continue;pc.block=Math.round(pc.block*Number(pc.itemMods.retainBlock||0));pc.energy=Math.max(1,pc.maxEnergy-(pc.buffs.energyDebt>0?1:0));pc.buffs.energyDebt=Math.max(0,pc.buffs.energyDebt-1);pc.ended=false;pc.recallsUsed=0;pc.switchesUsed=0;pc.tacticsUsed=0;for(const u of [...pc.units,...pc.bench]){u.tacticAmp=0;u.tacticElement=null;u.tacticCardName=null;u.tacticStagger=0;}pc.buffs.debuffImmune=false;pc.buffs.thorns=Math.max(pc.buffs.thorns,Number(pc.itemMods.thorns||0));pc.chain||={count:0,lastType:null,best:0,overdrives:0};pc.chain.count=0;pc.chain.lastType=null;pc.weak=Math.max(0,pc.weak-1);pc.discard.push(...pc.hand);pc.hand=[];drawCards(pc,5);
     for(const u of [...pc.units,...pc.bench]){normalizeMonsterMoves(u);u.acted=false;for(const mv of u.moves)mv.cooldownRemaining=Math.max(0,Number(mv.cooldownRemaining||0)-1);if(u.resonanceTurns>0)u.resonanceTurns--;if(u.abyssBloom)u.hp=Math.max(1,u.hp-Math.max(1,Math.round(u.maxHp*.05)));if(u.archetype==='slime')u.hp=clamp(u.hp+Math.max(1,Math.round(u.maxHp*.03)),0,u.maxHp);}
     const priests=pc.units.filter(u=>u.archetype==='priest').length;if(priests){const all=[...pc.units,...pc.bench].filter(u=>u.hp>0).sort((a,z)=>a.hp/a.maxHp-z.hp/z.maxHp);if(all[0])all[0].hp=clamp(all[0].hp+3*priests,0,all[0].maxHp);}
   }
