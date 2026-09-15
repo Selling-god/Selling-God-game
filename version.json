@@ -1,8 +1,8 @@
 {
-  "release": "RIFT-DECK-V53-HELD-ITEMS",
+  "release": "RIFT-DECK-V531-RUNMOD-HOTFIX",
   "buildId": "v53-held-items",
   "generatedAt": "2026-09-15T02:19:10.062152+00:00",
-  "version": "5.3.0",
+  "version": "5.3.1",
   "label": "V53 CLICK-SAFE + HELD ITEMS + READABLE UI",
-  "deployId": "RIFT-V53-HELD-ITEMS-20260915"
+  "deployId": "RIFT-V531-RUNMOD-HOTFIX-20260915"
 }

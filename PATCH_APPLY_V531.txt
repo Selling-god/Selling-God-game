@@ -1,0 +1,14 @@
+RIFT DECK V53.1 RUNMOD HOTFIX 적용 방법
+
+1. 현재 사용 중인 V53 프로젝트 폴더를 백업하세요.
+2. 이 ZIP의 내용을 프로젝트 최상위 폴더에 그대로 덮어쓰세요.
+3. Render/GitHub에 변경 파일을 업로드/커밋한 뒤 Web Service를 재배포하세요.
+4. 배포 후 https://<서비스주소>/healthz 를 열어 아래 값을 확인하세요.
+   version: 5.3.1
+   deployId: RIFT-V531-RUNMOD-HOTFIX-20260915
+5. 브라우저에서 Ctrl+Shift+R로 강력 새로고침하세요.
+
+중요:
+- 몬스터/배경 이미지 파일은 전혀 교체하지 않습니다.
+- V53 장착 아이템, 소지금 HUD, UI 개선 내용은 그대로 유지됩니다.
+- 이번 패치는 `runMod is not defined`로 전투 화면 렌더링이 중단되는 문제를 고칩니다.
