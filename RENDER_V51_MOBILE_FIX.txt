@@ -1,0 +1,24 @@
+RIFT DECK V51 - Render / 휴대폰 접속 체크
+==========================================
+
+화면에 "RIFT DECK 게임 서버 주소가 아닙니다"가 보이면 코드 실행 오류가 아니라
+Render의 Static Site 주소로 접속한 것입니다. 이 게임은 API/로그인/멀티룸 때문에
+Node Web Service가 반드시 필요합니다.
+
+권장 배포
+1. Render Dashboard -> New -> Web Service
+2. GitHub 저장소 선택
+3. Runtime: Node
+4. Build Command: npm ci && npm run build
+5. Start Command: npm start
+6. Health Check Path: /healthz
+7. Node: 22
+8. 배포 완료 후 Web Service의 https://...onrender.com 주소를 휴대폰에서도 사용
+
+Blueprint를 쓴다면 저장소의 render.yaml을 사용하면 위 설정이 자동으로 잡힙니다.
+Static Site의 Publish Directory에 out/을 지정하지 마세요. out/index.html은 잘못된
+Static Site 배포를 알아보기 위한 진단 페이지일 뿐 게임 본체가 아닙니다.
+
+정상 확인
+- /healthz 접속 시 JSON 응답에 deployId=RIFT-V51-COMBAT-UX-20260915
+- 게임 화면 하단/부팅 화면에서 v5.1 표시

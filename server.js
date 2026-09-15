@@ -30,7 +30,7 @@ const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
 const VERSION = '4.2.0';
-const DEPLOY_ID = 'RIFT-V49-RETRO-PIXEL-20260914';
+const DEPLOY_ID = 'RIFT-V51-COMBAT-UX-20260915';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -1656,7 +1656,19 @@ function damagePc(room, pc, amount, enemy) {
 }
 
 function endTurn(room, playerId) {
-  const b=room.battle;if(room.status!=='battle'||!b||b.phase!=='players')throw new Error('전투 중이 아닙니다.');const pc=getPc(room,playerId);if(!pc||pc.down)return;for(const u of pc.units)u.acted=true;pc.ended=true;battleLog(room,`${pc.nickname}이(가) 행동을 마쳤습니다.`);const active=b.party.filter(x=>!x.down);if(active.length&&active.every(x=>x.ended))enemyTurn(room);else pushRoomEvent(room,'end-turn',`${pc.nickname} 님이 턴을 종료했습니다.`);
+  const b=room.battle;
+  if(room.status!=='battle'||!b||b.phase!=='players')throw new Error('전투 중이 아닙니다.');
+  const pc=getPc(room,playerId);if(!pc||pc.down)return;
+  // v5.1: in single/double battles every living active monster gets its action.
+  // The player can no longer accidentally skip monster #2 with the old E/end-turn shortcut.
+  const waiting=(pc.units||[]).filter(u=>u.hp>0&&!u.acted);
+  const actionable=waiting.filter(u=>{normalizeMonsterMoves(u);return (u.moves||[]).some(m=>u.level>=Number(m.unlockLevel||1)&&Number(m.cooldownRemaining||0)<=0);});
+  if(actionable.length)throw new Error(actionable.length>1?'출전 몬스터들의 기술을 먼저 사용해 주세요.':'출전 몬스터의 기술을 먼저 사용해 주세요.');
+  for(const u of waiting)u.acted=true;
+  pc.ended=true;
+  battleLog(room,`${pc.nickname}이(가) 행동을 마쳤습니다.`);
+  const active=b.party.filter(x=>!x.down);
+  if(active.length&&active.every(x=>x.ended))enemyTurn(room);else pushRoomEvent(room,'end-turn',`${pc.nickname} 님이 턴을 종료했습니다.`);
 }
 
 function enemyTurn(room) {
@@ -1773,7 +1785,8 @@ function winBattle(room) {
     if(pc&&boss){const offer=moveRewriteOfferForPc(room,pc);if(offer)room.reward.rewriteOffers[rp.id]=offer;else room.reward.rewriteClaims[rp.id]={completed:true};}
     else room.reward.rewriteClaims[rp.id]={completed:true};
   }
-  if (room.mode === 'journey' && ['wild','boss'].includes(b.encounterType)) room.capture = makeCaptureEncounter(room.floor, b.tier, room);
+  // v5.1: wild monsters are captured during battle. Do not create a blocking post-battle capture gate.
+  room.capture = null;
   battleLog(room, '승리!');
   for(const rp of room.players) room.runState[rp.id].wavesCleared=Number(room.runState[rp.id].wavesCleared||0)+1;
   pushRoomEvent(room, 'win', `${b.encounterLabel||'전투'} 승리!`, { tier: b.tier, encounterType:b.encounterType, waveInBiome:b.waveInBiome, floor: room.floor, final: room.finalClearPending, perfectPlayers: Object.keys(perfectBy).length });
@@ -2113,7 +2126,8 @@ function buyReward(room, playerId, itemId, itemType = 'card') {
 
 function continueAfterReward(room, playerId) {
   if (room.status !== 'reward' || !room.reward) throw new Error('진행할 수 없습니다.');
-  if (room.mode === 'journey' && room.capture && !room.capture.escaped && !room.capture.attemptedBy?.includes(playerId)) throw new Error('먼저 야생 몬스터를 봉인하거나 지나가 주세요.');
+  // v5.1 migration: old saves may still carry the removed post-battle capture gate.
+  if (room.capture) room.capture = null;
   const options = room.reward.playerOptions?.[playerId] || [];
   if (options.length && !room.reward.claims[playerId]) throw new Error('보상을 선택하거나 분해해 주세요.');
   const skillOffer=room.reward.skillOffers?.[playerId];if(skillOffer&&!room.reward.skillClaims?.[playerId]){room.reward.skillHistoryBy ||= {};room.reward.skillHistoryBy[playerId] ||= [];room.reward.skillHistoryBy[playerId].push({skippedAll:true});delete room.reward.skillOffers[playerId];room.reward.skillClaims[playerId]={completed:true,skippedAll:true,history:room.reward.skillHistoryBy[playerId]};}
@@ -2162,6 +2176,37 @@ function continueAfterReward(room, playerId) {
   }
   makeRoute(room);
   pushRoomEvent(room, 'floor', crossingBiome ? `${room.floor}층 · 다음 바이옴을 선택합니다.` : `${room.floor}층으로 이동합니다.`);
+}
+
+function attemptBattleCapture(room,playerId,sealType,enemyUid,instanceId){
+  const b=room.battle;
+  if(room.mode!=='journey'||room.status!=='battle'||!b||b.phase!=='players'||!['wild','boss'].includes(b.encounterType))throw new Error('지금은 몬스터를 봉인할 수 없습니다.');
+  const pc=getPc(room,playerId);if(!pc||pc.down||pc.ended)throw new Error('행동할 수 없습니다.');
+  const u=(pc.units||[]).find(x=>x.instanceId===instanceId)||(pc.units||[]).find(x=>x.hp>0&&!x.acted)||(pc.units||[])[0];
+  if(!u||u.hp<=0)throw new Error('봉인을 시도할 출전 몬스터가 없습니다.');if(u.acted)throw new Error('이 몬스터는 이미 행동했습니다.');
+  const target=aliveEnemies(room).find(e=>e.uid===enemyUid)||aliveEnemies(room)[0];if(!target)throw new Error('봉인할 몬스터가 없습니다.');
+  const m=MONSTER_BY_ID[target.id];if(!m)throw new Error('몬스터 데이터를 찾을 수 없습니다.');
+  const p=profiles[playerId],run=room.runState[playerId],seal=String(sealType||'basic'),mult={basic:1,silver:1.8,royal:3.5}[seal];
+  if(!mult)throw new Error('봉인구 종류 오류');if((p.seals?.[seal]||0)<=0)throw new Error('봉인구가 없습니다.');
+  const hpRatio=clamp(Number(target.hp||0)/Math.max(1,Number(target.maxHp||1)),0,1),lowHpBonus=(1-hpRatio)*.45;
+  // Boss capture rules are identical in the client and server: Royal seal + <= 25% HP.
+  if(m.tier==='boss'&&seal!=='royal')throw new Error('보스는 로열 봉인구가 필요합니다.');
+  if(m.tier==='boss'&&hpRatio>.25)throw new Error('보스는 HP 25% 이하에서 봉인할 수 있습니다.');
+  p.seals[seal]--;
+  let chance=(Number(m.captureBase||.25)+lowHpBonus)*mult;if(run?.relics?.includes('r003'))chance+=.08;chance+=modTotal(run,'captureBonus');
+  if(target.broken)chance+=.07;if(Number(target.debuffs?.burn||0)>0)chance+=.025;if(Number(target.debuffs?.weak||0)>0)chance+=.025;
+  const hardCap=m.tier==='boss'?.32:m.tier==='ultra'?.76:m.tier==='rare'?.92:.98;chance=clamp(chance,.03,hardCap);
+  const newDiscovery=!p.monsters?.[m.id],success=process.env.TEST_MODE==='1'?true:Math.random()<chance;
+  u.acted=true;pc.stats.movesUsed=Number(pc.stats.movesUsed||0);
+  if(success){
+    const wasNew=addMonsterToProfile(p,m.id,1,false);p.stats.monstersCaught=Number(p.stats.monstersCaught||0)+1;p.stats.cardsCaught=Number(p.stats.cardsCaught||0)+1;if(wasNew)p.stats.journeyUnlocks=Number(p.stats.journeyUnlocks||0)+1;
+    target.hp=0;saveProfiles();battleLog(room,`${u.name}의 봉인 성공 — ${m.name}을(를) 동료로 만들었다!`);pushRoomEvent(room,'capture',`${m.name} 봉인 성공!`,{monsterId:m.id,enemyUid:target.uid,playerId,instanceId:u.instanceId,success:true});
+  }else{
+    saveProfiles();battleLog(room,`${u.name}의 봉인 실패 — ${m.name}은(는) 아직 전장에 남아 있다.`);pushRoomEvent(room,'capture-fail',`${m.name} 봉인 실패.`,{monsterId:m.id,enemyUid:target.uid,playerId,instanceId:u.instanceId,success:false});
+  }
+  if(checkBattleEnd(room))return{success,chance,escaped:success,monster:publicMonster(m),newDiscovery};
+  if((pc.units||[]).filter(x=>x.hp>0).every(x=>x.acted)){pc.ended=true;battleLog(room,`${pc.nickname} 행동 완료.`);if(b.party.filter(x=>!x.down).every(x=>x.ended))enemyTurn(room);}
+  return{success,chance,escaped:false,monster:publicMonster(m),newDiscovery};
 }
 
 function attemptCapture(room,playerId,sealType){
@@ -2435,7 +2480,7 @@ const server = http.createServer(async (req, res) => {
         if (action === 'buy') { buyReward(room, prof.id, b.itemId, b.itemType); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
         if (action === 'service') { const result=fieldServiceAction(room, prof.id, b.serviceId); return ok(res, { result, room: roomView(room) }); }
         if (action === 'continue') { continueAfterReward(room, prof.id); return ok(res, { room: roomView(room) }); }
-        if (action === 'capture') { const result = attemptCapture(room, prof.id, b.sealType); return ok(res, { result, room: roomView(room), profile: profileView(profiles[prof.id]) }); }
+        if (action === 'capture') { const result = room.status==='battle' ? attemptBattleCapture(room, prof.id, b.sealType, b.enemyUid, b.instanceId) : attemptCapture(room, prof.id, b.sealType); return ok(res, { result, room: roomView(room), profile: profileView(profiles[prof.id]) }); }
         if (action === 'capture-pass') { const result = passCapture(room, prof.id); return ok(res, { result, room: roomView(room) }); }
         if (action === 'debug-monster' && process.env.TEST_MODE === '1') {
           const pc=getPc(room,prof.id),unit=findCombatMonster(pc,b.instanceId);if(!pc||!unit)throw new Error('테스트 몬스터를 찾을 수 없습니다.');

@@ -1,7 +1,7 @@
 {
-  "release": "RIFT-DECK-V50-ORIGINAL-PIXEL-MONSTERS",
-  "buildId": "v50-pixel-monsters",
-  "generatedAt": "2026-09-14T00:00:00.000Z",
-  "version": "5.0.0",
-  "label": "V50 ORIGINAL PIXEL MONSTERS"
+  "release": "RIFT-DECK-V51-COMBAT-UX-HIGHDPI",
+  "buildId": "v51-combat-ux",
+  "generatedAt": "2026-09-15T01:25:00.000Z",
+  "version": "5.1.0",
+  "label": "V51 COMBAT UX + HIGH-DPI"
 }

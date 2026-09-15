@@ -1,0 +1,50 @@
+RIFT DECK V5.1 COMBAT UX / HIGH-DPI 누적 PATCH 적용 안내
+====================================================
+
+이 패치는 처음 올려주신 프로젝트 또는 V50에 덮어쓸 수 있는 누적 패치입니다.
+V49/V50의 픽셀 몬스터·배경·이름 변경도 함께 포함합니다.
+
+1) 기존 프로젝트를 먼저 백업하세요.
+2) 이 패치 ZIP의 내용을 기존 프로젝트 최상위 폴더에 그대로 덮어씁니다.
+   - server.js
+   - public/app.js / public/styles.css / public/index.html
+   - assets/enemies/*
+   - assets/monsters/forms/*
+   - package.json / package-lock.json / version.json / index.txt
+   - data/catalog.json
+   - assets/biomes/*
+   - render.yaml / next.config.mjs / scripts/*
+3) 터미널에서 다음을 실행하세요.
+   npm install
+   npm run check
+4) 전체 회귀 테스트가 필요하면:
+   npm test
+5) 로컬 실행:
+   npm start
+
+중요: Render 배포
+-----------------
+이 게임은 Static Site가 아니라 Node Web Service입니다.
+Build Command : npm ci && npm run build
+Start Command : npm start
+Health Check  : /healthz
+Node           : 22
+
+휴대폰에서 Static Site 진단 화면이 보인다면 게임 코드 오류가 아니라
+Static Site URL로 접속한 것입니다. Web Service의 onrender.com 주소를 사용하세요.
+자세한 내용은 RENDER_V51_MOBILE_FIX.txt를 확인하세요.
+
+V5.1 주요 변경
+---------------
+- 전투 후 봉인/지나가기 안내가 반복되어 진행이 막히는 문제 수정
+- 봉인을 전투 중 행동으로 통합
+- 더블전투에서 두 출전 몬스터 모두 행동해야 적 턴 진행
+- 첫 몬스터 행동 후 두 번째 몬스터 자동 선택 + 기술 메뉴 자동 표시
+- 전투 명령을 기술 / 스펠 / 교대 / 봉인 4개 큰 버튼으로 단순화
+- 시작 원정 특성 선택 화면은 다른 화면과 겹치지 않는 단독 화면으로 변경
+- 보상 화면을 큰 선택지 중심으로 단순화, 정비 메뉴는 필요할 때만 표시
+- 전투장과 하단 명령창을 물리적으로 분리하여 몬스터 잘림/가림 방지
+- 모바일에서는 좌우 보조 HUD를 숨기고 명령 버튼을 전체 폭으로 확대
+- 기본/변형 몬스터 이미지 820장 High-DPI 적용
+- 기술명/피해량/피격 반응 강화
+- 전환 연출 최대 대기시간 14초 -> 2.6초로 축소
