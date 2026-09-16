@@ -1,18 +1,12 @@
 services:
   - type: web
-    name: rift-deck-v22-server
+    name: rift-deck-game
     runtime: node
     plan: free
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /healthz
-    autoDeploy: true
+    autoDeployTrigger: commit
     envVars:
-      - key: NODE_VERSION
-        value: 22
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SECRET_KEY
-        sync: false
-      - key: SUPABASE_PUBLISHABLE_KEY
-        sync: false
+      - key: NODE_ENV
+        value: production
