@@ -77,8 +77,8 @@ for (const r of catalog.relics || []) {
 if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets: ${missing.slice(0, 5).join(', ')}`);
 
 const info = {
-  version: String(pkg.version || catalog.version || '6.0.0'),
-  deployId: 'FUSEWILD-V600-ROGUE-CADENCE-FUSION-20260916',
+  version: String(pkg.version || catalog.version || '6.1.0'),
+  deployId: 'FUSEWILD-V610-COMPACT-POKEROGUE-FLOW-20260916',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,
@@ -92,11 +92,11 @@ const info = {
 };
 fs.writeFileSync(path.join(root, 'public', 'build-info.json'), JSON.stringify(info, null, 2));
 fs.writeFileSync(path.join(root, 'public', 'version.json'), JSON.stringify({
-  release: 'FUSEWILD-V600-ROGUE-CADENCE-FUSION',
-  buildId: 'fusewild-v600-rogue-cadence-fusion',
+  release: 'FUSEWILD-V610-COMPACT-POKEROGUE-FLOW',
+  buildId: 'fusewild-v610-compact-pokerogue-flow',
   generatedAt: info.builtAt,
   version: info.version,
-  label: 'FUSEWILD V6.0 POKEROGUE-STYLE CADENCE + 5 TURN FUSION',
+  label: 'FUSEWILD V6.1 COMPACT POKEROGUE-INSPIRED FLOW + 5 TURN FUSION',
   deployId: info.deployId
 }, null, 2));
 
