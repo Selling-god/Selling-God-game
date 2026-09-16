@@ -1,7 +1,7 @@
 {
-  "version": "5.9.0",
-  "deployId": "RIFT-V590-FUSION-5TURN-FX-PERF-20260916",
-  "builtAt": "2026-09-16T05:15:06.795Z",
+  "version": "6.0.0",
+  "deployId": "FUSEWILD-V600-ROGUE-CADENCE-FUSION-20260916",
+  "builtAt": "2026-09-16T05:47:16.246Z",
   "cards": 315,
   "items": 128,
   "enemies": 205,

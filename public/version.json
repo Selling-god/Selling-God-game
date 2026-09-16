@@ -1,5 +1,8 @@
 {
-  "version": "5.9.0",
-  "deployId": "RIFT-V590-FUSION-5TURN-FX-PERF-20260916",
-  "release": "classic-flow-readable-rewards-dynamic-fusion"
+  "release": "FUSEWILD-V600-ROGUE-CADENCE-FUSION",
+  "buildId": "fusewild-v600-rogue-cadence-fusion",
+  "generatedAt": "2026-09-16T05:47:16.246Z",
+  "version": "6.0.0",
+  "label": "FUSEWILD V6.0 POKEROGUE-STYLE CADENCE + 5 TURN FUSION",
+  "deployId": "FUSEWILD-V600-ROGUE-CADENCE-FUSION-20260916"
 }
