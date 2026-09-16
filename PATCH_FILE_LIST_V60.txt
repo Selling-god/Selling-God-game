@@ -1,0 +1,32 @@
+FUSEWILD v6.0 PATCH CONTENTS
+
+Runtime code
+- server.js
+- public/app.js
+- public/styles.css
+- public/index.html
+- public/404.html
+- public/manifest.webmanifest
+- package.json
+- package-lock.json
+
+Build/test
+- scripts/build.js
+- scripts/v60-cadence-brand-test.js
+- public/build-info.json
+- public/version.json
+
+Fusion assets
+- assets/fusion/frame-base.svg
+- assets/fusion/grid-overlay.svg
+- assets/fusion/sigil-alpha.svg
+- assets/fusion/sigil-beta.svg
+- assets/fusion/sigil-gamma.svg
+- assets/fusion/sigil-delta.svg
+- assets/fusion/README.md
+
+Docs
+- PATCH_APPLY_V60.md
+- RELEASE_NOTES_V60.md
+- POKEROGUE_FLOW_RESEARCH_V60.md
+- README.md

@@ -1,6 +1,6 @@
-# RIFT DECK v4.2.0 — ROGUELITE RIFT REWRITE
+# FUSEWILD v6.0.0 — MONSTER FUSION ROGUELITE
 
-RIFT DECK는 포획한 몬스터를 편성하고, 몬스터 고유 기술을 주 행동으로 사용하면서 플레이어의 스펠 카드로 전황을 보조하는 오리지널 픽셀 로그라이트입니다.
+FUSEWILD는 포획한 몬스터를 편성하고, 몬스터 고유 기술을 중심으로 웨이브를 돌파하고, 5턴 한정 융합으로 전황을 뒤집는 오리지널 픽셀 로그라이트입니다.
 
 ## 핵심 루프
 `일반 여행 → 야생 몬스터 봉인 → 10P 파티 편성 → 10웨이브 바이옴 → WARDEN → RIFT HUNTER → 바이옴 BOSS → RIFT REWRITE → 다음 바이옴 선택 → 진화·융합·공명진화·균열개화`
