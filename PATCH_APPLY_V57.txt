@@ -1,0 +1,31 @@
+RIFT DECK V57 PATCH APPLY
+=========================
+
+Base required:
+- V56 full project (recommended), or a project already containing the V56 fusion/PP battle system.
+
+1. Back up the current project folder.
+2. Extract RIFT_DECK_V57_BATTLE_PHASE_CINEMATIC_PATCH.zip.
+3. Copy every extracted file/folder over the project root and allow overwrite.
+4. Do NOT delete or replace your existing monster/background image folders. V57 does not require new monster images.
+5. Run:
+   npm ci
+   npm run check
+   npm test
+6. Commit/push the modified files to the repository used by Render.
+7. Deploy as a Render Web Service, not a Static Site.
+   Build Command: npm ci && npm run build
+   Start Command: npm start
+   Health Check Path: /healthz
+8. After deployment open /healthz and confirm:
+   version = 5.7.0
+   deployId = RIFT-V570-BATTLE-PHASE-FX-20260916
+9. In the browser use Ctrl+Shift+R once after deployment.
+
+Main changes:
+- serialized battle phase timing
+- bottom narrated battle message box
+- stronger move FX and status FX
+- enemy sleep/freeze/paralysis mechanics
+- slower post-battle reward presentation
+- V56 fusion/PP/persistent HP-status systems preserved

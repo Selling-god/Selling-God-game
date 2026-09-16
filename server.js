@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * RIFT DECK: ABYSS EXPEDITION v5.6 · FUSION BATTLE CORE
+ * RIFT DECK: ABYSS EXPEDITION v5.7 · BATTLE PHASE / FUSION CORE
  * Dynamic, server-authoritative original monster roguelite.
  *
  * Design goals:
@@ -30,8 +30,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '5.6.0';
-const DEPLOY_ID = 'RIFT-V560-FUSION-PP-BATTLE-20260916';
+const VERSION = '5.7.0';
+const DEPLOY_ID = 'RIFT-V570-BATTLE-PHASE-FX-20260916';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -164,10 +164,10 @@ function monsterSpeedValue(u){
   base*=stageMultiplier(u?.statStages?.speed||0);if(u?.majorStatus==='paralysis')base*=.55;return base;
 }
 function monsterStatusLabel(status){return({burn:'화상',poison:'중독',paralysis:'마비',sleep:'수면',freeze:'빙결'})[status]||status||'';}
-function tryMajorStatus(room,pc,u,status,turns=0,source=null){
+function tryMajorStatus(room,pc,u,status,turns=0,source=null,emit=true){
   if(!u||u.hp<=0||u.majorStatus)return false;
   u.majorStatus=status;u.statusTurns=turns||((status==='sleep')?2:(status==='freeze'?2:0));
-  pushRoomEvent(room,'monster-status',`${u.name} ${monsterStatusLabel(status)}!`,{playerId:pc?.playerId||null,instanceId:u.instanceId,status,label:monsterStatusLabel(status),turns:u.statusTurns,source:source?.name||null});return true;
+  if(emit)pushRoomEvent(room,'monster-status',`${u.name} ${monsterStatusLabel(status)}!`,{playerId:pc?.playerId||null,instanceId:u.instanceId,monsterName:u.name,status,label:monsterStatusLabel(status),turns:u.statusTurns,source:source?.name||null});return true;
 }
 function preActionStatus(room,pc,u){
   normalizeMajorStatus(u);const st=u.majorStatus;if(!st)return false;
@@ -1485,6 +1485,25 @@ function playCard(room, playerId, handIndex, targetUid, targetMonsterId) {
   if(masteryResult&&masteryResult.level>Number(c.upgradeLevel||0))pushRoomEvent(room,'mastery',`${masteryResult.name} 성장!`,{playerId:pc.playerId,cardId:c.id,level:masteryResult.level,xp:masteryResult.xp});for(const e of breakTargets)pushRoomEvent(room,'enemy-break',`${e.name}의 균열 자세 붕괴!`,{enemyUid:e.uid,enemyName:e.name});if(chainResult.stage)pushRoomEvent(room,'chain',`${pc.nickname} ${chainResult.stage==='overdrive'?'오버드라이브':'전술 연쇄'} 발동!`,{playerId:pc.playerId,stage:chainResult.stage,count:chainResult.displayCount});for(const e of phaseShifts)pushRoomEvent(room,'boss-phase',`${e.name} 2단계!`,{enemyUid:e.uid,enemyName:e.name,phase:2});
 }
 
+function enemyMajorStatusLabel(status){return({paralysis:'마비',sleep:'수면',freeze:'빙결'})[status]||status||'';}
+function tryEnemyMajorStatus(target,status,turns=0){
+  if(!target||target.hp<=0||target.majorStatus)return false;target.majorStatus=status;target.statusTurns=turns||((status==='sleep'||status==='freeze')?2:0);return true;
+}
+function preEnemyActionStatus(room,e){
+  const st=e?.majorStatus;if(!st)return false;
+  if(st==='sleep'){e.statusTurns=Math.max(0,Number(e.statusTurns||2)-1);pushRoomEvent(room,'enemy-status-turn',`${e.name}은(는) 잠들어 있다.`,{enemyUid:e.uid,enemyName:e.name,status:st,label:'수면',blocked:true});if(e.statusTurns<=0){e.majorStatus=null;pushRoomEvent(room,'enemy-status-cure',`${e.name}이(가) 깨어났다.`,{enemyUid:e.uid,enemyName:e.name,status:st,label:'수면'});}return true;}
+  if(st==='freeze'){if(process.env.TEST_MODE!=='1'&&Math.random()<.22){e.majorStatus=null;e.statusTurns=0;pushRoomEvent(room,'enemy-status-cure',`${e.name}의 얼음이 녹았다.`,{enemyUid:e.uid,enemyName:e.name,status:st,label:'빙결'});return false;}pushRoomEvent(room,'enemy-status-turn',`${e.name}은(는) 얼어붙어 움직이지 못한다.`,{enemyUid:e.uid,enemyName:e.name,status:st,label:'빙결',blocked:true});return true;}
+  if(st==='paralysis'&&process.env.TEST_MODE!=='1'&&Math.random()<.25){pushRoomEvent(room,'enemy-status-turn',`${e.name}은(는) 마비되어 움직이지 못했다.`,{enemyUid:e.uid,enemyName:e.name,status:st,label:'마비',blocked:true});return true;}
+  return false;
+}
+function maybeApplyEnemyMajorStatus(target,move){
+  if(!target||!move||target.majorStatus)return null;const test=process.env.TEST_MODE==='1',seed=String(move.id||'');
+  if(Number(move.sleep||0)>0&&(test||Math.random()<.55)&&tryEnemyMajorStatus(target,'sleep',Number(move.sleep||2)))return{key:'sleep',label:'수면',value:Number(move.sleep||2)};
+  if(Number(move.freeze||0)>0&&(test||Math.random()<.38)&&tryEnemyMajorStatus(target,'freeze',Number(move.freeze||2)))return{key:'freeze',label:'빙결',value:Number(move.freeze||2)};
+  if(Number(move.shock||0)>0&&(!test?Math.random()<.32:(seed.length%2===0))&&tryEnemyMajorStatus(target,'paralysis',0))return{key:'paralysis',label:'마비',value:1};
+  return null;
+}
+
 function moveDamage(room,pc,u,target,move){
   let amount=Math.max(1,Math.round(Number(u.power||1)*Number(move.ratio||0)+Number(move.power||0)+Number(u.nextAttackBonus||0)));u.nextAttackBonus=0;
   normalizeMajorStatus(u);const held=heldItemDef(u)?.held,moveElement=move.element||u.element;
@@ -1501,20 +1520,22 @@ function moveDamage(room,pc,u,target,move){
   if(move.lifesteal)u.hp=clamp(u.hp+Math.max(1,Math.round(dealt*Number(move.lifesteal))),0,u.maxHp);
   if(move.weak)target.debuffs.weak=Math.max(Number(target.debuffs.weak||0),Number(move.weak));if(move.vulnerable)target.debuffs.vulnerable=Math.max(Number(target.debuffs.vulnerable||0),Number(move.vulnerable));
   if(move.burn)target.debuffs.burn=Number(target.debuffs.burn||0)+Number(move.burn);if(move.poison)target.debuffs.poison=Number(target.debuffs.poison||0)+Number(move.poison);if(move.shock)target.debuffs.shock=Number(target.debuffs.shock||0)+Number(move.shock);if(move.intentSeal)target.debuffs.intentSeal=Math.max(Number(target.debuffs.intentSeal||0),Number(move.intentSeal));
+  maybeApplyEnemyMajorStatus(target,move);
   if(move.stagger&&target.hp>0&&!target.broken){target.stagger=clamp(Number(target.stagger||0)+Number(move.stagger),0,target.staggerMax||999);if(target.stagger>=target.staggerMax){target.broken=1;target.justBroken=true;target.debuffs.vulnerable=Math.max(Number(target.debuffs.vulnerable||0),1);}}
   if(move.rewrite?.id==='breaker'&&target.justBroken)u.resonance=clamp(Number(u.resonance||0)+1,0,6);
   if(move.splash){for(const e of aliveEnemies(room)){if(e===target)continue;const splash=applyElementDamage(e,Math.max(1,Math.round(dealt*Number(move.splash))),moveElement);pc.stats.damage+=splash;}}
   return {dealt,crit,effectiveness};
 }
-function enemyStatusSnapshot(e){return{weak:Number(e?.debuffs?.weak||0),vulnerable:Number(e?.debuffs?.vulnerable||0),burn:Number(e?.debuffs?.burn||0),poison:Number(e?.debuffs?.poison||0),shock:Number(e?.debuffs?.shock||0),intentSeal:Number(e?.debuffs?.intentSeal||0),broken:Number(e?.broken||0),stagger:Number(e?.stagger||0)};}
+function enemyStatusSnapshot(e){return{weak:Number(e?.debuffs?.weak||0),vulnerable:Number(e?.debuffs?.vulnerable||0),burn:Number(e?.debuffs?.burn||0),poison:Number(e?.debuffs?.poison||0),shock:Number(e?.debuffs?.shock||0),intentSeal:Number(e?.debuffs?.intentSeal||0),majorStatus:e?.majorStatus||null,statusTurns:Number(e?.statusTurns||0),broken:Number(e?.broken||0),stagger:Number(e?.stagger||0)};}
 function enemyStatusDelta(before,after){
   const labels={burn:'화상',poison:'독',shock:'감전',weak:'공격↓',vulnerable:'방어↓',intentSeal:'행동 봉쇄'};const out=[];
   for(const k of ['burn','poison','shock','weak','vulnerable','intentSeal']){const d=Number(after[k]||0)-Number(before[k]||0);if(d>0)out.push({key:k,label:labels[k],value:d,total:Number(after[k]||0)});}
+  if(before.majorStatus!==after.majorStatus&&after.majorStatus)out.push({key:after.majorStatus,label:enemyMajorStatusLabel(after.majorStatus),value:Math.max(1,Number(after.statusTurns||1)),total:Number(after.statusTurns||0)});
   if(!before.broken&&after.broken)out.push({key:'broken',label:'BREAK',value:1,total:1});
   else if(Number(after.stagger||0)>Number(before.stagger||0))out.push({key:'stagger',label:'BREAK 게이지',value:Number(after.stagger)-Number(before.stagger),total:Number(after.stagger||0)});
   return out;
 }
-function moveEffectSummary(move){const out=[];if(move?.signature)out.push('전용기');if(move?.burn)out.push(`화상 ${move.burn}`);if(move?.poison)out.push(`독 ${move.poison}`);if(move?.shock)out.push(`감전 ${move.shock}`);if(move?.weak)out.push(`공격↓ ${move.weak}`);if(move?.vulnerable)out.push(`방어↓ ${move.vulnerable}`);if(move?.intentSeal)out.push(`행동봉쇄 ${move.intentSeal}`);if(move?.stagger)out.push(`BREAK +${move.stagger}`);if(move?.lifesteal)out.push('흡혈');if(move?.splash)out.push('범위');if(move?.shield)out.push(`방어 +${move.shield}`);if(move?.heal)out.push(`회복 +${move.heal}`);return out;}
+function moveEffectSummary(move){const out=[];if(move?.signature)out.push('전용기');if(move?.burn)out.push(`화상 ${move.burn}`);if(move?.poison)out.push(`독 ${move.poison}`);if(move?.shock)out.push('마비 가능');if(move?.sleep)out.push('수면');if(move?.freeze)out.push('빙결');if(move?.weak)out.push(`공격↓ ${move.weak}`);if(move?.vulnerable)out.push(`방어↓ ${move.vulnerable}`);if(move?.intentSeal)out.push(`행동봉쇄 ${move.intentSeal}`);if(move?.stagger)out.push(`BREAK +${move.stagger}`);if(move?.lifesteal)out.push('흡혈');if(move?.splash)out.push('범위');if(move?.shield)out.push(`방어 +${move.shield}`);if(move?.heal)out.push(`회복 +${move.heal}`);return out;}
 
 function useMonsterMove(room,playerId,instanceId,moveId,targetUid){
   const b=room.battle;if(room.status!=='battle'||!b||b.phase!=='players')throw new Error('기술을 사용할 차례가 아닙니다.');
@@ -1554,7 +1575,7 @@ function useMonsterMove(room,playerId,instanceId,moveId,targetUid){
   move.masteryUses=Number(move.masteryUses||0)+1;const priorMastery=Number(move.masteryStage||0),nextMastery=moveMasteryStage(move.masteryUses);
   if(nextMastery>priorMastery){move.masteryStage=nextMastery;battleLog(room,`${u.name}의 ${move.name} 숙련 진화 ${moveMasteryLabel(nextMastery)}!`);}
   const appliedDebuffs=enemyStatusDelta(statusBefore,enemyStatusSnapshot(target));
-  pushRoomEvent(room,'monster-move',`${u.name} · ${move.name}`,{playerId,instanceId:u.instanceId,speciesId:u.speciesId,monsterName:u.name,targetUid:target?.uid||null,move:clone({...move,rewrite,masteryStage:move.masteryStage,masteryUses:move.masteryUses}),skill:move.name,damage:dealt,hit,element:effective.element||u.element,style:u.archetype,archetype:u.archetype,form:monsterFormLabel(u),rewrite:rewrite?clone(rewrite):null,signature:!!move.signature,fxFamily:move.fxFamily||effective.fxFamily||null,fxVariant:Number(move.fxVariant||0),fxTempo:move.fxTempo||'snap',appliedDebuffs,effectSummary:moveEffectSummary(effective),tacticLink,pp:Number(move.pp||0),maxPp:Number(move.maxPp||0),critical,effectiveness,fxSeed:`${u.speciesId}:${move.id}`});
+  pushRoomEvent(room,'monster-move',`${u.name} · ${move.name}`,{playerId,instanceId:u.instanceId,speciesId:u.speciesId,monsterName:u.name,targetUid:target?.uid||null,targetName:target?.name||null,move:clone({...move,rewrite,masteryStage:move.masteryStage,masteryUses:move.masteryUses}),skill:move.name,damage:dealt,hit,element:effective.element||u.element,style:u.archetype,archetype:u.archetype,form:monsterFormLabel(u),rewrite:rewrite?clone(rewrite):null,signature:!!move.signature,fxFamily:move.fxFamily||effective.fxFamily||null,fxVariant:Number(move.fxVariant||0),fxTempo:move.fxTempo||'snap',appliedDebuffs,effectSummary:moveEffectSummary(effective),tacticLink,pp:Number(move.pp||0),maxPp:Number(move.maxPp||0),critical,effectiveness,fxSeed:`${u.speciesId}:${move.id}`});
   if(nextMastery>priorMastery)pushRoomEvent(room,'move-evolve',`${u.name}의 ${move.name} 숙련 진화!`,{playerId,instanceId:u.instanceId,monsterName:u.name,monsterSprite:monsterDisplaySpriteServer(u),moveId:move.id,moveName:move.name,stage:nextMastery,label:moveMasteryLabel(nextMastery),uses:move.masteryUses,element:move.element||u.element,kind:move.kind,before:priorMastery,after:nextMastery});
   if(target?.justBossBarBroken){pushRoomEvent(room,'boss-shield-break',`${target.name}의 HP 보호막이 깨졌다!`,{enemyUid:target.uid,enemyName:target.name,remaining:Number(target.hpSegments||1),total:Number(target.hpSegmentsMax||1)});target.justBossBarBroken=false;}
   const phases=updateBossPhase(room);for(const e of phases)pushRoomEvent(room,'boss-phase',`${e.name} 2단계!`,{enemyUid:e.uid,enemyName:e.name,phase:2});
@@ -1888,14 +1909,15 @@ function enemyMoveDamage(e,move,target){
   const effectiveness=elementalMultiplier(element,target?.element);return{amount:Math.max(1,Math.round(raw*effectiveness)),crit,effectiveness};
 }
 function enemyApplyMoveStatus(room,pc,u,move){
-  if(!u||u.hp<=0||!move)return[];const out=[];
-  const chance=process.env.TEST_MODE==='1'?1:.42;
-  if(move.burn&&Math.random()<chance&&tryMajorStatus(room,pc,u,'burn',0,{name:move.name}))out.push({key:'burn',label:'화상'});
-  else if(move.poison&&Math.random()<chance&&tryMajorStatus(room,pc,u,'poison',0,{name:move.name}))out.push({key:'poison',label:'중독'});
-  else if(move.shock&&Math.random()<chance&&tryMajorStatus(room,pc,u,'paralysis',0,{name:move.name}))out.push({key:'paralysis',label:'마비'});
-  else if((move.element==='수정'||move.fxFamily==='ice')&&Math.random()<(process.env.TEST_MODE==='1'?0:.12)&&tryMajorStatus(room,pc,u,'freeze',2,{name:move.name}))out.push({key:'freeze',label:'빙결'});
-  if(move.weak){u.statStages.atk=clamp(Number(u.statStages.atk||0)-1,-6,6);out.push({key:'atkDown',label:'공격↓',value:1});pushRoomEvent(room,'monster-stat',`${u.name} 공격력 하락!`,{playerId:pc.playerId,instanceId:u.instanceId,stat:'atk',label:'공격',delta:-1,stage:u.statStages.atk});}
-  if(move.vulnerable){u.statStages.def=clamp(Number(u.statStages.def||0)-1,-6,6);out.push({key:'defDown',label:'방어↓',value:1});pushRoomEvent(room,'monster-stat',`${u.name} 방어력 하락!`,{playerId:pc.playerId,instanceId:u.instanceId,stat:'def',label:'방어',delta:-1,stage:u.statStages.def});}
+  if(!u||u.hp<=0||!move)return[];const out=[];const chance=process.env.TEST_MODE==='1'?1:.42;
+  if(move.sleep&&Math.random()<chance&&tryMajorStatus(room,pc,u,'sleep',Number(move.sleep||2),{name:move.name},false))out.push({key:'sleep',label:'수면',value:Number(move.sleep||2)});
+  else if(move.freeze&&Math.random()<chance&&tryMajorStatus(room,pc,u,'freeze',Number(move.freeze||2),{name:move.name},false))out.push({key:'freeze',label:'빙결',value:Number(move.freeze||2)});
+  else if(move.burn&&Math.random()<chance&&tryMajorStatus(room,pc,u,'burn',0,{name:move.name},false))out.push({key:'burn',label:'화상'});
+  else if(move.poison&&Math.random()<chance&&tryMajorStatus(room,pc,u,'poison',0,{name:move.name},false))out.push({key:'poison',label:'중독'});
+  else if(move.shock&&Math.random()<chance&&tryMajorStatus(room,pc,u,'paralysis',0,{name:move.name},false))out.push({key:'paralysis',label:'마비'});
+  else if((move.element==='수정'||move.fxFamily==='ice')&&Math.random()<(process.env.TEST_MODE==='1'?0:.12)&&tryMajorStatus(room,pc,u,'freeze',2,{name:move.name},false))out.push({key:'freeze',label:'빙결'});
+  if(move.weak){u.statStages.atk=clamp(Number(u.statStages.atk||0)-1,-6,6);out.push({key:'atkDown',label:'공격↓',value:1});}
+  if(move.vulnerable){u.statStages.def=clamp(Number(u.statStages.def||0)-1,-6,6);out.push({key:'defDown',label:'방어↓',value:1});}
   return out;
 }
 function enemyTurn(room) {
@@ -1904,11 +1926,12 @@ function enemyTurn(room) {
     e.counter++;
     if(Number(e.debuffs.poison||0)>0){const d=applyDamage(e,Math.max(1,Math.ceil(Number(e.debuffs.poison||0)*1.5)));e.debuffs.poison=Math.max(0,Number(e.debuffs.poison||0)-1);pushRoomEvent(room,'status-tick',`${e.name} 독 피해 ${d}`,{enemyUid:e.uid,status:'poison',label:'독',damage:d,remaining:e.debuffs.poison});if(e.hp<=0){if(checkBattleEnd(room))return;continue;}}
     if(e.debuffs.burn>0){const d=applyDamage(e,e.debuffs.burn);e.debuffs.burn=Math.max(0,e.debuffs.burn-1);pushRoomEvent(room,'status-tick',`${e.name} 화상 피해 ${d}`,{enemyUid:e.uid,status:'burn',label:'화상',damage:d,remaining:e.debuffs.burn});if(e.hp<=0){if(checkBattleEnd(room))return;continue;}}
-    if(e.broken>0){e.broken=0;e.stagger=0;e.debuffs.vulnerable=Math.max(Number(e.debuffs.vulnerable||0),1);battleLog(room,`${e.name} BREAK — 행동 불가.`);continue;}
-    if(e.debuffs.intentSeal>0){e.debuffs.intentSeal--;battleLog(room,`${e.name} 행동 봉인.`);continue;}
+    if(preEnemyActionStatus(room,e))continue;
+    if(e.broken>0){e.broken=0;e.stagger=0;e.debuffs.vulnerable=Math.max(Number(e.debuffs.vulnerable||0),1);battleLog(room,`${e.name} BREAK — 행동 불가.`);pushRoomEvent(room,'enemy-status-turn',`${e.name}의 자세가 무너져 움직일 수 없다.`,{enemyUid:e.uid,enemyName:e.name,status:'broken',label:'BREAK',blocked:true});continue;}
+    if(e.debuffs.intentSeal>0){e.debuffs.intentSeal--;battleLog(room,`${e.name} 행동 봉인.`);pushRoomEvent(room,'enemy-status-turn',`${e.name}은(는) 행동이 봉쇄되어 움직일 수 없다.`,{enemyUid:e.uid,enemyName:e.name,status:'intentSeal',label:'행동 봉쇄',blocked:true});continue;}
     const targets=b.party.filter(x=>!x.down&&x.units.some(u=>u.hp>0));if(!targets.length)break;const t=choose(targets),mon=t.units.filter(u=>u.hp>0).sort((a,z)=>monsterSpeedValue(z)-monsterSpeedValue(a))[0]||t.units[0],mv=enemyMoveChoice(e);
     if(!mon)continue;
-    if(!mv){const d=monsterDamage(room,t,mon,Math.max(1,Number(e.atk||1)),e);pushRoomEvent(room,'enemy-attack',`${e.name} 몸통박치기`,{enemyUid:e.uid,speciesId:e.id,monsterName:e.name,playerId:t.playerId,targetMonsterId:mon.instanceId,damage:d,element:e.element||'공허',skill:'몸통박치기',move:null,signature:false,fxFamily:'rush',fxVariant:0,heavy:false,critical:false,effectiveness:1});continue;}
+    if(!mv){const d=monsterDamage(room,t,mon,Math.max(1,Number(e.atk||1)),e);pushRoomEvent(room,'enemy-attack',`${e.name} 몸통박치기`,{enemyUid:e.uid,speciesId:e.id,monsterName:e.name,playerId:t.playerId,targetMonsterId:mon.instanceId,targetMonsterName:mon.name,damage:d,element:e.element||'공허',skill:'몸통박치기',move:null,signature:false,fxFamily:'rush',fxVariant:0,heavy:false,critical:false,effectiveness:1});continue;}
     const p=normalizeMovePp(mv);mv.maxPp=p.maxPp;mv.pp=p.pp;mv.pp=Math.max(0,mv.pp-1);
     const hit=['guard','heal','status'].includes(mv.kind)||process.env.TEST_MODE==='1'||Math.random()<Number(mv.accuracy||100)/100;
     let d=0,critical=false,effectiveness=1,appliedStatuses=[];
@@ -1917,7 +1940,7 @@ function enemyTurn(room) {
     else if(hit&&mv.kind==='heal'){e.hp=clamp(e.hp+Math.max(4,Number(mv.heal||8)),0,e.maxHp);}
     else if(hit&&mv.kind==='status'){appliedStatuses=enemyApplyMoveStatus(room,t,mon,mv);}
     battleLog(room,`${e.name}의 ${mv.name}${hit?'':' — 빗나감'}${d?` · ${d} 피해`:''}.`);
-    pushRoomEvent(room,'enemy-attack',`${e.name} · ${mv.name}`,{enemyUid:e.uid,speciesId:e.id,monsterName:e.name,playerId:t.playerId,targetMonsterId:mon?.instanceId||null,damage:d,hit,style:e.archetype||'beast',archetype:e.archetype||'beast',element:mv.element||e.element||'공허',skill:mv.name,move:clone(mv),signature:!!mv.signature,fxFamily:mv.fxFamily||null,fxVariant:Number(mv.fxVariant||0),fxTempo:mv.fxTempo||'snap',heavy:mv.kind==='burst'||!!mv.signature,critical,effectiveness,appliedStatuses,fxSeed:`${e.id}:${mv.id}`});
+    pushRoomEvent(room,'enemy-attack',`${e.name} · ${mv.name}`,{enemyUid:e.uid,speciesId:e.id,monsterName:e.name,playerId:t.playerId,targetMonsterId:mon?.instanceId||null,targetMonsterName:mon?.name||null,damage:d,hit,style:e.archetype||'beast',archetype:e.archetype||'beast',element:mv.element||e.element||'공허',skill:mv.name,move:clone(mv),signature:!!mv.signature,fxFamily:mv.fxFamily||null,fxVariant:Number(mv.fxVariant||0),fxTempo:mv.fxTempo||'snap',heavy:mv.kind==='burst'||!!mv.signature,critical,effectiveness,appliedStatuses,fxSeed:`${e.id}:${mv.id}`});
     e.debuffs.vulnerable=Math.max(0,e.debuffs.vulnerable-1);e.debuffs.weak=Math.max(0,e.debuffs.weak-1);if(e.staggerMax&&!e.broken)e.stagger=Math.max(0,Number(e.stagger||0)-Math.ceil(e.staggerMax*.28));
   }
   if(checkBattleEnd(room))return;if(b.party.every(x=>x.down))return loseBattle(room);
