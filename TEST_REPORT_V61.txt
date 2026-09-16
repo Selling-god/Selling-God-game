@@ -1,0 +1,13 @@
+FUSEWILD v6.1 verification
+
+npm test: PASS
+BUILD_OK v6.1.0
+V61_STATIC_OK compactShop=6 reward=3 noDesktopRewardScroll=yes stagedHp=yes
+V61_RUNTIME_OK target HP snapshots verified + fusion lifetime 5T verified
+
+Core checks:
+- desktop reward UI uses viewport-contained layout, no inner reward scrolling
+- 6-slot compact shop row + 3-slot free reward row
+- battle message HP animation synchronized from server before/after snapshots
+- normal wave transition replaced with compact bottom message bridge
+- 5-turn fusion + fusion art assets preserved
