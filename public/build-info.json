@@ -1,7 +1,7 @@
 {
-  "version": "6.0.0",
-  "deployId": "FUSEWILD-V600-ROGUE-CADENCE-FUSION-20260916",
-  "builtAt": "2026-09-16T05:47:16.246Z",
+  "version": "6.1.0",
+  "deployId": "FUSEWILD-V610-COMPACT-POKEROGUE-FLOW-20260916",
+  "builtAt": "2026-09-16T06:04:58.329Z",
   "cards": 315,
   "items": 128,
   "enemies": 205,

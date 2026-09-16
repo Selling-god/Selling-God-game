@@ -61,7 +61,8 @@
     battleMessageText: '',
     battleMessageTone: 'normal',
     battleMenu: 'root',
-    fusionDraft: null
+    fusionDraft: null,
+    rewardFocus: null
   };
   localStorage.setItem('riftdeck.guestProfileId', state.guestProfileId);
 
@@ -401,13 +402,21 @@
     const target=$(`[data-monster="${CSS.escape(payload?.instanceId||'')}"]`);if(target){target.classList.add('monster-transform-v40');setTimeout(()=>target.classList.remove('monster-transform-v40'),900);}screenFlash(payload?.mode==='rift'?'boss':'victory');screenShake('medium');showCenterBanner(payload?.mode==='resonance'?'RESONANCE':payload?.mode==='rift'?'RIFT BLOOM':payload?.mode==='fusion'?'FUSION':'EVOLUTION','','victory');sound('overdrive');
   }
 
-  const BATTLE_PACE_V57={turn:1200,announce:2100,move:1900,signature:2450,result:1650,status:1750,blocked:1900,win:2600,minor:1250};
+  const BATTLE_PACE_V57={turn:1100,announce:1850,move:1650,signature:2200,result:1500,status:1600,blocked:1750,win:2350,minor:1100};
   function battleNarrateV57(text,{tone='normal',tag='BATTLE',sub='',instant=false}={}){
     const box=$('.battle-dialog-v52');if(!box)return;clearInterval(state.battleMessageTimer);state.battleMessageTimer=0;state.battleMessageNonce=Number(state.battleMessageNonce||0)+1;const nonce=state.battleMessageNonce;
     state.battleMessageText=String(text||'');state.battleMessageTone=tone;box.classList.remove('tone-normal','tone-move','tone-enemy','tone-miss','tone-status','tone-critical','tone-good','tone-bad','tone-victory');box.classList.add('narrating-v57',`tone-${tone}`);
     const small=box.querySelector('small'),b=box.querySelector('b'),span=box.querySelector('span');if(small)small.textContent=tag;if(span)span.textContent=sub||'';if(!b)return;b.textContent='';const chars=[...String(text||'')];
     if(instant||chars.length<2){b.textContent=chars.join('');return;}let i=0;const speed=Math.max(24,Math.min(42,Math.round(1050/Math.max(1,chars.length))));
     state.battleMessageTimer=setInterval(()=>{if(nonce!==state.battleMessageNonce||!document.body.contains(b)){clearInterval(state.battleMessageTimer);state.battleMessageTimer=0;return;}b.textContent+=chars[i++]||'';if(i>=chars.length){clearInterval(state.battleMessageTimer);state.battleMessageTimer=0;}},speed);
+  }
+  function stageBattleHpV61(payload,enemyTarget=true){
+    if(!payload||!Number.isFinite(Number(payload.targetHpAfter))||!Number.isFinite(Number(payload.targetMaxHp)))return;
+    const target=enemyTarget?$(`[data-enemy="${CSS.escape(payload.targetUid||'')}"]`):$(`[data-monster="${CSS.escape(payload.targetMonsterId||'')}"]`);if(!target)return;
+    const max=Math.max(1,Number(payload.targetMaxHp||1)),after=Math.max(0,Number(payload.targetHpAfter||0)),before=Math.max(0,Number(payload.targetHpBefore??after));
+    const bar=target.querySelector(enemyTarget?'.enemy-status-v52>i>em':'.mon-status-v52>i>em');const num=target.querySelector(enemyTarget?'.enemy-status-v52>span':'.mon-status-v52>span');
+    if(bar){bar.style.transition='none';bar.style.width=`${pct(before,max)}%`;void bar.offsetWidth;bar.style.transition='width .58s cubic-bezier(.18,.82,.22,1)';bar.style.width=`${pct(after,max)}%`;}
+    if(num){const start=performance.now(),dur=580;const tick=now=>{const p=Math.min(1,(now-start)/dur),value=Math.round(before+(after-before)*p);num.textContent=`${value}/${max}`;if(p<1)requestAnimationFrame(tick);};requestAnimationFrame(tick);}
   }
   function statusNarrationV57(key,name,mode='apply',damage=0){
     const n=name||'대상';const map={burn:'화상',poison:'중독',shock:'마비',paralysis:'마비',sleep:'수면',freeze:'빙결',atkDown:'공격력',defDown:'방어력',atkUp:'공격력',defUp:'방어력',weak:'공격력',vulnerable:'방어력',intentSeal:'행동',broken:'자세'};const label=map[key]||key||'상태';
@@ -477,12 +486,14 @@
         const name=p.monsterName||'몬스터',skill=p.skill||p.move?.name||'기술',sig=!!p.signature||!!p.move?.signature;
         later(()=>battleNarrateV57(`${name}의 ${skill}!`,{tone:'move',tag:sig?'SIGNATURE MOVE':'MOVE',sub:p.element||p.move?.element||''}),sig?1250:1000);
         later(()=>monsterMoveEventFx(p),sig?BATTLE_PACE_V57.signature:BATTLE_PACE_V57.move);
+        later(()=>stageBattleHpV61(p,true),620);
         for(const row of moveResultNarrationsV57(p,false)){later(()=>{if(row.status){const t=$(`[data-enemy="${CSS.escape(p.targetUid||'')}"]`);if(t)statusCinematicV57(t,row.status.key);}battleNarrateV57(row.text,{tone:row.tone,tag:row.tag});},row.status?BATTLE_PACE_V57.status:BATTLE_PACE_V57.result);}
       }
       else if(ev.type==='enemy-attack'){
         const name=p.monsterName||'상대',skill=p.skill||p.move?.name||'기술',sig=!!p.signature||!!p.move?.signature;
         later(()=>battleNarrateV57(`${name}의 ${skill}!`,{tone:'enemy',tag:sig?'ENEMY SIGNATURE':'ENEMY MOVE',sub:p.element||p.move?.element||''}),sig?1250:1050);
         later(()=>enemyAttackEventFx(p),sig?BATTLE_PACE_V57.signature:BATTLE_PACE_V57.move);
+        later(()=>stageBattleHpV61(p,false),620);
         for(const row of moveResultNarrationsV57(p,true)){later(()=>{if(row.status){const t=p.targetMonsterId?$(`[data-monster="${CSS.escape(p.targetMonsterId)}"]`):null;if(t)statusCinematicV57(t,row.status.key);}battleNarrateV57(row.text,{tone:row.tone,tag:row.tag});},row.status?BATTLE_PACE_V57.status:BATTLE_PACE_V57.result);}
       }
       else if(ev.type==='monster-attack')later(()=>monsterAttackEventFx(p),BATTLE_PACE_V57.move);
@@ -553,7 +564,7 @@
   function animateBattleEntrance(){
     const r=state.room,key=r?.battle?`${r.id}:${r.floor}:${r.battle.tier}`:'';if(!key||state.battleEntranceKey===key)return;state.battleEntranceKey=key;const enemies=$$('.enemy-mon-v41, .enemy-actor-v31'),units=$$('.active-mon-v41, .monster-actor-v40.filled, .unit-actor-v31.filled'),cards=$$('.spell-fan-v41 .visual-card-v31, .battle-hand-v31 .visual-card-v31');enemies.forEach((el,i)=>{try{el.animate([{transform:'translate3d(70px,10px,0) scale(.72)',opacity:0,filter:'brightness(2)'},{transform:'translate3d(0,0,0) scale(1.04)',opacity:1,filter:'brightness(1)',offset:.72},{transform:'translate3d(0,0,0) scale(1)',opacity:1}],{duration:480+i*70,delay:i*70,easing:'cubic-bezier(.16,.82,.18,1)'});}catch{}});units.forEach((el,i)=>{try{el.animate([{transform:'translate3d(-45px,12px,0) scale(.75)',opacity:0},{transform:'translate3d(0,0,0) scale(1)',opacity:1}],{duration:380,delay:130+i*65,easing:'cubic-bezier(.2,.8,.2,1)'});}catch{}});cards.forEach((el,i)=>{try{el.animate([{transform:'translate3d(0,70px,0) rotate(0deg)',opacity:0},{transform:'translate3d(0,0,0)',opacity:1}],{duration:300,delay:180+i*45,easing:'cubic-bezier(.2,.8,.2,1)'});}catch{}});
   }
-  function setScreen(name,html){clearTimers();state.current=name;const runScreens=['route','battle','reward','event','end','roomLobby'];const inRun=runScreens.includes(name);document.body.classList.toggle('in-run-v27',inRun);document.body.classList.toggle('visual-run-v31',inRun);document.body.classList.toggle('battle-focus-v31',name==='battle');document.body.classList.toggle('main-menu-v41',name==='home');screen.innerHTML=html;screen.classList.remove('screen-enter-v26');void screen.offsetWidth;screen.classList.add('screen-enter-v26');setTimeout(()=>screen.classList.remove('screen-enter-v26'),220);window.scrollTo({top:0,behavior:'instant'});if(name==='battle')requestAnimationFrame(()=>requestAnimationFrame(animateBattleEntrance));}
+  function setScreen(name,html){clearTimers();state.current=name;if(name!=='reward')state.rewardFocus=null;const runScreens=['route','battle','reward','event','end','roomLobby'];const inRun=runScreens.includes(name);document.body.classList.toggle('in-run-v27',inRun);document.body.classList.toggle('visual-run-v31',inRun);document.body.classList.toggle('battle-focus-v31',name==='battle');document.body.classList.toggle('reward-screen-v61',name==='reward');document.body.classList.toggle('main-menu-v41',name==='home');screen.innerHTML=html;screen.classList.remove('screen-enter-v26');void screen.offsetWidth;screen.classList.add('screen-enter-v26');setTimeout(()=>screen.classList.remove('screen-enter-v26'),220);window.scrollTo({top:0,behavior:'instant'});if(name==='battle')requestAnimationFrame(()=>requestAnimationFrame(animateBattleEntrance));}
 
   function shortLine(value,max=42){const s=String(value||'').replace(/\s+/g,' ').trim();return s.length>max?`${s.slice(0,max-1)}…`:s;}
   function elementGlyph(element){return ({'화염':'◆','물':'≈','자연':'✦','빛':'✧','그림자':'◒','강철':'✕','바람':'〰','번개':'ϟ','별':'★','시간':'◷','공허':'●','수정':'◇'})[element]||'◇';}
@@ -822,9 +833,9 @@
   function nextEncounterPreview(r){const next=Number(r.floor||0)+1,w=((next-1)%10)+1;return w===10?'NEXT · BIOME BOSS':w===5?'NEXT · RIFT WARDEN':`NEXT · WILD ${String(w).padStart(2,'0')}`;}
   function encounterApproachDelay(r,node){
     const wave=((Number(r?.floor||1)-1)%10)+1;
-    if(node?.encounterType==='boss'||wave===10)return 5200;
-    if(['rival','warden'].includes(node?.encounterType)||wave===5||wave===7)return 4400;
-    return 3600;
+    if(node?.encounterType==='boss'||wave===10)return 1700;
+    if(['rival','warden'].includes(node?.encounterType)||wave===5||wave===7)return 1450;
+    return 1100;
   }
   function queueAutoEncounter(r,node){
     const claim=r?.contractClaims?.[state.profileId];
@@ -1158,8 +1169,8 @@
       decision=`<div class="biome-fork-v42 biome-fork-v52"><div class="biome-fork-copy-v42"><small>NEXT AREA</small><h1>다음 지역을 선택하세요</h1><p>지역마다 등장 몬스터와 보스가 달라집니다.</p></div><div class="biome-fork-grid-v42 biome-fork-grid-v52">${nodes.map((node,i)=>{const selected=votedNode?.id===node.id;return `<button class="biome-path-v42 ${selected?'selected':''}" data-action="route-vote" data-node="${esc(node.id)}"><span>${node.icon||'⌁'}</span><small>PATH ${i+1}</small><b>${esc(node.biomeName||node.label)}</b><em>${esc(shortLine(node.desc||'',46))}</em><strong>${selected?'선택됨':`${node.votes?.length||0}표`}</strong></button>`;}).join('')}</div></div>`;
     }else{
       const node=nodes[0],voted=node?.votes?.includes(state.profileId),wave=((Number(r.floor||1)-1)%10)+1,delay=encounterApproachDelay(r,node),scene=sceneName(r);
-      const sceneLine=node?.encounterType==='boss'?`${scene} · 보스 웨이브에 진입합니다.`:node?.encounterType==='rival'?`${scene} · 특수 조우에 접근 중입니다.`:node?.encounterType==='warden'?`${scene} · 워든 웨이브에 접근 중입니다.`:`${scene} · 다음 야생 웨이브로 이동 중입니다.`;
-      decision=`<div class="encounter-approach-v60"><div class="approach-sigil-v60"><i></i><b>${wave===10?'B':wave===5?'W':'◇'}</b></div><small>AREA TRANSITION · WAVE ${String(wave).padStart(2,'0')}/10</small><h1>다음 웨이브로 이동 중…</h1><p class="scene-line-v60">${esc(sceneLine)}</p><p class="encounter-desc-v60">상대의 이름과 실제 조우 설명은 전투 화면에 몬스터가 등장한 뒤 표시됩니다.</p>${voted?'<div class="encounter-wait-v60">다른 원정대원의 준비를 기다리는 중…</div>':`<div class="encounter-countdown-v60"><i style="--approach-ms:${delay}ms"></i><span>${Math.ceil(delay/1000)}초 후 자동 진입</span></div><button class="encounter-start-v60" data-action="encounter-start" data-node="${esc(node.id)}">바로 전투 시작</button>`}</div>`;
+      const nextKind=node?.encounterType==='boss'?'보스전':node?.encounterType==='rival'?'특수 조우':node?.encounterType==='warden'?'워든전':'야생 조우';
+      decision=`<div class="wave-bridge-v61"><small>${esc(scene)} · WAVE ${String(wave).padStart(2,'0')}/10</small><b>${esc(nextKind)}가 시작된다.</b><span>${voted?'다른 원정대원의 준비를 기다리는 중…':'잠시 후 전투 화면으로 전환됩니다.'}</span>${!voted?`<i style="--bridge-ms:${delay}ms"></i>`:''}</div>`;
       if(node&&!voted)requestAnimationFrame(()=>queueAutoEncounter(state.room,node));
     }
     setScreen('route',`<section class="run-stage-v31 route-stage-v31 route-v42 route-v51 route-v52 route-v60"><div class="run-bg-v31" style="background-image:url('${esc(sceneBg(r))}')"></div><div class="run-shade-v31"></div>${compactRunHud(r,run)}<main class="decision-center-v31 encounter-decision-v51 encounter-decision-v52">${decision}</main><div class="floor-track-v31"><i style="width:${r.maxFloor?pct(r.floor,r.maxFloor):Math.min(100,(r.floor%50)*2)}%"></i><span>${r.floor}/${r.maxFloor||'∞'}</span></div></section>`);
@@ -1203,7 +1214,7 @@
   }
   function rewardChoiceTileV43(o){
     if(o.type==='card'){return `<button class="reward-choice-v51 legacy-reward-v56" data-action="reward-salvage"><span>◇</span><div><small>LEGACY DATA</small><b>균열 파편으로 변환</b><em>이전 버전 카드 보상은 현재 원정에서 사용하지 않습니다.</em></div></button>`;}
-    const it=o.item;return `<button class="reward-choice-v51 rarity-${esc(it.rarity)}" data-action="reward-pick" data-reward-id="${esc(o.id)}"><span><img src="${esc(it.art||'')}" alt=""></span><div><small>${esc(it.category||rarityKo(it.rarity))}</small><b>${esc(it.name)}</b><em>${esc(shortLine(it.text||'',52))}</em></div></button>`;
+    const it=o.item;return `<button class="reward-choice-v51 reward-choice-v61 rarity-${esc(it.rarity)}" data-action="reward-pick" data-reward-id="${esc(o.id)}" data-focus-kind="reward" data-focus-name="${esc(it.name)}" data-focus-desc="${esc(it.text||'')}" data-focus-meta="${esc(it.category||rarityKo(it.rarity))}"><span><img src="${esc(it.art||'')}" alt=""></span><div><small>${esc(it.category||rarityKo(it.rarity))}</small><b>${esc(it.name)}</b><em>${esc(shortLine(it.text||'',66))}</em></div></button>`;
   }
   function renderReward(r){
     const rw=r.reward,run=r.runState[state.profileId],pid=state.profileId,options=rw.playerOptions?.[pid]||[],claim=rw.claims?.[pid],continued=rw.continueBy?.includes(pid),relicOpts=rw.relicOptions?.[pid]||[],relicClaim=rw.relicClaims?.[pid],campDone=!rw.camp||!!rw.campBy?.[pid],rewardDone=!options.length||!!claim;
@@ -1225,20 +1236,23 @@
       step='RELIC';body=`<section class="reward-simple-v51"><header><small>RELIC</small><b>유물 하나를 선택하세요</b></header><div class="three-choice-v51">${relicOpts.map(x=>`<button data-action="relic-pick" data-relic-id="${esc(x.id)}"><span>${x.art?`<img src="${esc(x.art)}" alt="">`:esc(x.icon||'✦')}</span><b>${esc(x.name)}</b><small>${esc(shortLine(x.text,44))}</small></button>`).join('')}</div></section>`;
     }else if(!rewardDone){
       step='SHOP + REWARD';
-      const preShop=rw.shop?`<section class="pokerogue-shop-v60"><header><small>BETWEEN WAVES</small><b>전투 정비</b><span>필요한 정비나 상품이 있다면 <em>무료 보상을 고르기 전에</em> 이용하세요.</span></header>${merchantHtmlCompact(r)}${rw.serviceCosts?'<button class="field-service-open-v60" data-action="open-field-service">HP · PP · 상태 정비</button>':''}</section>`:'';
-      body=`${preShop}<section class="reward-simple-v51 reward-pick-v60"><header><small>${r.mode==='journey'?'FIELD DROP':'FREE DROP'}</small><b>무료 보상 하나를 선택하세요</b><span>보상을 고르면 다음 웨이브로 이어집니다.</span></header><div class="reward-options-v51">${options.map(rewardChoiceTileV43).join('')}</div></section>`;
+      const preShop=rw.shop?`<section class="pokerogue-shop-v61"><header><div><small>SHOP</small><b>필요한 정비를 먼저 하세요</b></div><div class="shop-hud-v61"><span>G ${Number(run.gold||0).toLocaleString('ko-KR')}</span>${rw.serviceCosts?'<button class="field-service-open-v61" data-action="open-field-service">HP · PP · 상태</button>':''}</div></header>${merchantHtmlCompact(r)}</section>`:'';
+      body=`${preShop}<section class="reward-simple-v51 reward-pick-v61"><header><div><small>${r.mode==='journey'?'FIELD DROP':'FREE REWARD'}</small><b>보상 하나를 선택하세요</b></div><span>선택 후 획득 결과를 확인하고 다음 웨이브로 이동합니다.</span></header><div class="reward-options-v51 reward-options-v61">${options.map(rewardChoiceTileV43).join('')}</div></section><div class="reward-help-v61"><small>선택한 항목의 설명은 카드에 표시됩니다.</small><b>상점 구매 → 무료 보상 1개 → 다음 웨이브</b></div>`;
       actions=`<div class="reward-actions-v51 secondary"><button data-action="reward-salvage">보상 분해</button><button data-action="reward-reroll">재굴림 ${nextRerollCost(r)}G</button>${run.fragments>0?'<button data-action="reward-reroll-fragment">◇ 1</button>':''}</div>`;
     }else{
       step='READY';const grade=rw.gradeBy?.[pid];body=`<section class="ready-v51"><span>✓</span><div><small>WAVE CLEAR</small><b>${claim?esc(claim.label):'정비 완료'}</b>${grade?`<em>${grade}</em>`:''}</div></section>`;
       actions=`<div class="reward-actions-v51">${rw.kind==='battle'&&rw.serviceCosts?'<button data-action="open-field-service">정비</button>':''}<button class="next-v51" data-action="reward-continue">${continued?'대기 중':r.finalClearPending?'클리어':'다음 웨이브'}</button></div>`;
     }
     const rewardLead=step==='NEW MOVE'?'새 기술을 확인하자.':step==='TECH DISC'?'새로운 기술을 배울 기회다.':step==='RIFT REWRITE'?'기술에 새로운 변화를 부여할 수 있다.':step==='CAMP'?'잠시 숨을 고르고 파티를 정비하자.':step==='RELIC'?'희귀한 유물 하나를 가져갈 수 있다.':step==='SHOP + REWARD'?'전투가 끝났다. 정비한 뒤 무료 보상 하나를 고르자.':'준비가 끝났다. 다음 조우가 기다리고 있다.';
-    setScreen('reward',`<section class="run-stage-v31 reward-stage-v31 reward-v51 reward-v57"><div class="run-bg-v31" style="background-image:url('${esc(sceneBg(r))}')"></div><div class="run-shade-v31"></div>${compactRunHud(r,run)}<main class="reward-center-v51 reward-center-v57"><div class="reward-card-v51 reward-card-v57"><aside class="reward-dialog-v57"><small>WAVE ${String(((Number(r.floor||1)-1)%10)+1).padStart(2,'0')} CLEAR</small><b>${esc(rewardLead)}</b><span>G ${Number(run.gold||0).toLocaleString('ko-KR')} · ${esc(r.biome?.name||'EXPEDITION')}</span><i></i></aside><section class="reward-content-v57"><div class="reward-step-v51">${esc(step)}</div>${expPanel}${body}${actions}${step==='READY'&&!continued?`<div class="reward-auto-v54 manual-v60"><i></i><span>준비가 끝났습니다. 다음 웨이브로 이동할 수 있습니다.</span></div>`:''}</section></div></main></section>`);
+    setScreen('reward',`<section class="run-stage-v31 reward-stage-v31 reward-v51 reward-v61"><div class="run-bg-v31" style="background-image:url('${esc(sceneBg(r))}')"></div><div class="run-shade-v31 reward-shade-v61"></div>${compactRunHud(r,run)}<main class="reward-center-v61"><div class="reward-shell-v61"><header class="reward-top-v61"><div><small>WAVE ${String(((Number(r.floor||1)-1)%10)+1).padStart(2,'0')} CLEAR · ${esc(step)}</small><b>${esc(rewardLead)}</b></div><div><span>${esc(r.biome?.name||'EXPEDITION')}</span><strong>G ${Number(run.gold||0).toLocaleString('ko-KR')}</strong></div></header>${expPanel}<section class="reward-content-v61">${body}${actions}${step==='READY'&&!continued?`<div class="reward-auto-v54 manual-v60"><i></i><span>준비가 끝났습니다. 다음 웨이브로 이동할 수 있습니다.</span></div>`:''}</section></div></main></section>`);
     scheduleRewardAutoAdvanceV54(r,step,continued);
   }
 
 
-  function merchantHtmlCompact(r){const rw=r.reward,run=r.runState[state.profileId];return `<div class="shop-scene-v32"><div class="merchant-v32"><div class="merchant-glow-v32"></div><img src="/assets/ui/merchant.png" alt=""><small>WANDERING ARCHIVIST</small><b>${run.gold}G</b></div><div class="shop-shelf-v32">${(rw.shop||[]).map(x=>{const bought=rw.purchased?.[`${state.profileId}:${x.id}`],obj=x.type==='card'?x.card:x.item,art=obj.art||'',visual=art?`<img src="${esc(art)}" alt="">`:`<span class="shop-icon-fallback-v53">${esc(obj.icon||'◆')}</span>`;return `<button class="shop-pedestal-v32 rarity-${obj.rarity}" data-action="buy" data-item="${x.id}" data-type="${x.type}" ${bought||run.gold<x.price?'disabled':''} title="${esc(obj.text||'')}"><div class="shop-art-v32">${visual}</div><b>${esc(obj.name)}</b><small>${x.type==='card'?'RIFT COMMAND':esc(obj.category||'ITEM')}</small><strong>${x.price}G</strong>${bought?'<em>SOLD</em>':''}</button>`;}).join('')}</div></div>`;}
+  function merchantHtmlCompact(r){
+    const rw=r.reward,run=r.runState[state.profileId];
+    return `<div class="shop-strip-v61">${(rw.shop||[]).map(x=>{const bought=rw.purchased?.[`${state.profileId}:${x.id}`],obj=x.type==='card'?x.card:x.item,art=obj.art||'',visual=art?`<img src="${esc(art)}" alt="">`:`<span class="shop-icon-fallback-v53">${esc(obj.icon||'◆')}</span>`;return `<button class="shop-item-v61 rarity-${obj.rarity}" data-action="buy" data-item="${x.id}" data-type="${x.type}" data-focus-kind="shop" data-focus-name="${esc(obj.name)}" data-focus-desc="${esc(obj.text||'')}" data-focus-meta="${esc(x.type==='card'?'RIFT COMMAND':obj.category||'ITEM')}" ${bought||run.gold<x.price?'disabled':''}><span>${visual}</span><b>${esc(obj.name)}</b><small>${esc(x.type==='card'?'RIFT COMMAND':obj.category||'ITEM')}</small><strong>${x.price}G</strong>${bought?'<em>SOLD</em>':''}</button>`;}).join('')}</div>`;
+  }
 
   function merchantHtml(r){const rw=r.reward,run=r.runState[state.profileId];return `<div class="merchant-panel"><div class="section-label" style="text-align:center">WANDERING MERCHANT</div><h2>추가 구매 · 현재 ${run.gold}G</h2><div class="shop-grid">${(rw.shop||[]).map(x=>{const bought=rw.purchased?.[`${state.profileId}:${x.id}`];const obj=x.type==='card'?x.card:x.item;const name=obj.name,text=obj.text,rar=obj.rarity,icon=x.type==='card'?'▤':(obj.icon||'◆');return `<div class="shop-card"><div class="rarity-${rar}" style="font-size:6px">${rarityKo(rar)} · ${x.type==='card'?'COMMAND':'ITEM'}</div><b>${esc(icon)} ${esc(name)}</b><p>${esc(text)}</p><div class="price">${x.price}G</div><button class="cta" data-action="buy" data-item="${x.id}" data-type="${x.type}" ${bought?'disabled':''}>${bought?'구매 완료':'구매'}</button></div>`;}).join('')}</div></div>`;}
 
@@ -1342,7 +1356,7 @@
       if(action==='skip-move'){await roomPost('skip-move',{});return renderRoom();}
       if(action==='rewrite-pick'){await roomPost('rewrite-move',{rewriteId:el.dataset.rewriteId});sound('overdrive');return renderRoom();}
       if(action==='skip-rewrite'){await roomPost('skip-rewrite',{});return renderRoom();}
-      if(action==='reward-pick'){if(state.busy)return;el.classList.add('v60-reward-chosen');await roomPost('reward',{rewardId:el.dataset.rewardId});await loadProfile();sound('reward');toast('보상 선택 완료 · 결과를 확인한 뒤 다음 웨이브로 이동합니다.','good');renderRoom();requestAnimationFrame(()=>{clearTimeout(state.rewardConfirmTimer);state.rewardConfirmTimer=setTimeout(()=>{state.rewardConfirmTimer=0;if(state.room?.status==='reward'&&!state.room?.reward?.continueBy?.includes(state.profileId))roomPost('continue',{}).catch(()=>{});},2100);});return;}
+      if(action==='reward-pick'){if(state.busy)return;el.classList.add('v60-reward-chosen');await roomPost('reward',{rewardId:el.dataset.rewardId});await loadProfile();sound('reward');toast('보상 선택 완료 · 결과를 확인한 뒤 다음 웨이브로 이동합니다.','good');renderRoom();requestAnimationFrame(()=>{clearTimeout(state.rewardConfirmTimer);state.rewardConfirmTimer=setTimeout(()=>{state.rewardConfirmTimer=0;if(state.room?.status==='reward'&&!state.room?.reward?.continueBy?.includes(state.profileId))roomPost('continue',{}).catch(()=>{});},2800);});return;}
       if(action==='reward-salvage'){if(state.busy)return;await roomPost('salvage',{});sound('reward');toast('보상을 분해했습니다. 결과를 확인한 뒤 다음 웨이브로 이동합니다.','good');renderRoom();requestAnimationFrame(()=>{clearTimeout(state.rewardConfirmTimer);state.rewardConfirmTimer=setTimeout(()=>{state.rewardConfirmTimer=0;if(state.room?.status==='reward'&&!state.room?.reward?.continueBy?.includes(state.profileId))roomPost('continue',{}).catch(()=>{});},2100);});return;}
       if(action==='relic-pick'){await roomPost('relic',{relicId:el.dataset.relicId});sound('reward');return renderRoom();}
       if(action==='camp-rest'){const d=await roomPost('camp',{mode:'rest'});toast(d.result.label,'good');return renderRoom();}
