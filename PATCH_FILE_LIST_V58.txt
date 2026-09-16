@@ -1,0 +1,12 @@
+PATCH FILE LIST — v5.8.0
+========================
+server.js
+package.json
+public/app.js
+public/styles.css
+public/version.json
+scripts/build.js
+scripts/v58-classic-flow-fusion-test.js
+PATCH_APPLY_V58.txt
+RELEASE_NOTES_V58.md
+PATCH_FILE_LIST_V58.txt
