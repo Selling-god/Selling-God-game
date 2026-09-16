@@ -1,0 +1,22 @@
+RIFT DECK v5.9 TEST REPORT
+==========================
+
+1) npm run check
+PASS
+V59_STATIC_OK viewport=locked reward=autofit fusion=5turn embeddedSprite=yes fx=lowJank
+
+2) npm test
+PASS
+BUILD_OK v5.9.0 deploy=RIFT-V590-FUSION-5TURN-FX-PERF-20260916 cards=315 items=128 enemies=205 floors=50
+V59_STATIC_OK viewport=locked reward=autofit fusion=5turn embeddedSprite=yes fx=lowJank
+V59_RUNTIME_OK embeddedFusionArt=yes timer=5 battleEndRelease=yes
+
+검증 포인트
+- JS 문법 검사
+- build 검사
+- 205종 몬스터/315 카드/128 아이템 기존 build contract 유지
+- fusion sprite SVG 내 이미지 base64 embedding
+- 정확한 5-action fusion timer
+- timer 종료 복원
+- battle-end 복원
+- run roster에 temporary fused state 미잔존

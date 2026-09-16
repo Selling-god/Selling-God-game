@@ -1,14 +1,14 @@
 {
   "name": "rift-deck-abyss-expedition",
-  "version": "5.8.0",
+  "version": "5.9.0",
   "private": true,
-  "description": "Original pixel monster roguelite with classic wave-by-wave battle flow, speed-based single battles, run/capture/party commands, random mystery encounters, readable rewards/shop, dynamic fusion portraits, persistent HP/PP/status, held items, co-op, and resilient resume.",
+  "description": "Original pixel monster roguelite with compact wave rewards, snappy battle FX, and temporary five-turn fusion that always releases at battle end.",
   "scripts": {
     "build": "node scripts/build.js",
     "start": "node server.js",
     "dev": "node server.js",
-    "check": "node --check server.js && node --check public/app.js && node --check data/move-library.js && node scripts/v58-classic-flow-fusion-test.js --static",
-    "test": "npm run build && node scripts/v58-classic-flow-fusion-test.js"
+    "check": "node --check server.js && node --check public/app.js && node --check data/move-library.js && node scripts/v59-fusion-layout-perf-test.js --static",
+    "test": "npm run build && node scripts/v59-fusion-layout-perf-test.js"
   },
   "engines": {
     "node": ">=20 <27"

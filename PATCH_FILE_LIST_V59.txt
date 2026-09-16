@@ -1,0 +1,23 @@
+RIFT DECK v5.9 PATCH FILE LIST
+==============================
+
+[실제 코드]
+server.js
+public/app.js
+public/styles.css
+public/index.html
+scripts/build.js
+scripts/v59-fusion-layout-perf-test.js
+
+[버전/빌드 메타]
+package.json
+package-lock.json
+public/version.json
+public/build-info.json
+
+[안내/검증]
+RELEASE_NOTES_V59.md
+PATCH_APPLY_V59.txt
+PATCH_FILE_LIST_V59.txt
+TEST_REPORT_V59.txt
+V59_CODE_DIFF.patch
