@@ -13,7 +13,10 @@ const required = [
   'public/index.html',
   'public/app.js',
   'public/styles.css',
-  'data/catalog.json'
+  'data/catalog.json',
+  'assets/fusion/frame-base.svg',
+  'assets/fusion/grid-overlay.svg',
+  'assets/fusion/sigil-alpha.svg'
 ];
 
 for (const rel of required) {
@@ -74,8 +77,8 @@ for (const r of catalog.relics || []) {
 if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets: ${missing.slice(0, 5).join(', ')}`);
 
 const info = {
-  version: String(pkg.version || catalog.version || '5.9.0'),
-  deployId: 'RIFT-V590-FUSION-5TURN-FX-PERF-20260916',
+  version: String(pkg.version || catalog.version || '6.0.0'),
+  deployId: 'FUSEWILD-V600-ROGUE-CADENCE-FUSION-20260916',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,
@@ -88,6 +91,14 @@ const info = {
   supabaseSetupFileIncluded: hasSupabaseSetupFile
 };
 fs.writeFileSync(path.join(root, 'public', 'build-info.json'), JSON.stringify(info, null, 2));
+fs.writeFileSync(path.join(root, 'public', 'version.json'), JSON.stringify({
+  release: 'FUSEWILD-V600-ROGUE-CADENCE-FUSION',
+  buildId: 'fusewild-v600-rogue-cadence-fusion',
+  generatedAt: info.builtAt,
+  version: info.version,
+  label: 'FUSEWILD V6.0 POKEROGUE-STYLE CADENCE + 5 TURN FUSION',
+  deployId: info.deployId
+}, null, 2));
 
 // Compatibility guard for accidental Render Static Site deployments.
 const out = path.join(root, 'out');
