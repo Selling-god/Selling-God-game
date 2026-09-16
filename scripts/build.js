@@ -74,8 +74,8 @@ for (const r of catalog.relics || []) {
 if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets: ${missing.slice(0, 5).join(', ')}`);
 
 const info = {
-  version: String(pkg.version || catalog.version || '5.6.0'),
-  deployId: 'RIFT-V560-FUSION-PP-BATTLE-20260916',
+  version: String(pkg.version || catalog.version || '5.7.0'),
+  deployId: 'RIFT-V570-BATTLE-PHASE-FX-20260916',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,
