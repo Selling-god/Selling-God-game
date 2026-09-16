@@ -103,6 +103,8 @@ function decorateMove(move,salt=''){
     if(['그림자','공허','별'].includes(out.element)&&proc===0)out.vulnerable=Math.max(1,Number(out.vulnerable||0));
     if(out.element==='시간'&&out.kind==='burst'&&proc<=1)out.intentSeal=Math.max(1,Number(out.intentSeal||0));
     if(out.fxFamily==='toxin'&&proc<=1)out.poison=Math.max(1,Number(out.poison||0));
+    if(out.fxFamily==='spore'&&proc===0)out.sleep=Math.max(2,Number(out.sleep||0));
+    if(out.fxFamily==='ice'&&proc===0)out.freeze=Math.max(2,Number(out.freeze||0));
     if(['강철','수정'].includes(out.element)&&proc<=1)out.stagger=Math.max(Number(out.stagger||0),12+(seed%7));
   }
   return out;
@@ -114,7 +116,8 @@ function speciesSignatureMove(monster){
   const move={id:`sig:${monster.id}`,name:`${monster.name} · ${suffixes[seed%suffixes.length]}`,element:monster.element,icon:'★',kind:'burst',power:10+point*2+(boss?5:0),ratio:1.08+point*.055,accuracy:94+(seed%4),cooldown:boss?3:2,stagger:8+point*2,signature:true,archetype:monster.archetype,fxFamily:familyPool[seed%familyPool.length],fxVariant:seed%8,fxTempo:['charge','multi','sweep','snap'][seed%4],fxHits:1+(seed%3),summary:'이 몬스터만 사용할 수 있는 시그니처 기술'};
   if(monster.element==='화염')move.burn=2;else if(monster.element==='물')move.weak=1;else if(monster.element==='자연')move.vulnerable=1;else if(monster.element==='빛'){move.resonance=2;move.shield=5+point;}else if(monster.element==='그림자'){move.vulnerable=1;move.lifesteal=.22;}else if(monster.element==='강철')move.stagger+=12;else if(monster.element==='바람'){move.weak=1;move.splash=.35;}else if(monster.element==='번개')move.shock=2;else if(monster.element==='별')move.splash=.42;else if(monster.element==='시간')move.intentSeal=1;else if(monster.element==='공허'){move.weak=1;move.lifesteal=.18;}else if(monster.element==='수정'){move.stagger+=8;move.vulnerable=1;}
   if(['serpent','mushroom'].includes(monster.archetype))move.poison=Math.max(2,Number(move.poison||0));
-  const status=[];if(move.burn)status.push(`화상 ${move.burn}`);if(move.poison)status.push(`독 ${move.poison}`);if(move.shock)status.push(`감전 ${move.shock}`);if(move.weak)status.push(`약화 ${move.weak}`);if(move.vulnerable)status.push(`취약 ${move.vulnerable}`);if(move.intentSeal)status.push(`행동봉쇄 ${move.intentSeal}`);if(move.stagger)status.push(`BREAK +${move.stagger}`);if(move.lifesteal)status.push('흡혈');if(move.splash)status.push('범위');
+  if(monster.archetype==='mushroom'&&seed%2===0)move.sleep=2;if(monster.element==='수정'&&seed%3===0)move.freeze=2;
+  const status=[];if(move.burn)status.push(`화상 ${move.burn}`);if(move.poison)status.push(`독 ${move.poison}`);if(move.shock)status.push('마비 가능');if(move.sleep)status.push('수면');if(move.freeze)status.push('빙결');if(move.weak)status.push(`약화 ${move.weak}`);if(move.vulnerable)status.push(`취약 ${move.vulnerable}`);if(move.intentSeal)status.push(`행동봉쇄 ${move.intentSeal}`);if(move.stagger)status.push(`BREAK +${move.stagger}`);if(move.lifesteal)status.push('흡혈');if(move.splash)status.push('범위');
   move.summary=`전용기 · ${status.slice(0,3).join(' · ')||'강력한 고유 공격'}`;return decorateMove(move,monster.id);
 }
 
