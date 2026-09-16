@@ -1,7 +1,7 @@
 {
-  "version": "5.4.0",
-  "deployId": "RIFT-V540-SIGNATURE-TACTIC-PACING-20260915",
-  "builtAt": "2026-09-15T05:35:15.588Z",
+  "version": "5.9.0",
+  "deployId": "RIFT-V590-FUSION-5TURN-FX-PERF-20260916",
+  "builtAt": "2026-09-16T05:15:06.795Z",
   "cards": 315,
   "items": 128,
   "enemies": 205,
