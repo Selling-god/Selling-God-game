@@ -77,8 +77,8 @@ for (const r of catalog.relics || []) {
 if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets: ${missing.slice(0, 5).join(', ')}`);
 
 const info = {
-  version: String(pkg.version || catalog.version || '6.2.1'),
-  deployId: 'FUSEWILD-V621-LIVE-SYNC-HYBRIDART-20260916',
+  version: String(pkg.version || catalog.version || '6.3.0'),
+  deployId: 'FUSEWILD-V630-PHASE-SYNC-MOBILE-20260917',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,
@@ -92,11 +92,11 @@ const info = {
 };
 fs.writeFileSync(path.join(root, 'public', 'build-info.json'), JSON.stringify(info, null, 2));
 fs.writeFileSync(path.join(root, 'public', 'version.json'), JSON.stringify({
-  release: 'FUSEWILD-V621-LIVE-SYNC-HYBRIDART',
-  buildId: 'fusewild-v621-live-sync-hybridart',
+  release: 'FUSEWILD-V630-PHASE-SYNC-MOBILE',
+  buildId: 'fusewild-v630-phase-sync-mobile',
   generatedAt: info.builtAt,
   version: info.version,
-  label: 'FUSEWILD V6.2.1 LIVE SYNC + REAL HYBRID FUSION ART + LARGE TYPE REWARD FLOW',
+  label: 'FUSEWILD V6.3 PHASE-SYNC BATTLE + MANUAL REPLACEMENT + MOBILE SAFE UI',
   deployId: info.deployId
 }, null, 2));
 
