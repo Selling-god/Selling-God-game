@@ -1,8 +1,8 @@
 {
-  "release": "FUSEWILD-V700-BATTLE-CORE-REBUILD",
-  "buildId": "fusewild-v700-battle-core-rebuild",
-  "generatedAt": "2026-09-17T03:35:00.084Z",
-  "version": "7.0.0",
-  "label": "FUSEWILD V7.0.0 BATTLE CORE REBUILD + MANUAL FAINT REPLACEMENT + MOBILE UI",
-  "deployId": "FUSEWILD-V700-BATTLE-CORE-REBUILD-20260917"
+  "release": "FUSEWILD-V710-READABILITY-FX-REBUILD",
+  "buildId": "fusewild-v710-readability-fx-rebuild",
+  "generatedAt": "2026-09-17T06:12:19.937Z",
+  "version": "7.1.0",
+  "label": "FUSEWILD V7.1.0 READABILITY + ORGANIC MOVE FX + REWARD EFFECT CARDS",
+  "deployId": "FUSEWILD-V710-READABILITY-FX-REBUILD-20260917"
 }

@@ -1,7 +1,7 @@
 {
-  "version": "7.0.0",
-  "deployId": "FUSEWILD-V700-BATTLE-CORE-REBUILD-20260917",
-  "builtAt": "2026-09-17T03:35:00.084Z",
+  "version": "7.1.0",
+  "deployId": "FUSEWILD-V710-READABILITY-FX-REBUILD-20260917",
+  "builtAt": "2026-09-17T06:12:19.937Z",
   "cards": 315,
   "items": 128,
   "enemies": 205,
