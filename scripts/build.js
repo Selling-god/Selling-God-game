@@ -78,7 +78,7 @@ if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets
 
 const info = {
   version: String(pkg.version || catalog.version || '6.2.1'),
-  deployId: 'FUSEWILD-V630-TRAINER-DUEL-SHOP-CADENCE-20260917',
+  deployId: 'FUSEWILD-V640-POSTBATTLE-REBUILD-20260917',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,
@@ -92,11 +92,11 @@ const info = {
 };
 fs.writeFileSync(path.join(root, 'public', 'build-info.json'), JSON.stringify(info, null, 2));
 fs.writeFileSync(path.join(root, 'public', 'version.json'), JSON.stringify({
-  release: 'FUSEWILD-V630-TRAINER-DUEL-SHOP-CADENCE',
-  buildId: 'fusewild-v630-trainer-duel-shop-cadence',
+  release: 'FUSEWILD-V640-POSTBATTLE-REBUILD',
+  buildId: 'fusewild-v640-postbattle-rebuild',
   generatedAt: info.builtAt,
   version: info.version,
-  label: 'FUSEWILD V6.3.0 TRAINER DUEL + EVERY-WAVE SHOP + MODE HEAL RULES',
+  label: 'FUSEWILD V6.4.0 POST-BATTLE UI REBUILD + OVERLAP FIX',
   deployId: info.deployId
 }, null, 2));
 
