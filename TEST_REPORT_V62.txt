@@ -1,0 +1,13 @@
+
+> fusewild-monster-fusion-roguelite@6.2.1 test
+> npm run build && node scripts/v62-quality-test.js
+
+
+> fusewild-monster-fusion-roguelite@6.2.1 build
+> node scripts/build.js
+
+BUILD_OK v6.2.1 deploy=FUSEWILD-V621-LIVE-SYNC-HYBRIDART-20260916 cards=315 items=128 enemies=205 floors=50
+SUPABASE_SETUP_FILE present
+STATIC_GUARD_OK out/index.html created (diagnostic only; game requires Node Web Service)
+V62_STATIC_OK largeType=yes compactReward=yes liveBattleStage=yes generatedFusionAsset=yes
+V62_RUNTIME_OK hp=45->11 fusionArt=realPNG fiveTurnSplit=yes
