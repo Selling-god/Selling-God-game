@@ -1,7 +1,7 @@
 {
-  "version": "6.1.0",
-  "deployId": "FUSEWILD-V610-COMPACT-POKEROGUE-FLOW-20260916",
-  "builtAt": "2026-09-16T06:04:58.329Z",
+  "version": "6.2.1",
+  "deployId": "FUSEWILD-V621-LIVE-SYNC-HYBRIDART-20260916",
+  "builtAt": "2026-09-16T06:48:25.431Z",
   "cards": 315,
   "items": 128,
   "enemies": 205,

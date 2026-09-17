@@ -77,30 +77,18 @@
   function originLabel(origin){return ({journey:'TRAVEL',gacha:'ARCHIVE',starter:'STARTER',legacy:'LEGACY'})[origin]||'FOUND';}
 
   const FUSION_ELEMENT_ROOTS={'화염':'홍련','물':'창해','자연':'수림','빛':'성광','그림자':'흑영','강철':'철성','바람':'창풍','번개':'뇌전','별':'성운','시간':'시공','공허':'심연','수정':'수정'};
-  const FUSION_ELEMENT_COLORS={'화염':['#ffb26d','#ff553d'],'물':['#8be7ff','#2f81ff'],'자연':['#9ef58c','#2cc86a'],'빛':['#fff0a6','#ffd54a'],'그림자':['#9484ff','#4b2d8f'],'강철':['#d7dde8','#8f99ad'],'바람':['#d5fff6','#66d4b7'],'번개':['#ffe685','#ffbc1f'],'별':['#b6ccff','#6f7bff'],'시간':['#9cf3ff','#39b1c7'],'공허':['#9a8cff','#16182b'],'수정':['#ffd0ff','#8e5cff']};
   const FUSION_ARCHETYPE_ROOTS={beast:'라이칸',crab:'크랩',drone:'기어',golem:'거신',insect:'인섹트',knight:'팔라딘',leviathan:'리바이어선',mushroom:'포자',phoenix:'피닉스',serpent:'나가',slime:'슬라임',spirit:'정령',tyrant:'군주',watcher:'감시자',wing:'익조',wraith:'망령'};
   const FUSION_ARCHETYPE_ASCENDED={beast:'라이칸로드',crab:'갑각군주',drone:'오버기어',golem:'거신왕',insect:'곤충제왕',knight:'성검군주',leviathan:'심해황',mushroom:'포자군체',phoenix:'불사황',serpent:'나가로드',slime:'점성군체',spirit:'정령왕',tyrant:'폭군제왕',watcher:'천안감시자',wing:'천익황',wraith:'망령군주'};
   const FUSION_EPITHETS=['프라임','제로스','노바','오리진','엑셀','네뷸라','시그마','아크','루나','오메가','베스퍼','크로노','아스트라','레퀴엠','오블리비언','세라프'];
+  const FUSION_CODENAMES=['제니스','엑시온','라그나','오리온','이클립스','네메시스','카이로스','발키온','에테르','크레스트','하이페리온','아르카','루멘','녹티스','솔라리스','아발론'];
   function fusionHash(value=''){let h=2166136261>>>0;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
   function fusionPairKey(a,b){return [String(a||''),String(b||'')].sort().join('::');}
-  function fusionElementTheme(a,b){const ra=FUSION_ELEMENT_ROOTS[a]||'혼돈',rb=FUSION_ELEMENT_ROOTS[b]||ra;return String(a||'')===String(b||'')?`${ra}극성`:`${ra}${rb}`;}
-  function fusionArchetypeTitle(a,b){const aa=String(a||'beast'),bb=String(b||aa);return aa===bb?(FUSION_ARCHETYPE_ASCENDED[aa]||`${FUSION_ARCHETYPE_ROOTS[aa]||'리프트'}로드`):`${FUSION_ARCHETYPE_ROOTS[aa]||'리프트'}${FUSION_ARCHETYPE_ROOTS[bb]||'코어'}`;}
-  function fusionResultName(a,b){const sig=fusionPairKey(a?.speciesId||a?.id||a?.instanceId||a?.name||'A',b?.speciesId||b?.id||b?.instanceId||b?.name||'B');const theme=fusionElementTheme(a?.element,a?.secondaryElement||b?.element||a?.element);const body=fusionArchetypeTitle(a?.archetype,a?.secondaryArchetype||b?.archetype||a?.archetype);const ep=FUSION_EPITHETS[fusionHash(sig)%FUSION_EPITHETS.length];return `${theme} ${body} ${ep}`.replace(/\s+/g,' ').trim();}
-  function svgAttr(value=''){return String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-  function fusionCompositeSpriteUrlFromParts(primarySprite='',secondarySprite='',primaryElement='공허',secondaryElement='공허',fusionName='',signature=''){
-    const paletteA=FUSION_ELEMENT_COLORS[primaryElement]||['#d3d7ff','#6f7bff'];
-    const paletteB=FUSION_ELEMENT_COLORS[secondaryElement]||paletteA;
-    const sig=fusionHash(`${signature}|${primarySprite}|${secondarySprite}|${primaryElement}|${secondaryElement}`)%4;
-    const icon=[
-      '<path d="M96 26l14 22 25 5-17 18 3 25-25-10-25 10 3-25-17-18 25-5z" fill="#ffffff" opacity=".22"/>',
-      '<path d="M96 28l28 28-28 28-28-28z" fill="#ffffff" opacity=".22"/><circle cx="96" cy="56" r="11" fill="#fff" opacity=".22"/>',
-      '<circle cx="96" cy="56" r="16" fill="none" stroke="#fff" stroke-width="6" opacity=".22"/><path d="M96 30v52M70 56h52" stroke="#fff" stroke-width="5" opacity=".22"/>',
-      '<path d="M96 24l16 16-16 16-16-16zM96 56l20 20-20 20-20-20z" fill="#fff" opacity=".22"/>'
-    ][sig];
-    const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${paletteA[0]}"/><stop offset="100%" stop-color="${paletteB[1]}"/></linearGradient><linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity=".92"/><stop offset="100%" stop-color="#ffffff" stop-opacity=".18"/></linearGradient><filter id="shadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#08101f" flood-opacity=".45"/></filter><pattern id="grid" width="18" height="18" patternUnits="userSpaceOnUse"><path d="M18 0H0V18" fill="none" stroke="#fff" stroke-opacity=".10" stroke-width="1"/></pattern></defs><rect x="6" y="6" width="180" height="180" rx="28" fill="url(#bg)"/><rect x="14" y="14" width="164" height="164" rx="22" fill="url(#grid)" opacity=".65"/><circle cx="64" cy="64" r="48" fill="#fff" opacity=".10"/><circle cx="134" cy="128" r="40" fill="#000" opacity=".12"/><path d="M18 126c28-30 58-46 91-49 29-3 46-17 65-40v72c-21 31-46 48-76 53-34 7-59 0-80-36z" fill="#fff" opacity=".08"/>${icon}<g filter="url(#shadow)">${secondarySprite?`<image href="${svgAttr(secondarySprite)}" x="80" y="58" width="84" height="84" preserveAspectRatio="xMidYMid meet" opacity=".84"/>`:''}${primarySprite?`<image href="${svgAttr(primarySprite)}" x="24" y="26" width="108" height="108" preserveAspectRatio="xMidYMid meet"/>`:''}</g><circle cx="96" cy="96" r="70" fill="none" stroke="#ffffff" stroke-opacity=".18" stroke-width="4"/><rect x="12" y="12" width="168" height="168" rx="24" fill="none" stroke="url(#rim)" stroke-width="4"/><text x="18" y="162" fill="#fff" fill-opacity=".95" font-size="14" font-weight="700" font-family="Arial, Apple SD Gothic Neo, Noto Sans KR, sans-serif">FUSION</text><text x="18" y="178" fill="#fff" fill-opacity=".84" font-size="10" font-family="Arial, Apple SD Gothic Neo, Noto Sans KR, sans-serif">${svgAttr(String(fusionName||'RIFT FUSION').slice(0,34))}</text></svg>`;
-    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-  }
-  function fusionCompositeSpriteUrl(u){if(!u?.fused)return'';if(u.fusionArt)return u.fusionArt;const primary=u.fusionPrimarySprite||u.baseSprite||u.sprite||'';const secondary=u.fusionSecondarySprite||u.fusionSprite||'';const sig=fusionPairKey(u.speciesId||u.instanceId,u.fusionWith||u.secondarySpeciesId||'');return fusionCompositeSpriteUrlFromParts(primary,secondary,u.element,u.secondaryElement||u.element,u.name||'RIFT FUSION',sig);}
+  function fusionOrderedPair(a,b){const aid=String(a?.speciesId||a?.id||a?.instanceId||a?.name||'A'),bid=String(b?.speciesId||b?.id||b?.instanceId||b?.name||'B');return aid.localeCompare(bid)<=0?[a,b]:[b,a];}
+  function fusionElementTheme(a,b){const ra=FUSION_ELEMENT_ROOTS[a]||'혼돈',rb=FUSION_ELEMENT_ROOTS[b]||ra;if(String(a||'')===String(b||''))return({'화염':'극홍련','물':'대창해','자연':'원초수림','빛':'천광','그림자':'심흑','강철':'성철','바람':'천풍','번개':'뇌제','별':'초신성','시간':'영겁','공허':'무저심연','수정':'성정'})[a]||`${ra}극성`;return `${ra}${rb}`;}
+  function fusionArchetypeTitle(a,b){const aa=String(a||'beast'),bb=String(b||aa);if(aa===bb)return FUSION_ARCHETYPE_ASCENDED[aa]||`${FUSION_ARCHETYPE_ROOTS[aa]||'리프트'}로드`;const pair=[aa,bb].sort().join(':'),specials={'beast:wing':'천익수','beast:wraith':'야령수','beast:golem':'거수','beast:knight':'성갑수','drone:golem':'기갑거신','drone:watcher':'천안기어','knight:wraith':'망령기사','knight:wing':'천익기사','leviathan:serpent':'해룡','phoenix:wing':'불사천익','serpent:wraith':'유령나가','spirit:wing':'천익정령','spirit:wraith':'유령정령','golem:knight':'성철거신','insect:wing':'천충','mushroom:spirit':'포자정령','slime:spirit':'점성정령','tyrant:watcher':'천안군주'};return specials[pair]||`${FUSION_ARCHETYPE_ROOTS[aa]||'리프트'}${FUSION_ARCHETYPE_ROOTS[bb]||'코어'}`;}
+  function fusionResultName(a,b){const [x,y]=fusionOrderedPair(a,b),sig=fusionPairKey(x?.speciesId||x?.id||x?.instanceId||x?.name||'A',y?.speciesId||y?.id||y?.instanceId||y?.name||'B'),theme=fusionElementTheme(x?.element,y?.element||x?.element),body=fusionArchetypeTitle(x?.archetype,y?.archetype||x?.archetype),h=fusionHash(sig),ep=FUSION_EPITHETS[h%FUSION_EPITHETS.length],code=FUSION_CODENAMES[((h>>>8)^Math.imul(h,31))%FUSION_CODENAMES.length];return `${theme}의 ${body} · ${ep} ${code}`.replace(/\s+/g,' ').trim();}
+  function fusionCompositeSpriteUrl(u){if(!u?.fused)return'';if(String(u.fusionArt||'').startsWith('/assets/fusion/generated/'))return u.fusionArt;return u.fusionPrimarySprite||u.baseSprite||u.sprite||u.fusionSecondarySprite||u.fusionSprite||'';}
+
 
   function makeId(){
     if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -410,14 +398,37 @@
     if(instant||chars.length<2){b.textContent=chars.join('');return;}let i=0;const speed=Math.max(24,Math.min(42,Math.round(1050/Math.max(1,chars.length))));
     state.battleMessageTimer=setInterval(()=>{if(nonce!==state.battleMessageNonce||!document.body.contains(b)){clearInterval(state.battleMessageTimer);state.battleMessageTimer=0;return;}b.textContent+=chars[i++]||'';if(i>=chars.length){clearInterval(state.battleMessageTimer);state.battleMessageTimer=0;}},speed);
   }
-  function stageBattleHpV61(payload,enemyTarget=true){
-    if(!payload||!Number.isFinite(Number(payload.targetHpAfter))||!Number.isFinite(Number(payload.targetMaxHp)))return;
-    const target=enemyTarget?$(`[data-enemy="${CSS.escape(payload.targetUid||'')}"]`):$(`[data-monster="${CSS.escape(payload.targetMonsterId||'')}"]`);if(!target)return;
-    const max=Math.max(1,Number(payload.targetMaxHp||1)),after=Math.max(0,Number(payload.targetHpAfter||0)),before=Math.max(0,Number(payload.targetHpBefore??after));
-    const bar=target.querySelector(enemyTarget?'.enemy-status-v52>i>em':'.mon-status-v52>i>em');const num=target.querySelector(enemyTarget?'.enemy-status-v52>span':'.mon-status-v52>span');
-    if(bar){bar.style.transition='none';bar.style.width=`${pct(before,max)}%`;void bar.offsetWidth;bar.style.transition='width .58s cubic-bezier(.18,.82,.22,1)';bar.style.width=`${pct(after,max)}%`;}
-    if(num){const start=performance.now(),dur=580;const tick=now=>{const p=Math.min(1,(now-start)/dur),value=Math.round(before+(after-before)*p);num.textContent=`${value}/${max}`;if(p<1)requestAnimationFrame(tick);};requestAnimationFrame(tick);}
+  function liveStatusLayerV62(target){if(!target)return null;let layer=target.querySelector('.live-status-layer-v62');if(!layer){layer=document.createElement('div');layer.className='live-status-layer-v62';target.appendChild(layer);}return layer;}
+  function stageStatusVisualV62(target,key,mode='apply',label=''){
+    if(!target||!key)return;const layer=liveStatusLayerV62(target),safe=String(key).replace(/[^a-zA-Z0-9_-]/g,''),existing=layer?.querySelector(`[data-live-status="${CSS.escape(safe)}"]`);
+    if(mode==='cure'){existing?.remove();return;}if(mode==='blocked'||mode==='tick'){if(existing){existing.classList.remove('pulse');void existing.offsetWidth;existing.classList.add('pulse');}return;}
+    if(existing)return;const meta=STATUS_META_V55[key]||{},chip=document.createElement('span');chip.dataset.liveStatus=safe;chip.className=`live-status-chip-v62 status-${safe}`;chip.textContent=`${meta.glyph||'◆'} ${label||meta.label||String(key).toUpperCase()}`;layer?.appendChild(chip);
   }
+  function stageDefeatVisualV62(target){if(!target||target.classList.contains('staged-ko-v62'))return;target.classList.add('staged-ko-v62');const mark=document.createElement('div');mark.className='staged-ko-mark-v62';mark.textContent='DOWN';target.appendChild(mark);}
+  function stageHpNodeV62(target,before,after,max,enemyTarget=true){
+    if(!target||!Number.isFinite(Number(after))||!Number.isFinite(Number(max)))return;max=Math.max(1,Number(max||1));after=Math.max(0,Number(after||0));before=Math.max(0,Number(before??after));
+    const bar=target.querySelector(enemyTarget?'.enemy-status-v52>i>em':'.mon-status-v52>i>em'),num=target.querySelector(enemyTarget?'.enemy-status-v52>span':'.mon-status-v52>span');
+    if(bar){bar.style.transition='none';bar.style.width=`${pct(before,max)}%`;void bar.offsetWidth;bar.style.transition='width .64s cubic-bezier(.18,.82,.22,1)';bar.style.width=`${pct(after,max)}%`;}
+    if(num){const start=performance.now(),dur=640;const tick=now=>{const q=Math.min(1,(now-start)/dur),value=Math.round(before+(after-before)*q);num.textContent=`${value}/${max}`;if(q<1)requestAnimationFrame(tick);};requestAnimationFrame(tick);}
+    if(after<=0)setTimeout(()=>stageDefeatVisualV62(target),660);else{target.classList.remove('staged-ko-v62');target.querySelector('.staged-ko-mark-v62')?.remove();}
+  }
+  function stageBattleHpV62(payload,enemyTarget=true){
+    if(!payload||!Number.isFinite(Number(payload.targetHpAfter))||!Number.isFinite(Number(payload.targetMaxHp)))return;
+    const target=enemyTarget?$(`[data-enemy="${CSS.escape(payload.targetUid||'')}"]`):$(`[data-monster="${CSS.escape(payload.targetMonsterId||'')}"]`);stageHpNodeV62(target,payload.targetHpBefore,payload.targetHpAfter,payload.targetMaxHp,enemyTarget);
+  }
+  function stageActorHpV62(payload,enemyActor=false){
+    if(!payload)return;if(enemyActor){if(!Number.isFinite(Number(payload.enemyHpAfter)))return;const target=$(`[data-enemy="${CSS.escape(payload.enemyUid||'')}"]`);stageHpNodeV62(target,payload.enemyHpBefore,payload.enemyHpAfter,payload.enemyMaxHp,true);}
+    else{if(!Number.isFinite(Number(payload.actorHpAfter)))return;const target=$(`[data-monster="${CSS.escape(payload.instanceId||'')}"]`);stageHpNodeV62(target,payload.actorHpBefore,payload.actorHpAfter,payload.actorMaxHp,false);}
+  }
+  function stageStatusHpV62(payload,isEnemy=false){
+    if(!payload||!Number.isFinite(Number(payload.hpAfter))||!Number.isFinite(Number(payload.maxHp)))return;const target=isEnemy?$(`[data-enemy="${CSS.escape(payload.enemyUid||'')}"]`):$(`[data-monster="${CSS.escape(payload.instanceId||'')}"]`);stageHpNodeV62(target,payload.hpBefore,payload.hpAfter,payload.maxHp,isEnemy);
+  }
+  function stageFusionVisualV62(payload){
+    const target=$(`[data-monster="${CSS.escape(payload?.instanceId||'')}"]`);if(!target)return;const img=target.querySelector('.mon-sprite-v52>img:not(.fusion-ghost-v40)')||target.querySelector('.mon-sprite-v52>img');if(img&&payload?.toSprite){img.src=payload.toSprite;img.classList.add('fusion-live-art-v62');}const name=target.querySelector('.mon-status-v52>div>b');if(name&&payload?.toName)name.textContent=payload.toName;target.classList.add('fusion-live-v62');let badge=target.querySelector('.fusion-live-turn-v62');if(!badge){badge=document.createElement('span');badge.className='fusion-live-turn-v62';target.appendChild(badge);}badge.textContent=`∞ ${Number(payload?.turnsLeft||5)}T`;
+  }
+  function stageFusionTurnV62(payload){const target=$(`[data-monster="${CSS.escape(payload?.instanceId||'')}"]`);if(!target)return;let badge=target.querySelector('.fusion-live-turn-v62');if(!badge){badge=document.createElement('span');badge.className='fusion-live-turn-v62';target.appendChild(badge);}badge.textContent=`∞ ${Number(payload?.turnsLeft||0)}T`;badge.classList.remove('pulse');void badge.offsetWidth;badge.classList.add('pulse');}
+  function stageUnfusionVisualV62(payload){const target=$(`[data-monster="${CSS.escape(payload?.instanceId||'')}"]`);if(!target)return;target.classList.remove('fusion-live-v62');target.querySelector('.fusion-live-turn-v62')?.remove();const img=target.querySelector('.mon-sprite-v52>img:not(.fusion-ghost-v40)')||target.querySelector('.mon-sprite-v52>img');if(img&&payload?.primarySprite)img.src=payload.primarySprite;const name=target.querySelector('.mon-status-v52>div>b');if(name&&payload?.primaryName)name.textContent=payload.primaryName;}
+
   function statusNarrationV57(key,name,mode='apply',damage=0){
     const n=name||'대상';const map={burn:'화상',poison:'중독',shock:'마비',paralysis:'마비',sleep:'수면',freeze:'빙결',atkDown:'공격력',defDown:'방어력',atkUp:'공격력',defUp:'방어력',weak:'공격력',vulnerable:'방어력',intentSeal:'행동',broken:'자세'};const label=map[key]||key||'상태';
     if(mode==='tick')return damage>0?`${n}은(는) ${label}의 데미지를 ${damage} 받았다!`:`${n}에게 ${label}의 효과가 이어지고 있다.`;
@@ -472,8 +483,9 @@
   }
   function statusEventNarrationV57(ev){
     const p=ev?.payload||{},isEnemy=!!p.enemyUid,target=isEnemy?$(`[data-enemy="${CSS.escape(p.enemyUid||'')}"]`):(p.instanceId?$(`[data-monster="${CSS.escape(p.instanceId)}"]`):null),name=p.enemyName||p.monsterName||(isEnemy?'상대':'몬스터'),key=p.status||(p.stat?`${p.stat}${Number(p.delta)<0?'Down':'Up'}`:'buff');
-    if(target){statusCinematicV57(target,key);statusEffectFxV55(target,key,p.label||'',Number(p.delta||p.damage||0));if(Number(p.damage)>0)popNumber(target,`-${p.damage}`,isEnemy?'damage':'damage player');}
-    const mode=ev.type.includes('tick')?'tick':ev.type.includes('cure')?'cure':p.blocked?'blocked':'apply';battleNarrateV57(statusNarrationV57(key,name,mode,Number(p.damage||0)),{tone:mode==='cure'?'good':'status',tag:mode==='tick'?'STATUS DAMAGE':'STATUS'});
+    const mode=ev.type.includes('tick')?'tick':ev.type.includes('cure')?'cure':p.blocked?'blocked':'apply';
+    if(target){stageStatusVisualV62(target,key,mode,p.label||'');stageStatusHpV62(p,isEnemy);statusCinematicV57(target,key);statusEffectFxV55(target,key,p.label||'',Number(p.delta||p.damage||0));if(Number(p.damage)>0)popNumber(target,`-${p.damage}`,isEnemy?'damage':'damage player');}
+    battleNarrateV57(statusNarrationV57(key,name,mode,Number(p.damage||0)),{tone:mode==='cure'?'good':'status',tag:mode==='tick'?'STATUS DAMAGE':'STATUS'});
   }
 
   function playRoomEvents(next,afterSeq){
@@ -486,22 +498,24 @@
         const name=p.monsterName||'몬스터',skill=p.skill||p.move?.name||'기술',sig=!!p.signature||!!p.move?.signature;
         later(()=>battleNarrateV57(`${name}의 ${skill}!`,{tone:'move',tag:sig?'SIGNATURE MOVE':'MOVE',sub:p.element||p.move?.element||''}),sig?1250:1000);
         later(()=>monsterMoveEventFx(p),sig?BATTLE_PACE_V57.signature:BATTLE_PACE_V57.move);
-        later(()=>stageBattleHpV61(p,true),620);
-        for(const row of moveResultNarrationsV57(p,false)){later(()=>{if(row.status){const t=$(`[data-enemy="${CSS.escape(p.targetUid||'')}"]`);if(t)statusCinematicV57(t,row.status.key);}battleNarrateV57(row.text,{tone:row.tone,tag:row.tag});},row.status?BATTLE_PACE_V57.status:BATTLE_PACE_V57.result);}
+        later(()=>{stageBattleHpV62(p,true);stageActorHpV62(p,false);},720);
+        for(const row of moveResultNarrationsV57(p,false)){later(()=>{if(row.status){const t=$(`[data-enemy="${CSS.escape(p.targetUid||'')}"]`);if(t){stageStatusVisualV62(t,row.status.key,'apply',row.status.label||'');statusCinematicV57(t,row.status.key);}}battleNarrateV57(row.text,{tone:row.tone,tag:row.tag});},row.status?BATTLE_PACE_V57.status:BATTLE_PACE_V57.result);}
       }
       else if(ev.type==='enemy-attack'){
         const name=p.monsterName||'상대',skill=p.skill||p.move?.name||'기술',sig=!!p.signature||!!p.move?.signature;
         later(()=>battleNarrateV57(`${name}의 ${skill}!`,{tone:'enemy',tag:sig?'ENEMY SIGNATURE':'ENEMY MOVE',sub:p.element||p.move?.element||''}),sig?1250:1050);
         later(()=>enemyAttackEventFx(p),sig?BATTLE_PACE_V57.signature:BATTLE_PACE_V57.move);
-        later(()=>stageBattleHpV61(p,false),620);
-        for(const row of moveResultNarrationsV57(p,true)){later(()=>{if(row.status){const t=p.targetMonsterId?$(`[data-monster="${CSS.escape(p.targetMonsterId)}"]`):null;if(t)statusCinematicV57(t,row.status.key);}battleNarrateV57(row.text,{tone:row.tone,tag:row.tag});},row.status?BATTLE_PACE_V57.status:BATTLE_PACE_V57.result);}
+        later(()=>{stageBattleHpV62(p,false);stageActorHpV62(p,true);},720);
+        for(const row of moveResultNarrationsV57(p,true)){later(()=>{if(row.status){const t=p.targetMonsterId?$(`[data-monster="${CSS.escape(p.targetMonsterId)}"]`):null;if(t){stageStatusVisualV62(t,row.status.key,'apply',row.status.label||'');statusCinematicV57(t,row.status.key);}}battleNarrateV57(row.text,{tone:row.tone,tag:row.tag});},row.status?BATTLE_PACE_V57.status:BATTLE_PACE_V57.result);}
       }
       else if(ev.type==='monster-attack')later(()=>monsterAttackEventFx(p),BATTLE_PACE_V57.move);
       else if(ev.type==='monster-burst')later(()=>monsterBurstEventFx(p),BATTLE_PACE_V57.signature);
       else if(ev.type==='monster-hit'){/* V57: hit feedback is serialized with enemy-attack/status phases. */}
       else if(ev.type==='monster-passive')later(()=>{const t=$(`[data-monster="${CSS.escape(p.instanceId||'')}"]`);battleNarrateV57(`${p.monsterName||'몬스터'}의 ${p.passive||'패시브'}가 발동했다!`,{tag:'PASSIVE',tone:'good'});if(t){attackLabelV40(t,p.passive||'PASSIVE','ally');shieldGainFx(t,p.gold?0:4);}sound('reward');},BATTLE_PACE_V57.status);
       else if(ev.type==='monster-evolve')later(()=>monsterTransformFx(p),p.mode==='evolve'?4300:1200);
-      else if(ev.type==='monster-fuse')later(()=>{battleNarrateV57(`${p.toName||'몬스터'} — 융합 완료!`,{tag:'TURN FUSION',tone:'victory'});playFusionCinematicV56(p);},3000);
+      else if(ev.type==='monster-fuse')later(()=>{stageFusionVisualV62(p);battleNarrateV57(`${p.toName||'몬스터'} — 융합 완료!`,{tag:'TURN FUSION',tone:'victory'});playFusionCinematicV56(p);},3000);
+      else if(ev.type==='fusion-turn')later(()=>{stageFusionTurnV62(p);battleNarrateV57(`${p.turnsLeft||0}턴 동안 융합 상태가 유지된다.`,{tag:'FUSION',tone:'good'});},BATTLE_PACE_V57.minor);
+      else if(ev.type==='monster-unfuse')later(()=>{stageUnfusionVisualV62(p);battleNarrateV57(p.reason==='battle-end'?'전투 종료와 함께 융합이 해제되었다.':'5턴 융합이 끝나 원래 모습으로 돌아왔다.',{tag:'FUSION END',tone:'normal'});},BATTLE_PACE_V57.status);
       else if(ev.type==='monster-level'&&p.playerId===state.profileId)later(()=>playLevelUpCinematic(p),1500);
       else if(ev.type==='move-evolve'&&p.playerId===state.profileId)later(()=>playMoveMasteryCinematic(p),1450);
       else if(ev.type==='move-learn'&&p.playerId===state.profileId)later(()=>{battleNarrateV57(`${p.move?.name||'새 기술'}을 배웠다!`,{tag:'NEW MOVE',tone:'good'});showCenterBanner(p.move?.name||'NEW MOVE','SKILL LEARNED','victory');sound('reward');},BATTLE_PACE_V57.status);
@@ -916,7 +930,7 @@
   function renderFusionBuilderV56(){
     const d=state.fusionDraft,all=allMyBattleMonstersV56(),a=all.find(x=>x.instanceId===d?.primaryId),b=all.find(x=>x.instanceId===d?.secondaryId);if(!a||!b)return closeModal();
     const pool=fusionMovePoolV56(a,b),need=Math.min(4,pool.length),types=fusionPreviewTypesV56(a,b),selected=new Set(d.moves||[]),hp=Math.round((Number(a.maxHp||1)+Number(b.maxHp||1))/2*1.08),atk=Math.round((Number(a.power||1)+Number(b.power||1))/2*1.06);
-    modal(`<div class="fusion-builder-v56"><header><small>TURN FUSION · ACTION COST 1</small><h2>${esc(a.name)} <em>×</em> ${esc(b.name)}</h2><p>이번 행동을 소비해 두 몬스터를 하나로 합칩니다. 융합은 이후 5턴 동안 유지되며 전투가 끝나면 즉시 원래 두 몬스터로 돌아옵니다.</p></header><section class="fusion-pair-v56"><article><img src="${esc(monsterDisplaySprite(a))}"><b>${esc(a.name)}</b><small>${esc(a.element)} · HP ${a.hp}/${a.maxHp}</small></article><strong>×</strong><article><img src="${esc(monsterDisplaySprite(b))}"><b>${esc(b.name)}</b><small>${esc(b.element)} · HP ${b.hp}/${b.maxHp}</small></article><i>→</i><article class="result"><div class="fusion-orb-v56">∞</div><b>${esc(fusionResultName(a,b))}</b><small>${types.map(x=>esc(x)).join(' / ')} · 예상 HP ${hp} · ATK ${atk}</small></article></section><div class="fusion-rule-v56"><span>행동 1회 소비</span><span>기술 ${need}개 선택</span><span>5턴 유지</span><span>전투 종료 시 즉시 해제</span></div><div class="fusion-moves-v56">${pool.map((mv,i)=>{const on=selected.has(mv.id),pp=Number(mv.pp??mv.maxPp??0),max=Number(mv.maxPp||pp||1);return `<button data-action="fusion-toggle-move" data-move-id="${esc(mv.id)}" class="${on?'selected':''} element-${elementClass(mv.element||a.element)}"><em>${on?'✓':String(i+1).padStart(2,'0')}</em><div><b>${esc(mv.name)}</b><small>${esc(mv.element||a.element)} · ${esc(moveKindKo(mv))} · PP ${pp}/${max}</small><span>${esc(movePowerLine(mv))}</span></div></button>`;}).join('')}</div><footer><small>${selected.size}/${need} 선택 · 정확히 ${need}개를 선택하세요.</small><button data-action="modal-close">취소</button><button class="cta" data-action="fusion-confirm" ${selected.size===need?'':'disabled'}>1턴 사용 · 융합</button></footer></div>`);
+    modal(`<div class="fusion-builder-v56"><header><small>TURN FUSION · ACTION COST 1</small><h2>${esc(a.name)} <em>×</em> ${esc(b.name)}</h2><p>이번 행동을 소비해 두 몬스터를 하나로 합칩니다. 융합은 이후 5턴 동안 유지되며 전투가 끝나면 즉시 원래 두 몬스터로 돌아옵니다.</p></header><section class="fusion-pair-v56"><article><img src="${esc(monsterDisplaySprite(a))}"><b>${esc(a.name)}</b><small>${esc(a.element)} · HP ${a.hp}/${a.maxHp}</small></article><strong>×</strong><article><img src="${esc(monsterDisplaySprite(b))}"><b>${esc(b.name)}</b><small>${esc(b.element)} · HP ${b.hp}/${b.maxHp}</small></article><i>→</i><article class="result"><div class="fusion-preview-art-v62"><img class="primary" src="${esc(monsterDisplaySprite(a))}" alt=""><img class="secondary" src="${esc(monsterDisplaySprite(b))}" alt=""><i>∞</i></div><b>${esc(fusionResultName(a,b))}</b><small>${types.map(x=>esc(x)).join(' / ')} · 예상 HP ${hp} · ATK ${atk}</small></article></section><div class="fusion-rule-v56"><span>행동 1회 소비</span><span>기술 ${need}개 선택</span><span>5턴 유지</span><span>전투 종료 시 즉시 해제</span></div><div class="fusion-moves-v56">${pool.map((mv,i)=>{const on=selected.has(mv.id),pp=Number(mv.pp??mv.maxPp??0),max=Number(mv.maxPp||pp||1);return `<button data-action="fusion-toggle-move" data-move-id="${esc(mv.id)}" class="${on?'selected':''} element-${elementClass(mv.element||a.element)}"><em>${on?'✓':String(i+1).padStart(2,'0')}</em><div><b>${esc(mv.name)}</b><small>${esc(mv.element||a.element)} · ${esc(moveKindKo(mv))} · PP ${pp}/${max}</small><span>${esc(movePowerLine(mv))}</span></div></button>`;}).join('')}</div><footer><small>${selected.size}/${need} 선택 · 정확히 ${need}개를 선택하세요.</small><button data-action="modal-close">취소</button><button class="cta" data-action="fusion-confirm" ${selected.size===need?'':'disabled'}>1턴 사용 · 융합</button></footer></div>`);
   }
   function showFusionMenu(instanceId){
     const all=allMyBattleMonstersV56(),a=all.find(x=>x.instanceId===instanceId)||all.find(x=>!x.fused);if(!a||a.fused)return toast('이미 융합 상태입니다. 해제 후 다시 융합할 수 있습니다.','error');const partners=all.filter(x=>x.instanceId!==a.instanceId&&!x.fused);
@@ -1216,11 +1230,15 @@
     if(o.type==='card'){return `<button class="reward-choice-v51 legacy-reward-v56" data-action="reward-salvage"><span>◇</span><div><small>LEGACY DATA</small><b>균열 파편으로 변환</b><em>이전 버전 카드 보상은 현재 원정에서 사용하지 않습니다.</em></div></button>`;}
     const it=o.item;return `<button class="reward-choice-v51 reward-choice-v61 rarity-${esc(it.rarity)}" data-action="reward-pick" data-reward-id="${esc(o.id)}" data-focus-kind="reward" data-focus-name="${esc(it.name)}" data-focus-desc="${esc(it.text||'')}" data-focus-meta="${esc(it.category||rarityKo(it.rarity))}"><span><img src="${esc(it.art||'')}" alt=""></span><div><small>${esc(it.category||rarityKo(it.rarity))}</small><b>${esc(it.name)}</b><em>${esc(shortLine(it.text||'',66))}</em></div></button>`;
   }
+  function rewardPartyStripV62(r,run){
+    const expRows=r?.reward?.expBy?.[state.profileId]||[],expBy=Object.fromEntries(expRows.map(x=>[x.instanceId,x]));
+    const mons=(run?.monsters||[]).slice(0,6);return `<div class="reward-party-strip-v62">${mons.map((m,i)=>{const row=expBy[m.instanceId],hp=pct(m.hp,m.maxHp),exp=row?Math.max(0,Math.min(100,Math.round(Number(row.xp||0)/Math.max(1,Number(row.xpNeed||1))*100))):0;return `<article class="${m.hp<=0?'ko':''}"><img src="${esc(monsterDisplaySprite(m))}" alt=""><div><b>${esc(m.name)}</b><small>Lv.${m.level} · HP ${m.hp}/${m.maxHp}${row?` · EXP +${row.xpGained}`:''}</small><i class="party-hp-v62"><em style="width:${hp}%"></em></i>${row?`<i class="party-exp-v62"><em style="width:${exp}%"></em></i>`:''}</div>${row?.leveled?'<strong>LEVEL UP</strong>':''}</article>`;}).join('')}</div>`;
+  }
   function renderReward(r){
     const rw=r.reward,run=r.runState[state.profileId],pid=state.profileId,options=rw.playerOptions?.[pid]||[],claim=rw.claims?.[pid],continued=rw.continueBy?.includes(pid),relicOpts=rw.relicOptions?.[pid]||[],relicClaim=rw.relicClaims?.[pid],campDone=!rw.camp||!!rw.campBy?.[pid],rewardDone=!options.length||!!claim;
     const skillOffer=rw.skillOffers?.[pid],skillDone=!skillOffer||!!rw.skillClaims?.[pid],rewriteOffer=rw.rewriteOffers?.[pid],rewriteDone=!rewriteOffer||!!rw.rewriteClaims?.[pid];
     const afterCore=campDone&&skillDone&&rewriteDone&&(!relicOpts.length||!!relicClaim)&&rewardDone;let step='REWARD',body='',actions='';
-    const expPanel=rw.kind==='battle'?postBattlePartySummary(r,run):'';
+    const expPanel='';
     if(skillOffer&&!skillDone){
       const isLevel=skillOffer.source==='level',moves=skillOffer.moves||[];step=isLevel?'NEW MOVE':'TECH DISC';
       body=`<section class="learn-offer-v51"><header><img src="${esc(skillOffer.monsterSprite||'')}" alt=""><div><small>${esc(skillOffer.reason||'BATTLE REWARD')}</small><b>${esc(skillOffer.monsterName)}</b><span>새 기술을 하나 확인하세요.</span></div></header><div>${moves.map(m=>`<button data-action="open-learn-move" data-move-id="${esc(m.id)}"><span>${moveKindIcon(m)}</span><div><b>${esc(m.name)}</b><small>${esc(movePowerLine(m))}</small></div><strong>${m.accuracy||100}%</strong></button>`).join('')}</div></section>`;
@@ -1244,7 +1262,8 @@
       actions=`<div class="reward-actions-v51">${rw.kind==='battle'&&rw.serviceCosts?'<button data-action="open-field-service">정비</button>':''}<button class="next-v51" data-action="reward-continue">${continued?'대기 중':r.finalClearPending?'클리어':'다음 웨이브'}</button></div>`;
     }
     const rewardLead=step==='NEW MOVE'?'새 기술을 확인하자.':step==='TECH DISC'?'새로운 기술을 배울 기회다.':step==='RIFT REWRITE'?'기술에 새로운 변화를 부여할 수 있다.':step==='CAMP'?'잠시 숨을 고르고 파티를 정비하자.':step==='RELIC'?'희귀한 유물 하나를 가져갈 수 있다.':step==='SHOP + REWARD'?'전투가 끝났다. 정비한 뒤 무료 보상 하나를 고르자.':'준비가 끝났다. 다음 조우가 기다리고 있다.';
-    setScreen('reward',`<section class="run-stage-v31 reward-stage-v31 reward-v51 reward-v61"><div class="run-bg-v31" style="background-image:url('${esc(sceneBg(r))}')"></div><div class="run-shade-v31 reward-shade-v61"></div>${compactRunHud(r,run)}<main class="reward-center-v61"><div class="reward-shell-v61"><header class="reward-top-v61"><div><small>WAVE ${String(((Number(r.floor||1)-1)%10)+1).padStart(2,'0')} CLEAR · ${esc(step)}</small><b>${esc(rewardLead)}</b></div><div><span>${esc(r.biome?.name||'EXPEDITION')}</span><strong>G ${Number(run.gold||0).toLocaleString('ko-KR')}</strong></div></header>${expPanel}<section class="reward-content-v61">${body}${actions}${step==='READY'&&!continued?`<div class="reward-auto-v54 manual-v60"><i></i><span>준비가 끝났습니다. 다음 웨이브로 이동할 수 있습니다.</span></div>`:''}</section></div></main></section>`);
+    const partyStrip=rewardPartyStripV62(r,run);
+    setScreen('reward',`<section class="run-stage-v31 reward-stage-v31 reward-v51 reward-v61 reward-v62"><div class="run-bg-v31" style="background-image:url('${esc(sceneBg(r))}')"></div><div class="run-shade-v31 reward-shade-v62"></div>${compactRunHud(r,run)}<main class="reward-pokerogue-v62"><header class="reward-head-v62"><div><small>${esc(r.biome?.name||'EXPEDITION')} · WAVE ${String(((Number(r.floor||1)-1)%10)+1).padStart(2,'0')} CLEAR</small><b>${esc(step)}</b></div><div><span>LUCK ${esc(rw.gradeBy?.[pid]||'-')}</span><strong>G ${Number(run.gold||0).toLocaleString('ko-KR')}</strong></div></header><section class="reward-board-v62">${body}</section>${partyStrip}<footer class="reward-footer-v62"><div class="reward-message-v62"><small>${esc(step)}</small><b>${esc(rewardLead)}</b><span>${step==='SHOP + REWARD'?'상점은 선택 사항입니다. 필요한 정비 후 무료 보상 하나를 고르세요.':step==='READY'?'다음 웨이브로 진행할 준비가 끝났습니다.':'선택할 항목을 확인하세요.'}</span></div><div class="reward-controls-v62">${actions}${step==='READY'&&!continued?`<div class="reward-auto-v54 manual-v60"><i></i><span>다음 웨이브를 기다리고 있습니다.</span></div>`:''}</div></footer></main></section>`);
     scheduleRewardAutoAdvanceV54(r,step,continued);
   }
 
