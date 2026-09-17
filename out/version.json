@@ -1,7 +1,7 @@
 {
-  "version": "6.3.0",
-  "deployId": "FUSEWILD-V630-TRAINER-DUEL-SHOP-CADENCE-20260917",
-  "builtAt": "2026-09-17T02:19:29.858Z",
+  "version": "7.0.0",
+  "deployId": "FUSEWILD-V700-BATTLE-CORE-REBUILD-20260917",
+  "builtAt": "2026-09-17T03:35:00.084Z",
   "cards": 315,
   "items": 128,
   "enemies": 205,
@@ -14,5 +14,5 @@
   "cloudSchema": 2,
   "auth": "supabase-auth",
   "roomSnapshots": true,
-  "supabaseSetupFileIncluded": true
+  "supabaseSetupFileIncluded": false
 }
