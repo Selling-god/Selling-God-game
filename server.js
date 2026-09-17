@@ -32,8 +32,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '6.4.0';
-const DEPLOY_ID = 'FUSEWILD-V640-POSTBATTLE-REBUILD-20260917';
+const VERSION = '7.0.0';
+const DEPLOY_ID = 'FUSEWILD-V700-BATTLE-CORE-REBUILD-20260917';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -1049,7 +1049,7 @@ function makeCombatant(run, index, activeSlots = 1) {
     energy:maxEnergy+Math.floor(modTotal(run,'firstTurnEnergy'))+fieldCharge,maxEnergy,handLimit,drawPile:shuffle(run.runDeck),discard:[],exhaust:[],hand:[],units:active,bench,ko,
     ended:false,down:false,weak:0,upgrades:{...(run.upgrades||{})},itemMods:{unitPower:modTotal(run,'unitPower'),spellPower:modTotal(run,'spellPower'),damagePct:modTotal(run,'damagePct'),bossDamagePct:modTotal(run,'bossDamagePct'),blockPct:modTotal(run,'blockPct'),healPct:modTotal(run,'healPct'),damageReduction:Math.min(.55,modTotal(run,'damageReduction')),retainBlock:Math.min(.75,modTotal(run,'retainBlock')),thorns:modTotal(run,'thorns')},
     buffs:{nextAttack:run.relics.includes('r001')?4:0,spellDiscount:0,anyDiscount:Math.floor(modTotal(run,'startDiscount')),debuffImmune:false,thorns:modTotal(run,'thorns'),nextUnitBlock:0,teamSpellCount:0,energyDebt:0},
-    relics:run.relics.slice(),chain:{count:0,lastType:null,best:0,overdrives:0},recallsUsed:0,switchesUsed:0,tacticsUsed:0,tacticLimit:0,stats:{cardsPlayed:0,movesUsed:0,damage:0,healing:0,hpDamageTaken:0,monsterDamageTaken:0} };
+    relics:run.relics.slice(),chain:{count:0,lastType:null,best:0,overdrives:0},recallsUsed:0,switchesUsed:0,tacticsUsed:0,tacticLimit:0,pendingReplacements:[],stats:{cardsPlayed:0,movesUsed:0,damage:0,healing:0,hpDamageTaken:0,monsterDamageTaken:0} };
   drawCards(pc,5+Math.floor(modTotal(run,'drawBonus'))+(run.relics.includes('r007')?1:0)+fieldCharge); run.spellCharge=0; return pc;
 }
 
@@ -1623,11 +1623,21 @@ function monsterDamage(room, pc, u, amount, source=null){
   let revived=false;
   if(u.hp<=0&&(u.archetype==='phoenix'||u.secondaryArchetype==='phoenix')&&!u.revived){u.revived=true;u.hp=Math.max(1,Math.round(u.maxHp*.25));revived=true;pushRoomEvent(room,'monster-passive',`${u.name} 재점화!`,{playerId:pc.playerId,instanceId:u.instanceId,passive:'재점화'});}
   if(!revived&&u.hp<=0){
-    const pos=pc.units.findIndex(x=>x.instanceId===u.instanceId); if(pos>=0)pc.units.splice(pos,1); pc.ko.push(u); pc.hp=Math.max(1,pc.hp-Math.max(4,Math.round(pc.maxHp*.06)));
-    if(pc.bench.length){const next=pc.bench.shift();next.block=Math.max(next.block||0,4);pc.units.splice(Math.min(pos<0?pc.units.length:pos,pc.units.length),0,next);pushRoomEvent(room,'monster-switch',`${next.name} 자동 출전!`,{playerId:pc.playerId,instanceId:next.instanceId,auto:true});}
-    if(!pc.units.length&&!pc.bench.length){pc.down=true;pc.ended=true;}
+    const pos=pc.units.findIndex(x=>x.instanceId===u.instanceId);
+    if(pos>=0)pc.units.splice(pos,1);
+    if(!pc.ko.some(x=>x.instanceId===u.instanceId))pc.ko.push(u);
+    pc.hp=Math.max(1,pc.hp-Math.max(4,Math.round(pc.maxHp*.06)));
+    pc.pendingReplacements=Array.isArray(pc.pendingReplacements)?pc.pendingReplacements:[];
+    const liveBench=(pc.bench||[]).filter(x=>x.hp>0);
+    pushRoomEvent(room,'monster-faint',`${u.name}은(는) 더 이상 싸울 수 없다!`,{playerId:pc.playerId,instanceId:u.instanceId,monsterName:u.name,slotIndex:Math.max(0,pos)});
+    // Faint replacement is a dedicated battle phase. Never auto-send the first bench slot.
+    if(liveBench.length>pc.pendingReplacements.length){
+      pc.pendingReplacements.push({slotIndex:Math.max(0,pos),faintedInstanceId:u.instanceId,faintedName:u.name});
+      pc.ended=true;
+    }
+    if(!pc.units.some(x=>x.hp>0)&&!liveBench.length){pc.down=true;pc.ended=true;}
   }
-  pushRoomEvent(room,'monster-hit',`${u.name} ${dealt} 피해`,{playerId:pc.playerId,instanceId:u.instanceId,damage:dealt,ko:u.hp<=0&&!revived,revived,shieldBroken:beforeMonsterBlock>0&&u.block<=0});
+  pushRoomEvent(room,'monster-hit',`${u.name} ${dealt} 피해`,{playerId:pc.playerId,instanceId:u.instanceId,monsterName:u.name,damage:dealt,hpBefore:before,hpAfter:Number(u.hp||0),maxHp:Number(u.maxHp||1),ko:u.hp<=0&&!revived,revived,shieldBroken:beforeMonsterBlock>0&&u.block<=0});
   return dealt;
 }
 
@@ -1670,6 +1680,32 @@ function switchMonster(room,playerId,activeId,benchId){
   const pc=getPc(room,playerId);if(!pc||pc.down||pc.ended||room.battle?.phase!=='players')throw new Error('지금은 교대할 수 없습니다.');if(pc.switchesUsed>=1)throw new Error('몬스터 교대는 턴당 1회입니다.');
   const ai=pc.units.findIndex(x=>x.instanceId===activeId),bi=pc.bench.findIndex(x=>x.instanceId===benchId);if(ai<0||bi<0)throw new Error('교대 대상을 찾을 수 없습니다.');const a=pc.units[ai],b=pc.bench[bi];if(a.acted)throw new Error('이미 행동한 몬스터는 교대할 수 없습니다.');pc.units[ai]=b;pc.bench[bi]=a;b.acted=true;pc.switchesUsed++;pushRoomEvent(room,'monster-switch',`${a.name} ↔ ${b.name}`,{playerId,activeId,benchId,consumesAction:true});
   if(pc.units.filter(u=>u.hp>0).every(u=>u.acted)){pc.ended=true;if(room.battle.party.filter(x=>!x.down).every(x=>x.ended))enemyTurn(room);}return b;
+}
+
+
+function pendingReplacementPlayers(room){
+  return (room?.battle?.party||[]).filter(pc=>!pc.down&&Array.isArray(pc.pendingReplacements)&&pc.pendingReplacements.length&&(pc.bench||[]).some(x=>x.hp>0));
+}
+function emitReplacementPrompt(room,pc){
+  const pending=pc.pendingReplacements?.[0];if(!pending)return;
+  const candidates=(pc.bench||[]).filter(x=>x.hp>0).map(x=>({instanceId:x.instanceId,name:x.name,sprite:monsterDisplaySpriteServer(x),level:x.level,hp:x.hp,maxHp:x.maxHp,element:x.element}));
+  pushRoomEvent(room,'replacement-required',`${pending.faintedName||'몬스터'} 대신 내보낼 몬스터를 선택하세요.`,{playerId:pc.playerId,slotIndex:Number(pending.slotIndex||0),faintedInstanceId:pending.faintedInstanceId,faintedName:pending.faintedName,candidates});
+}
+function resolveReplacement(room,playerId,benchId,slotIndex=null){
+  const b=room.battle,pc=getPc(room,playerId);
+  if(room.status!=='battle'||!b||b.phase!=='replacement')throw new Error('지금은 교체 출전 단계가 아닙니다.');
+  if(!pc||pc.down)throw new Error('출전할 수 없습니다.');
+  pc.pendingReplacements=Array.isArray(pc.pendingReplacements)?pc.pendingReplacements:[];
+  const pending=pc.pendingReplacements[0];if(!pending)throw new Error('교체가 필요한 몬스터가 없습니다.');
+  const bi=(pc.bench||[]).findIndex(x=>x.instanceId===benchId&&x.hp>0);if(bi<0)throw new Error('출전 가능한 대기 몬스터를 선택하세요.');
+  const chosen=pc.bench.splice(bi,1)[0];chosen.acted=false;chosen.block=Number(chosen.block||0);
+  const targetSlot=Number.isFinite(Number(slotIndex))?Number(slotIndex):Number(pending.slotIndex||0);pc.units.splice(Math.max(0,Math.min(targetSlot,pc.units.length)),0,chosen);
+  pc.pendingReplacements.shift();pc.ended=false;
+  pushRoomEvent(room,'monster-replacement',`${chosen.name}, 나와줘!`,{playerId,instanceId:chosen.instanceId,benchId:chosen.instanceId,replacement:true,slotIndex:targetSlot,monsterName:chosen.name,toSprite:monsterDisplaySpriteServer(chosen),hp:chosen.hp,maxHp:chosen.maxHp,level:chosen.level,element:chosen.element});
+  if(pc.pendingReplacements.length&&(pc.bench||[]).some(x=>x.hp>0)){emitReplacementPrompt(room,pc);return chosen;}
+  const waiting=pendingReplacementPlayers(room);
+  if(!waiting.length){b.phase='players';for(const member of b.party){if(!member.down)member.ended=false;}pushRoomEvent(room,'turn',`턴 ${b.turn} 시작.`,{turn:b.turn,afterReplacement:true});}
+  return chosen;
 }
 
 function playCard(room, playerId, handIndex, targetUid, targetMonsterId) {
@@ -2155,7 +2191,13 @@ function enemyTurn(room) {
     for(const u of [...pc.units,...pc.bench]){normalizeMonsterMoves(u);normalizeMajorStatus(u);u.acted=false;if(u.resonanceTurns>0)u.resonanceTurns--;if(u.abyssBloom)u.hp=Math.max(1,u.hp-Math.max(1,Math.round(u.maxHp*.05)));if(u.archetype==='slime')u.hp=clamp(u.hp+Math.max(1,Math.round(u.maxHp*.03)),0,u.maxHp);}
     const priests=pc.units.filter(u=>u.archetype==='priest').length;if(priests){const all=[...pc.units,...pc.bench].filter(u=>u.hp>0).sort((a,z)=>a.hp/a.maxHp-z.hp/z.maxHp);if(all[0])all[0].hp=clamp(all[0].hp+3*priests,0,all[0].maxHp);}
   }
-  b.phase='players';pushRoomEvent(room,'turn',`턴 ${b.turn} 시작.`);
+  const waitingReplacement=pendingReplacementPlayers(room);
+  if(waitingReplacement.length){
+    b.phase='replacement';
+    for(const pc of waitingReplacement)emitReplacementPrompt(room,pc);
+  }else{
+    b.phase='players';pushRoomEvent(room,'turn',`턴 ${b.turn} 시작.`,{turn:b.turn});
+  }
 }
 
 function checkBattleEnd(room) {
@@ -2949,6 +2991,7 @@ const server = http.createServer(async (req, res) => {
         if (action === 'monster-evolve') { const unit=evolveMonster(room,prof.id,b.instanceId,b.mode); return ok(res,{result:{name:unit.name,mode:b.mode},room:roomView(room),profile:profileView(profiles[prof.id])}); }
         if (action === 'monster-fuse') { const unit=fuseMonsters(room,prof.id,b.primaryId,b.secondaryId,b.moveIds||[]); return ok(res,{result:{name:unit.name},room:roomView(room),profile:profileView(profiles[prof.id])}); }
         if (action === 'switch-monster') { const unit=switchMonster(room,prof.id,b.activeId,b.benchId); return ok(res,{result:{name:unit.name},room:roomView(room)}); }
+        if (action === 'replace-monster' || action === 'replacement') { const unit=resolveReplacement(room,prof.id,b.benchId,b.slotIndex); return ok(res,{result:{name:unit.name,instanceId:unit.instanceId},room:roomView(room)}); }
         if (action === 'end-turn') { endTurn(room, prof.id); return ok(res, { room: roomView(room) }); }
         if (action === 'event') { chooseEvent(room, prof.id, b.choiceId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
         if (action === 'reward') { claimReward(room, prof.id, b.rewardId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
