@@ -78,7 +78,7 @@ if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets
 
 const info = {
   version: String(pkg.version || catalog.version || '6.2.1'),
-  deployId: 'FUSEWILD-V640-POSTBATTLE-REBUILD-20260917',
+  deployId: 'FUSEWILD-V700-BATTLE-CORE-REBUILD-20260917',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,
@@ -92,11 +92,11 @@ const info = {
 };
 fs.writeFileSync(path.join(root, 'public', 'build-info.json'), JSON.stringify(info, null, 2));
 fs.writeFileSync(path.join(root, 'public', 'version.json'), JSON.stringify({
-  release: 'FUSEWILD-V640-POSTBATTLE-REBUILD',
-  buildId: 'fusewild-v640-postbattle-rebuild',
+  release: 'FUSEWILD-V700-BATTLE-CORE-REBUILD',
+  buildId: 'fusewild-v700-battle-core-rebuild',
   generatedAt: info.builtAt,
   version: info.version,
-  label: 'FUSEWILD V6.4.0 POST-BATTLE UI REBUILD + OVERLAP FIX',
+  label: 'FUSEWILD V7.0.0 BATTLE CORE REBUILD + MANUAL FAINT REPLACEMENT + MOBILE UI',
   deployId: info.deployId
 }, null, 2));
 
