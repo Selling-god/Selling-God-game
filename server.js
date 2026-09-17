@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * FUSEWILD v6.3 · PHASE-SYNC BATTLE / MANUAL FAINT REPLACEMENT
+ * FUSEWILD v6.2 · LIVE BATTLE STAGING / POKEROGUE-LIKE REWARD FLOW
  * Dynamic, server-authoritative original monster roguelite.
  *
  * Design goals:
@@ -33,7 +33,7 @@ const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
 const VERSION = '6.3.0';
-const DEPLOY_ID = 'FUSEWILD-V630-PHASE-SYNC-MOBILE-20260917';
+const DEPLOY_ID = 'FUSEWILD-V630-TRAINER-DUEL-SHOP-CADENCE-20260917';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -124,7 +124,13 @@ function fusionDisplayNameFor(a,b){
   const [x,y]=fusionOrderedPair(a,b);
   const xid=x?.speciesId||x?.id||x?.instanceId||x?.name||'A', yid=y?.speciesId||y?.id||y?.instanceId||y?.name||'B';
   const sig=fusionPairKey(xid,yid),theme=fusionElementTheme(x?.element,y?.element||x?.element),body=fusionArchetypeTitle(x?.archetype,y?.archetype||x?.archetype);
-  const h=hashString(sig),ep=FUSION_EPITHETS[h%FUSION_EPITHETS.length],code=FUSION_CODENAMES[((h>>>8)^Math.imul(h,31))%FUSION_CODENAMES.length];
+  const h=hashString(sig),ep=FUSION_EPITHETS[h%FUSION_EPITHETS.length];
+  // Math.imul returns a SIGNED 32-bit int. XOR-ing it keeps the sign, and JS's `%`
+  // preserves the dividend's sign (unlike a true mathematical modulo), so a negative
+  // result here indexed FUSION_CODENAMES[negative] and silently returned `undefined`
+  // (visible in ~47% of fusions as e.g. "...오리진 undefined"). `>>>0` forces an
+  // unsigned 32-bit value before the modulo so the index is always in range.
+  const codeSeed=(((h>>>8)^Math.imul(h,31))>>>0)%FUSION_CODENAMES.length,code=FUSION_CODENAMES[codeSeed];
   return `${theme}의 ${body} · ${ep} ${code}`.replace(/\s+/g,' ').trim();
 }
 function fusionDisplayNameRaw(primaryId,secondaryId,primaryElement,secondaryElement,primaryArchetype,secondaryArchetype){
@@ -169,8 +175,8 @@ function fusionArtPng({primarySprite='',secondarySprite='',primaryElement='공�
   const box=286,left=17,top=7,offset=((hash>>>4)%17)-8,skew=((hash>>>11)%19)-9;
   for(let y=0;y<size;y++)for(let x=0;x<size;x++){
     const px=(x-left)/box*(primary.width-1),py=(y-top)/box*(primary.height-1),sx=(x-left-offset)/box*(secondary.width-1),sy=(y-top+skew)/box*(secondary.height-1),p=sampleRgba(primary,px,py),q=sampleRgba(secondary,sx,sy),pa=p[3]/255,qa=q[3]/255,idx=(y*size+x)*4;if(pa<=0&&qa<=0)continue;
-    const diagonal=((x-size*.48)*.68+(y-size*.48)*.24+(((hash>>>18)%31)-15)),t=Math.max(.12,Math.min(.48,.28+diagonal/260));let r,g,b,a;
-    if(pa>0&&qa>0){const wP=(1-t)*pa,wQ=t*qa,w=wP+wQ||1;r=(p[0]*wP+q[0]*wQ)/w;g=(p[1]*wP+q[1]*wQ)/w;b=(p[2]*wP+q[2]*wQ)/w;a=Math.max(p[3],q[3]);const tint=t*.075;r=r*(1-.10)+paletteB[0]*tint;g=g*(1-.10)+paletteB[1]*tint;b=b*(1-.10)+paletteB[2]*tint;}else if(pa>0){[r,g,b,a]=p;}else{[r,g,b,a]=q;}
+    const diagonal=((x-size*.48)*.68+(y-size*.48)*.24+(((hash>>>18)%31)-15)),t=Math.max(.08,Math.min(.92,.5+diagonal/92));let r,g,b,a;
+    if(pa>0&&qa>0){const wP=(1-t)*pa,wQ=t*qa,w=wP+wQ||1;r=(p[0]*wP+q[0]*wQ)/w;g=(p[1]*wP+q[1]*wQ)/w;b=(p[2]*wP+q[2]*wQ)/w;a=Math.max(p[3],q[3]);const tint=t*.10;r=r*(1-.10)+paletteB[0]*tint;g=g*(1-.10)+paletteB[1]*tint;b=b*(1-.10)+paletteB[2]*tint;}else if(pa>0){[r,g,b,a]=p;}else{[r,g,b,a]=q;}
     body[idx]=Math.round(r);body[idx+1]=Math.round(g);body[idx+2]=Math.round(b);body[idx+3]=Math.round(a);
   }
   // Element-colored 4px outline gives the temporary fusion a readable silhouette on every biome.
@@ -179,15 +185,7 @@ function fusionArtPng({primarySprite='',secondarySprite='',primaryElement='공�
   return encodePngRgba(size,size,out);
 }
 function ensureFusionArtAsset({primaryId='',secondaryId='',primarySprite='',secondarySprite='',primaryElement='공허',secondaryElement='공허',fusionName=''}){
-  try{
-    const idA=String(primaryId||'a'),idB=String(secondaryId||'b'),safeA=idA.replace(/[^a-zA-Z0-9_-]/g,'_'),safeB=idB.replace(/[^a-zA-Z0-9_-]/g,'_');
-    const dir=path.join(FUSION_GENERATED_DIR,safeA);fs.mkdirSync(dir,{recursive:true});
-    // v6.3 keeps A as the visible base form.  The order is intentionally NOT sorted:
-    // A+B and B+A may look different, while each primary folder stays below GitHub's practical file-count limit.
-    const raw=`${idA}|${idB}|${primarySprite}|${secondarySprite}|${fusionName}|v63-primary-dominant`,hash=crypto.createHash('sha1').update(raw).digest('hex').slice(0,12),file=`${safeA}__${safeB}__${hash}.png`,full=path.join(dir,file);
-    if(!fs.existsSync(full)){const png=fusionArtPng({primarySprite,secondarySprite,primaryElement,secondaryElement,signature:`${idA}>>${idB}`});fs.writeFileSync(full,png);}
-    return `/assets/fusion/generated/${safeA}/${file}?v=63`;
-  }catch(err){console.warn('[FUSEWILD] fusion art asset generation failed',err?.message||err);return primarySprite||secondarySprite||'';}
+  try{fs.mkdirSync(FUSION_GENERATED_DIR,{recursive:true});const [idA,idB]=[String(primaryId||'a'),String(secondaryId||'b')].sort(),raw=`${idA}|${idB}|${primarySprite}|${secondarySprite}|${fusionName}|v62png`,hash=crypto.createHash('sha1').update(raw).digest('hex').slice(0,12),safeA=idA.replace(/[^a-zA-Z0-9_-]/g,'_'),safeB=idB.replace(/[^a-zA-Z0-9_-]/g,'_'),file=`${safeA}__${safeB}__${hash}.png`,full=path.join(FUSION_GENERATED_DIR,file);if(!fs.existsSync(full)){const png=fusionArtPng({primarySprite,secondarySprite,primaryElement,secondaryElement,signature:fusionPairKey(primaryId,secondaryId)});fs.writeFileSync(full,png);}return `/assets/fusion/generated/${file}?v=62`;}catch(err){console.warn('[FUSEWILD] fusion art asset generation failed',err?.message||err);return primarySprite||secondarySprite||'';}
 }
 
 // V4.2: a PokéRogue-like run cadence is recreated with original FUSEWILD rules.
@@ -218,6 +216,31 @@ function applyMoveMastery(move,stage=0){
   out.accuracy=Math.min(100,Number(out.accuracy||100)+(s===1?1:3));
   if(s>=2&&Number(out.cooldown||0)>0)out.cooldown=Math.max(0,Number(out.cooldown)-1);
   out.masteryStage=s;out.masteryLabel=moveMasteryLabel(s);return out;
+}
+
+// V6.3 WAVE 10 TRAINER DUEL
+// Wave 10 is no longer a faceless boss monster: a named NPC keeper walks in and
+// duels the player with a two-monster team, PokeRogue trainer style.
+// Their ace is the biome boss; the partner is drawn from the biome's strongest wild pool.
+const BIOME_TRAINERS = {
+  verdant: { id:'t_verdant', name:'수관지기 리엔', title:'청록 유적의 관리자', emblem:'❧',
+    intro:'리엔: "뿌리가 너를 기억하고 있어. 지나가려면 나를 넘어야 해."',
+    defeat:'리엔: "…좋아. 세계수도 네 걸음을 인정한 모양이네."' },
+  ember: { id:'t_ember', name:'제련장 카르마', title:'잿불 제련소의 관리자', emblem:'✦',
+    intro:'카르마: "불은 무른 것을 남기지 않는다. 네가 무른지 확인해 주지."',
+    defeat:'카르마: "단단하군. 그 정도면 제련을 통과한 거다."' },
+  frost: { id:'t_frost', name:'설원감시자 하베크', title:'유리 설원의 관리자', emblem:'❄',
+    intro:'하베크: "여기서 멈추면 얼어붙을 뿐이다. 계속 나아가고 싶다면 증명해라."',
+    defeat:'하베크: "…길을 열겠다. 얼음이 너를 막지 않을 것이다."' },
+  astral: { id:'t_astral', name:'성도사 벨라', title:'별의 회랑의 관리자', emblem:'✧',
+    intro:'벨라: "별자리가 네 이름을 아직 적지 않았어. 직접 적어 보렴."',
+    defeat:'벨라: "…적혔어. 이제 회랑이 너를 통과시킬 거야."' },
+  origin: { id:'t_origin', name:'문지기 오르드', title:'기원의 문의 관리자', emblem:'◈',
+    intro:'오르드: "문 너머는 되돌릴 수 없다. 그래도 열겠나?"',
+    defeat:'오르드: "…열겠다. 네가 감당할 문이다."' }
+};
+function trainerForBiome(biomeId) {
+  return BIOME_TRAINERS[biomeId] || BIOME_TRAINERS.origin;
 }
 
 function levelCapForFloor(floor) {
@@ -1026,7 +1049,7 @@ function makeCombatant(run, index, activeSlots = 1) {
     energy:maxEnergy+Math.floor(modTotal(run,'firstTurnEnergy'))+fieldCharge,maxEnergy,handLimit,drawPile:shuffle(run.runDeck),discard:[],exhaust:[],hand:[],units:active,bench,ko,
     ended:false,down:false,weak:0,upgrades:{...(run.upgrades||{})},itemMods:{unitPower:modTotal(run,'unitPower'),spellPower:modTotal(run,'spellPower'),damagePct:modTotal(run,'damagePct'),bossDamagePct:modTotal(run,'bossDamagePct'),blockPct:modTotal(run,'blockPct'),healPct:modTotal(run,'healPct'),damageReduction:Math.min(.55,modTotal(run,'damageReduction')),retainBlock:Math.min(.75,modTotal(run,'retainBlock')),thorns:modTotal(run,'thorns')},
     buffs:{nextAttack:run.relics.includes('r001')?4:0,spellDiscount:0,anyDiscount:Math.floor(modTotal(run,'startDiscount')),debuffImmune:false,thorns:modTotal(run,'thorns'),nextUnitBlock:0,teamSpellCount:0,energyDebt:0},
-    relics:run.relics.slice(),chain:{count:0,lastType:null,best:0,overdrives:0},recallsUsed:0,switchesUsed:0,tacticsUsed:0,tacticLimit:0,pendingReplacements:[],stats:{cardsPlayed:0,movesUsed:0,damage:0,healing:0,hpDamageTaken:0,monsterDamageTaken:0} };
+    relics:run.relics.slice(),chain:{count:0,lastType:null,best:0,overdrives:0},recallsUsed:0,switchesUsed:0,tacticsUsed:0,tacticLimit:0,stats:{cardsPlayed:0,movesUsed:0,damage:0,healing:0,hpDamageTaken:0,monsterDamageTaken:0} };
   drawCards(pc,5+Math.floor(modTotal(run,'drawBonus'))+(run.relics.includes('r007')?1:0)+fieldCharge); run.spellCharge=0; return pc;
 }
 
@@ -1225,7 +1248,7 @@ function kindDesc(k) {
 }
 function encounterProfile(floor) {
   const wave = ((Math.max(1, Number(floor || 1)) - 1) % 10) + 1;
-  if (wave === 10) return { tier:'boss', encounterType:'boss', wave, label:'바이옴 수호자', kicker:'BIOME BOSS', desc:'10웨이브 수호자. 격파하면 파티가 완전 회복되고 다음 바이옴을 직접 고릅니다.' };
+  if (wave === 10) return { tier:'boss', encounterType:'boss', trainer:true, wave, label:'관리자 결투', kicker:'TRAINER DUEL', desc:'10웨이브 관리자와의 2체 결투. 격파하면 다음 바이옴을 직접 고릅니다.' };
   if (wave === 7) return { tier:'rival', encounterType:'rival', wave, label:'균열 추적자', kicker:'RIFT HUNTER', desc:'플레이어 빌드를 노리고 들어오는 2체 전술 편성. 야생 봉인은 없지만 보상이 더 큽니다.' };
   if (wave === 5) return { tier:'elite', encounterType:'warden', wave, label:'균열 워든', kicker:'WARDEN BATTLE', desc:'강화된 2체 편성. 승리하면 야영 행동과 유물 선택권을 얻습니다.' };
   return { tier:'combat', encounterType:'wild', wave, label:'야생 조우', kicker:'WILD ENCOUNTER', desc:'몬스터 전투를 이어가며 공명 지령과 아이템으로 런 빌드를 성장시킵니다.' };
@@ -1376,8 +1399,16 @@ function itemPrice(i) {
   return ({ common: 70, rare: 120, ultra: 220, legendary: 430, mythic: 820 })[i.rarity] || 100;
 }
 
-function makeMerchantStock(room) {
-  return rewardItemOptions(room, null, 6, 'merchant').map(i => ({
+// V6.3 PokeRogue cadence: a shop opens after every battle, not only on waves 4 and 9.
+// Stock size scales with wave importance so ordinary waves stay a quick stop
+// and milestone waves (WARDEN / BOSS) still feel like a real restock.
+const SHOP_STOCK_BY_TIER = { combat: 3, rival: 4, elite: 5, boss: 6, merchant: 6 };
+function merchantStockSize(tier = 'combat') {
+  return SHOP_STOCK_BY_TIER[tier] || SHOP_STOCK_BY_TIER.combat;
+}
+
+function makeMerchantStock(room, tier = 'merchant') {
+  return rewardItemOptions(room, null, merchantStockSize(tier), 'merchant').map(i => ({
     id: uid('shop'), type: 'item', itemId: i.id, item: publicItem(i), price: itemPrice(i)
   }));
 }
@@ -1427,7 +1458,9 @@ function startBattle(room, tier) {
   tier = tier || encounter.tier;
   const encounterType = tier === 'boss' ? 'boss' : tier === 'elite' ? 'warden' : tier === 'rival' ? 'rival' : 'wild';
   const modifier = tier === 'boss' ? null : clone(choose(BATTLE_MODIFIERS));
-  const doubleBattle = ['elite','rival'].includes(tier) || (tier !== 'boss' && room.floor >= 4 && room.floor % Number(BATTLE_RULES.doubleBattleEvery||8) === 0);
+  const trainerDuel = Boolean(encounter.trainer) && tier === 'boss';
+  const trainer = trainerDuel ? trainerForBiome(currentBiome(room).id) : null;
+  const doubleBattle = ['elite','rival'].includes(tier) || trainerDuel || (tier !== 'boss' && room.floor >= 4 && room.floor % Number(BATTLE_RULES.doubleBattleEvery||8) === 0);
   const activeSlots = doubleBattle ? Number(BATTLE_RULES.doubleActive||2) : Number(BATTLE_RULES.singleActive||1);
   const party = room.players.map((p, i) => makeCombatant(room.runState[p.id], i, activeSlots));
   const teamStartBlock = room.players.reduce((sum, p) => sum + modTotal(room.runState[p.id], 'teamStartBlock'), 0);
@@ -1438,7 +1471,12 @@ function startBattle(room, tier) {
   const scale = Math.max(1, room.players.length), enemyCount = doubleBattle ? 2 : 1, diff = roomDifficulty(room), biome = currentBiome(room), enemies = [];
   for (let i = 0; i < enemyCount; i++) {
     let base;
-    if (tier === 'boss') base = clone(BOSSES.find(x => x.biome === biome.id) || BOSSES[Math.min(BOSSES.length - 1, Math.floor((room.floor - 1) / 10))]);
+    if (tier === 'boss' && (!trainerDuel || i === 0)) base = clone(BOSSES.find(x => x.biome === biome.id) || BOSSES[Math.min(BOSSES.length - 1, Math.floor((room.floor - 1) / 10))]);
+    else if (trainerDuel) {
+      // Trainer partner: a strong wild native to the biome, so the duel is not two identical aces.
+      const strong = ENEMIES.filter(e => e.biome === biome.id && ['rare','ultra'].includes(e.tier));
+      base = clone(choose(strong.length ? strong : ENEMIES.filter(e => e.biome === biome.id)) || choose(ENEMIES));
+    }
     else {
       let pool = ENEMIES.filter(e => e.biome === biome.id);
       if (tier === 'elite') pool = pool.filter(e => ['rare','ultra'].includes(e.tier));
@@ -1448,11 +1486,16 @@ function startBattle(room, tier) {
     }
     const threat = threatMods(room), floorHp=(1+(room.floor-1)*.022)*(1+threat.hp), floorAtk=(1+(room.floor-1)*.012)*(1+threat.atk), partyHp=(1+(scale-1)*.62)*diff.partyScale, eliteScale=tier==='elite'?1.24:tier==='rival'?1.12:1;
     base.uid=uid('enemy');base.maxHp=Math.round(base.hp*floorHp*partyHp*eliteScale*diff.enemyHp*(1+Number(modifier?.enemyHp||0))*(doubleBattle?.72:1));base.hp=base.maxHp;base.atk=Math.round(base.atk*floorAtk*(1+(scale-1)*.10)*(tier==='elite'?1.10:tier==='rival'?1.07:1)*diff.enemyAtk*(1+Number(modifier?.enemyAtk||0))*(doubleBattle?.88:1));
-    base.block=Number(modifier?.enemyStartBlock||0);base.level=Math.min(100,Math.max(1,levelCapForFloor(room.floor)));base.moves=buildMonsterMoves(MONSTER_BY_ID[base.id]||base).map(m=>{const p=normalizeMovePp(m);return {...m,maxPp:p.maxPp,pp:p.maxPp,cooldownRemaining:0};});base.majorStatus=null;base.statusTurns=0;base.statStages={atk:0,def:0,speed:0,accuracy:0,evasion:0};base.debuffs={weak:0,vulnerable:0,burn:0,poison:0,shock:0,intentSeal:0};base.nextDamageHalf=false;base.counter=0;base.phase=tier==='boss'?1:0;base.enraged=false;base.hpSegmentsMax=tier==='boss'?(room.floor>=40?4:room.floor>=20?3:2):1;base.hpSegments=base.hpSegmentsMax;base.justBossBarBroken=false;base.staggerMax=Math.max(18,Math.round(base.maxHp*(tier==='boss'?.22:tier==='elite'?.25:.28)));base.stagger=0;base.staggerGainMult=1+Number(modifier?.breakGain||0);base.broken=0;base.justBroken=false;base.intent=rollIntent(base,tier,room.difficulty);enemies.push(base);
+    base.block=Number(modifier?.enemyStartBlock||0);base.level=Math.min(100,Math.max(1,levelCapForFloor(room.floor)));base.moves=buildMonsterMoves(MONSTER_BY_ID[base.id]||base).map(m=>{const p=normalizeMovePp(m);return {...m,maxPp:p.maxPp,pp:p.maxPp,cooldownRemaining:0};});base.majorStatus=null;base.statusTurns=0;base.statStages={atk:0,def:0,speed:0,accuracy:0,evasion:0};base.debuffs={weak:0,vulnerable:0,burn:0,poison:0,shock:0,intentSeal:0};base.nextDamageHalf=false;base.counter=0;const aceSlot=(!trainerDuel||i===0);base.phase=(tier==='boss'&&aceSlot)?1:0;base.enraged=false;base.hpSegmentsMax=(tier==='boss'&&aceSlot)?(room.floor>=40?4:room.floor>=20?3:2):1;base.hpSegments=base.hpSegmentsMax;base.justBossBarBroken=false;base.staggerMax=Math.max(18,Math.round(base.maxHp*(tier==='boss'?.22:tier==='elite'?.25:.28)));base.stagger=0;base.staggerGainMult=1+Number(modifier?.breakGain||0);base.broken=0;base.justBroken=false;base.intent=rollIntent(base,tier,room.difficulty);enemies.push(base);
   }
   if (modifier?.markDamage && enemies[0]) enemies[0].marked = true;
-  room.battle = { tier, encounterType, encounterLabel:encounter.label, waveInBiome:encounter.wave, battleMode:doubleBattle?'double':'single', activeSlots, turn:1, phase:'players', party, enemies, log:[], teamSpellCount:0, modifier };
+  room.battle = { tier, encounterType, encounterLabel:trainer?`${trainer.name} 결투`:encounter.label, trainer:trainer?{...trainer}:null, waveInBiome:encounter.wave, battleMode:doubleBattle?'double':'single', activeSlots, turn:1, phase:'players', party, enemies, log:[], teamSpellCount:0, modifier };
   battleLog(room, `${encounter.kicker} · ${doubleBattle?'더블 배틀':'싱글 배틀'}${modifier?` · ${modifier.name}`:''}`);
+  if (trainer) {
+    battleLog(room, `${trainer.title} ${trainer.name}이(가) 승부를 걸어왔다!`);
+    battleLog(room, trainer.intro);
+    pushRoomEvent(room,'trainer-intro',`${trainer.name}이(가) 승부를 걸어왔다!`,{trainer:{...trainer},floor:room.floor,enemyNames:enemies.map(e=>e.name)});
+  }
   pushRoomEvent(room,'battle-start',`${encounter.label} 시작!`,{tier,encounterType,waveInBiome:encounter.wave,floor:room.floor,enemyIds:enemies.map(e=>e.uid),enemyNames:enemies.map(e=>e.name),enemySprites:enemies.map(e=>e.sprite),encounterLabel:encounter.label,modifier,battleMode:room.battle.battleMode});
 }
 
@@ -1580,21 +1623,11 @@ function monsterDamage(room, pc, u, amount, source=null){
   let revived=false;
   if(u.hp<=0&&(u.archetype==='phoenix'||u.secondaryArchetype==='phoenix')&&!u.revived){u.revived=true;u.hp=Math.max(1,Math.round(u.maxHp*.25));revived=true;pushRoomEvent(room,'monster-passive',`${u.name} 재점화!`,{playerId:pc.playerId,instanceId:u.instanceId,passive:'재점화'});}
   if(!revived&&u.hp<=0){
-    const pos=pc.units.findIndex(x=>x.instanceId===u.instanceId);
-    if(pos>=0)pc.units.splice(pos,1);
-    if(!pc.ko.some(x=>x.instanceId===u.instanceId))pc.ko.push(u);
-    pc.hp=Math.max(1,pc.hp-Math.max(4,Math.round(pc.maxHp*.06)));
-    pc.pendingReplacements=Array.isArray(pc.pendingReplacements)?pc.pendingReplacements:[];
-    const liveBench=(pc.bench||[]).filter(x=>x.hp>0);
-    // Do not auto-send the first bench monster.  Like the reference battle flow,
-    // the player must explicitly choose the replacement after the faint animation/text finishes.
-    if(liveBench.length>pc.pendingReplacements.length){
-      pc.pendingReplacements.push({slotIndex:Math.max(0,pos),faintedInstanceId:u.instanceId,faintedName:u.name});
-      pc.ended=true;
-    }
-    if(!pc.units.some(x=>x.hp>0)&&!liveBench.length){pc.down=true;pc.ended=true;}
+    const pos=pc.units.findIndex(x=>x.instanceId===u.instanceId); if(pos>=0)pc.units.splice(pos,1); pc.ko.push(u); pc.hp=Math.max(1,pc.hp-Math.max(4,Math.round(pc.maxHp*.06)));
+    if(pc.bench.length){const next=pc.bench.shift();next.block=Math.max(next.block||0,4);pc.units.splice(Math.min(pos<0?pc.units.length:pos,pc.units.length),0,next);pushRoomEvent(room,'monster-switch',`${next.name} 자동 출전!`,{playerId:pc.playerId,instanceId:next.instanceId,auto:true});}
+    if(!pc.units.length&&!pc.bench.length){pc.down=true;pc.ended=true;}
   }
-  pushRoomEvent(room,'monster-hit',`${u.name} ${dealt} 피해`,{playerId:pc.playerId,instanceId:u.instanceId,monsterName:u.name,damage:dealt,hpBefore:before,hpAfter:Number(u.hp||0),maxHp:Number(u.maxHp||1),ko:u.hp<=0&&!revived,revived,shieldBroken:beforeMonsterBlock>0&&u.block<=0});
+  pushRoomEvent(room,'monster-hit',`${u.name} ${dealt} 피해`,{playerId:pc.playerId,instanceId:u.instanceId,damage:dealt,ko:u.hp<=0&&!revived,revived,shieldBroken:beforeMonsterBlock>0&&u.block<=0});
   return dealt;
 }
 
@@ -1633,31 +1666,6 @@ function fuseMonsters(room,playerId,primaryId,secondaryId,moveIds=[]){
   profiles[playerId].stats.fusions++;saveProfiles();pushRoomEvent(room,'monster-fuse',`${a.name} 융합 완성!`,{playerId,instanceId:a.instanceId,secondaryId:b.instanceId,fromA:before.aName,fromB:before.bName,fromSpriteA:before.aSprite,fromSpriteB:before.bSprite,toName:a.name,toSprite:monsterDisplaySpriteServer(a),turnsLeft:5,maxTurns:5,elements:uniqueElements.slice(0,2),lineage:lineage.slice(),moves:a.moves.map(m=>({id:m.id,name:m.name,element:m.element,pp:m.pp,maxPp:m.maxPp})),consumesAction:true,turnsLeft:5,maxTurns:5});
   if(pc.units.filter(u=>u.hp>0).every(u=>u.acted)){pc.ended=true;if(room.battle.party.filter(x=>!x.down).every(x=>x.ended))enemyTurn(room);}return a;
 }
-function pendingReplacementPlayers(room){
-  return (room?.battle?.party||[]).filter(pc=>!pc.down&&Array.isArray(pc.pendingReplacements)&&pc.pendingReplacements.length&&(pc.bench||[]).some(x=>x.hp>0));
-}
-function emitReplacementPrompt(room,pc){
-  const pending=pc.pendingReplacements?.[0];if(!pending)return;
-  const candidates=(pc.bench||[]).filter(x=>x.hp>0).map(x=>({instanceId:x.instanceId,name:x.name,sprite:monsterDisplaySpriteServer(x),level:x.level,hp:x.hp,maxHp:x.maxHp,element:x.element}));
-  pushRoomEvent(room,'replacement-required',`${pending.faintedName||'몬스터'} 대신 내보낼 몬스터를 선택하세요.`,{playerId:pc.playerId,slotIndex:Number(pending.slotIndex||0),faintedInstanceId:pending.faintedInstanceId,faintedName:pending.faintedName,candidates});
-}
-function resolveReplacement(room,playerId,benchId,slotIndex=null){
-  const b=room.battle,pc=getPc(room,playerId);
-  if(room.status!=='battle'||!b||b.phase!=='replacement')throw new Error('지금은 교체 출전 단계가 아닙니다.');
-  if(!pc||pc.down)throw new Error('출전할 수 없습니다.');
-  pc.pendingReplacements=Array.isArray(pc.pendingReplacements)?pc.pendingReplacements:[];
-  const pending=pc.pendingReplacements[0];if(!pending)throw new Error('교체가 필요한 몬스터가 없습니다.');
-  const bi=(pc.bench||[]).findIndex(x=>x.instanceId===benchId&&x.hp>0);if(bi<0)throw new Error('출전 가능한 대기 몬스터를 선택하세요.');
-  const chosen=pc.bench.splice(bi,1)[0];chosen.acted=false;chosen.block=Number(chosen.block||0);
-  const targetSlot=Number.isFinite(Number(slotIndex))?Number(slotIndex):Number(pending.slotIndex||0);pc.units.splice(Math.max(0,Math.min(targetSlot,pc.units.length)),0,chosen);
-  pc.pendingReplacements.shift();pc.ended=false;
-  pushRoomEvent(room,'monster-switch',`${chosen.name}, 나와줘!`,{playerId,instanceId:chosen.instanceId,benchId:chosen.instanceId,replacement:true,slotIndex:targetSlot,monsterName:chosen.name,toSprite:monsterDisplaySpriteServer(chosen)});
-  if(pc.pendingReplacements.length&&(pc.bench||[]).some(x=>x.hp>0)){emitReplacementPrompt(room,pc);return chosen;}
-  const waiting=pendingReplacementPlayers(room);
-  if(!waiting.length){b.phase='players';for(const member of b.party){if(!member.down)member.ended=false;}pushRoomEvent(room,'turn',`턴 ${b.turn} 시작.`,{turn:b.turn,afterReplacement:true});}
-  return chosen;
-}
-
 function switchMonster(room,playerId,activeId,benchId){
   const pc=getPc(room,playerId);if(!pc||pc.down||pc.ended||room.battle?.phase!=='players')throw new Error('지금은 교대할 수 없습니다.');if(pc.switchesUsed>=1)throw new Error('몬스터 교대는 턴당 1회입니다.');
   const ai=pc.units.findIndex(x=>x.instanceId===activeId),bi=pc.bench.findIndex(x=>x.instanceId===benchId);if(ai<0||bi<0)throw new Error('교대 대상을 찾을 수 없습니다.');const a=pc.units[ai],b=pc.bench[bi];if(a.acted)throw new Error('이미 행동한 몬스터는 교대할 수 없습니다.');pc.units[ai]=b;pc.bench[bi]=a;b.acted=true;pc.switchesUsed++;pushRoomEvent(room,'monster-switch',`${a.name} ↔ ${b.name}`,{playerId,activeId,benchId,consumesAction:true});
@@ -2147,13 +2155,7 @@ function enemyTurn(room) {
     for(const u of [...pc.units,...pc.bench]){normalizeMonsterMoves(u);normalizeMajorStatus(u);u.acted=false;if(u.resonanceTurns>0)u.resonanceTurns--;if(u.abyssBloom)u.hp=Math.max(1,u.hp-Math.max(1,Math.round(u.maxHp*.05)));if(u.archetype==='slime')u.hp=clamp(u.hp+Math.max(1,Math.round(u.maxHp*.03)),0,u.maxHp);}
     const priests=pc.units.filter(u=>u.archetype==='priest').length;if(priests){const all=[...pc.units,...pc.bench].filter(u=>u.hp>0).sort((a,z)=>a.hp/a.maxHp-z.hp/z.maxHp);if(all[0])all[0].hp=clamp(all[0].hp+3*priests,0,all[0].maxHp);}
   }
-  const waitingReplacement=pendingReplacementPlayers(room);
-  if(waitingReplacement.length){
-    b.phase='replacement';
-    for(const pc of waitingReplacement)emitReplacementPrompt(room,pc);
-  }else{
-    b.phase='players';pushRoomEvent(room,'turn',`턴 ${b.turn} 시작.`,{turn:b.turn});
-  }
+  b.phase='players';pushRoomEvent(room,'turn',`턴 ${b.turn} 시작.`);
 }
 
 function checkBattleEnd(room) {
@@ -2237,11 +2239,16 @@ function winBattle(room) {
   }
   saveProfiles();
   room.finalClearPending = room.mode === 'dungeon' && room.floor === DUNGEON_MAX_FLOOR;
-  const title = room.finalClearPending ? '50층 최종 수호자 격파!' : boss ? '바이옴 수호자 격파!' : b.tier === 'elite' ? '균열 워든 격파!' : b.tier === 'rival' ? '균열 추적자 격파!' : '야생 조우 승리';
-  const text = `전투 보상 아이템을 하나 선택하세요. HP·PP·상태는 다음 웨이브에 유지되며, 회복 아이템/야영/10웨이브 이동으로 정비합니다.${b.tier==='elite'||boss?' 추가 유물 선택권도 열렸습니다.':''}`;
+  if (b.trainer) { battleLog(room, b.trainer.defeat); pushRoomEvent(room,'trainer-defeat',`${b.trainer.name}과(와)의 결투에서 승리했다!`,{trainer:{...b.trainer},floor:room.floor}); }
+  const title = room.finalClearPending ? '50층 최종 관리자 격파!' : boss ? (b.trainer?`${b.trainer.name} 결투 승리!`:'바이옴 수호자 격파!') : b.tier === 'elite' ? '균열 워든 격파!' : b.tier === 'rival' ? '균열 추적자 격파!' : '야생 조우 승리';
+  const restLine = room.mode === 'dungeon'
+    ? 'HP·PP·상태는 50층 내내 유지됩니다. 심연 던전에는 무료 회복이 없으니 상점 정비와 회복 아이템으로만 버티세요.'
+    : 'HP·PP·상태는 다음 웨이브에 유지되며, 회복 아이템/야영/10웨이브 관리자 격파로 정비합니다.';
+  const text = `전투 보상 아이템을 하나 선택하세요. ${restLine}${b.tier==='elite'||boss?' 추가 유물 선택권도 열렸습니다.':''}`;
   const waveInBiome=((room.floor-1)%10)+1;
-  const shopWave=[4,9].includes(waveInBiome);
-  createFloorReward(room, 'battle', title, text, b.tier, { camp:b.tier==='elite', campBy:{}, shop:shopWave?makeMerchantStock(room):null, purchased:{} });
+  // V6.3: shop -> free reward -> next wave on every battle wave (PokeRogue cadence).
+  const shopStock=makeMerchantStock(room, b.tier);
+  createFloorReward(room, 'battle', title, text, b.tier, { camp:b.tier==='elite', campBy:{}, shop:shopStock, purchased:{}, waveInBiome });
   room.reward.perfectBy = perfectBy;
   room.reward.gradeBy = gradeBy;
   room.reward.expBy = expBy;
@@ -2617,13 +2624,21 @@ function continueAfterReward(room, playerId) {
   }
   const crossingBiome = room.floor % 10 === 0;
   if (room.mode === 'dungeon' && crossingBiome) addThreatToken(room);
+  // V6.3 heal policy:
+  //  - journey  : PokeRogue-style full party heal after each biome keeper (wave 10)
+  //  - dungeon  : NO free heal. HP/PP/status carry across the whole 50-floor descent
+  //               and can only be restored by paying at the shop or camping.
   if (crossingBiome) {
-    for (const rp of room.players) {
-      const run = room.runState[rp.id];
-      run.hp = run.maxHp;
-      for(const m of run.monsters||[])resetMonsterBattleResources(m,{fullHeal:true});
+    if (room.mode === 'dungeon') {
+      pushRoomEvent(room,'biome-no-heal','10웨이브 돌파 · 심연 던전에서는 자동 회복이 없습니다. 상점 정비로만 회복하세요.');
+    } else {
+      for (const rp of room.players) {
+        const run = room.runState[rp.id];
+        run.hp = run.maxHp;
+        for(const m of run.monsters||[])resetMonsterBattleResources(m,{fullHeal:true});
+      }
+      pushRoomEvent(room,'biome-heal','10웨이브 돌파 · HP / PP / 상태이상이 모두 회복되었습니다.');
     }
-    pushRoomEvent(room,'biome-heal','10웨이브 돌파 · HP / PP / 상태이상이 모두 회복되었습니다.');
   }
   room.floor++;
   if (crossingBiome) {
@@ -2934,7 +2949,6 @@ const server = http.createServer(async (req, res) => {
         if (action === 'monster-evolve') { const unit=evolveMonster(room,prof.id,b.instanceId,b.mode); return ok(res,{result:{name:unit.name,mode:b.mode},room:roomView(room),profile:profileView(profiles[prof.id])}); }
         if (action === 'monster-fuse') { const unit=fuseMonsters(room,prof.id,b.primaryId,b.secondaryId,b.moveIds||[]); return ok(res,{result:{name:unit.name},room:roomView(room),profile:profileView(profiles[prof.id])}); }
         if (action === 'switch-monster') { const unit=switchMonster(room,prof.id,b.activeId,b.benchId); return ok(res,{result:{name:unit.name},room:roomView(room)}); }
-        if (action === 'replacement') { const unit=resolveReplacement(room,prof.id,b.benchId,b.slotIndex); return ok(res,{result:{name:unit.name,instanceId:unit.instanceId},room:roomView(room)}); }
         if (action === 'end-turn') { endTurn(room, prof.id); return ok(res, { room: roomView(room) }); }
         if (action === 'event') { chooseEvent(room, prof.id, b.choiceId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
         if (action === 'reward') { claimReward(room, prof.id, b.rewardId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
