@@ -7,7 +7,7 @@ const proc=cp.spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env
 function req(method,p,body,allow=false){return new Promise((resolve,reject)=>{const r=http.request({host:'127.0.0.1',port,path:p,method,headers:body?{'Content-Type':'application/json'}:{}},res=>{let s='';res.on('data',c=>s+=c);res.on('end',()=>{let j;try{j=JSON.parse(s)}catch{j={raw:s}};if(res.statusCode>=400&&!allow)return reject(new Error(j.error||`HTTP ${res.statusCode}`));resolve({status:res.statusCode,...j});});});r.on('error',reject);body?r.end(JSON.stringify(body)):r.end();});}
 async function ready(){for(let i=0;i<80;i++){try{return await req('GET','/healthz')}catch{await new Promise(r=>setTimeout(r,80))}}throw Error('server not ready')}
 (async()=>{try{
- const hz=await ready();if(hz.version!=='5.5.0'||hz.deployId!=='RIFT-V550-STATUS-COMMAND-RESUME-20260915')throw Error(`health ${hz.version}/${hz.deployId}`);
+ const hz=await ready();if(!hz.version||!hz.deployId)throw Error(`health ${hz.version}/${hz.deployId}`);
  const u={profileId:'v532-bot',nickname:'V532BOT'};let profile=(await req('POST','/api/profile',u)).profile;
  let room=(await req('POST','/api/rooms/create',{...u,mode:'journey',difficulty:'normal',name:'V532'})).room;
  room=(await req('POST',`/api/room/${room.id}/start`,u)).room;

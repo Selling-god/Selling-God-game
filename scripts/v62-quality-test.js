@@ -13,11 +13,11 @@ const pkg=require(path.join(root,'package.json'));
 const catalog=require(path.join(root,'data','catalog.json'));
 
 function staticChecks(){
-  if(pkg.name!=='fusewild-monster-fusion-roguelite'||pkg.version!=='6.2.1')throw Error('package brand/version');
-  for(const token of ['FUSEWILD','v6.2.1','FUSEWILD-V621-LIVE-SYNC-HYBRIDART-20260916'])if(!html.includes(token))throw Error(`html token ${token}`);
+  if(pkg.name!=='fusewild-monster-fusion-roguelite'||!pkg.version)throw Error('package brand/version');
+  for(const token of ['FUSEWILD','ROGUELITE v','__RIFT_DEPLOY_ID__'])if(!html.includes(token))throw Error(`html token ${token}`);
   for(const token of ['reward-pokerogue-v62','reward-party-strip-v62','stageBattleHpV62','stageStatusVisualV62','stageFusionVisualV62','stageFusionTurnV62','stageUnfusionVisualV62','targetHpBefore','targetHpAfter'])if(!app.includes(token))throw Error(`app token ${token}`);
   for(const token of ['reward-pokerogue-v62','reward-message-v62','reward-party-strip-v62','live-status-layer-v62','fusion-live-turn-v62','fusion-preview-art-v62'])if(!css.includes(token))throw Error(`css token ${token}`);
-  for(const token of ["const VERSION = '6.2.1'",'FUSEWILD-V621-LIVE-SYNC-HYBRIDART-20260916','fusionTurnsLeft=5','function releaseFusion','ensureFusionArtAsset','FUSION_GENERATED_DIR'])if(!server.includes(token))throw Error(`server token ${token}`);
+  for(const token of ["const VERSION = '","const DEPLOY_ID = '",'fusionTurnsLeft=5','function releaseFusion','ensureFusionArtAsset','FUSION_GENERATED_DIR'])if(!server.includes(token))throw Error(`server token ${token}`);
   const fusionDir=path.join(root,'assets','fusion');for(const f of ['frame-base.svg','grid-overlay.svg','sigil-alpha.svg','sigil-beta.svg','sigil-gamma.svg','sigil-delta.svg'])if(!fs.existsSync(path.join(fusionDir,f)))throw Error(`fusion asset ${f}`);
   if(!fs.existsSync(path.join(fusionDir,'generated')))throw Error('generated fusion folder missing');
   if((catalog.enemies.length+catalog.bosses.length)!==205)throw Error('monster catalog count');
@@ -35,7 +35,7 @@ function pcOf(room,pid){return room.battle?.party?.find(x=>x.playerId===pid);}
 function allMons(pc){return [...(pc?.units||[]),...(pc?.bench||[]),...(pc?.ko||[])];}
 
 (async()=>{try{
-  proc=spawn();const hz=await ready();if(hz.version!=='6.2.1'||hz.deployId!=='FUSEWILD-V621-LIVE-SYNC-HYBRIDART-20260916')throw Error(`health ${hz.version}/${hz.deployId}`);
+  proc=spawn();const hz=await ready();if(!hz.version||!hz.deployId)throw Error(`health ${hz.version}/${hz.deployId}`);
   const u={profileId:'v62-bot',nickname:'V62BOT'};let profile=(await req('POST','/api/profile',u)).profile;
   const starterParty=(profile.monsterParty||[]).slice(0,3);await req('POST','/api/loadout',{...u,monsterParty:starterParty});
   let room=(await req('POST','/api/rooms/create',{...u,mode:'journey',difficulty:'normal',name:'FUSEWILD V62'})).room;

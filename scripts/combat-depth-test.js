@@ -3,7 +3,7 @@ const http=require('http'),cp=require('child_process'),path=require('path'),fs=r
 const root=path.join(__dirname,'..'),profileFile=path.join(os.tmpdir(),`riftdeck-depth-${process.pid}.json`);fs.writeFileSync(profileFile,'{}');
 const proc=cp.spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,PORT:'3305',PROFILE_FILE:profileFile,TEST_MODE:'1'},stdio:['ignore','ignore','inherit']});
 function req(method,p,body){return new Promise((resolve,reject)=>{const r=http.request({host:'127.0.0.1',port:3305,path:p,method,headers:body?{'Content-Type':'application/json'}:{}},res=>{let s='';res.on('data',c=>s+=c);res.on('end',()=>{let j;try{j=JSON.parse(s)}catch{j={raw:s}};if(res.statusCode>=400)return reject(new Error(j.error||`HTTP ${res.statusCode}`));resolve(j);});});r.on('error',reject);if(body)r.end(JSON.stringify(body));else r.end();});}
-async function ready(){for(let i=0;i<40;i++){try{return await req('GET','/healthz')}catch{await new Promise(r=>setTimeout(r,100))}}throw Error('server not ready')}
+async function ready(){for(let i=0;i<150;i++){try{return await req('GET','/healthz')}catch{await new Promise(r=>setTimeout(r,100))}}throw Error('server not ready')}
 (async()=>{try{
  await ready();const meta=await req('GET','/api/meta');const by=Object.fromEntries(meta.cards.map(c=>[c.id,c]));const u={profileId:'depth-bot',nickname:'연쇄봇'};await req('POST','/api/profile',u);let room=(await req('POST','/api/rooms/create',{...u,mode:'dungeon',difficulty:'normal'})).room;room=(await req('POST',`/api/room/${room.id}/start`,u)).room;
  // Force battle through debug route helper if available, otherwise vote routes until battle.

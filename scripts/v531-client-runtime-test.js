@@ -2,7 +2,7 @@
 const fs=require('fs');
 const path=require('path');
 const root=path.join(__dirname,'..');
-for(const rel of ['app.js','public/app.js']){
+for(const rel of ['public/app.js']){
   const src=fs.readFileSync(path.join(root,rel),'utf8');
   if(!/function\s+runMod\s*\(run,key\)/.test(src)) throw new Error(`${rel}: runMod helper missing`);
   const def=src.indexOf('function runMod(run,key)');

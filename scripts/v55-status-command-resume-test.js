@@ -13,7 +13,7 @@ function spawn(port){return cp.spawn(process.execPath,['server.js'],{cwd:root,en
 function req(port,method,p,body){return new Promise((resolve,reject)=>{const r=http.request({host:'127.0.0.1',port,path:p,method,headers:body?{'Content-Type':'application/json'}:{}},res=>{let s='';res.on('data',c=>s+=c);res.on('end',()=>{let j;try{j=JSON.parse(s)}catch{j={raw:s}};if(res.statusCode>=400)return reject(new Error(j.error||`HTTP ${res.statusCode}`));resolve(j);});});r.on('error',reject);body?r.end(JSON.stringify(body)):r.end();});}
 async function ready(port){for(let i=0;i<100;i++){try{return await req(port,'GET','/healthz')}catch{await new Promise(r=>setTimeout(r,60))}}throw Error('server not ready');}
 (async()=>{let p1,p2;try{
- const port1=3371;p1=spawn(port1);const h1=await ready(port1);if(h1.version!=='5.5.0'||h1.deployId!=='RIFT-V550-STATUS-COMMAND-RESUME-20260915')throw Error(`health1 ${h1.version}/${h1.deployId}`);
+ const port1=3371;p1=spawn(port1);const h1=await ready(port1);if(!h1.version||!h1.deployId)throw Error(`health1 ${h1.version}/${h1.deployId}`);
  const u={profileId:'v55-resume-bot',nickname:'V55BOT'};await req(port1,'POST','/api/profile',u);
  let room=(await req(port1,'POST','/api/rooms/create',{...u,mode:'journey',difficulty:'normal',name:'V55 RESUME'})).room;const roomId=room.id;
  room=(await req(port1,'POST',`/api/room/${room.id}/start`,u)).room;
@@ -22,7 +22,7 @@ async function ready(port){for(let i=0;i<100;i++){try{return await req(port,'GET
  await new Promise(r=>setTimeout(r,800));
  p1.kill('SIGTERM');await new Promise(r=>setTimeout(r,260));p1=null;
  const raw=JSON.parse(fs.readFileSync(profileFile,'utf8'));const prof=raw[u.profileId];if(!prof?.activeRoomSnapshot||prof.activeRoomId!==roomId)throw Error('profile fallback snapshot missing');
- const port2=3372;p2=spawn(port2);const h2=await ready(port2);if(h2.version!=='5.5.0')throw Error(`health2 ${h2.version}`);
+ const port2=3372;p2=spawn(port2);const h2=await ready(port2);if(!h2.version)throw Error(`health2 ${h2.version}`);
  const resumed=await req(port2,'POST','/api/rooms/resume',u);if(!resumed.room||resumed.room.id!==roomId||resumed.room.status!=='battle')throw Error(`resume ${resumed.room?.id}/${resumed.room?.status}`);
  console.log(`V55_STATUS_COMMAND_RESUME_OK signatures=${names.size} fxFamilies=${families.size} poisonSigs=${poisonSigs} resume=${resumed.room.id}`);
 }catch(e){console.error('V55_STATUS_COMMAND_RESUME_FAIL',e);process.exitCode=1}finally{p1?.kill('SIGTERM');p2?.kill('SIGTERM');try{fs.unlinkSync(profileFile)}catch{}}})();

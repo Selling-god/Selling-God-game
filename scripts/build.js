@@ -26,7 +26,7 @@ for (const rel of required) {
 
 const optionalSetupFiles = [
   'supabase/RUN_THIS_IN_SUPABASE_RIFT_V22.sql',
-  'SUPABASE_SQL_RIFT_V22.txt'
+  'docs/archive/SUPABASE_SQL_RIFT_V22.txt'
 ];
 const hasSupabaseSetupFile = optionalSetupFiles.some((rel) => fs.existsSync(path.join(root, rel)));
 if (!hasSupabaseSetupFile) {
@@ -77,8 +77,8 @@ for (const r of catalog.relics || []) {
 if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets: ${missing.slice(0, 5).join(', ')}`);
 
 const info = {
-  version: String(pkg.version || catalog.version || '6.3.0'),
-  deployId: 'FUSEWILD-V630-PHASE-SYNC-MOBILE-20260917',
+  version: String(pkg.version || catalog.version || '6.2.1'),
+  deployId: 'FUSEWILD-V630-TRAINER-DUEL-SHOP-CADENCE-20260917',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,
@@ -92,11 +92,11 @@ const info = {
 };
 fs.writeFileSync(path.join(root, 'public', 'build-info.json'), JSON.stringify(info, null, 2));
 fs.writeFileSync(path.join(root, 'public', 'version.json'), JSON.stringify({
-  release: 'FUSEWILD-V630-PHASE-SYNC-MOBILE',
-  buildId: 'fusewild-v630-phase-sync-mobile',
+  release: 'FUSEWILD-V630-TRAINER-DUEL-SHOP-CADENCE',
+  buildId: 'fusewild-v630-trainer-duel-shop-cadence',
   generatedAt: info.builtAt,
   version: info.version,
-  label: 'FUSEWILD V6.3 PHASE-SYNC BATTLE + MANUAL REPLACEMENT + MOBILE SAFE UI',
+  label: 'FUSEWILD V6.3.0 TRAINER DUEL + EVERY-WAVE SHOP + MODE HEAL RULES',
   deployId: info.deployId
 }, null, 2));
 
@@ -104,7 +104,7 @@ fs.writeFileSync(path.join(root, 'public', 'version.json'), JSON.stringify({
 const out = path.join(root, 'out');
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
-fs.copyFileSync(path.join(root, 'index.html'), path.join(out, 'index.html'));
+fs.copyFileSync(path.join(root, 'public', 'index.html'), path.join(out, 'index.html'));
 fs.writeFileSync(path.join(out, 'version.json'), JSON.stringify(info, null, 2));
 
 console.log(`BUILD_OK v${info.version} deploy=${info.deployId} cards=${info.cards} items=${info.items} enemies=${info.enemies} floors=${info.maxDungeonFloor}`);

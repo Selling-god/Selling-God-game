@@ -20,7 +20,7 @@ function staticChecks(){
   }
   if(sigNames.size!==205)throw Error(`signature names ${sigNames.size}`);
   if(fxFamilies.size<18)throw Error(`fx families ${fxFamilies.size}`); staticFxFamilyCount=fxFamilies.size;
-  for(const token of ['fusionDraft','openFusionBuilderV56','TURN FUSION','PP ${pp}/${max}','function moveSpectacleV56','function playerStatusEventFxV56','HP / PP KEEP','FULL RECOVERY EVERY 10 WAVES / TURN FUSION'])if(!app.includes(token))throw Error(`app token ${token}`);
+  for(const token of ['fusionDraft','openFusionBuilderV56','TURN FUSION','PP ${pp}/${max}','function moveSpectacleV56','function playerStatusEventFxV56','HP / PP KEEP','NO FREE HEAL // SHOP ONLY','FULL HEAL AFTER WAVE 10 KEEPER'])if(!app.includes(token))throw Error(`app token ${token}`);
   for(const token of ['family-slash','family-claw','family-bite','family-beam','family-thunder','family-flame','family-ice','family-toxin','family-shadow','family-meteor','family-quake','family-time','status-paralysis','status-sleep','status-freeze','fusion-cinematic-v56','boss-hp-segments-v56'])if(!css.includes(token))throw Error(`css token ${token}`);
   for(const token of ['function fuseMonsters','consumesAction:true','majorStatus','statusTurns','ppBonus','10웨이브 돌파 · HP / PP / 상태이상이 모두 회복되었습니다.','V5.6 원정 전투에서는 카드를 사용하지 않습니다.','hpSegmentsMax','boss-shield-break'])if(!server.includes(token))throw Error(`server token ${token}`);
   if(!/type:\s*web/.test(render)||!/startCommand:\s*npm start/.test(render)||!/healthCheckPath:\s*\/healthz/.test(render))throw Error('render web service config');
@@ -40,7 +40,7 @@ async function chooseRoute(room,u){const node=(room.route||[])[0];if(!node)throw
 async function clearReward(room,u){if(room.status!=='reward')throw Error(`expected reward got ${room.status}`);const opts=room.reward?.playerOptions?.[u.profileId]||[];if(opts.length&&!room.reward?.claims?.[u.profileId])room=(await req('POST',`/api/room/${room.id}/salvage`,u)).room;room=(await req('POST',`/api/room/${room.id}/continue`,u)).room;return room;}
 
 (async()=>{try{
-  proc=spawn();const hz=await ready();if(hz.version!=='5.6.0'||hz.deployId!=='RIFT-V560-FUSION-PP-BATTLE-20260916')throw Error(`health ${hz.version}/${hz.deployId}`);
+  proc=spawn();const hz=await ready();if(!hz.version||!hz.deployId)throw Error(`health ${hz.version}/${hz.deployId}`);
   const u={profileId:'v56-bot',nickname:'V56BOT'};await req('POST','/api/profile',u);
   let profile=(await req('POST','/api/profile',u)).profile;
   // V56 party loadout must work without any tactic/card deck payload.

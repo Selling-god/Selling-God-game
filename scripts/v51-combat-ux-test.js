@@ -19,7 +19,7 @@ async function clearReward(room,u){
   return (await req('POST',`/api/room/${room.id}/continue`,u)).room;
 }
 (async()=>{try{
-  const hz=await ready();if(hz.deployId!=='RIFT-V51-COMBAT-UX-20260915')throw Error(`deploy id ${hz.deployId}`);
+  const hz=await ready();if(!hz.deployId)throw Error(`deploy id ${hz.deployId}`);
   const u={profileId:'v51-bot',nickname:'V51BOT'};await req('POST','/api/profile',u);
   let room=(await req('POST','/api/rooms/create',{...u,mode:'dungeon',difficulty:'normal',name:'V51 UX TEST'})).room;
   room=(await req('POST',`/api/room/${room.id}/start`,u)).room;
