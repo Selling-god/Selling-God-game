@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: rift-deck-game
+    name: fusewild-game
     runtime: node
     plan: free
     buildCommand: npm ci && npm run build

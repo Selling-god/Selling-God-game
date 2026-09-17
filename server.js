@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * FUSEWILD v6.2 · LIVE BATTLE STAGING / POKEROGUE-LIKE REWARD FLOW
+ * FUSEWILD v6.3 · PHASE-SYNC BATTLE / MANUAL FAINT REPLACEMENT
  * Dynamic, server-authoritative original monster roguelite.
  *
  * Design goals:
@@ -32,8 +32,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '6.2.1';
-const DEPLOY_ID = 'FUSEWILD-V621-LIVE-SYNC-HYBRIDART-20260916';
+const VERSION = '6.3.0';
+const DEPLOY_ID = 'FUSEWILD-V630-PHASE-SYNC-MOBILE-20260917';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -169,8 +169,8 @@ function fusionArtPng({primarySprite='',secondarySprite='',primaryElement='공�
   const box=286,left=17,top=7,offset=((hash>>>4)%17)-8,skew=((hash>>>11)%19)-9;
   for(let y=0;y<size;y++)for(let x=0;x<size;x++){
     const px=(x-left)/box*(primary.width-1),py=(y-top)/box*(primary.height-1),sx=(x-left-offset)/box*(secondary.width-1),sy=(y-top+skew)/box*(secondary.height-1),p=sampleRgba(primary,px,py),q=sampleRgba(secondary,sx,sy),pa=p[3]/255,qa=q[3]/255,idx=(y*size+x)*4;if(pa<=0&&qa<=0)continue;
-    const diagonal=((x-size*.48)*.68+(y-size*.48)*.24+(((hash>>>18)%31)-15)),t=Math.max(.08,Math.min(.92,.5+diagonal/92));let r,g,b,a;
-    if(pa>0&&qa>0){const wP=(1-t)*pa,wQ=t*qa,w=wP+wQ||1;r=(p[0]*wP+q[0]*wQ)/w;g=(p[1]*wP+q[1]*wQ)/w;b=(p[2]*wP+q[2]*wQ)/w;a=Math.max(p[3],q[3]);const tint=t*.10;r=r*(1-.10)+paletteB[0]*tint;g=g*(1-.10)+paletteB[1]*tint;b=b*(1-.10)+paletteB[2]*tint;}else if(pa>0){[r,g,b,a]=p;}else{[r,g,b,a]=q;}
+    const diagonal=((x-size*.48)*.68+(y-size*.48)*.24+(((hash>>>18)%31)-15)),t=Math.max(.12,Math.min(.48,.28+diagonal/260));let r,g,b,a;
+    if(pa>0&&qa>0){const wP=(1-t)*pa,wQ=t*qa,w=wP+wQ||1;r=(p[0]*wP+q[0]*wQ)/w;g=(p[1]*wP+q[1]*wQ)/w;b=(p[2]*wP+q[2]*wQ)/w;a=Math.max(p[3],q[3]);const tint=t*.075;r=r*(1-.10)+paletteB[0]*tint;g=g*(1-.10)+paletteB[1]*tint;b=b*(1-.10)+paletteB[2]*tint;}else if(pa>0){[r,g,b,a]=p;}else{[r,g,b,a]=q;}
     body[idx]=Math.round(r);body[idx+1]=Math.round(g);body[idx+2]=Math.round(b);body[idx+3]=Math.round(a);
   }
   // Element-colored 4px outline gives the temporary fusion a readable silhouette on every biome.
@@ -179,7 +179,15 @@ function fusionArtPng({primarySprite='',secondarySprite='',primaryElement='공�
   return encodePngRgba(size,size,out);
 }
 function ensureFusionArtAsset({primaryId='',secondaryId='',primarySprite='',secondarySprite='',primaryElement='공허',secondaryElement='공허',fusionName=''}){
-  try{fs.mkdirSync(FUSION_GENERATED_DIR,{recursive:true});const [idA,idB]=[String(primaryId||'a'),String(secondaryId||'b')].sort(),raw=`${idA}|${idB}|${primarySprite}|${secondarySprite}|${fusionName}|v62png`,hash=crypto.createHash('sha1').update(raw).digest('hex').slice(0,12),safeA=idA.replace(/[^a-zA-Z0-9_-]/g,'_'),safeB=idB.replace(/[^a-zA-Z0-9_-]/g,'_'),file=`${safeA}__${safeB}__${hash}.png`,full=path.join(FUSION_GENERATED_DIR,file);if(!fs.existsSync(full)){const png=fusionArtPng({primarySprite,secondarySprite,primaryElement,secondaryElement,signature:fusionPairKey(primaryId,secondaryId)});fs.writeFileSync(full,png);}return `/assets/fusion/generated/${file}?v=62`;}catch(err){console.warn('[FUSEWILD] fusion art asset generation failed',err?.message||err);return primarySprite||secondarySprite||'';}
+  try{
+    const idA=String(primaryId||'a'),idB=String(secondaryId||'b'),safeA=idA.replace(/[^a-zA-Z0-9_-]/g,'_'),safeB=idB.replace(/[^a-zA-Z0-9_-]/g,'_');
+    const dir=path.join(FUSION_GENERATED_DIR,safeA);fs.mkdirSync(dir,{recursive:true});
+    // v6.3 keeps A as the visible base form.  The order is intentionally NOT sorted:
+    // A+B and B+A may look different, while each primary folder stays below GitHub's practical file-count limit.
+    const raw=`${idA}|${idB}|${primarySprite}|${secondarySprite}|${fusionName}|v63-primary-dominant`,hash=crypto.createHash('sha1').update(raw).digest('hex').slice(0,12),file=`${safeA}__${safeB}__${hash}.png`,full=path.join(dir,file);
+    if(!fs.existsSync(full)){const png=fusionArtPng({primarySprite,secondarySprite,primaryElement,secondaryElement,signature:`${idA}>>${idB}`});fs.writeFileSync(full,png);}
+    return `/assets/fusion/generated/${safeA}/${file}?v=63`;
+  }catch(err){console.warn('[FUSEWILD] fusion art asset generation failed',err?.message||err);return primarySprite||secondarySprite||'';}
 }
 
 // V4.2: a PokéRogue-like run cadence is recreated with original FUSEWILD rules.
@@ -1018,7 +1026,7 @@ function makeCombatant(run, index, activeSlots = 1) {
     energy:maxEnergy+Math.floor(modTotal(run,'firstTurnEnergy'))+fieldCharge,maxEnergy,handLimit,drawPile:shuffle(run.runDeck),discard:[],exhaust:[],hand:[],units:active,bench,ko,
     ended:false,down:false,weak:0,upgrades:{...(run.upgrades||{})},itemMods:{unitPower:modTotal(run,'unitPower'),spellPower:modTotal(run,'spellPower'),damagePct:modTotal(run,'damagePct'),bossDamagePct:modTotal(run,'bossDamagePct'),blockPct:modTotal(run,'blockPct'),healPct:modTotal(run,'healPct'),damageReduction:Math.min(.55,modTotal(run,'damageReduction')),retainBlock:Math.min(.75,modTotal(run,'retainBlock')),thorns:modTotal(run,'thorns')},
     buffs:{nextAttack:run.relics.includes('r001')?4:0,spellDiscount:0,anyDiscount:Math.floor(modTotal(run,'startDiscount')),debuffImmune:false,thorns:modTotal(run,'thorns'),nextUnitBlock:0,teamSpellCount:0,energyDebt:0},
-    relics:run.relics.slice(),chain:{count:0,lastType:null,best:0,overdrives:0},recallsUsed:0,switchesUsed:0,tacticsUsed:0,tacticLimit:0,stats:{cardsPlayed:0,movesUsed:0,damage:0,healing:0,hpDamageTaken:0,monsterDamageTaken:0} };
+    relics:run.relics.slice(),chain:{count:0,lastType:null,best:0,overdrives:0},recallsUsed:0,switchesUsed:0,tacticsUsed:0,tacticLimit:0,pendingReplacements:[],stats:{cardsPlayed:0,movesUsed:0,damage:0,healing:0,hpDamageTaken:0,monsterDamageTaken:0} };
   drawCards(pc,5+Math.floor(modTotal(run,'drawBonus'))+(run.relics.includes('r007')?1:0)+fieldCharge); run.spellCharge=0; return pc;
 }
 
@@ -1572,11 +1580,21 @@ function monsterDamage(room, pc, u, amount, source=null){
   let revived=false;
   if(u.hp<=0&&(u.archetype==='phoenix'||u.secondaryArchetype==='phoenix')&&!u.revived){u.revived=true;u.hp=Math.max(1,Math.round(u.maxHp*.25));revived=true;pushRoomEvent(room,'monster-passive',`${u.name} 재점화!`,{playerId:pc.playerId,instanceId:u.instanceId,passive:'재점화'});}
   if(!revived&&u.hp<=0){
-    const pos=pc.units.findIndex(x=>x.instanceId===u.instanceId); if(pos>=0)pc.units.splice(pos,1); pc.ko.push(u); pc.hp=Math.max(1,pc.hp-Math.max(4,Math.round(pc.maxHp*.06)));
-    if(pc.bench.length){const next=pc.bench.shift();next.block=Math.max(next.block||0,4);pc.units.splice(Math.min(pos<0?pc.units.length:pos,pc.units.length),0,next);pushRoomEvent(room,'monster-switch',`${next.name} 자동 출전!`,{playerId:pc.playerId,instanceId:next.instanceId,auto:true});}
-    if(!pc.units.length&&!pc.bench.length){pc.down=true;pc.ended=true;}
+    const pos=pc.units.findIndex(x=>x.instanceId===u.instanceId);
+    if(pos>=0)pc.units.splice(pos,1);
+    if(!pc.ko.some(x=>x.instanceId===u.instanceId))pc.ko.push(u);
+    pc.hp=Math.max(1,pc.hp-Math.max(4,Math.round(pc.maxHp*.06)));
+    pc.pendingReplacements=Array.isArray(pc.pendingReplacements)?pc.pendingReplacements:[];
+    const liveBench=(pc.bench||[]).filter(x=>x.hp>0);
+    // Do not auto-send the first bench monster.  Like the reference battle flow,
+    // the player must explicitly choose the replacement after the faint animation/text finishes.
+    if(liveBench.length>pc.pendingReplacements.length){
+      pc.pendingReplacements.push({slotIndex:Math.max(0,pos),faintedInstanceId:u.instanceId,faintedName:u.name});
+      pc.ended=true;
+    }
+    if(!pc.units.some(x=>x.hp>0)&&!liveBench.length){pc.down=true;pc.ended=true;}
   }
-  pushRoomEvent(room,'monster-hit',`${u.name} ${dealt} 피해`,{playerId:pc.playerId,instanceId:u.instanceId,damage:dealt,ko:u.hp<=0&&!revived,revived,shieldBroken:beforeMonsterBlock>0&&u.block<=0});
+  pushRoomEvent(room,'monster-hit',`${u.name} ${dealt} 피해`,{playerId:pc.playerId,instanceId:u.instanceId,monsterName:u.name,damage:dealt,hpBefore:before,hpAfter:Number(u.hp||0),maxHp:Number(u.maxHp||1),ko:u.hp<=0&&!revived,revived,shieldBroken:beforeMonsterBlock>0&&u.block<=0});
   return dealt;
 }
 
@@ -1615,6 +1633,31 @@ function fuseMonsters(room,playerId,primaryId,secondaryId,moveIds=[]){
   profiles[playerId].stats.fusions++;saveProfiles();pushRoomEvent(room,'monster-fuse',`${a.name} 융합 완성!`,{playerId,instanceId:a.instanceId,secondaryId:b.instanceId,fromA:before.aName,fromB:before.bName,fromSpriteA:before.aSprite,fromSpriteB:before.bSprite,toName:a.name,toSprite:monsterDisplaySpriteServer(a),turnsLeft:5,maxTurns:5,elements:uniqueElements.slice(0,2),lineage:lineage.slice(),moves:a.moves.map(m=>({id:m.id,name:m.name,element:m.element,pp:m.pp,maxPp:m.maxPp})),consumesAction:true,turnsLeft:5,maxTurns:5});
   if(pc.units.filter(u=>u.hp>0).every(u=>u.acted)){pc.ended=true;if(room.battle.party.filter(x=>!x.down).every(x=>x.ended))enemyTurn(room);}return a;
 }
+function pendingReplacementPlayers(room){
+  return (room?.battle?.party||[]).filter(pc=>!pc.down&&Array.isArray(pc.pendingReplacements)&&pc.pendingReplacements.length&&(pc.bench||[]).some(x=>x.hp>0));
+}
+function emitReplacementPrompt(room,pc){
+  const pending=pc.pendingReplacements?.[0];if(!pending)return;
+  const candidates=(pc.bench||[]).filter(x=>x.hp>0).map(x=>({instanceId:x.instanceId,name:x.name,sprite:monsterDisplaySpriteServer(x),level:x.level,hp:x.hp,maxHp:x.maxHp,element:x.element}));
+  pushRoomEvent(room,'replacement-required',`${pending.faintedName||'몬스터'} 대신 내보낼 몬스터를 선택하세요.`,{playerId:pc.playerId,slotIndex:Number(pending.slotIndex||0),faintedInstanceId:pending.faintedInstanceId,faintedName:pending.faintedName,candidates});
+}
+function resolveReplacement(room,playerId,benchId,slotIndex=null){
+  const b=room.battle,pc=getPc(room,playerId);
+  if(room.status!=='battle'||!b||b.phase!=='replacement')throw new Error('지금은 교체 출전 단계가 아닙니다.');
+  if(!pc||pc.down)throw new Error('출전할 수 없습니다.');
+  pc.pendingReplacements=Array.isArray(pc.pendingReplacements)?pc.pendingReplacements:[];
+  const pending=pc.pendingReplacements[0];if(!pending)throw new Error('교체가 필요한 몬스터가 없습니다.');
+  const bi=(pc.bench||[]).findIndex(x=>x.instanceId===benchId&&x.hp>0);if(bi<0)throw new Error('출전 가능한 대기 몬스터를 선택하세요.');
+  const chosen=pc.bench.splice(bi,1)[0];chosen.acted=false;chosen.block=Number(chosen.block||0);
+  const targetSlot=Number.isFinite(Number(slotIndex))?Number(slotIndex):Number(pending.slotIndex||0);pc.units.splice(Math.max(0,Math.min(targetSlot,pc.units.length)),0,chosen);
+  pc.pendingReplacements.shift();pc.ended=false;
+  pushRoomEvent(room,'monster-switch',`${chosen.name}, 나와줘!`,{playerId,instanceId:chosen.instanceId,benchId:chosen.instanceId,replacement:true,slotIndex:targetSlot,monsterName:chosen.name,toSprite:monsterDisplaySpriteServer(chosen)});
+  if(pc.pendingReplacements.length&&(pc.bench||[]).some(x=>x.hp>0)){emitReplacementPrompt(room,pc);return chosen;}
+  const waiting=pendingReplacementPlayers(room);
+  if(!waiting.length){b.phase='players';for(const member of b.party){if(!member.down)member.ended=false;}pushRoomEvent(room,'turn',`턴 ${b.turn} 시작.`,{turn:b.turn,afterReplacement:true});}
+  return chosen;
+}
+
 function switchMonster(room,playerId,activeId,benchId){
   const pc=getPc(room,playerId);if(!pc||pc.down||pc.ended||room.battle?.phase!=='players')throw new Error('지금은 교대할 수 없습니다.');if(pc.switchesUsed>=1)throw new Error('몬스터 교대는 턴당 1회입니다.');
   const ai=pc.units.findIndex(x=>x.instanceId===activeId),bi=pc.bench.findIndex(x=>x.instanceId===benchId);if(ai<0||bi<0)throw new Error('교대 대상을 찾을 수 없습니다.');const a=pc.units[ai],b=pc.bench[bi];if(a.acted)throw new Error('이미 행동한 몬스터는 교대할 수 없습니다.');pc.units[ai]=b;pc.bench[bi]=a;b.acted=true;pc.switchesUsed++;pushRoomEvent(room,'monster-switch',`${a.name} ↔ ${b.name}`,{playerId,activeId,benchId,consumesAction:true});
@@ -2104,7 +2147,13 @@ function enemyTurn(room) {
     for(const u of [...pc.units,...pc.bench]){normalizeMonsterMoves(u);normalizeMajorStatus(u);u.acted=false;if(u.resonanceTurns>0)u.resonanceTurns--;if(u.abyssBloom)u.hp=Math.max(1,u.hp-Math.max(1,Math.round(u.maxHp*.05)));if(u.archetype==='slime')u.hp=clamp(u.hp+Math.max(1,Math.round(u.maxHp*.03)),0,u.maxHp);}
     const priests=pc.units.filter(u=>u.archetype==='priest').length;if(priests){const all=[...pc.units,...pc.bench].filter(u=>u.hp>0).sort((a,z)=>a.hp/a.maxHp-z.hp/z.maxHp);if(all[0])all[0].hp=clamp(all[0].hp+3*priests,0,all[0].maxHp);}
   }
-  b.phase='players';pushRoomEvent(room,'turn',`턴 ${b.turn} 시작.`);
+  const waitingReplacement=pendingReplacementPlayers(room);
+  if(waitingReplacement.length){
+    b.phase='replacement';
+    for(const pc of waitingReplacement)emitReplacementPrompt(room,pc);
+  }else{
+    b.phase='players';pushRoomEvent(room,'turn',`턴 ${b.turn} 시작.`,{turn:b.turn});
+  }
 }
 
 function checkBattleEnd(room) {
@@ -2885,6 +2934,7 @@ const server = http.createServer(async (req, res) => {
         if (action === 'monster-evolve') { const unit=evolveMonster(room,prof.id,b.instanceId,b.mode); return ok(res,{result:{name:unit.name,mode:b.mode},room:roomView(room),profile:profileView(profiles[prof.id])}); }
         if (action === 'monster-fuse') { const unit=fuseMonsters(room,prof.id,b.primaryId,b.secondaryId,b.moveIds||[]); return ok(res,{result:{name:unit.name},room:roomView(room),profile:profileView(profiles[prof.id])}); }
         if (action === 'switch-monster') { const unit=switchMonster(room,prof.id,b.activeId,b.benchId); return ok(res,{result:{name:unit.name},room:roomView(room)}); }
+        if (action === 'replacement') { const unit=resolveReplacement(room,prof.id,b.benchId,b.slotIndex); return ok(res,{result:{name:unit.name,instanceId:unit.instanceId},room:roomView(room)}); }
         if (action === 'end-turn') { endTurn(room, prof.id); return ok(res, { room: roomView(room) }); }
         if (action === 'event') { chooseEvent(room, prof.id, b.choiceId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
         if (action === 'reward') { claimReward(room, prof.id, b.rewardId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
