@@ -1,20 +1,11 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
-  <title>RIFT DECK - Dynamic Server Required</title>
-  <style>
-    body{margin:0;background:#071019;color:#e9f4ff;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;padding:24px;box-sizing:border-box}.box{max-width:760px;border:1px solid #24445c;background:#0b1722;padding:28px;border-radius:18px;box-shadow:0 20px 80px #0008}.tag{font-size:12px;letter-spacing:.16em;color:#6ee7d8}.bad{color:#ff9a9a}code{background:#08121b;padding:2px 6px;border-radius:6px}h1{margin:.35em 0}.steps{line-height:1.8;color:#bcd0df}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<title>FUSEWILD - Web Service Required</title>
+<style>body{margin:0;background:#071019;color:#e9f4ff;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;padding:24px;box-sizing:border-box}.box{max-width:760px;border:1px solid #24445c;background:#0b1722;padding:28px;border-radius:18px;box-shadow:0 20px 80px #0008}.tag{font-size:12px;letter-spacing:.16em;color:#6ee7d8}.bad{color:#ffad9f}.ok{color:#8de0cf}code{background:#08121b;padding:2px 6px;border-radius:6px}h1{margin:.35em 0}.steps{line-height:1.8;color:#bcd0df}</style>
 </head>
-<body>
-  <div class="box">
-    <div class="tag">RIFT-V4.1.0-ACTIVE-MONSTER-BATTLE-20260911</div>
-    <h1>RIFT DECK는 동적 Web Service가 필요합니다.</h1>
-    <p class="bad">현재 이 화면이 보인다면 Render가 게임 서버가 아니라 정적 사이트 파일을 제공하고 있습니다.</p>
-    <div class="steps">Render에서 이 저장소를 <b>Node Web Service</b>로 배포하고 Build Command를 <code>npm ci && npm run build</code>, Start Command를 <code>npm start</code>로 지정하세요. 정상 배포에서는 이 파일이 아니라 <code>public/index.html</code>이 서버를 통해 표시됩니다.</div>
-  </div>
-</body>
+<body><div class="box"><div class="tag">FUSEWILD-V621-LIVE-SYNC-HYBRIDART-20260916</div><h1>FUSEWILD 게임 서버 주소가 아닙니다.</h1><p class="bad">이 화면은 Render의 <b>Static Site</b> 주소에서만 표시되는 진단 페이지입니다. 휴대폰 오류가 아니라 배포 방식/주소 문제입니다.</p><div class="steps"><b class="ok">Render → New → Web Service</b>에서 이 저장소를 연결하세요.<br>Build Command: <code>npm ci && npm run build</code><br>Start Command: <code>npm start</code><br>Health Check: <code>/healthz</code><br><br>배포가 끝난 뒤에는 Static Site 주소가 아니라 <b>Web Service의 onrender.com 주소</b>로 접속해야 합니다. <code>render.yaml</code>도 Web Service 설정으로 포함되어 있습니다.</div></div></body>
 </html>
