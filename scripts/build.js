@@ -78,7 +78,7 @@ if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets
 
 const info = {
   version: String(pkg.version || catalog.version || '6.2.1'),
-  deployId: 'FUSEWILD-V710-READABILITY-FX-REBUILD-20260917',
+  deployId: 'FUSEWILD-V720-FAST-BATTLE-STATUS-ART-20260917',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,
@@ -92,11 +92,11 @@ const info = {
 };
 fs.writeFileSync(path.join(root, 'public', 'build-info.json'), JSON.stringify(info, null, 2));
 fs.writeFileSync(path.join(root, 'public', 'version.json'), JSON.stringify({
-  release: 'FUSEWILD-V710-READABILITY-FX-REBUILD',
+  release: 'FUSEWILD-V720-FAST-BATTLE-STATUS-ART',
   buildId: 'fusewild-v710-readability-fx-rebuild',
   generatedAt: info.builtAt,
   version: info.version,
-  label: 'FUSEWILD V7.1.0 READABILITY + ORGANIC MOVE FX + REWARD EFFECT CARDS',
+  label: 'FUSEWILD V7.2.0 READABILITY + ORGANIC MOVE FX + REWARD EFFECT CARDS',
   deployId: info.deployId
 }, null, 2));
 

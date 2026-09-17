@@ -1,0 +1,16 @@
+'use strict';
+const fs=require('fs');
+const path=require('path');
+const root=path.resolve(__dirname,'..');
+const app=fs.readFileSync(path.join(root,'public/app.js'),'utf8');
+const css=fs.readFileSync(path.join(root,'public/styles.css'),'utf8');
+const must=(ok,msg)=>{if(!ok)throw new Error(msg)};
+must(app.includes("turn:220,announce:360,move:620"),'fast battle pace missing');
+must(app.includes("monsterMoveEventFx(p);},sig?180:120"),'immediate player FX missing');
+must(app.includes("enemyAttackEventFx(p);},sig?180:120"),'immediate enemy FX missing');
+must(app.includes("combat-narrating-v72"),'full narration state missing');
+must(app.includes("live-status-row-v72"),'status row host missing');
+must(css.includes('combat-resolving-v54 .battle-v72 .command-content-v52')&&css.includes('display:none!important'),'full message bar rule missing');
+must(css.includes(".battle-v72 .active-mon-v52.acted")&&css.includes("filter:none!important"),'acted transparency override missing');
+must(css.includes("status-burn")&&css.includes("#ff7e4d"),'burn status styling missing');
+console.log('V72_QUALITY_OK fastBattle=yes fullMessageBar=yes lethalFxImmediate=yes noTurnFade=yes statusRow=yes burnFix=yes');
