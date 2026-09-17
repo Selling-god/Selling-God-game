@@ -1,9 +1,9 @@
 {
-  "version": "4.1.0",
-  "deployId": "RIFT-V4.1.0-ACTIVE-MONSTER-BATTLE-20260911",
-  "builtAt": "2026-09-11T03:03:55.532Z",
+  "version": "6.3.0",
+  "deployId": "FUSEWILD-V630-TRAINER-DUEL-SHOP-CADENCE-20260917",
+  "builtAt": "2026-09-17T02:19:29.858Z",
   "cards": 315,
-  "items": 120,
+  "items": 128,
   "enemies": 205,
   "maxDungeonFloor": 50,
   "difficulties": [

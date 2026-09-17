@@ -1,11 +1,65 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
-<title>FUSEWILD - Web Service Required</title>
-<style>body{margin:0;background:#071019;color:#e9f4ff;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;padding:24px;box-sizing:border-box}.box{max-width:760px;border:1px solid #24445c;background:#0b1722;padding:28px;border-radius:18px;box-shadow:0 20px 80px #0008}.tag{font-size:12px;letter-spacing:.16em;color:#6ee7d8}.bad{color:#ffad9f}.ok{color:#8de0cf}code{background:#08121b;padding:2px 6px;border-radius:6px}h1{margin:.35em 0}.steps{line-height:1.8;color:#bcd0df}</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#24293e" />
+  <meta name="description" content="FUSEWILD - 몬스터 전투와 5턴 융합을 결합한 오리지널 로그라이트" />
+  <title>FUSEWILD : MONSTER FUSION ROGUELITE</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="stylesheet" href="/styles.css?v=FUSEWILD-V630-TRAINER-DUEL-SHOP-CADENCE-20260917" />
 </head>
-<body><div class="box"><div class="tag">FUSEWILD-V621-LIVE-SYNC-HYBRIDART-20260916</div><h1>FUSEWILD 게임 서버 주소가 아닙니다.</h1><p class="bad">이 화면은 Render의 <b>Static Site</b> 주소에서만 표시되는 진단 페이지입니다. 휴대폰 오류가 아니라 배포 방식/주소 문제입니다.</p><div class="steps"><b class="ok">Render → New → Web Service</b>에서 이 저장소를 연결하세요.<br>Build Command: <code>npm ci && npm run build</code><br>Start Command: <code>npm start</code><br>Health Check: <code>/healthz</code><br><br>배포가 끝난 뒤에는 Static Site 주소가 아니라 <b>Web Service의 onrender.com 주소</b>로 접속해야 합니다. <code>render.yaml</code>도 Web Service 설정으로 포함되어 있습니다.</div></div></body>
+<body>
+  <div id="boot" class="boot-screen">
+    <div class="boot-grid"></div>
+    <div class="boot-core"><span></span><span></span><span></span></div>
+    <div class="boot-title">FUSEWILD</div>
+    <div class="boot-sub">MONSTER FUSION // WAVE BATTLE // ROGUELITE v6.3.0</div>
+    <div class="boot-line"><i></i></div>
+    <div class="boot-copy">CONNECTING TO DYNAMIC SERVER...</div>
+  </div>
+
+  <div id="app" class="app-shell hidden">
+    <header class="topbar">
+      <button class="brand" data-action="home" aria-label="홈으로">
+        <span class="brand-mark">◇</span>
+        <span class="brand-copy"><b>FUSEWILD</b><small>MONSTER FUSION ROGUELITE</small></span>
+      </button>
+      <div id="serverBadge" class="server-badge"><span></span>LIVE SERVER</div>
+      <div class="top-spacer"></div>
+      <div class="wallet" title="프리즘"><span>◆</span><b id="gemCount">0</b></div>
+      <div class="wallet dust" title="잔광"><span>✦</span><b id="dustCount">0</b></div>
+      <button id="fxBtn" class="icon-button" data-action="fx" title="전투 이펙트">✦</button>
+      <button id="soundBtn" class="icon-button" data-action="sound" title="사운드">♪</button>
+      <button class="profile-chip" data-action="profile"><span id="avatarMini">R</span><b id="nicknameMini">방랑자</b></button>
+    </header>
+
+    <main id="screen" class="screen"></main>
+
+    <footer class="footer-bar">
+      <span id="versionLabel">FUSEWILD</span>
+      <span class="footer-hint">기술 1~4 · 1턴 융합 · 전용기/디버프 표시 · ESC 뒤로</span>
+    </footer>
+  </div>
+
+  <div id="modalRoot"></div>
+  <div id="toastRoot" class="toast-root" aria-live="polite"></div>
+  <script>
+  window.__RIFT_DEPLOY_ID__ = 'FUSEWILD-V630-TRAINER-DUEL-SHOP-CADENCE-20260917';
+  (async function resetLegacyCaches(){
+    try {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch (e) { console.warn('[FUSEWILD] legacy cache reset skipped', e); }
+  })();
+  </script>
+  <script src="/app.js?v=FUSEWILD-V630-TRAINER-DUEL-SHOP-CADENCE-20260917" defer></script>
+</body>
 </html>
