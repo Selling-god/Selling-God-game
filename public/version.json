@@ -1,8 +1,8 @@
 {
-  "release": "FUSEWILD-V630-TRAINER-DUEL-SHOP-CADENCE",
-  "buildId": "fusewild-v630-trainer-duel-shop-cadence",
-  "generatedAt": "2026-09-17T02:19:29.858Z",
-  "version": "6.3.0",
-  "label": "FUSEWILD V6.3.0 TRAINER DUEL + EVERY-WAVE SHOP + MODE HEAL RULES",
-  "deployId": "FUSEWILD-V630-TRAINER-DUEL-SHOP-CADENCE-20260917"
+  "release": "FUSEWILD-V700-BATTLE-CORE-REBUILD",
+  "buildId": "fusewild-v700-battle-core-rebuild",
+  "generatedAt": "2026-09-17T03:35:00.084Z",
+  "version": "7.0.0",
+  "label": "FUSEWILD V7.0.0 BATTLE CORE REBUILD + MANUAL FAINT REPLACEMENT + MOBILE UI",
+  "deployId": "FUSEWILD-V700-BATTLE-CORE-REBUILD-20260917"
 }
