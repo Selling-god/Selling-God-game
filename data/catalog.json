@@ -14991,7 +14991,7 @@
       "name": "붉은 회복열매",
       "rarity": "common",
       "icon": "●",
-      "maxStack": 3,
+      "maxStack": 99,
       "text": "장착: HP 40% 이하가 되면 최대 HP의 20%를 회복하고 소모되는 1회용 열매입니다.",
       "mod": {},
       "category": "열매",
@@ -15012,7 +15012,7 @@
       "name": "푸른 방벽열매",
       "rarity": "common",
       "icon": "◆",
-      "maxStack": 3,
+      "maxStack": 99,
       "text": "장착: HP 50% 이하가 되면 방어막 12를 얻고 소모되는 1회용 열매입니다.",
       "mod": {},
       "category": "열매",
@@ -15033,7 +15033,7 @@
       "name": "별빛 공명열매",
       "rarity": "rare",
       "icon": "✦",
-      "maxStack": 2,
+      "maxStack": 99,
       "text": "장착: 전투에서 처음 기술을 사용할 때 공명 1을 얻고 소모되는 1회용 열매입니다.",
       "mod": {},
       "category": "열매",
@@ -15053,7 +15053,7 @@
       "name": "힘의 머리띠",
       "rarity": "rare",
       "icon": "⌁",
-      "maxStack": 2,
+      "maxStack": 99,
       "text": "장착: 이 몬스터의 기술 피해가 12% 증가합니다.",
       "mod": {},
       "category": "장착",
@@ -15072,7 +15072,7 @@
       "name": "원소 부적",
       "rarity": "rare",
       "icon": "◇",
-      "maxStack": 2,
+      "maxStack": 99,
       "text": "장착: 자신의 속성과 같은 기술 피해가 15% 증가합니다.",
       "mod": {},
       "category": "장착",
@@ -15091,7 +15091,7 @@
       "name": "가시 팔찌",
       "rarity": "ultra",
       "icon": "✹",
-      "maxStack": 2,
+      "maxStack": 99,
       "text": "장착: 적에게 직접 공격받으면 4의 반사 피해를 줍니다.",
       "mod": {},
       "category": "장착",
@@ -15110,7 +15110,7 @@
       "name": "재생 목걸이",
       "rarity": "ultra",
       "icon": "✚",
-      "maxStack": 2,
+      "maxStack": 99,
       "text": "장착: 전투 승리 후 살아 있으면 최대 HP의 10%를 회복합니다.",
       "mod": {},
       "category": "장착",
@@ -15129,7 +15129,7 @@
       "name": "포획 방울",
       "rarity": "rare",
       "icon": "◉",
-      "maxStack": 2,
+      "maxStack": 99,
       "text": "장착: 이 몬스터가 봉인을 시도할 때 성공률이 8%p 증가합니다.",
       "mod": {},
       "category": "장착",
@@ -15148,7 +15148,7 @@
       "name": "학습의 팔찌",
       "rarity": "rare",
       "icon": "▤",
-      "maxStack": 2,
+      "maxStack": 99,
       "text": "장착: 이 몬스터가 받는 전투 EXP가 35% 증가합니다.",
       "mod": {},
       "category": "장착",
@@ -15167,7 +15167,7 @@
       "name": "청명열매",
       "rarity": "rare",
       "icon": "✚",
-      "maxStack": 3,
+      "maxStack": 99,
       "text": "장착: 주요 상태이상에 걸리면 즉시 상태를 해제하고 소모되는 1회용 열매입니다.",
       "mod": {},
       "category": "열매",
@@ -15186,7 +15186,7 @@
       "name": "생명의 큰열매",
       "rarity": "ultra",
       "icon": "♥",
-      "maxStack": 2,
+      "maxStack": 99,
       "text": "장착: HP 35% 이하가 되면 최대 HP의 32%를 회복하고 주요 상태이상을 해제한 뒤 소모됩니다.",
       "mod": {},
       "category": "열매",
@@ -15207,7 +15207,7 @@
       "name": "기력열매",
       "rarity": "rare",
       "icon": "PP",
-      "maxStack": 3,
+      "maxStack": 99,
       "text": "장착: 사용한 기술의 PP가 25% 이하가 되면 최대 PP의 45%를 회복하고 소모됩니다.",
       "mod": {},
       "category": "열매",
@@ -15228,7 +15228,7 @@
       "name": "급소 렌즈",
       "rarity": "rare",
       "icon": "◉",
-      "maxStack": 2,
+      "maxStack": 99,
       "text": "장착: 이 몬스터의 기술 급소 확률이 8%p 증가합니다.",
       "mod": {},
       "category": "장착",
@@ -15247,7 +15247,7 @@
       "name": "흡혈 부적",
       "rarity": "ultra",
       "icon": "☽",
-      "maxStack": 2,
+      "maxStack": 99,
       "text": "장착: 이 몬스터가 기술로 준 피해의 12%만큼 HP를 회복합니다.",
       "mod": {},
       "category": "장착",
@@ -15266,7 +15266,7 @@
       "name": "수호 리본",
       "rarity": "rare",
       "icon": "▣",
-      "maxStack": 2,
+      "maxStack": 99,
       "text": "장착: 이 몬스터가 받는 직접 피해가 10% 감소합니다.",
       "mod": {},
       "category": "장착",
@@ -15285,7 +15285,7 @@
       "name": "선봉 방패코어",
       "rarity": "rare",
       "icon": "⬢",
-      "maxStack": 2,
+      "maxStack": 99,
       "text": "장착: 매 전투 시작 시 이 몬스터에게 방어막 10을 부여합니다.",
       "mod": {},
       "category": "장착",
@@ -15304,7 +15304,7 @@
       "name": "정화 브로치",
       "rarity": "ultra",
       "icon": "✧",
-      "maxStack": 2,
+      "maxStack": 99,
       "text": "장착: 이 몬스터가 주요 상태이상에 걸릴 확률이 35% 감소합니다.",
       "mod": {},
       "category": "장착",
@@ -15323,7 +15323,7 @@
       "name": "재생의 고리",
       "rarity": "ultra",
       "icon": "○",
-      "maxStack": 2,
+      "maxStack": 99,
       "text": "장착: 전투 승리 후 이 몬스터의 최대 HP 15%를 회복합니다.",
       "mod": {},
       "category": "장착",
@@ -15342,7 +15342,7 @@
       "name": "숙련의 왕관",
       "rarity": "legendary",
       "icon": "♛",
-      "maxStack": 1,
+      "maxStack": 99,
       "text": "장착: 이 몬스터가 받는 전투 EXP가 65% 증가합니다.",
       "mod": {},
       "category": "장착",
@@ -15361,7 +15361,7 @@
       "name": "긴급 방호열매",
       "rarity": "rare",
       "icon": "◇",
-      "maxStack": 3,
+      "maxStack": 99,
       "text": "장착: HP 50% 이하가 되면 방어막 18을 얻고 소모되는 1회용 열매입니다.",
       "mod": {},
       "category": "열매",
@@ -15382,60 +15382,88 @@
       "name": "폭풍의 심핵",
       "rarity": "rare",
       "icon": "ϟ",
-      "maxStack": 2,
-      "text": "특수 진화 재료. 전류족제비의 진화를 일으킵니다. 무료 보상에서 낮은 확률로 등장합니다.",
+      "maxStack": 99,
+      "text": "진화 촉매. 전류족제비에게 장착한 뒤 진화 메뉴에서 사용하면 1개가 소모됩니다.",
       "mod": {},
       "category": "진화재료",
       "modes": [
         "journey",
         "dungeon"
       ],
-      "art": "/assets/items/i021.png"
+      "art": "/assets/items/i021.png",
+      "held": {
+        "kind": "evolutionCatalyst",
+        "consume": true,
+        "speciesIds": [
+          "e003"
+        ]
+      }
     },
     {
       "id": "i142",
       "name": "월식석",
       "rarity": "rare",
       "icon": "☾",
-      "maxStack": 2,
-      "text": "특수 진화 재료. 심연의 박쥐의 진화를 일으킵니다. 무료 보상에서 낮은 확률로 등장합니다.",
+      "maxStack": 99,
+      "text": "진화 촉매. 심연의 박쥐에게 장착한 뒤 진화 메뉴에서 사용하면 1개가 소모됩니다.",
       "mod": {},
       "category": "진화재료",
       "modes": [
         "journey",
         "dungeon"
       ],
-      "art": "/assets/items/i022.png"
+      "art": "/assets/items/i022.png",
+      "held": {
+        "kind": "evolutionCatalyst",
+        "consume": true,
+        "speciesIds": [
+          "e005"
+        ]
+      }
     },
     {
       "id": "i143",
       "name": "태양꽃 결정",
       "rarity": "rare",
       "icon": "☀",
-      "maxStack": 2,
-      "text": "특수 진화 재료. 꽃덩굴 나가의 진화를 일으킵니다. 무료 보상에서 낮은 확률로 등장합니다.",
+      "maxStack": 99,
+      "text": "진화 촉매. 꽃덩굴 나가에게 장착한 뒤 진화 메뉴에서 사용하면 1개가 소모됩니다.",
       "mod": {},
       "category": "진화재료",
       "modes": [
         "journey",
         "dungeon"
       ],
-      "art": "/assets/items/i023.png"
+      "art": "/assets/items/i023.png",
+      "held": {
+        "kind": "evolutionCatalyst",
+        "consume": true,
+        "speciesIds": [
+          "e015"
+        ]
+      }
     },
     {
       "id": "i144",
       "name": "영구빙정",
       "rarity": "ultra",
       "icon": "❄",
-      "maxStack": 1,
-      "text": "희귀 특수 진화 재료. 빙결여우 글라시아의 진화를 일으킵니다. 무료 보상에서 매우 낮은 확률로 등장합니다.",
+      "maxStack": 99,
+      "text": "진화 촉매. 빙결여우 글라시아에게 장착한 뒤 진화 메뉴에서 사용하면 1개가 소모됩니다.",
       "mod": {},
       "category": "진화재료",
       "modes": [
         "journey",
         "dungeon"
       ],
-      "art": "/assets/items/i024.png"
+      "art": "/assets/items/i024.png",
+      "held": {
+        "kind": "evolutionCatalyst",
+        "consume": true,
+        "speciesIds": [
+          "e071"
+        ]
+      }
     }
   ],
   "biomes": [
