@@ -14992,7 +14992,7 @@
       "rarity": "common",
       "icon": "●",
       "maxStack": 3,
-      "text": "장착: HP 40% 이하가 되면 전투당 1회 최대 HP의 20%를 회복합니다.",
+      "text": "장착: HP 40% 이하가 되면 최대 HP의 20%를 회복하고 소모되는 1회용 열매입니다.",
       "mod": {},
       "category": "열매",
       "modes": [
@@ -15002,7 +15002,8 @@
       "held": {
         "kind": "lowHpHeal",
         "threshold": 0.4,
-        "healPct": 0.2
+        "healPct": 0.2,
+        "consume": true
       },
       "art": "/assets/items/i001.png"
     },
@@ -15012,7 +15013,7 @@
       "rarity": "common",
       "icon": "◆",
       "maxStack": 3,
-      "text": "장착: HP 50% 이하가 되면 전투당 1회 방어막 12를 얻습니다.",
+      "text": "장착: HP 50% 이하가 되면 방어막 12를 얻고 소모되는 1회용 열매입니다.",
       "mod": {},
       "category": "열매",
       "modes": [
@@ -15022,7 +15023,8 @@
       "held": {
         "kind": "lowHpGuard",
         "threshold": 0.5,
-        "block": 12
+        "block": 12,
+        "consume": true
       },
       "art": "/assets/items/i002.png"
     },
@@ -15032,7 +15034,7 @@
       "rarity": "rare",
       "icon": "✦",
       "maxStack": 2,
-      "text": "장착: 전투에서 처음 기술을 사용할 때 공명 1을 얻습니다.",
+      "text": "장착: 전투에서 처음 기술을 사용할 때 공명 1을 얻고 소모되는 1회용 열매입니다.",
       "mod": {},
       "category": "열매",
       "modes": [
@@ -15041,7 +15043,8 @@
       ],
       "held": {
         "kind": "firstMoveResonance",
-        "resonance": 1
+        "resonance": 1,
+        "consume": true
       },
       "art": "/assets/items/i003.png"
     },
@@ -15139,6 +15142,300 @@
         "bonus": 0.08
       },
       "art": "/assets/items/i008.png"
+    },
+    {
+      "id": "i129",
+      "name": "학습의 팔찌",
+      "rarity": "rare",
+      "icon": "▤",
+      "maxStack": 2,
+      "text": "장착: 이 몬스터가 받는 전투 EXP가 35% 증가합니다.",
+      "mod": {},
+      "category": "장착",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "held": {
+        "kind": "xpBoost",
+        "xpPct": 0.35
+      },
+      "art": "/assets/items/i009.png"
+    },
+    {
+      "id": "i130",
+      "name": "청명열매",
+      "rarity": "rare",
+      "icon": "✚",
+      "maxStack": 3,
+      "text": "장착: 주요 상태이상에 걸리면 즉시 상태를 해제하고 소모되는 1회용 열매입니다.",
+      "mod": {},
+      "category": "열매",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "held": {
+        "kind": "statusCure",
+        "consume": true
+      },
+      "art": "/assets/items/i010.png"
+    },
+    {
+      "id": "i131",
+      "name": "생명의 큰열매",
+      "rarity": "ultra",
+      "icon": "♥",
+      "maxStack": 2,
+      "text": "장착: HP 35% 이하가 되면 최대 HP의 32%를 회복하고 주요 상태이상을 해제한 뒤 소모됩니다.",
+      "mod": {},
+      "category": "열매",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "held": {
+        "kind": "lowHpHealCure",
+        "threshold": 0.35,
+        "healPct": 0.32,
+        "consume": true
+      },
+      "art": "/assets/items/i011.png"
+    },
+    {
+      "id": "i132",
+      "name": "기력열매",
+      "rarity": "rare",
+      "icon": "PP",
+      "maxStack": 3,
+      "text": "장착: 사용한 기술의 PP가 25% 이하가 되면 최대 PP의 45%를 회복하고 소모됩니다.",
+      "mod": {},
+      "category": "열매",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "held": {
+        "kind": "lowPpRestore",
+        "threshold": 0.25,
+        "restorePct": 0.45,
+        "consume": true
+      },
+      "art": "/assets/items/i012.png"
+    },
+    {
+      "id": "i133",
+      "name": "급소 렌즈",
+      "rarity": "rare",
+      "icon": "◉",
+      "maxStack": 2,
+      "text": "장착: 이 몬스터의 기술 급소 확률이 8%p 증가합니다.",
+      "mod": {},
+      "category": "장착",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "held": {
+        "kind": "critBonus",
+        "bonus": 0.08
+      },
+      "art": "/assets/items/i013.png"
+    },
+    {
+      "id": "i134",
+      "name": "흡혈 부적",
+      "rarity": "ultra",
+      "icon": "☽",
+      "maxStack": 2,
+      "text": "장착: 이 몬스터가 기술로 준 피해의 12%만큼 HP를 회복합니다.",
+      "mod": {},
+      "category": "장착",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "held": {
+        "kind": "lifesteal",
+        "healPct": 0.12
+      },
+      "art": "/assets/items/i014.png"
+    },
+    {
+      "id": "i135",
+      "name": "수호 리본",
+      "rarity": "rare",
+      "icon": "▣",
+      "maxStack": 2,
+      "text": "장착: 이 몬스터가 받는 직접 피해가 10% 감소합니다.",
+      "mod": {},
+      "category": "장착",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "held": {
+        "kind": "damageReduction",
+        "reduction": 0.1
+      },
+      "art": "/assets/items/i015.png"
+    },
+    {
+      "id": "i136",
+      "name": "선봉 방패코어",
+      "rarity": "rare",
+      "icon": "⬢",
+      "maxStack": 2,
+      "text": "장착: 매 전투 시작 시 이 몬스터에게 방어막 10을 부여합니다.",
+      "mod": {},
+      "category": "장착",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "held": {
+        "kind": "startBlock",
+        "block": 10
+      },
+      "art": "/assets/items/i016.png"
+    },
+    {
+      "id": "i137",
+      "name": "정화 브로치",
+      "rarity": "ultra",
+      "icon": "✧",
+      "maxStack": 2,
+      "text": "장착: 이 몬스터가 주요 상태이상에 걸릴 확률이 35% 감소합니다.",
+      "mod": {},
+      "category": "장착",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "held": {
+        "kind": "statusResist",
+        "resist": 0.35
+      },
+      "art": "/assets/items/i017.png"
+    },
+    {
+      "id": "i138",
+      "name": "재생의 고리",
+      "rarity": "ultra",
+      "icon": "○",
+      "maxStack": 2,
+      "text": "장착: 전투 승리 후 이 몬스터의 최대 HP 15%를 회복합니다.",
+      "mod": {},
+      "category": "장착",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "held": {
+        "kind": "afterBattleHeal",
+        "healPct": 0.15
+      },
+      "art": "/assets/items/i018.png"
+    },
+    {
+      "id": "i139",
+      "name": "숙련의 왕관",
+      "rarity": "legendary",
+      "icon": "♛",
+      "maxStack": 1,
+      "text": "장착: 이 몬스터가 받는 전투 EXP가 65% 증가합니다.",
+      "mod": {},
+      "category": "장착",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "held": {
+        "kind": "xpBoost",
+        "xpPct": 0.65
+      },
+      "art": "/assets/items/i019.png"
+    },
+    {
+      "id": "i140",
+      "name": "긴급 방호열매",
+      "rarity": "rare",
+      "icon": "◇",
+      "maxStack": 3,
+      "text": "장착: HP 50% 이하가 되면 방어막 18을 얻고 소모되는 1회용 열매입니다.",
+      "mod": {},
+      "category": "열매",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "held": {
+        "kind": "lowHpGuard",
+        "threshold": 0.5,
+        "block": 18,
+        "consume": true
+      },
+      "art": "/assets/items/i020.png"
+    },
+    {
+      "id": "i141",
+      "name": "폭풍의 심핵",
+      "rarity": "rare",
+      "icon": "ϟ",
+      "maxStack": 2,
+      "text": "특수 진화 재료. 전류족제비의 진화를 일으킵니다. 무료 보상에서 낮은 확률로 등장합니다.",
+      "mod": {},
+      "category": "진화재료",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "art": "/assets/items/i021.png"
+    },
+    {
+      "id": "i142",
+      "name": "월식석",
+      "rarity": "rare",
+      "icon": "☾",
+      "maxStack": 2,
+      "text": "특수 진화 재료. 심연의 박쥐의 진화를 일으킵니다. 무료 보상에서 낮은 확률로 등장합니다.",
+      "mod": {},
+      "category": "진화재료",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "art": "/assets/items/i022.png"
+    },
+    {
+      "id": "i143",
+      "name": "태양꽃 결정",
+      "rarity": "rare",
+      "icon": "☀",
+      "maxStack": 2,
+      "text": "특수 진화 재료. 꽃덩굴 나가의 진화를 일으킵니다. 무료 보상에서 낮은 확률로 등장합니다.",
+      "mod": {},
+      "category": "진화재료",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "art": "/assets/items/i023.png"
+    },
+    {
+      "id": "i144",
+      "name": "영구빙정",
+      "rarity": "ultra",
+      "icon": "❄",
+      "maxStack": 1,
+      "text": "희귀 특수 진화 재료. 빙결여우 글라시아의 진화를 일으킵니다. 무료 보상에서 매우 낮은 확률로 등장합니다.",
+      "mod": {},
+      "category": "진화재료",
+      "modes": [
+        "journey",
+        "dungeon"
+      ],
+      "art": "/assets/items/i024.png"
     }
   ],
   "biomes": [
@@ -15423,9 +15720,9 @@
       "evolutionSprite": "/assets/monsters/forms/e003_evolution.png",
       "resonanceSprite": "/assets/monsters/forms/e003_resonance.png",
       "riftSprite": "/assets/monsters/forms/e003_rift.png",
-      "evolutionItemId": "i030",
-      "evolutionItemName": "폭풍 핵",
-      "evolutionItemOnly": false
+      "evolutionItemId": "i141",
+      "evolutionItemName": "폭풍의 심핵",
+      "evolutionItemOnly": true
     },
     {
       "id": "e004",
@@ -15486,9 +15783,9 @@
       "evolutionSprite": "/assets/monsters/forms/e005_evolution.png",
       "resonanceSprite": "/assets/monsters/forms/e005_resonance.png",
       "riftSprite": "/assets/monsters/forms/e005_rift.png",
-      "evolutionItemId": "i029",
-      "evolutionItemName": "월영 파편",
-      "evolutionItemOnly": false
+      "evolutionItemId": "i142",
+      "evolutionItemName": "월식석",
+      "evolutionItemOnly": true
     },
     {
       "id": "e006",
@@ -15789,9 +16086,9 @@
       "evolutionSprite": "/assets/monsters/forms/e015_evolution.png",
       "resonanceSprite": "/assets/monsters/forms/e015_resonance.png",
       "riftSprite": "/assets/monsters/forms/e015_rift.png",
-      "evolutionItemId": "i028",
-      "evolutionItemName": "태양 개화석",
-      "evolutionItemOnly": false
+      "evolutionItemId": "i143",
+      "evolutionItemName": "태양꽃 결정",
+      "evolutionItemOnly": true
     },
     {
       "id": "e016",
@@ -17471,7 +17768,10 @@
       "abyssName": "균열개화 · 빙결여우 글라시아",
       "evolutionSprite": "/assets/monsters/forms/e071_evolution.png",
       "resonanceSprite": "/assets/monsters/forms/e071_resonance.png",
-      "riftSprite": "/assets/monsters/forms/e071_rift.png"
+      "riftSprite": "/assets/monsters/forms/e071_rift.png",
+      "evolutionItemId": "i144",
+      "evolutionItemName": "영구빙정",
+      "evolutionItemOnly": true
     },
     {
       "id": "e072",
