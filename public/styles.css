@@ -2333,3 +2333,281 @@ body.combat-narrating-v72 .battle-v72 .battle-dialog-v57 span{position:absolute!
   body.combat-narrating-v72 .battle-v72 .battle-dialog-v57 span{position:static!important;font-size:11px!important;color:#55605b!important;margin-top:7px!important}
   .battle-v72 .live-status-chip-v62{font-size:10.5px!important;height:22px!important;padding:3px 7px!important}
 }
+
+
+/* =========================================================
+   FUSEWILD v7.3 - RESPONSIVE BATTLE + READABLE PHASE CADENCE
+   Final override layer. Avoid fixed mobile command heights and reward clipping.
+   ========================================================= */
+body:has(.battle-v73){background:#091019}
+.battle-v73 .battle-speed-v73{min-width:54px!important;padding:0 8px!important;font-weight:1000!important;color:#f4e5a3!important;border-color:#7d7452!important}
+.battle-v73 .active-mon-v52,.battle-v73 .enemy-mon-v52{opacity:1!important;filter:none!important}
+.battle-v73 .finisher-target-v73 .enemy-sprite-v52>img,.battle-v73 .finisher-target-v73 .mon-sprite-v52>img{opacity:1!important;filter:drop-shadow(0 14px 6px #0008)!important;transform:none!important}
+.battle-v73 .pending-cast-v73 .mon-sprite-v52>img{animation:v73PendingCast .62s ease-out both}
+@keyframes v73PendingCast{0%{filter:brightness(1);transform:translateY(0) scale(1)}35%{filter:brightness(1.55);transform:translateY(-6px) scale(1.055)}100%{filter:brightness(1);transform:translateY(0) scale(1)}}
+body.combat-pending-v73 .battle-v73 .command-box-v52{grid-template-columns:1fr!important;grid-template-rows:minmax(110px,auto)!important;height:auto!important;min-height:110px!important}
+body.combat-pending-v73 .battle-v73 .command-content-v52{display:none!important}
+body.combat-pending-v73 .battle-v73 .battle-dialog-v57{border-right:0!important;width:100%!important;max-width:none!important}
+
+/* Desktop battle: preserve a generous arena and keep the command rail readable. */
+@media (min-width:901px){
+  .battle-v73{grid-template-rows:72px minmax(0,1fr) 238px!important}
+  .battle-v73 .command-box-v52{height:238px!important}
+  .battle-v73 .battle-dialog-v57 b{font-size:26px!important}
+  .battle-v73 .move-btn-v52{min-height:82px!important;padding:10px 12px!important}
+  .battle-v73 .move-btn-v52 b{font-size:16px!important}
+  .battle-v73 .move-btn-v52 small{font-size:10.5px!important;line-height:1.3!important}
+  .battle-v73 .move-effect-tags-v54 i{font-size:9px!important}
+}
+
+/* Tablet/mobile: the page is allowed to grow vertically. Nothing is hidden just to fit 100dvh. */
+@media (max-width:900px){
+  html:has(.battle-v73),body:has(.battle-v73){overflow-x:hidden!important;overflow-y:auto!important;height:auto!important;min-height:100%!important}
+  .battle-v73{height:auto!important;min-height:100svh!important;overflow:visible!important;grid-template-rows:auto minmax(300px,42svh) auto!important;padding-bottom:max(8px,env(safe-area-inset-bottom))!important}
+  .battle-v73 .battle-top-v52{position:relative!important;height:auto!important;min-height:58px!important;padding:7px 8px!important;grid-template-columns:minmax(0,1fr) auto auto!important;gap:6px!important;overflow:visible!important}
+  .battle-v73 .party-mini-v52{display:none!important}
+  .battle-v73 .battle-title-v52 b{font-size:16px!important}.battle-v73 .battle-title-v52 small{font-size:9px!important}
+  .battle-v73 .battle-core-v52{gap:4px!important}.battle-v73 .battle-core-v52 span{font-size:9.5px!important}
+  .battle-v73 .battle-tools-v52{gap:4px!important}.battle-v73 .battle-tools-v52 button{height:38px!important;min-width:38px!important;padding:0 7px!important;font-size:10px!important}
+  .battle-v73 .battle-speed-v73{min-width:48px!important}
+  .battle-v73 .battle-arena-v52{min-height:300px!important;height:42svh!important;max-height:none!important;overflow:visible!important;padding:8px 6px 4px!important;gap:6px!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;align-items:end!important}
+  .battle-v73 .player-field-v52,.battle-v73 .enemy-field-v52{height:100%!important;min-width:0!important;overflow:visible!important;align-items:flex-end!important}
+  .battle-v73 .active-mon-v52,.battle-v73 .enemy-mon-v52{width:100%!important;max-width:100%!important;height:100%!important;max-height:none!important;min-width:0!important;flex:1 1 0!important}
+  .battle-v73 .mon-status-v52,.battle-v73 .enemy-status-v52{top:0!important;left:2px!important;right:2px!important;min-height:74px!important;padding:7px 8px 8px!important;gap:4px 7px!important;overflow:visible!important}
+  .battle-v73 .mon-status-v52 b,.battle-v73 .enemy-status-v52 b{font-size:14px!important;line-height:1.2!important}
+  .battle-v73 .mon-status-v52 small,.battle-v73 .enemy-status-v52 small{font-size:10px!important;line-height:1.2!important;white-space:normal!important;display:block!important;overflow:visible!important;text-overflow:clip!important}
+  .battle-v73 .mon-status-v52>span,.battle-v73 .enemy-status-v52>span{font-size:12px!important}
+  .battle-v73 .mon-status-v52>i,.battle-v73 .enemy-status-v52>i{height:9px!important}
+  .battle-v73 .live-status-row-v72{gap:4px!important;margin-top:4px!important;min-height:22px!important}
+  .battle-v73 .live-status-chip-v62{height:auto!important;min-height:22px!important;font-size:10px!important;line-height:14px!important;padding:3px 6px!important}
+  .battle-v73 .mon-sprite-v52,.battle-v73 .enemy-sprite-v52{bottom:0!important;width:96%!important;height:calc(100% - 76px)!important;max-height:none!important}
+  .battle-v73 .mon-sprite-v52>img:not(.fusion-ghost-v40),.battle-v73 .enemy-sprite-v52>img.enemy-sprite{max-width:100%!important;max-height:100%!important;width:auto!important;height:auto!important;object-fit:contain!important}
+  .battle-v73 .command-box-v52{position:relative!important;height:auto!important;min-height:0!important;grid-template-columns:1fr!important;grid-template-rows:auto auto!important;overflow:visible!important}
+  .battle-v73 .battle-dialog-v57{min-height:104px!important;padding:13px 15px!important;border-right:0!important;border-bottom:2px solid rgba(238,235,215,.68)!important;overflow:visible!important}
+  .battle-v73 .battle-dialog-v57 small{font-size:11px!important}.battle-v73 .battle-dialog-v57 b{font-size:22px!important;line-height:1.22!important}.battle-v73 .battle-dialog-v57 span{font-size:11px!important;white-space:normal!important;overflow:visible!important}
+  .battle-v73 .command-content-v52{height:auto!important;min-height:0!important;padding:9px!important;overflow:visible!important}
+  .battle-v73 .root-command-v52{height:auto!important;min-height:206px!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(96px,auto))!important;gap:7px!important}
+  .battle-v73 .root-command-v52 button{min-height:96px!important;padding:10px!important}.battle-v73 .root-command-v52 button>b{font-size:17px!important}.battle-v73 .root-command-v52 button>small{display:block!important;font-size:10px!important;white-space:normal!important;line-height:1.2!important}
+  .battle-v73 .move-command-v52,.battle-v73 .party-command-v52,.battle-v73 .fusion-command-panel-v56,.battle-v73 .capture-command-v45,.battle-v73 .replacement-command-v70{height:auto!important;min-height:0!important;overflow:visible!important;grid-template-rows:auto auto!important}
+  .battle-v73 .subcommand-head-v52{min-height:48px!important;margin-bottom:7px!important}.battle-v73 .subcommand-head-v52 b{font-size:17px!important}
+  .battle-v73 .move-grid-v52{height:auto!important;min-height:0!important;grid-template-columns:1fr!important;grid-template-rows:none!important;grid-auto-rows:minmax(82px,auto)!important;gap:7px!important;overflow:visible!important}
+  .battle-v73 .move-btn-v52{min-height:82px!important;height:auto!important;padding:9px 10px!important;grid-template-columns:24px 34px minmax(0,1fr) auto!important;gap:7px!important;overflow:visible!important}
+  .battle-v73 .move-btn-v52>div{overflow:visible!important}.battle-v73 .move-btn-v52 b{font-size:16px!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.18!important}
+  .battle-v73 .move-btn-v52 small{font-size:10.5px!important;line-height:1.25!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}.battle-v73 .move-type-line-v54{display:block!important}
+  .battle-v73 .move-btn-v52>strong{display:block!important;font-size:9px!important;align-self:start!important}.battle-v73 .move-effect-tags-v54{display:flex!important;flex-wrap:wrap!important;gap:3px!important}.battle-v73 .move-effect-tags-v54 i{font-size:8.5px!important;padding:2px 4px!important}
+  .battle-v73 .replacement-grid-v70,.battle-v73 .party-switch-v52,.battle-v73 .fusion-partner-grid-v56{max-height:none!important;overflow-x:auto!important;overflow-y:visible!important;padding-bottom:5px!important}
+  body.combat-resolving-v54 .battle-v73 .command-box-v52,body.combat-narrating-v72 .battle-v73 .command-box-v52,body.combat-pending-v73 .battle-v73 .command-box-v52{height:auto!important;min-height:118px!important;grid-template-rows:auto!important}
+  body.combat-resolving-v54 .battle-v73 .battle-dialog-v57,body.combat-narrating-v72 .battle-v73 .battle-dialog-v57,body.combat-pending-v73 .battle-v73 .battle-dialog-v57{min-height:118px!important;padding:14px 16px!important;background:#eef0d6!important}
+  body.combat-resolving-v54 .battle-v73 .battle-dialog-v57 b,body.combat-narrating-v72 .battle-v73 .battle-dialog-v57 b,body.combat-pending-v73 .battle-v73 .battle-dialog-v57 b{font-size:23px!important;max-width:none!important;color:#10151d!important}
+}
+
+@media (max-width:520px){
+  .battle-v73{grid-template-rows:auto minmax(270px,39svh) auto!important}
+  .battle-v73 .battle-arena-v52{height:39svh!important;min-height:270px!important}
+  .battle-v73 .battle-title-v52 b{font-size:15px!important}.battle-v73 .battle-core-v52 .battle-money-v53{display:none!important}
+  .battle-v73 .battle-tools-v52 button{min-width:34px!important;height:36px!important}.battle-v73 .battle-speed-v73{min-width:44px!important}
+  .battle-v73 .mon-status-v52,.battle-v73 .enemy-status-v52{min-height:78px!important;padding:6px!important}
+  .battle-v73 .mon-status-v52 b,.battle-v73 .enemy-status-v52 b{font-size:13px!important}.battle-v73 .mon-status-v52 small,.battle-v73 .enemy-status-v52 small{font-size:9.5px!important}
+  .battle-v73 .mon-sprite-v52,.battle-v73 .enemy-sprite-v52{height:calc(100% - 80px)!important}
+  .battle-v73 .battle-dialog-v57{min-height:100px!important}.battle-v73 .battle-dialog-v57 b{font-size:20px!important}
+  .battle-v73 .move-grid-v52{grid-auto-rows:minmax(88px,auto)!important}.battle-v73 .move-btn-v52{min-height:88px!important;grid-template-columns:22px 30px minmax(0,1fr)!important}.battle-v73 .move-btn-v52>strong{grid-column:3!important;justify-self:start!important;margin-top:3px!important}.battle-v73 .move-btn-v52 b{font-size:15.5px!important}.battle-v73 .move-btn-v52 small{font-size:10px!important}
+}
+
+/* Post-battle: middle area scrolls; footer never covers the free rewards. */
+.reward-v73{height:100dvh!important;min-height:0!important;overflow:hidden!important}
+.afterbattle-v73{grid-template-rows:54px minmax(0,1fr) 128px!important;overflow:hidden!important}
+.afterbattle-v73 .afterbattle-stage-v64{align-items:start!important;overflow:auto!important;overscroll-behavior:contain!important;padding-bottom:24px!important}
+.afterbattle-v73 .afterbattle-main-v64{overflow:visible!important;padding-bottom:18px!important}
+.afterbattle-v73 .afterbattle-group-v64{break-inside:avoid!important}
+.afterbattle-v73 .afterbattle-footer-v64{position:relative!important;z-index:20!important;min-height:128px!important}
+.afterbattle-v73 .afterbattle-strip-v64{align-items:stretch!important}
+.afterbattle-v73 .afterbattle-token-v64.reward-card-v71{min-height:132px!important;height:auto!important}
+
+@media (max-width:900px){
+  html:has(.reward-v73),body.reward-screen-v64{overflow-y:auto!important;height:auto!important;min-height:100%!important}
+  .reward-v73{height:auto!important;min-height:100svh!important;overflow:visible!important;padding-bottom:max(8px,env(safe-area-inset-bottom))!important}
+  .afterbattle-v73{position:relative!important;inset:auto!important;height:auto!important;min-height:calc(100svh - 54px)!important;display:flex!important;flex-direction:column!important;overflow:visible!important;padding-top:54px!important}
+  .afterbattle-v73 .afterbattle-top-v64{position:relative!important;flex:0 0 auto!important;min-height:48px!important}
+  .afterbattle-v73 .afterbattle-stage-v64{flex:1 1 auto!important;display:block!important;overflow:visible!important;padding:8px!important}
+  .afterbattle-v73 .afterbattle-main-v64{overflow:visible!important;padding:0 0 10px!important}
+  .afterbattle-v73 .afterbattle-lead-v64{display:none!important}
+  .afterbattle-v73 .afterbattle-group-v64{padding:8px 0 12px!important}
+  .afterbattle-v73 .afterbattle-strip-v64{display:flex!important;overflow-x:auto!important;overflow-y:hidden!important;gap:9px!important;scroll-snap-type:x mandatory!important;padding:2px 2px 8px!important}
+  .afterbattle-v73 .afterbattle-token-v64.reward-card-v71{flex:0 0 min(84vw,330px)!important;width:min(84vw,330px)!important;min-height:138px!important;height:auto!important;scroll-snap-align:start!important}
+  .afterbattle-v73 .afterbattle-footer-v64{position:relative!important;flex:0 0 auto!important;display:grid!important;grid-template-columns:1fr!important;grid-template-rows:auto auto!important;min-height:0!important;padding-bottom:max(8px,env(safe-area-inset-bottom))!important}
+  .afterbattle-v73 .afterbattle-dialog-v64{min-height:110px!important;padding:12px 14px!important}.afterbattle-v73 .afterbattle-dialog-v64 b{font-size:19px!important}.afterbattle-v73 .afterbattle-dialog-v64 span{font-size:11px!important;line-height:1.4!important}
+  .afterbattle-v73 .afterbattle-controls-v64{width:100%!important;max-width:none!important;min-width:0!important;display:flex!important;overflow-x:auto!important;gap:6px!important;padding:6px!important}
+  .afterbattle-v73 .afterbattle-controls-v64 button{flex:1 0 92px!important;min-height:54px!important;font-size:10.5px!important}
+}
+
+/* v7.3.1 containment fix: legacy visual-run/reward rules must not re-clamp mobile pages. */
+@media (max-width:900px){
+  body.visual-run-v31:has(.battle-v73) .screen,
+  body.reward-screen-v64 .screen:has(.reward-v73){
+    height:auto!important;
+    min-height:100svh!important;
+    overflow:visible!important;
+  }
+  body.visual-run-v31:has(.battle-v73){overflow-x:hidden!important;overflow-y:auto!important;min-height:100svh!important;height:auto!important}
+  body.reward-screen-v64:has(.reward-v73){overflow-x:hidden!important;overflow-y:auto!important;min-height:100svh!important;height:auto!important}
+}
+
+/* Short desktop/laptop viewports: keep both SHOP and FREE REWARD visible above the footer. */
+@media (min-width:901px) and (max-height:920px){
+  .afterbattle-v73{grid-template-rows:46px minmax(0,1fr) 112px!important}
+  .afterbattle-v73 .afterbattle-stage-v64{padding:4px 18px 14px!important;gap:14px!important;scrollbar-width:thin!important}
+  .afterbattle-v73 .afterbattle-main-v64{gap:7px!important;padding-bottom:10px!important}
+  .afterbattle-v73 .afterbattle-group-v64{padding:4px 0 7px!important}
+  .afterbattle-v73 .afterbattle-group-v64>header{margin-bottom:5px!important}
+  .afterbattle-v73 .afterbattle-group-v64>header b{font-size:17px!important}
+  .afterbattle-v73 .afterbattle-strip-v64{gap:7px!important;padding:1px 2px 4px!important}
+  .afterbattle-v73 .afterbattle-token-v64.reward-card-v71{min-height:112px!important;height:112px!important;padding:7px 10px!important}
+  .afterbattle-v73 .reward-art-v71{width:58px!important;height:58px!important;flex-basis:58px!important}
+  .afterbattle-v73 .reward-art-v71 img{width:50px!important;height:50px!important}
+  .afterbattle-v73 .reward-card-v71 .reward-copy-v71>b{font-size:15px!important}
+  .afterbattle-v73 .reward-card-v71 .reward-copy-v71>em{font-size:10.5px!important;line-height:1.25!important;-webkit-line-clamp:2!important}
+  .afterbattle-v73 .afterbattle-footer-v64{min-height:112px!important;padding-top:6px!important;padding-bottom:6px!important}
+  .afterbattle-v73 .afterbattle-dialog-v64 b{font-size:18px!important}
+  .afterbattle-v73 .afterbattle-dialog-v64 span{font-size:10.5px!important}
+}
+
+/* Strong visual separation between paid shop stock and the one free pick. */
+.afterbattle-v73 .shop-group-v64{
+  padding-left:10px!important;padding-right:10px!important;
+  border-left:4px solid rgba(255,219,111,.68)!important;
+  background:linear-gradient(90deg,rgba(72,58,25,.24),rgba(10,16,24,.04) 48%,transparent)!important;
+}
+.afterbattle-v73 .reward-group-v64{
+  padding-left:10px!important;padding-right:10px!important;
+  border-left:4px solid rgba(118,238,196,.78)!important;
+  background:linear-gradient(90deg,rgba(24,74,61,.28),rgba(10,16,24,.04) 48%,transparent)!important;
+}
+.afterbattle-v73 .shop-group-v64>header small{color:#ffe18a!important}
+.afterbattle-v73 .reward-group-v64>header small{color:#8ff1cf!important}
+
+/* ================================================================
+   FUSEWILD v7.4 QA REFRESH
+   Final containment layer. This intentionally comes last so old
+   versioned rules cannot re-introduce clipped mobile/reward screens.
+   ================================================================ */
+.battle-v74,.battle-v74 *,
+.reward-v74,.reward-v74 *,
+.afterbattle-v74,.afterbattle-v74 *{box-sizing:border-box;min-width:0}
+
+/* Never dim a combatant just because the server is resolving another phase. */
+.battle-v74 .active-mon-v52,.battle-v74 .enemy-mon-v52,
+body.combat-resolving-v54 .battle-v74 .active-mon-v52,
+body.combat-resolving-v54 .battle-v74 .enemy-mon-v52,
+body.combat-narrating-v72 .battle-v74 .active-mon-v52,
+body.combat-narrating-v72 .battle-v74 .enemy-mon-v52{
+  opacity:1!important;filter:none!important;
+}
+
+/* Long generated names and status labels must remain inside their panel. */
+.battle-v74 .mon-status-v52>div,
+.battle-v74 .enemy-status-v52>div,
+.battle-v74 .battle-title-v52,
+.battle-v74 .move-btn-v52>div,
+.afterbattle-v74 .reward-copy-v71{min-width:0!important;max-width:100%!important}
+.battle-v74 .mon-status-v52 b,
+.battle-v74 .enemy-status-v52 b,
+.battle-v74 .battle-title-v52 b{
+  max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+}
+.battle-v74 .live-status-layer-v62{max-width:100%!important;display:flex!important;gap:4px!important;flex-wrap:wrap!important;overflow:visible!important}
+.battle-v74 .live-status-chip-v62{max-width:100%!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+
+/* Move cards: no hard crop at normal desktop/laptop sizes. */
+.battle-v74 .move-btn-v52{overflow:hidden!important;min-height:72px!important}
+.battle-v74 .move-btn-v52 b{max-width:100%!important}
+.battle-v74 .move-btn-v52 small{max-width:100%!important}
+
+/* Reward cards: paid stock and free stock may scroll, but the footer can never cover them. */
+.afterbattle-v74 .afterbattle-stage-v64{
+  min-height:0!important;overflow-x:hidden!important;overflow-y:auto!important;
+  scroll-padding-bottom:32px!important;padding-bottom:32px!important;
+}
+.afterbattle-v74 .afterbattle-main-v64{min-height:min-content!important;overflow:visible!important;padding-bottom:24px!important}
+.afterbattle-v74 .afterbattle-group-v64{min-width:0!important;overflow:visible!important}
+.afterbattle-v74 .afterbattle-strip-v64{min-width:0!important}
+.afterbattle-v74 .afterbattle-token-v64.reward-card-v71{overflow:hidden!important}
+.afterbattle-v74 .reward-card-v71 .reward-copy-v71>b{
+  max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+}
+.afterbattle-v74 .reward-card-v71 .reward-copy-v71>em{
+  max-width:100%!important;overflow-wrap:anywhere!important;word-break:keep-all!important;
+}
+.afterbattle-v74 .afterbattle-footer-v64{position:relative!important;z-index:30!important;flex-shrink:0!important}
+
+/* Short desktop/laptop screens get a slightly smaller fixed footer and a true scrolling middle pane. */
+@media (min-width:901px) and (max-height:840px){
+  .afterbattle-v74{grid-template-rows:44px minmax(0,1fr) 106px!important}
+  .afterbattle-v74 .afterbattle-stage-v64{padding-top:4px!important;padding-bottom:30px!important}
+  .afterbattle-v74 .afterbattle-token-v64.reward-card-v71{min-height:108px!important;height:auto!important}
+  .afterbattle-v74 .afterbattle-footer-v64{min-height:106px!important}
+}
+
+/* Mobile/tablet: the document grows naturally instead of being trapped in 100dvh.
+   Large readable text is kept; scrolling is preferred over shrinking/cropping. */
+@media (max-width:900px){
+  html:has(.battle-v74),body:has(.battle-v74),
+  html:has(.reward-v74),body.reward-screen-v64:has(.reward-v74){
+    width:100%!important;height:auto!important;min-height:100%!important;
+    overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior-y:auto!important;
+  }
+  body.visual-run-v31:has(.battle-v74) .screen,
+  body.reward-screen-v64:has(.reward-v74) .screen{
+    width:100%!important;height:auto!important;min-height:100svh!important;overflow:visible!important;
+  }
+  .battle-v74{
+    position:relative!important;inset:auto!important;width:100%!important;
+    height:auto!important;min-height:100svh!important;overflow:visible!important;
+    grid-template-rows:auto minmax(300px,42svh) auto!important;
+    padding-bottom:max(10px,env(safe-area-inset-bottom))!important;
+  }
+  .battle-v74 .battle-arena-v52{height:42svh!important;min-height:300px!important;max-height:none!important;overflow:visible!important}
+  .battle-v74 .command-box-v52,.battle-v74 .command-content-v52,.battle-v74 .move-command-v52,.battle-v74 .move-grid-v52{
+    height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;
+  }
+  .battle-v74 .command-box-v52{position:relative!important;display:block!important;padding-bottom:max(10px,env(safe-area-inset-bottom))!important}
+  .battle-v74 .battle-dialog-v57{min-height:108px!important;height:auto!important;padding:13px 15px!important}
+  .battle-v74 .battle-dialog-v57 b{font-size:clamp(20px,5.3vw,25px)!important;line-height:1.25!important;max-width:none!important;white-space:normal!important;overflow-wrap:anywhere!important}
+  .battle-v74 .battle-dialog-v57 span{font-size:clamp(11px,3vw,14px)!important;line-height:1.35!important;white-space:normal!important}
+  .battle-v74 .move-grid-v52{display:grid!important;grid-template-columns:1fr!important;grid-auto-rows:minmax(92px,auto)!important;gap:7px!important;padding:7px!important}
+  .battle-v74 .move-btn-v52{
+    width:100%!important;height:auto!important;min-height:92px!important;max-height:none!important;
+    grid-template-columns:28px 38px minmax(0,1fr) auto!important;align-items:center!important;
+    padding:10px 11px!important;overflow:visible!important;
+  }
+  .battle-v74 .move-btn-v52 b{font-size:clamp(16px,4.4vw,20px)!important;line-height:1.2!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere!important}
+  .battle-v74 .move-btn-v52 small{font-size:clamp(10.5px,2.8vw,13px)!important;line-height:1.35!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+  .battle-v74 .move-btn-v52>strong{font-size:clamp(10px,2.6vw,12px)!important;white-space:nowrap!important}
+  .battle-v74 .move-effect-tags-v54{display:flex!important;flex-wrap:wrap!important;overflow:visible!important;gap:4px!important}
+  .battle-v74 .move-effect-tags-v54 i{font-size:clamp(9px,2.4vw,11px)!important}
+  .battle-v74 .mon-status-v52,.battle-v74 .enemy-status-v52{min-height:82px!important;height:auto!important;overflow:visible!important;padding:7px 8px!important}
+  .battle-v74 .mon-status-v52 b,.battle-v74 .enemy-status-v52 b{font-size:clamp(13px,3.5vw,16px)!important}
+  .battle-v74 .mon-status-v52 small,.battle-v74 .enemy-status-v52 small{font-size:clamp(9.5px,2.55vw,11.5px)!important}
+  .battle-v74 .mon-sprite-v52,.battle-v74 .enemy-sprite-v52{height:calc(100% - 84px)!important;min-height:160px!important}
+
+  .reward-v74{position:relative!important;height:auto!important;min-height:100svh!important;overflow:visible!important;padding-bottom:max(10px,env(safe-area-inset-bottom))!important}
+  .afterbattle-v74{position:relative!important;inset:auto!important;height:auto!important;min-height:calc(100svh - 54px)!important;display:flex!important;flex-direction:column!important;overflow:visible!important;padding-top:54px!important}
+  .afterbattle-v74 .afterbattle-stage-v64{display:block!important;overflow:visible!important;padding:10px 9px 18px!important}
+  .afterbattle-v74 .afterbattle-main-v64{overflow:visible!important;padding-bottom:10px!important}
+  .afterbattle-v74 .afterbattle-strip-v64{display:flex!important;gap:10px!important;overflow-x:auto!important;overflow-y:hidden!important;padding:3px 3px 10px!important;scroll-snap-type:x mandatory!important;-webkit-overflow-scrolling:touch!important}
+  .afterbattle-v74 .afterbattle-token-v64.reward-card-v71{flex:0 0 min(88vw,360px)!important;width:min(88vw,360px)!important;min-height:144px!important;height:auto!important;scroll-snap-align:start!important}
+  .afterbattle-v74 .reward-card-v71 .reward-copy-v71>b{font-size:clamp(15px,4vw,18px)!important}
+  .afterbattle-v74 .reward-card-v71 .reward-copy-v71>em{font-size:clamp(11px,2.9vw,13px)!important;line-height:1.42!important;-webkit-line-clamp:4!important}
+  .afterbattle-v74 .afterbattle-footer-v64{display:grid!important;grid-template-columns:1fr!important;grid-template-rows:auto auto!important;min-height:0!important;padding-bottom:max(10px,env(safe-area-inset-bottom))!important}
+  .afterbattle-v74 .afterbattle-dialog-v64{min-height:116px!important;height:auto!important;padding:13px 15px!important}
+  .afterbattle-v74 .afterbattle-dialog-v64 b{font-size:clamp(19px,5vw,24px)!important;line-height:1.2!important;white-space:normal!important;overflow-wrap:anywhere!important}
+  .afterbattle-v74 .afterbattle-dialog-v64 span{font-size:clamp(11px,2.9vw,13px)!important;line-height:1.45!important;display:block!important;-webkit-line-clamp:unset!important;overflow:visible!important}
+  .afterbattle-v74 .afterbattle-controls-v64{width:100%!important;max-width:none!important;min-width:0!important;display:flex!important;overflow-x:auto!important;gap:7px!important;padding:7px!important;-webkit-overflow-scrolling:touch!important}
+  .afterbattle-v74 .afterbattle-controls-v64 button{flex:1 0 96px!important;min-height:58px!important;font-size:clamp(11px,2.9vw,13px)!important}
+}
+
+@media (max-width:430px){
+  .battle-v74{grid-template-rows:auto minmax(286px,40svh) auto!important}
+  .battle-v74 .battle-arena-v52{height:40svh!important;min-height:286px!important}
+  .battle-v74 .move-btn-v52{grid-template-columns:24px 34px minmax(0,1fr) auto!important;padding:9px!important}
+  .afterbattle-v74 .afterbattle-token-v64.reward-card-v71{flex-basis:88vw!important;width:88vw!important;grid-template-columns:68px minmax(0,1fr) auto!important}
+}

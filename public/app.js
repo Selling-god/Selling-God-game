@@ -64,7 +64,9 @@
     battleMenu: 'root',
     fusionDraft: null,
     rewardFocus: null,
-    battlePhaseLock: null
+    battlePhaseLock: null,
+    battleSpeed: localStorage.getItem('fusewild.battleSpeed') || 'normal',
+    localBattleAction: null
   };
   localStorage.setItem('riftdeck.guestProfileId', state.guestProfileId);
 
@@ -392,19 +394,31 @@
     const target=$(`[data-monster="${CSS.escape(payload?.instanceId||'')}"]`);if(target){target.classList.add('monster-transform-v40');setTimeout(()=>target.classList.remove('monster-transform-v40'),900);}screenFlash(payload?.mode==='rift'?'boss':'victory');screenShake('medium');showCenterBanner(payload?.mode==='resonance'?'RESONANCE':payload?.mode==='rift'?'RIFT BLOOM':payload?.mode==='fusion'?'FUSION':'EVOLUTION','','victory');sound('overdrive');
   }
 
-  const BATTLE_PACE_V57={turn:220,announce:360,move:620,signature:820,result:360,status:420,blocked:420,win:760,minor:300};
+  // v7.3: PokeRogue-inspired phase cadence. Input feedback is immediate, but each phase
+  // gets enough screen time to be readable. Users can still choose a slower/faster pace.
+  const BATTLE_SPEED_V73={slow:1.24,normal:1,fast:.78};
+  const BATTLE_PACE_V57={turn:420,announce:560,move:680,signature:860,result:520,status:620,blocked:520,win:920,minor:420};
+  function battlePaceScaleV73(){return BATTLE_SPEED_V73[state.battleSpeed]||1;}
+  function battlePaceV73(ms){return Math.max(40,Math.round(Number(ms||0)*battlePaceScaleV73()));}
+  function battleSpeedLabelV73(){return state.battleSpeed==='slow'?'0.8×':state.battleSpeed==='fast'?'1.25×':'1×';}
+  function beginLocalMoveFeedbackV73(mon,move){
+    if(!mon||!move)return;state.localBattleAction={type:'move',instanceId:mon.instanceId,moveId:move.id,at:Date.now()};
+    document.body.classList.add('combat-pending-v73');
+    battleNarrateV57(`${mon.name}의 ${move.name}!`,{tone:'move',tag:move.signature?'SIGNATURE MOVE':'MOVE',sub:move.element||mon.element||'',instant:true});
+    const actor=$(`[data-monster="${CSS.escape(mon.instanceId||'')}"]`);if(actor){actor.classList.add('pending-cast-v73');setTimeout(()=>actor.classList.remove('pending-cast-v73'),700);}
+  }
   function battleNarrateV57(text,{tone='normal',tag='BATTLE',sub='',instant=false}={}){
     const box=$('.battle-dialog-v52');if(!box)return;clearInterval(state.battleMessageTimer);state.battleMessageTimer=0;state.battleMessageNonce=Number(state.battleMessageNonce||0)+1;const nonce=state.battleMessageNonce;
-    state.battleMessageText=String(text||'');state.battleMessageTone=tone;document.body.classList.add('combat-narrating-v72');clearTimeout(state.combatNarrationTimer);state.combatNarrationTimer=setTimeout(()=>document.body.classList.remove('combat-narrating-v72'),700);box.classList.remove('tone-normal','tone-move','tone-enemy','tone-miss','tone-status','tone-critical','tone-good','tone-bad','tone-victory');box.classList.add('narrating-v57',`tone-${tone}`);
+    state.battleMessageText=String(text||'');state.battleMessageTone=tone;document.body.classList.add('combat-narrating-v72');clearTimeout(state.combatNarrationTimer);state.combatNarrationTimer=setTimeout(()=>document.body.classList.remove('combat-narrating-v72'),battlePaceV73(900));box.classList.remove('tone-normal','tone-move','tone-enemy','tone-miss','tone-status','tone-critical','tone-good','tone-bad','tone-victory');box.classList.add('narrating-v57',`tone-${tone}`);
     const small=box.querySelector('small'),b=box.querySelector('b'),span=box.querySelector('span');if(small)small.textContent=tag;if(span)span.textContent=sub||'';if(!b)return;b.textContent='';const chars=[...String(text||'')];
-    if(instant||chars.length<2){b.textContent=chars.join('');return;}let i=0;const speed=Math.max(6,Math.min(14,Math.round(320/Math.max(1,chars.length))));
+    if(instant||chars.length<2){b.textContent=chars.join('');return;}let i=0;const speed=Math.max(14,Math.min(28,Math.round((560*battlePaceScaleV73())/Math.max(1,chars.length))));
     state.battleMessageTimer=setInterval(()=>{if(nonce!==state.battleMessageNonce||!document.body.contains(b)){clearInterval(state.battleMessageTimer);state.battleMessageTimer=0;return;}b.textContent+=chars[i++]||'';if(i>=chars.length){clearInterval(state.battleMessageTimer);state.battleMessageTimer=0;}},speed);
   }
   function liveStatusLayerV62(target){if(!target)return null;const host=target.querySelector('.mon-status-v52,.enemy-status-v52')||target;let layer=host.querySelector('.live-status-layer-v62');if(!layer){layer=document.createElement('div');layer.className='live-status-layer-v62 live-status-row-v72';host.appendChild(layer);}return layer;}
   function stageStatusVisualV62(target,key,mode='apply',label=''){
     if(!target||!key)return;const layer=liveStatusLayerV62(target),safe=String(key).replace(/[^a-zA-Z0-9_-]/g,''),existing=layer?.querySelector(`[data-live-status="${CSS.escape(safe)}"]`);
-    if(mode==='cure'){existing?.remove();return;}if(mode==='blocked'||mode==='tick'){if(existing){existing.classList.remove('pulse');void existing.offsetWidth;existing.classList.add('pulse');}return;}
-    if(existing)return;const meta=STATUS_META_V55[key]||{},chip=document.createElement('span');chip.dataset.liveStatus=safe;chip.className=`live-status-chip-v62 status-${safe}`;chip.textContent=`${meta.glyph||'◆'} ${label||meta.label||String(key).toUpperCase()}`;layer?.appendChild(chip);
+    if(mode==='cure'){existing?.remove();if(layer&&!layer.children.length)layer.remove();return;}if(mode==='blocked'||mode==='tick'){if(existing){existing.classList.remove('pulse');void existing.offsetWidth;existing.classList.add('pulse');}return;}
+    if(existing||!layer)return;const meta=STATUS_META_V55[key]||{},chip=document.createElement('span');chip.dataset.liveStatus=safe;chip.className=`live-status-chip-v62 status-${safe}`;chip.textContent=`${meta.glyph||'◆'} ${label||meta.label||String(key).toUpperCase()}`;layer.appendChild(chip);
   }
   function stageDefeatVisualV62(target){if(!target||target.classList.contains('staged-ko-v62'))return;target.classList.add('staged-ko-v62');const mark=document.createElement('div');mark.className='staged-ko-mark-v62';mark.textContent='DOWN';target.appendChild(mark);}
   function stageHpNodeV62(target,before,after,max,enemyTarget=true){
@@ -412,7 +426,7 @@
     const bar=target.querySelector(enemyTarget?'.enemy-status-v52>i>em':'.mon-status-v52>i>em'),num=target.querySelector(enemyTarget?'.enemy-status-v52>span':'.mon-status-v52>span');
     if(bar){bar.style.transition='none';bar.style.width=`${pct(before,max)}%`;void bar.offsetWidth;bar.style.transition='width .64s cubic-bezier(.18,.82,.22,1)';bar.style.width=`${pct(after,max)}%`;}
     if(num){const start=performance.now(),dur=640;const tick=now=>{const q=Math.min(1,(now-start)/dur),value=Math.round(before+(after-before)*q);num.textContent=`${value}/${max}`;if(q<1)requestAnimationFrame(tick);};requestAnimationFrame(tick);}
-    if(after<=0)setTimeout(()=>stageDefeatVisualV62(target),660);else{target.classList.remove('staged-ko-v62');target.querySelector('.staged-ko-mark-v62')?.remove();}
+    if(after<=0){target.classList.add('finisher-target-v73');setTimeout(()=>{target.classList.remove('finisher-target-v73');stageDefeatVisualV62(target);},battlePaceV73(1450));}else{target.classList.remove('staged-ko-v62');target.querySelector('.staged-ko-mark-v62')?.remove();}
   }
   function stageBattleHpV62(payload,enemyTarget=true){
     if(!payload||!Number.isFinite(Number(payload.targetHpAfter))||!Number.isFinite(Number(payload.targetMaxHp)))return;
@@ -490,23 +504,23 @@
     battleNarrateV57(statusNarrationV57(key,name,mode,Number(p.damage||0)),{tone:mode==='cure'?'good':'status',tag:mode==='tick'?'STATUS DAMAGE':'STATUS'});
   }
 
-  function playRoomEvents(next,afterSeq){
-    if(!next?.feed)return 0;const events=next.feed.filter(ev=>Number(ev.seq)>Number(afterSeq||0));let combatDelay=Math.max(0,Number(state.battleTimelineUntil||0)-Date.now());
-    const later=(fn,step=0)=>{const at=combatDelay;setTimeout(()=>{try{fn();}catch(err){console.warn('[FUSEWILD] V57 phase skipped',err);}},at);combatDelay+=Math.max(0,Number(step||0));};
+  function playRoomEvents(next,afterSeq,{freshAction=false}={}){
+    if(!next?.feed)return 0;const events=next.feed.filter(ev=>Number(ev.seq)>Number(afterSeq||0));const carry=Math.max(0,Number(state.battleTimelineUntil||0)-Date.now());let combatDelay=freshAction?0:Math.min(carry,battlePaceV73(700));
+    const later=(fn,step=0)=>{const at=combatDelay;setTimeout(()=>{try{fn();}catch(err){console.warn('[FUSEWILD] V73 phase skipped',err);}},at);combatDelay+=battlePaceV73(step);};
     for(const ev of events){const p=ev.payload||{};
       if(ev.type==='battle-start')later(()=>{const names=(p.enemyNames||[]).filter(Boolean),who=names.length?names.join(' · '):(p.tier==='boss'?'강력한 적':'야생 몬스터');battleNarrateV57(`${who}${names.length>1?'들이':'이'} 나타났다!`,{tone:p.tier==='boss'?'enemy':'normal',tag:p.tier==='boss'?'BOSS':'ENCOUNTER',sub:p.encounterLabel||''});if(p.tier==='boss'){screenShake('heavy');screenFlash('boss');sound('boss');}},BATTLE_PACE_V57.announce);
       else if(ev.type==='turn')later(()=>{battleNarrateV57(`턴 ${next.battle?.turn||''} — 행동을 선택하세요.`,{tag:'YOUR TURN',tone:'normal'});showCenterBanner(`TURN ${next.battle?.turn||''}`,'','turn');},BATTLE_PACE_V57.turn);
       else if(ev.type==='monster-move'){
         const name=p.monsterName||'몬스터',skill=p.skill||p.move?.name||'기술',sig=!!p.signature||!!p.move?.signature;
-        // V7.2: feedback begins immediately. FX no longer waits behind a 1s+ narration queue.
-        later(()=>{battleNarrateV57(`${name}의 ${skill}!`,{tone:'move',tag:sig?'SIGNATURE MOVE':'MOVE',sub:p.element||p.move?.element||'',instant:true});monsterMoveEventFx(p);},sig?180:120);
-        later(()=>{stageBattleHpV62(p,true);stageActorHpV62(p,false);},sig?560:430);
-        for(const row of moveResultNarrationsV57(p,false)){later(()=>{if(row.status){const t=$(`[data-enemy="${CSS.escape(p.targetUid||'')}"]`);if(t){stageStatusVisualV62(t,row.status.key,'apply',row.status.label||'');statusCinematicV57(t,row.status.key);}}battleNarrateV57(row.text,{tone:row.tone,tag:row.tag});},row.status?BATTLE_PACE_V57.status:BATTLE_PACE_V57.result);}
+        // v7.3: zero input latency, then readable cast -> impact/HP -> result -> status cadence.
+        later(()=>{document.body.classList.remove('combat-pending-v73');battleNarrateV57(`${name}의 ${skill}!`,{tone:'move',tag:sig?'SIGNATURE MOVE':'MOVE',sub:p.element||p.move?.element||'',instant:true});monsterMoveEventFx(p);},sig?780:650);
+        later(()=>{stageBattleHpV62(p,true);stageActorHpV62(p,false);},560);
+        for(const row of moveResultNarrationsV57(p,false)){later(()=>{if(row.status){const t=$(`[data-enemy="${CSS.escape(p.targetUid||'')}"]`)||$('.enemy-mon-v52.selected')||$('.enemy-mon-v52');if(t){stageStatusVisualV62(t,row.status.key,'apply',row.status.label||'');statusCinematicV57(t,row.status.key);}}battleNarrateV57(row.text,{tone:row.tone,tag:row.tag});},row.status?BATTLE_PACE_V57.status:BATTLE_PACE_V57.result);}
       }
       else if(ev.type==='enemy-attack'){
         const name=p.monsterName||'상대',skill=p.skill||p.move?.name||'기술',sig=!!p.signature||!!p.move?.signature;
-        later(()=>{battleNarrateV57(`${name}의 ${skill}!`,{tone:'enemy',tag:sig?'ENEMY SIGNATURE':'ENEMY MOVE',sub:p.element||p.move?.element||'',instant:true});enemyAttackEventFx(p);},sig?180:120);
-        later(()=>{stageBattleHpV62(p,false);stageActorHpV62(p,true);},sig?560:430);
+        later(()=>{battleNarrateV57(`${name}의 ${skill}!`,{tone:'enemy',tag:sig?'ENEMY SIGNATURE':'ENEMY MOVE',sub:p.element||p.move?.element||'',instant:true});enemyAttackEventFx(p);},sig?780:650);
+        later(()=>{stageBattleHpV62(p,false);stageActorHpV62(p,true);},560);
         for(const row of moveResultNarrationsV57(p,true)){later(()=>{if(row.status){const t=p.targetMonsterId?$(`[data-monster="${CSS.escape(p.targetMonsterId)}"]`):null;if(t){stageStatusVisualV62(t,row.status.key,'apply',row.status.label||'');statusCinematicV57(t,row.status.key);}}battleNarrateV57(row.text,{tone:row.tone,tag:row.tag});},row.status?BATTLE_PACE_V57.status:BATTLE_PACE_V57.result);}
       }
       else if(ev.type==='monster-attack')later(()=>monsterAttackEventFx(p),BATTLE_PACE_V57.move);
@@ -531,7 +545,11 @@
       else if(ev.type==='win')later(()=>{battleNarrateV57('전투에서 승리했다!',{tone:'victory',tag:'VICTORY'});showCenterBanner('VICTORY','','victory');screenFlash('victory');sound('win');},BATTLE_PACE_V57.win);
       else if(ev.type==='defeat')later(()=>battleNarrateV57('더 이상 싸울 수 없다…',{tone:'bad',tag:'DEFEAT'}),BATTLE_PACE_V57.win);
     }
-    state.battleTimelineUntil=Math.max(Number(state.battleTimelineUntil||0),Date.now()+combatDelay);state.combatCinematicUntil=Math.max(Number(state.combatCinematicUntil||0),state.battleTimelineUntil);return combatDelay;
+    const phaseEndAt=Date.now()+combatDelay;
+    state.battleTimelineUntil=freshAction?phaseEndAt:Math.max(Number(state.battleTimelineUntil||0),phaseEndAt);
+    state.combatCinematicUntil=freshAction?state.battleTimelineUntil:Math.max(Number(state.combatCinematicUntil||0),state.battleTimelineUntil);
+    if(freshAction)state.localBattleAction=null;
+    return combatDelay;
   }
 
   function playerNameFromRoom(r,id){return r?.players?.find(p=>p.id===id)?.nickname||'ALLY';}
@@ -542,7 +560,7 @@
   function playSceneCurtain(next){
     if(!fxOn())return;const el=document.createElement('div');el.className='scene-wipe-v31';const title=sceneTransitionLabel(next),glyph=next?.status==='battle'?'⚔':next?.status==='reward'?'◆':next?.status==='event'?'◇':next?.status==='route'?'⌁':'✦';el.innerHTML=`<i></i><b>${glyph}</b><span>${esc(title)}</span>`;document.body.appendChild(el);requestAnimationFrame(()=>el.classList.add('go'));setTimeout(()=>el.remove(),380);
   }
-  function acceptRoomUpdate(next,{initial=false}={}){
+  function acceptRoomUpdate(next,{initial=false,sourceAction=''}={}){
     const prev=state.room;
     if(!initial&&prev&&Number(next?.seq||0)===Number(prev?.seq||0)&&next?.status===prev?.status)return;
     const after=initial?Number(next?.seq||0):Number(state.lastFxSeq||prev?.seq||0),changed=!!prev&&prev.status!==next?.status;
@@ -551,9 +569,9 @@
       // V53.2: commit the authoritative server state immediately, then let the old battlefield
       // remain visible only for a short exit animation. This prevents a dead/stuck battle screen.
       state.battleExitPending=true;state.room=next;state.lastFxSeq=Math.max(Number(state.lastFxSeq||0),Number(next?.seq||0));
-      let choreography=0;try{choreography=playRoomEvents(next,after)||0;}catch(err){console.warn('[FUSEWILD] battle exit FX skipped',err);}
+      let choreography=0;try{choreography=playRoomEvents(next,after,{freshAction:['move','play','end-turn','switch','replace'].includes(sourceAction)})||0;}catch(err){console.warn('[FUSEWILD] battle exit FX skipped',err);}
       clearTimeout(state.battleExitTimer);clearTimeout(state.battleExitFallbackTimer);
-      const hasFinisher=(next?.feed||[]).some(ev=>Number(ev.seq)>Number(after||0)&&['monster-move','monster-burst','enemy-attack'].includes(ev.type));const delay=fxOn()?Math.min(12000,Math.max(hasFinisher?1900:900,Number(choreography||0)+220)):120;
+      const hasFinisher=(next?.feed||[]).some(ev=>Number(ev.seq)>Number(after||0)&&['monster-move','monster-burst','enemy-attack'].includes(ev.type));const delay=fxOn()?Math.min(16000,Math.max(hasFinisher?battlePaceV73(2300):battlePaceV73(1100),Number(choreography||0)+battlePaceV73(260))):120;
       const finish=()=>{if(!state.room||Number(state.room.seq||0)<Number(next.seq||0))return;state.battleExitPending=false;try{renderRoom();playSceneCurtain(state.room);}catch(err){console.error('[FUSEWILD] post-battle render recovery',err);renderRoom();}};
       state.battleExitTimer=setTimeout(finish,delay);
       // Absolute fallback: if an animation callback or browser throttling interferes, force the
@@ -564,10 +582,10 @@
     const sameBattle=!initial&&prev?.status==='battle'&&next?.status==='battle'&&Number(next?.seq||0)>Number(prev?.seq||0);
     if(sameBattle&&fxOn()){
       state.room=next;state.lastFxSeq=Math.max(Number(state.lastFxSeq||0),Number(next?.seq||0));
-      let choreography=0;try{choreography=playRoomEvents(next,after)||0;}catch(err){console.warn('[FUSEWILD] combat choreography skipped',err);}
+      let choreography=0;try{choreography=playRoomEvents(next,after,{freshAction:['move','play','end-turn','switch','replace'].includes(sourceAction)})||0;}catch(err){console.warn('[FUSEWILD] combat choreography skipped',err);}
       if(choreography>0){
         clearTimeout(state.combatRenderTimer);document.body.classList.add('combat-resolving-v54');
-        const settle=Math.min(45000,Math.max(1050,Number(choreography||0)+260));
+        const settle=Math.min(45000,Math.max(battlePaceV73(900),Number(choreography||0)+battlePaceV73(180)));
         state.combatCinematicUntil=Math.max(Number(state.combatCinematicUntil||0),Date.now()+settle);
         state.combatRenderTimer=setTimeout(()=>{state.combatRenderTimer=0;document.body.classList.remove('combat-resolving-v54');if(state.room?.status==='battle')renderBattle(state.room);},settle);
         return;
@@ -576,13 +594,13 @@
     state.room=next;state.lastFxSeq=Math.max(Number(state.lastFxSeq||0),Number(next?.seq||0));
     if(state.current.startsWith('room')||['route','battle','reward','event','end'].includes(state.current)||initial)renderRoom();
     if(changed&&!initial)playSceneCurtain(next);
-    if(!initial)setTimeout(()=>{let choreography=0;try{choreography=playRoomEvents(next,after)||0;}catch(err){console.warn('[FUSEWILD] room FX skipped',err);}setTimeout(()=>playCombatDelta(prev,next),Math.min(1800,Math.max(120,choreography+80)));},changed?180:0);
+    if(!initial)setTimeout(()=>{let choreography=0;try{choreography=playRoomEvents(next,after,{freshAction:['move','play','end-turn','switch','replace'].includes(sourceAction)})||0;}catch(err){console.warn('[FUSEWILD] room FX skipped',err);}setTimeout(()=>playCombatDelta(prev,next),Math.min(1800,Math.max(120,choreography+80)));},changed?180:0);
   }
-  function clearTimers(){clearInterval(state.bannerTimer);clearInterval(state.roomsTimer);clearInterval(state.battleMessageTimer);clearTimeout(state.rewardAutoTimer);clearTimeout(state.combatRenderTimer);clearTimeout(state.autoEncounterTimer);clearTimeout(state.rewardConfirmTimer);clearTimeout(state.combatNarrationTimer);state.combatNarrationTimer=0;document.body.classList.remove('combat-narrating-v72');state.bannerTimer=0;state.roomsTimer=0;state.battleMessageTimer=0;state.rewardAutoTimer=0;state.combatRenderTimer=0;state.autoEncounterTimer=0;state.rewardConfirmTimer=0;if(state.current!=='battle')state.battleTimelineUntil=0;document.body.classList.remove('combat-resolving-v54');}
+  function clearTimers(){clearInterval(state.bannerTimer);clearInterval(state.roomsTimer);clearInterval(state.battleMessageTimer);clearTimeout(state.rewardAutoTimer);clearTimeout(state.combatRenderTimer);clearTimeout(state.autoEncounterTimer);clearTimeout(state.rewardConfirmTimer);clearTimeout(state.combatNarrationTimer);state.combatNarrationTimer=0;document.body.classList.remove('combat-narrating-v72','combat-pending-v73');state.bannerTimer=0;state.roomsTimer=0;state.battleMessageTimer=0;state.rewardAutoTimer=0;state.combatRenderTimer=0;state.autoEncounterTimer=0;state.rewardConfirmTimer=0;if(state.current!=='battle')state.battleTimelineUntil=0;document.body.classList.remove('combat-resolving-v54');}
   function animateBattleEntrance(){
     const r=state.room,key=r?.battle?`${r.id}:${r.floor}:${r.battle.tier}`:'';if(!key||state.battleEntranceKey===key)return;state.battleEntranceKey=key;const enemies=$$('.enemy-mon-v41, .enemy-actor-v31'),units=$$('.active-mon-v41, .monster-actor-v40.filled, .unit-actor-v31.filled'),cards=$$('.spell-fan-v41 .visual-card-v31, .battle-hand-v31 .visual-card-v31');enemies.forEach((el,i)=>{try{el.animate([{transform:'translate3d(70px,10px,0) scale(.72)',opacity:0,filter:'brightness(2)'},{transform:'translate3d(0,0,0) scale(1.04)',opacity:1,filter:'brightness(1)',offset:.72},{transform:'translate3d(0,0,0) scale(1)',opacity:1}],{duration:480+i*70,delay:i*70,easing:'cubic-bezier(.16,.82,.18,1)'});}catch{}});units.forEach((el,i)=>{try{el.animate([{transform:'translate3d(-45px,12px,0) scale(.75)',opacity:0},{transform:'translate3d(0,0,0) scale(1)',opacity:1}],{duration:380,delay:130+i*65,easing:'cubic-bezier(.2,.8,.2,1)'});}catch{}});cards.forEach((el,i)=>{try{el.animate([{transform:'translate3d(0,70px,0) rotate(0deg)',opacity:0},{transform:'translate3d(0,0,0)',opacity:1}],{duration:300,delay:180+i*45,easing:'cubic-bezier(.2,.8,.2,1)'});}catch{}});
   }
-  function setScreen(name,html){clearTimers();state.current=name;if(name!=='reward')state.rewardFocus=null;const runScreens=['route','battle','reward','event','end','roomLobby'];const inRun=runScreens.includes(name);document.body.classList.toggle('in-run-v27',inRun);document.body.classList.toggle('visual-run-v31',inRun);document.body.classList.toggle('battle-focus-v31',name==='battle');document.body.classList.toggle('reward-screen-v61',name==='reward');document.body.classList.toggle('reward-screen-v64',name==='reward');document.body.classList.toggle('main-menu-v41',name==='home');screen.innerHTML=html;screen.classList.remove('screen-enter-v26');void screen.offsetWidth;screen.classList.add('screen-enter-v26');setTimeout(()=>screen.classList.remove('screen-enter-v26'),220);window.scrollTo({top:0,behavior:'instant'});if(name==='battle')requestAnimationFrame(()=>requestAnimationFrame(animateBattleEntrance));}
+  function setScreen(name,html){clearTimers();if(name!=='battle'){clearTimeout(state.battleExitTimer);clearTimeout(state.battleExitFallbackTimer);state.battleExitTimer=0;state.battleExitFallbackTimer=0;state.battleExitPending=false;}state.current=name;if(name!=='reward')state.rewardFocus=null;const runScreens=['route','battle','reward','event','end','roomLobby'];const inRun=runScreens.includes(name);document.body.classList.toggle('in-run-v27',inRun);document.body.classList.toggle('visual-run-v31',inRun);document.body.classList.toggle('battle-focus-v31',name==='battle');document.body.classList.toggle('reward-screen-v61',name==='reward');document.body.classList.toggle('reward-screen-v64',name==='reward');document.body.classList.toggle('main-menu-v41',name==='home');screen.innerHTML=html;screen.classList.remove('screen-enter-v26');void screen.offsetWidth;screen.classList.add('screen-enter-v26');setTimeout(()=>screen.classList.remove('screen-enter-v26'),220);window.scrollTo({top:0,behavior:'instant'});if(name==='battle')requestAnimationFrame(()=>requestAnimationFrame(animateBattleEntrance));}
 
   function shortLine(value,max=42){const s=String(value||'').replace(/\s+/g,' ').trim();return s.length>max?`${s.slice(0,max-1)}…`:s;}
   function elementGlyph(element){return ({'화염':'◆','물':'≈','자연':'✦','빛':'✧','그림자':'◒','강철':'✕','바람':'〰','번개':'ϟ','별':'★','시간':'◷','공허':'●','수정':'◇'})[element]||'◇';}
@@ -780,7 +798,19 @@
   }
 
   async function playNamedMonsterMoveV45(payload,enemySide=false){
-    if(!payload)return;battleMoveFeedbackV51(payload,enemySide);const actor=enemySide?$(`[data-enemy="${CSS.escape(payload.enemyUid||'')}"]`):$(`[data-monster="${CSS.escape(payload.instanceId||'')}"]`),target=enemySide?(payload.targetMonsterId?$(`[data-monster="${CSS.escape(payload.targetMonsterId)}"]`):$('.player-field-v44')):$(`[data-enemy="${CSS.escape(payload.targetUid||'')}"]`);if(!actor||!target)return;
+    if(!payload)return;
+    battleMoveFeedbackV51(payload,enemySide);
+    let actor=null,target=null;
+    if(enemySide){
+      actor=$(`[data-enemy="${CSS.escape(payload.enemyUid||'')}"]`)||$('.enemy-mon-v52.selected')||$('.enemy-mon-v52');
+      target=payload.targetMonsterId
+        ? ($(`[data-monster="${CSS.escape(payload.targetMonsterId)}"]`)||$('.active-mon-v52.selected')||$('.active-mon-v52'))
+        : ($('.active-mon-v52.selected')||$('.active-mon-v52')||$('.player-field-v52'));
+    }else{
+      actor=$(`[data-monster="${CSS.escape(payload.instanceId||'')}"]`)||$('.active-mon-v52.selected')||$('.active-mon-v52');
+      target=$(`[data-enemy="${CSS.escape(payload.targetUid||'')}"]`)||$('.enemy-mon-v52.selected')||$('.enemy-mon-v52');
+    }
+    if(!actor||!target)return;
     const family=namedMoveFamily(payload),mv=payload.move||{},signature=!!payload.signature||!!mv.signature,heavy=signature||!!payload.heavy||Number(payload.damage||0)>=22,card=payloadFxCard(payload,heavy),dir=enemySide?-1:1,variant=Number(payload.fxVariant??mv.fxVariant??(skillHash(String(payload.skill||''))%8)),tempo=payload.fxTempo||mv.fxTempo||'snap',hits=Math.max(1,Number(mv.fxHits||payload.fxHits||1));
     moveSpectacleV56(actor,target,family,payload,enemySide);organicMoveFxV71(actor,target,family,payload,enemySide);canvasMoveFxV57(actor,target,family,payload,enemySide);if(signature)monsterSignatureFxV532(actor,payload,'cast');
     attackLabelV40(actor,payload.skill||'SKILL',enemySide?'enemy':'ally');attackAfterimageV40(actor,dir);actor.classList.add('attacking-v40');
@@ -1126,7 +1156,7 @@
   function enterRoom(room){state.roomId=room.id;localStorage.setItem('riftdeck.roomId',room.id);state.lastFxSeq=Number(room.seq||0);acceptRoomUpdate(room,{initial:true});connectStream(room.id);}
   function connectStream(roomId){if(state.stream)state.stream.close();const es=new EventSource(`/api/room/${roomId}/stream?profileId=${encodeURIComponent(state.profileId)}`,{withCredentials:true});state.stream=es;es.addEventListener('room-update',ev=>{try{acceptRoomUpdate(JSON.parse(ev.data));}catch{}});es.onerror=()=>{$('#serverBadge')?.classList.add('warn');};es.onopen=()=>{$('#serverBadge')?.classList.remove('warn');};}
   function closeStreamIfInactive(){if(!state.room||['ended','cleared'].includes(state.room.status)){state.stream?.close();state.stream=null;}}
-  async function roomPost(action,payload={}){if(!state.roomId)throw new Error('원정 방이 없습니다.');setBusy(true);try{const d=await api(`/api/room/${state.roomId}/${action}`,{body:{profileId:state.profileId,nickname:state.profile.nickname,...payload}});if(d.profile){state.profile=d.profile;state.profileId=d.profile.id;updateTopbar();}if(d.room)acceptRoomUpdate(d.room);return d;}catch(e){toast(e.message,'error');sound('error');throw e;}finally{setBusy(false);}}
+  async function roomPost(action,payload={}){if(!state.roomId)throw new Error('원정 방이 없습니다.');setBusy(true);try{const d=await api(`/api/room/${state.roomId}/${action}`,{body:{profileId:state.profileId,nickname:state.profile.nickname,...payload}});if(d.profile){state.profile=d.profile;state.profileId=d.profile.id;updateTopbar();}if(d.room)acceptRoomUpdate(d.room,{sourceAction:action});return d;}catch(e){toast(e.message,'error');sound('error');throw e;}finally{setBusy(false);}}
 
   function renderRoom(){const r=state.room;if(!r)return renderHome();if(r.status==='lobby')return renderRoomLobby(r);if(r.status==='route')return renderRoute(r);if(r.status==='battle')return renderBattle(r);if(r.status==='event')return renderEvent(r);if(r.status==='reward')return renderReward(r);if(['ended','cleared'].includes(r.status))return renderEnd(r);}
   function renderRoomLobby(r){
@@ -1226,7 +1256,7 @@
     const partyMini=[...(me.units||[]),...(me.bench||[])].slice(0,6).map(u=>`<span class="${u.hp<=0?'ko':state.selectedMonster===u.instanceId?'on':''}" title="${esc(u.name)}"><img src="${esc(monsterDisplaySprite(u))}" decoding="async"><i style="width:${pct(u.hp,u.maxHp)}%"></i></span>`).join('');
     const actionHint=replacementMode?'다음 몬스터를 선택해야 전투가 계속됩니다.':ready.length>1?`${ready.length}마리 행동 남음`:ready.length===1?`${ready[0].name}의 차례`:'적의 행동을 기다리는 중';
     const prompt=menu==='replacement'?'다음에 누가 나갈까?':menu==='root'?'무엇을 할까?':menu==='moves'?'어떤 기술을 사용할까?':menu==='fusion'?'누구와 융합할까?':menu==='party'?'누구와 교대할까?':menu==='capture'?'어떤 봉인구를 사용할까?':'전투 정보';
-    setScreen('battle',`<section class="monster-battle-v51 monster-battle-v52 battle-v70 battle-v71 battle-v72 mode-${mode} ${replacementMode?'replacement-phase-v70':''}"><div class="battle-bg-v51 battle-bg-v52" style="background-image:url('${esc(sceneBg(r))}')"></div><div class="battle-atmos-v51 battle-atmos-v52"></div><header class="battle-top-v51 battle-top-v52"><div class="battle-title-v52"><small>${esc(b.trainer?'TRAINER DUEL':b.encounterType==='boss'?'BOSS':b.encounterType==='rival'?'RIFT HUNTER':mode==='double'?'DOUBLE BATTLE':'WILD BATTLE')} · ${r.floor}F</small><b>${esc(b.trainer?`${b.trainer.emblem||'◆'} ${b.trainer.name}`:(b.encounterLabel||r.biome.name))}</b>${b.trainer?`<i class="trainer-title-v63">${esc(b.trainer.title)}</i>`:''}</div><div class="party-mini-v51 party-mini-v52">${partyMini}</div><div class="battle-core-v52"><span class="battle-money-v53">G ${Number(run.gold||0).toLocaleString('ko-KR')}</span><span class="battle-wave-resource-v56">WAVE ${String(((Number(r.floor||1)-1)%10)+1).padStart(2,'0')}/10</span></div><div class="battle-tools-v52"><button data-action="battle-menu" data-menu="info">i</button><button data-action="toggle-combat-log">LOG</button></div></header><main class="battle-arena-v51 battle-arena-v52"><section class="player-field-v51 player-field-v52">${monActors}</section><section class="enemy-field-v51 enemy-field-v52">${enemyActors}</section></main><footer class="command-box-v51 command-box-v52 command-box-v57"><div class="battle-dialog-v52 battle-dialog-v57" role="status" aria-live="polite"><small>${esc(actionHint)}</small><b>${esc(prompt)}</b><span>${selectedMon?`${esc(selectedMon.name)} · Lv.${selectedMon.level}`:''}</span></div><div class="command-content-v51 command-content-v52">${replacementMode?command:(me.ended?'<div class="turn-wait-v51"><span>…</span><b>적 턴 진행 중</b></div>':command)}</div></footer><aside class="battle-log-drawer-v31 ${state.combatLogOpen?'open':''}"><div><b>LOG</b><button data-action="toggle-combat-log">×</button></div>${b.log.slice(-10).reverse().map(x=>`<p>${esc(x.text)}</p>`).join('')}</aside></section>`);
+    setScreen('battle',`<section class="monster-battle-v51 monster-battle-v52 battle-v70 battle-v71 battle-v72 battle-v73 battle-v74 mode-${mode} ${replacementMode?'replacement-phase-v70':''}"><div class="battle-bg-v51 battle-bg-v52" style="background-image:url('${esc(sceneBg(r))}')"></div><div class="battle-atmos-v51 battle-atmos-v52"></div><header class="battle-top-v51 battle-top-v52"><div class="battle-title-v52"><small>${esc(b.trainer?'TRAINER DUEL':b.encounterType==='boss'?'BOSS':b.encounterType==='rival'?'RIFT HUNTER':mode==='double'?'DOUBLE BATTLE':'WILD BATTLE')} · ${r.floor}F</small><b>${esc(b.trainer?`${b.trainer.emblem||'◆'} ${b.trainer.name}`:(b.encounterLabel||r.biome.name))}</b>${b.trainer?`<i class="trainer-title-v63">${esc(b.trainer.title)}</i>`:''}</div><div class="party-mini-v51 party-mini-v52">${partyMini}</div><div class="battle-core-v52"><span class="battle-money-v53">G ${Number(run.gold||0).toLocaleString('ko-KR')}</span><span class="battle-wave-resource-v56">WAVE ${String(((Number(r.floor||1)-1)%10)+1).padStart(2,'0')}/10</span></div><div class="battle-tools-v52"><button class="battle-speed-v73" data-action="battle-speed" title="전투 속도">${battleSpeedLabelV73()}</button><button data-action="battle-menu" data-menu="info">i</button><button data-action="toggle-combat-log">LOG</button></div></header><main class="battle-arena-v51 battle-arena-v52"><section class="player-field-v51 player-field-v52">${monActors}</section><section class="enemy-field-v51 enemy-field-v52">${enemyActors}</section></main><footer class="command-box-v51 command-box-v52 command-box-v57"><div class="battle-dialog-v52 battle-dialog-v57" role="status" aria-live="polite"><small>${esc(actionHint)}</small><b>${esc(prompt)}</b><span>${selectedMon?`${esc(selectedMon.name)} · Lv.${selectedMon.level}`:''}</span></div><div class="command-content-v51 command-content-v52">${replacementMode?command:(me.ended?'<div class="turn-wait-v51"><span>…</span><b>적 턴 진행 중</b></div>':command)}</div></footer><aside class="battle-log-drawer-v31 ${state.combatLogOpen?'open':''}"><div><b>LOG</b><button data-action="toggle-combat-log">×</button></div>${b.log.slice(-10).reverse().map(x=>`<p>${esc(x.text)}</p>`).join('')}</aside></section>`);
   }
 
   function fieldServiceHtml(r,run){
@@ -1292,7 +1322,7 @@
       step='READY';const grade=rw.gradeBy?.[pid];focusName=claim?claim.label:'정비 완료';focusMeta=`WAVE CLEAR${grade?` · ${grade}`:''}`;focusDesc='준비가 끝났습니다. 다음 웨이브로 진행하세요.';body=`<section class="ready-v51"><span>✓</span><div><small>WAVE CLEAR</small><b>${claim?esc(claim.label):'정비 완료'}</b>${grade?`<em>${grade}</em>`:''}</div></section>`;actions=`${rw.kind==='battle'&&rw.serviceCosts?'<button data-action="open-field-service">정비</button>':''}<button class="next-v64" data-action="reward-continue">${continued?'대기 중':r.finalClearPending?'클리어':'다음 웨이브'}</button>`;
     }
     const lead=rewardLeadPanelV64(r,run),special=normalShop?body:`<section class="afterbattle-special-v64">${body}</section>`;
-    setScreen('reward',`<section class="run-stage-v31 reward-v64"><div class="run-bg-v31" style="background-image:url('${esc(sceneBg(r))}')"></div><div class="run-shade-v31 reward-shade-v64"></div>${compactRunHud(r,run)}<main class="afterbattle-v64 afterbattle-v70 afterbattle-v71"><header class="afterbattle-top-v64"><div><small>${esc(r.biome?.name||'EXPEDITION')} · ${r.floor}F</small><b>${esc(step)}</b></div><div><span>LUCK ${esc(rw.gradeBy?.[pid]||'-')}</span><strong>G ${Number(run.gold||0).toLocaleString('ko-KR')}</strong></div></header><section class="afterbattle-stage-v64"><div class="afterbattle-main-v64">${special}</div>${lead}</section><footer class="afterbattle-footer-v64"><div class="afterbattle-dialog-v64"><small id="rewardFocusMetaV64">${focusMeta}</small><b id="rewardFocusNameV64">${esc(focusName)}</b><span id="rewardFocusDescV64">${esc(focusDesc)}</span></div><div class="afterbattle-controls-v64">${actions}</div></footer></main></section>`);
+    setScreen('reward',`<section class="run-stage-v31 reward-v64 reward-v73 reward-v74"><div class="run-bg-v31" style="background-image:url('${esc(sceneBg(r))}')"></div><div class="run-shade-v31 reward-shade-v64"></div>${compactRunHud(r,run)}<main class="afterbattle-v64 afterbattle-v70 afterbattle-v71 afterbattle-v73 afterbattle-v74"><header class="afterbattle-top-v64"><div><small>${esc(r.biome?.name||'EXPEDITION')} · ${r.floor}F</small><b>${esc(step)}</b></div><div><span>LUCK ${esc(rw.gradeBy?.[pid]||'-')}</span><strong>G ${Number(run.gold||0).toLocaleString('ko-KR')}</strong></div></header><section class="afterbattle-stage-v64"><div class="afterbattle-main-v64">${special}</div>${lead}</section><footer class="afterbattle-footer-v64"><div class="afterbattle-dialog-v64"><small id="rewardFocusMetaV64">${focusMeta}</small><b id="rewardFocusNameV64">${esc(focusName)}</b><span id="rewardFocusDescV64">${esc(focusDesc)}</span></div><div class="afterbattle-controls-v64">${actions}</div></footer></main></section>`);
     scheduleRewardAutoAdvanceV54(r,step,continued);
   }
   function merchantHtmlCompact(r){
@@ -1374,7 +1404,7 @@
       if(action==='encounter-start')return startEncounterV53(el,el.dataset.node);
       if(action==='route-vote'){el.classList.add('v26-committed');await wait(80);return roomPost('vote',{nodeId:el.dataset.node});}
       if(action==='battle-menu'){state.battleMenu=el.dataset.menu||'root';return renderBattle(state.room);}
-      if(action==='move-use'){if(state.busy)return;const me=state.room?.battle?.party?.find(p=>p.playerId===state.profileId),u=me?.units?.find(x=>x.instanceId===state.selectedMonster)||me?.units?.find(x=>x.hp>0&&!x.acted)||me?.units?.[0];if(!u)return;const d=await roomPost('move',{instanceId:u.instanceId,moveId:el.dataset.moveId,targetUid:state.selectedEnemy});await wait(30);await waitForCombatCinematicV54();if(d.room?.status==='reward'){state.battleMenu='root';sound('win');return;}const nextMe=state.room?.battle?.party?.find(p=>p.playerId===state.profileId),next=nextMe?.units?.find(x=>x.hp>0&&!x.acted);if(next){state.selectedMonster=next.instanceId;state.battleMenu='moves';showCenterBanner(next.name,'다음 몬스터의 기술을 선택하세요','turn');renderBattle(state.room);}else state.battleMenu='root';return;}
+      if(action==='move-use'){if(state.busy)return;const me=state.room?.battle?.party?.find(p=>p.playerId===state.profileId),u=me?.units?.find(x=>x.instanceId===state.selectedMonster)||me?.units?.find(x=>x.hp>0&&!x.acted)||me?.units?.[0];if(!u)return;const mv=(u.moves||[]).find(x=>x.id===el.dataset.moveId);beginLocalMoveFeedbackV73(u,mv);const d=await roomPost('move',{instanceId:u.instanceId,moveId:el.dataset.moveId,targetUid:state.selectedEnemy});await wait(30);await waitForCombatCinematicV54();if(d.room?.status==='reward'){state.battleMenu='root';sound('win');return;}const nextMe=state.room?.battle?.party?.find(p=>p.playerId===state.profileId),next=nextMe?.units?.find(x=>x.hp>0&&!x.acted);if(next){state.selectedMonster=next.instanceId;state.battleMenu='moves';showCenterBanner(next.name,'다음 몬스터의 기술을 선택하세요','turn');renderBattle(state.room);}else state.battleMenu='root';return;}
       if(action==='battle-capture'){if(state.busy)return;const me=state.room?.battle?.party?.find(p=>p.playerId===state.profileId),u=me?.units?.find(x=>x.instanceId===state.selectedMonster)||me?.units?.find(x=>x.hp>0&&!x.acted)||me?.units?.[0],enemy=state.room?.battle?.enemies?.find(e=>e.uid===state.selectedEnemy);if(!u||!enemy)return;await captureThrowFx(el,enemy,el.dataset.seal);const d=await roomPost('capture',{sealType:el.dataset.seal,enemyUid:enemy.uid,instanceId:u.instanceId});await captureResultFx(d.result.monster,d.result.success,false,d.result.newDiscovery);await loadProfile();toast(d.result.success?`봉인 성공 · ${d.result.monster.name} 획득!`:`봉인 실패 · 성공률 ${Math.round(Number(d.result.chance||0)*100)}%`,d.result.success?'good':'error');if(d.room?.status==='reward'){state.battleMenu='root';return;}const nextMe=d.room?.battle?.party?.find(p=>p.playerId===state.profileId),next=nextMe?.units?.find(x=>x.hp>0&&!x.acted);if(next){state.selectedMonster=next.instanceId;state.battleMenu='moves';return renderBattle(d.room);}state.battleMenu='root';return renderRoom();}
       if(action==='open-evolution')return showEvolutionMenu(el.dataset.monster);
       if(action==='select-enemy'){state.selectedEnemy=el.dataset.enemy;return renderBattle(state.room);}
@@ -1390,6 +1420,7 @@
       if(action==='replace-monster'){if(state.busy)return;state.busy=true;try{const d=await roomPost('replace-monster',{benchId:el.dataset.bench,slotIndex:Number(el.dataset.slot||0)});state.selectedMonster=el.dataset.bench;state.battleMenu='root';await wait(80);await waitForCombatCinematicV54();return renderRoom();}finally{state.busy=false;}}
       if(action==='switch-direct'){const d=await roomPost('switch-monster',{activeId:el.dataset.active,benchId:el.dataset.bench});state.selectedMonster=el.dataset.bench;state.battleMenu='root';return renderRoom();}
       if(action==='recall-unit'){const d=await roomPost('recall-unit',{instanceId:el.dataset.instanceId});toast(`${d.result.name} 전열 회수 · 카드가 버림 더미로 이동`,'good');sound('card');return renderRoom();}
+      if(action==='battle-speed'){const modes=['normal','fast','slow'],i=modes.indexOf(state.battleSpeed);state.battleSpeed=modes[(i+1)%modes.length];localStorage.setItem('fusewild.battleSpeed',state.battleSpeed);toast(`전투 속도 ${state.battleSpeed==='slow'?'느림':state.battleSpeed==='fast'?'빠름':'보통'}`,'good');return renderBattle(state.room);}
       if(action==='toggle-combat-log'){state.combatLogOpen=!state.combatLogOpen;return renderBattle(state.room);}
       if(action==='run-info')return showRunInfo();
       if(action==='open-held-item')return showHeldItemMenuV53(el.dataset.monster);
