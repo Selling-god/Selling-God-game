@@ -2802,3 +2802,234 @@ body.combat-narrating-v72 .battle-v74 .enemy-mon-v52{
   .bridge-party-v80{gap:4px}
   .bridge-party-v80>span{width:40px;height:40px}
 }
+
+
+/* =========================================================
+   V7.4.1 MONSTER-ONLY GACHA / CLIP-SAFE LAYOUT
+   Card rerun UI removed. Designed to stay inside viewport at
+   desktop, tablet and mobile widths without horizontal crop.
+   ========================================================= */
+.gacha-page-v81{width:100%;min-width:0;overflow-x:hidden;padding-bottom:40px}
+.gacha-page-v81 .gacha-hero{width:100%!important;max-width:1180px!important;margin:0 auto!important;padding:24px clamp(12px,2.2vw,26px) 46px!important;min-width:0!important}
+.gacha-head-v81{width:100%;min-width:0;margin-bottom:16px!important}
+.gacha-head-v81>div{min-width:0}
+.gacha-head-v81 h1{overflow-wrap:anywhere}
+.gacha-head-v81 p{max-width:760px;overflow-wrap:anywhere}
+.monster-only-banner-v81{width:100%;min-width:0;display:grid;grid-template-columns:minmax(0,1.08fr) minmax(300px,.72fr);gap:20px;align-items:stretch;padding:clamp(18px,2.8vw,32px);border:1px solid rgba(255,217,104,.28);border-radius:24px;background:radial-gradient(circle at 80% 34%,rgba(255,214,94,.14),transparent 34%),radial-gradient(circle at 12% 92%,rgba(91,122,255,.10),transparent 32%),linear-gradient(135deg,rgba(30,24,48,.98),rgba(10,18,31,.98));box-shadow:0 24px 70px rgba(0,0,0,.30);overflow:hidden;position:relative;isolation:isolate}
+.monster-only-banner-v81>*{min-width:0}
+.monster-banner-copy-v81{justify-content:center;padding:2px 0}
+.pickup-title-row-v81{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;min-width:0}
+.pickup-title-row-v81>div{min-width:0}
+.pickup-title-row-v81 h2{font-size:clamp(26px,4vw,46px)!important;line-height:1.08!important;margin:7px 0 0!important;overflow-wrap:anywhere;word-break:keep-all}
+.pickup-title-row-v81 .pickup-timer-v80{flex:0 0 auto;margin-top:2px}
+.pickup-desc-v81{font-size:13px!important;line-height:1.7!important;max-width:64ch!important;color:#b7bdc9!important;margin:15px 0 0!important}
+.pickup-desc-v81 b{color:#ffe28b}
+.coin-wallet-v81{margin:18px 0 14px!important;max-width:520px}
+.monster-rate-table-v81{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:7px!important;margin:13px 0!important;width:100%;min-width:0}
+.monster-rate-table-v81 .rate-cell{min-width:0;padding:9px 4px!important;font-size:10px!important;overflow:hidden}
+.monster-rate-table-v81 .rate-cell b{font-size:11px!important;white-space:normal!important;word-break:keep-all!important;overflow-wrap:anywhere}
+.gacha-note-v81{display:flex;align-items:center;justify-content:space-between;gap:10px;max-width:520px;margin:9px 0 14px;padding:10px 12px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.035);border-radius:12px;font-size:11px}
+.gacha-note-v81 b{color:#ffe28b;font-size:13px}
+.monster-banner-actions-v81{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;max-width:520px!important;margin-top:0!important}
+.monster-banner-actions-v81 .cta{min-width:0!important;min-height:62px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;padding:11px 14px!important;text-align:left!important}
+.monster-banner-actions-v81 .cta span{font-size:11px;opacity:.8}
+.monster-banner-actions-v81 .cta b{font-size:15px;white-space:nowrap}
+.monster-pickup-stage-v81{min-width:0!important;min-height:410px!important;height:auto!important;overflow:hidden!important;padding:20px!important}
+.monster-pickup-stage-v81 .monster-pull-card-v80{width:min(100%,310px)!important;max-width:310px!important}
+.monster-pickup-stage-v81 .monster-pull-art-v80{height:210px!important}
+
+@media(max-width:1000px){
+  .monster-only-banner-v81{grid-template-columns:1fr!important;gap:14px!important}
+  .monster-pickup-stage-v81{min-height:340px!important;padding:14px!important}
+  .monster-pickup-stage-v81 .monster-pull-card-v80{max-width:360px!important}
+  .monster-pickup-stage-v81 .monster-pull-art-v80{height:190px!important}
+}
+@media(max-width:700px){
+  .gacha-page-v81 .gacha-hero{padding:12px 8px 30px!important}
+  .gacha-head-v81{gap:8px!important;margin-bottom:10px!important}
+  .gacha-head-v81 .back-btn{flex:0 0 auto}
+  .gacha-head-v81 h1{font-size:21px!important}
+  .gacha-head-v81 p{font-size:9px!important;line-height:1.55!important}
+  .monster-only-banner-v81{padding:13px!important;border-radius:17px!important;gap:12px!important}
+  .pickup-title-row-v81{display:grid!important;grid-template-columns:1fr!important;gap:8px!important}
+  .pickup-title-row-v81 h2{font-size:27px!important}
+  .pickup-title-row-v81 .pickup-timer-v80{width:100%!important;justify-content:space-between!important}
+  .pickup-desc-v81{font-size:11px!important;line-height:1.6!important;margin-top:10px!important}
+  .coin-wallet-v81{margin:12px 0 10px!important;padding:10px 11px!important}
+  .coin-wallet-v81>b{font-size:17px!important}
+  .monster-rate-table-v81{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important}
+  .monster-rate-table-v81 .rate-cell:last-child{grid-column:1/-1}
+  .monster-banner-actions-v81{grid-template-columns:1fr!important;max-width:none!important}
+  .monster-banner-actions-v81 .cta{min-height:54px!important}
+  .monster-pickup-stage-v81{min-height:300px!important;padding:10px!important}
+  .monster-pickup-stage-v81 .monster-pull-card-v80{width:100%!important;max-width:330px!important;padding:11px!important}
+  .monster-pickup-stage-v81 .monster-pull-art-v80{height:165px!important}
+  .monster-pickup-stage-v81 .monster-pull-card-v80>b{font-size:18px!important}
+  .monster-pickup-stage-v81 .monster-pull-card-v80>p{font-size:10px!important;min-height:0!important}
+}
+@media(max-width:420px){
+  .gacha-page-v81 .gacha-hero{padding-left:6px!important;padding-right:6px!important}
+  .monster-only-banner-v81{padding:10px!important}
+  .pickup-title-row-v81 h2{font-size:23px!important}
+  .monster-pickup-stage-v81{min-height:270px!important}
+  .monster-pickup-stage-v81 .monster-pull-art-v80{height:145px!important}
+}
+
+/* =========================================================
+   V7.5.0 POKEROGUE-LIKE FLOW / NO-CROP FINAL OVERRIDES
+   - monster-only summon
+   - free reward -> choose monster -> equip
+   - Manage Items / transfer-oriented reward flow
+   - full-width responsive layouts: no partially clipped cards
+   ========================================================= */
+html,body{max-width:100%;overflow-x:hidden!important}
+*,*::before,*::after{box-sizing:border-box}
+img,svg,canvas,video{max-width:100%}
+.screen,.page,.run-stage-v31,.monster-battle-v51,.reward-v64,.gacha-page-v81{min-width:0!important;max-width:100%!important}
+.legacy-currency{display:none!important}
+
+/* Keep the top bar from crowding the game on small screens. The active economy is COIN. */
+.topbar{max-width:100vw!important;min-width:0!important}
+.topbar .top-spacer{min-width:4px}
+.topbar .wallet.coin{flex:0 1 auto!important;min-width:88px!important;max-width:150px!important}
+.topbar .wallet.coin b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:680px){
+  .topbar{padding:0 6px!important;gap:4px!important}
+  .topbar .brand-copy,.topbar .server-badge,.topbar #fxBtn{display:none!important}
+  .topbar .brand{flex:0 0 auto!important}
+  .topbar .wallet.coin{margin-left:auto!important;min-width:74px!important;height:30px!important;padding:0 7px!important}
+  .topbar .profile-chip{flex:0 0 auto!important;max-width:38px!important;overflow:hidden!important}
+  .topbar .profile-chip b{display:none!important}
+}
+
+/* Monster-only pickup screen: never use a tilted/off-canvas card composition. */
+.gacha-page-v81{overflow-x:hidden!important;overflow-y:auto!important}
+.gacha-page-v81 .gacha-hero{width:100%!important;max-width:1120px!important;padding-left:clamp(8px,2vw,22px)!important;padding-right:clamp(8px,2vw,22px)!important}
+.monster-only-banner-v81{grid-template-columns:minmax(0,1.04fr) minmax(270px,.66fr)!important;overflow:hidden!important}
+.monster-pickup-stage-v81{width:100%!important;max-width:100%!important;overflow:hidden!important}
+.monster-pickup-stage-v81 .monster-pull-card-v80{transform:none!important;margin:0 auto!important;max-width:min(100%,320px)!important}
+.monster-pull-card-v80,.monster-pull-card-v80 *{min-width:0}
+.monster-pull-card-v80 p,.monster-pull-card-v80 b,.monster-pull-card-v80 small{overflow-wrap:anywhere;word-break:keep-all}
+.monster-pull-result-v80,.monster-pull-result-v80 .pull-result-inner{max-width:100vw!important;overflow-x:hidden!important}
+.monster-pull-grid-v80{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))!important;width:100%!important;max-width:100%!important}
+@media(max-width:900px){
+  .monster-only-banner-v81{grid-template-columns:1fr!important}
+  .monster-pickup-stage-v81{min-height:330px!important}
+}
+@media(max-width:520px){
+  .gacha-page-v81 .gacha-hero{padding:8px 6px 28px!important}
+  .monster-only-banner-v81{padding:10px!important;border-radius:14px!important}
+  .monster-pull-grid-v80{grid-template-columns:1fr!important}
+  .monster-pull-grid-v80 .monster-pull-card-v80{max-width:100%!important}
+  .monster-banner-actions-v81{grid-template-columns:1fr!important}
+}
+
+/* Reward/shop flow: show complete cards instead of intentionally peeking/clipping the next card. */
+body.reward-screen-v64{overflow:auto!important}
+.reward-v64{height:auto!important;min-height:100dvh!important;overflow:visible!important}
+.afterbattle-v64,.afterbattle-v70,.afterbattle-v71,.afterbattle-v73,.afterbattle-v74{position:relative!important;inset:auto!important;height:auto!important;min-height:calc(100dvh - 54px)!important;overflow:visible!important;display:grid!important;grid-template-rows:auto auto auto!important}
+.afterbattle-v74 .afterbattle-stage-v64{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(220px,300px)!important;gap:14px!important;align-items:start!important;overflow:visible!important;padding:12px clamp(8px,2vw,20px) 16px!important}
+.afterbattle-v74 .afterbattle-main-v64{overflow:visible!important;min-width:0!important}
+.afterbattle-v74 .afterbattle-group-v64{display:block!important;min-width:0!important}
+.afterbattle-v74 .afterbattle-strip-v64{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))!important;gap:10px!important;width:100%!important;overflow:visible!important;padding:4px 0 10px!important;scroll-snap-type:none!important}
+.afterbattle-v74 .afterbattle-token-v64.reward-card-v71,
+.afterbattle-v74 .afterbattle-token-v64.shop-token-v64{width:100%!important;max-width:none!important;min-width:0!important;min-height:132px!important;height:auto!important;flex:none!important;grid-template-columns:74px minmax(0,1fr) auto!important;padding:9px!important;overflow:hidden!important;scroll-snap-align:none!important}
+.afterbattle-v74 .reward-card-v71 .reward-art-v71{width:70px!important;height:70px!important;min-width:70px!important}
+.afterbattle-v74 .reward-card-v71 .reward-copy-v71{min-width:0!important;overflow:visible!important}
+.afterbattle-v74 .reward-card-v71 .reward-copy-v71>b{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere!important;word-break:keep-all!important}
+.afterbattle-v74 .reward-card-v71 .reward-copy-v71>em{display:block!important;white-space:normal!important;overflow:visible!important;-webkit-line-clamp:unset!important;line-height:1.4!important}
+.afterbattle-v74 .reward-card-v71>small{white-space:nowrap!important;align-self:start!important}
+.afterbattle-v74 .afterbattle-footer-v64{position:sticky!important;bottom:0!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:auto!important;min-height:0!important;gap:8px!important;padding:8px clamp(8px,2vw,18px) max(8px,env(safe-area-inset-bottom))!important;background:rgba(25,25,37,.97)!important}
+.afterbattle-v74 .afterbattle-controls-v64{display:flex!important;flex-wrap:wrap!important;justify-content:flex-end!important;gap:6px!important;max-width:430px!important;overflow:visible!important}
+.afterbattle-v74 .afterbattle-controls-v64 button{min-width:94px!important;min-height:42px!important;max-width:none!important;font-size:10px!important}
+.afterbattle-v74 .afterbattle-controls-v64 .next-v64{min-width:150px!important}
+@media(max-width:900px){
+  .afterbattle-v74 .afterbattle-stage-v64{grid-template-columns:1fr!important}
+  .afterbattle-v74 .afterbattle-lead-v64{display:grid!important;width:100%!important;grid-template-columns:72px minmax(0,1fr) minmax(100px,160px)!important;grid-template-rows:auto!important}
+  .afterbattle-v74 .afterbattle-strip-v64{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:620px){
+  .afterbattle-v74 .afterbattle-stage-v64{padding:7px 6px 12px!important}
+  .afterbattle-v74 .afterbattle-strip-v64{grid-template-columns:1fr!important;gap:7px!important}
+  .afterbattle-v74 .afterbattle-token-v64.reward-card-v71,
+  .afterbattle-v74 .afterbattle-token-v64.shop-token-v64{grid-template-columns:68px minmax(0,1fr) auto!important;min-height:118px!important;padding:8px!important}
+  .afterbattle-v74 .reward-card-v71 .reward-art-v71{width:64px!important;height:64px!important;min-width:64px!important}
+  .afterbattle-v74 .afterbattle-lead-v64{grid-template-columns:58px minmax(0,1fr)!important}
+  .afterbattle-v74 .afterbattle-party-mini-v64{display:none!important}
+  .afterbattle-v74 .afterbattle-footer-v64{position:relative!important;grid-template-columns:1fr!important}
+  .afterbattle-v74 .afterbattle-controls-v64{max-width:none!important;justify-content:stretch!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .afterbattle-v74 .afterbattle-controls-v64 button{width:100%!important;min-width:0!important}
+  .afterbattle-v74 .afterbattle-controls-v64 .next-v64{grid-column:1/-1!important}
+}
+
+/* Reward item -> monster assignment modal. */
+.reward-equip-modal-v82{width:min(940px,calc(100vw - 24px));max-height:min(88dvh,820px);overflow:auto;padding:16px;border:1px solid rgba(154,198,255,.28);border-radius:20px;background:linear-gradient(180deg,#171c2b,#0c111c);box-shadow:0 28px 80px #0009;color:#f4f5f8}
+.reward-equip-modal-v82>header{display:grid;grid-template-columns:minmax(0,1fr) 38px;gap:12px;align-items:start;padding-bottom:13px;border-bottom:1px solid rgba(255,255,255,.10)}
+.reward-equip-modal-v82>header>button{width:36px;height:36px;border:1px solid rgba(255,255,255,.14);border-radius:10px;background:#242a3a;font-size:20px}
+.reward-equip-item-v82{display:grid;grid-template-columns:96px minmax(0,1fr);gap:13px;align-items:center;min-width:0}
+.reward-equip-item-v82 .reward-art-v71{width:92px!important;height:92px!important;display:grid!important;place-items:center!important;overflow:hidden!important;border-radius:14px;background:rgba(255,255,255,.06)}
+.reward-equip-item-v82 .reward-art-v71 img{width:100%!important;height:100%!important;object-fit:contain!important;padding:7px}
+.reward-equip-item-v82>div{min-width:0}
+.reward-equip-item-v82 small{font-size:8px;letter-spacing:.16em;opacity:.55}
+.reward-equip-item-v82 h2{margin:4px 0 5px;font-size:22px;overflow-wrap:anywhere;word-break:keep-all}
+.reward-equip-item-v82 p{margin:0;font-size:11px;line-height:1.48;opacity:.78}
+.reward-equip-item-v82 em{display:inline-flex;margin-top:6px;padding:4px 7px;border-radius:999px;background:rgba(89,174,255,.12);font-size:9px;font-style:normal}
+.reward-equip-modal-v82>section{padding-top:14px}
+.reward-equip-modal-v82>section>small{font-size:8px;letter-spacing:.18em;opacity:.52}
+.reward-equip-modal-v82>section>h3{margin:4px 0 4px;font-size:19px}
+.reward-equip-modal-v82>section>p{margin:0 0 11px;font-size:10px;line-height:1.5;opacity:.67}
+.reward-equip-grid-v82{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.reward-equip-grid-v82>button{display:grid;grid-template-columns:68px minmax(0,1fr) auto;gap:9px;align-items:center;min-width:0;min-height:86px;padding:8px;text-align:left;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:#1b2232;color:inherit}
+.reward-equip-grid-v82>button:not(:disabled):hover{border-color:rgba(104,208,255,.55);background:#202b3d}
+.reward-equip-grid-v82>button:disabled{opacity:.42;filter:saturate(.5)}
+.reward-equip-mon-art-v82{width:64px;height:68px;display:grid;place-items:center;border-radius:11px;background:rgba(255,255,255,.055);overflow:hidden}
+.reward-equip-mon-art-v82 img{width:100%;height:100%;object-fit:contain;padding:3px}
+.reward-equip-grid-v82>button>div:nth-child(2){min-width:0}
+.reward-equip-grid-v82 b{display:block;font-size:13px;overflow-wrap:anywhere;word-break:keep-all}
+.reward-equip-grid-v82 small,.reward-equip-grid-v82 span,.reward-equip-grid-v82 em{display:block;margin-top:3px;font-size:8px;line-height:1.35;white-space:normal;overflow-wrap:anywhere}
+.reward-equip-grid-v82 span{color:#aad9ff}
+.reward-equip-grid-v82 em{color:#ffcf8a;font-style:normal}
+.reward-equip-grid-v82 strong{font-size:10px;color:#8de7c8;white-space:nowrap}
+.reward-equip-modal-v82>footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:13px;padding-top:11px;border-top:1px solid rgba(255,255,255,.10)}
+.reward-equip-modal-v82>footer>button{min-height:38px;padding:0 13px}
+.reward-equip-modal-v82>footer>small{font-size:8px;opacity:.56;text-align:right}
+@media(max-width:640px){
+  .reward-equip-modal-v82{width:calc(100vw - 10px);max-height:94dvh;padding:10px;border-radius:14px}
+  .reward-equip-item-v82{grid-template-columns:70px minmax(0,1fr)}
+  .reward-equip-item-v82 .reward-art-v71{width:68px!important;height:68px!important}
+  .reward-equip-item-v82 h2{font-size:18px}
+  .reward-equip-grid-v82{grid-template-columns:1fr}
+  .reward-equip-grid-v82>button{grid-template-columns:58px minmax(0,1fr) 38px;min-height:76px}
+  .reward-equip-mon-art-v82{width:54px;height:58px}
+  .reward-equip-modal-v82>footer{align-items:stretch;flex-direction:column-reverse}
+  .reward-equip-modal-v82>footer>small{text-align:left}
+}
+
+/* Battle: containment and readable held-item label. */
+.battle-v74{max-width:100vw!important;overflow-x:hidden!important}
+.battle-v74 .battle-top-v52,.battle-v74 .battle-arena-v52,.battle-v74 .command-box-v52{min-width:0!important;max-width:100%!important}
+.battle-v74 .player-field-v52,.battle-v74 .enemy-field-v52,.battle-v74 .active-mon-v52,.battle-v74 .enemy-mon-v52{min-width:0!important}
+.battle-v74 .mon-status-v52>div,.battle-v74 .enemy-status-v52>div{min-width:0!important}
+.battle-v74 .mon-status-v52 b,.battle-v74 .enemy-status-v52 b{white-space:normal!important;overflow-wrap:anywhere!important;word-break:keep-all!important}
+.held-corner-v80{max-width:calc(100% - 12px)!important}
+.held-corner-v80 b{max-width:145px!important}
+@media(max-width:620px){
+  .battle-v74{height:auto!important;min-height:100dvh!important;overflow-y:auto!important;grid-template-rows:auto minmax(280px,42dvh) auto!important}
+  .battle-v74 .battle-arena-v52{min-height:280px!important;max-width:100vw!important;overflow:hidden!important}
+  .battle-v74 .battle-title-v52{min-width:0!important}
+  .battle-v74 .battle-title-v52>b{white-space:normal!important;overflow-wrap:anywhere!important}
+  .battle-v74 .battle-core-v52{display:none!important}
+  .battle-v74 .battle-tools-v52{margin-left:auto!important;flex:0 0 auto!important}
+  .held-corner-v80{left:3px!important;top:3px!important;padding:4px 5px!important}
+  .held-corner-v80 b{max-width:94px!important;font-size:7px!important}
+  .held-corner-v80 small{display:none!important}
+}
+
+/* Complex reward assignment modal owns the responsive shell; avoid nested fixed-width padding. */
+.modal:has(.reward-equip-modal-v82){width:min(960px,calc(100vw - 10px))!important;max-width:calc(100vw - 10px)!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important}
+.modal:has(.reward-equip-modal-v82) .reward-equip-modal-v82{width:100%!important;max-width:100%!important;margin:0!important}
+@media(max-width:640px){
+  .modal-backdrop:has(.reward-equip-modal-v82){padding:5px!important;place-items:center!important}
+  .modal:has(.reward-equip-modal-v82){width:100%!important;max-width:100%!important}
+  .modal:has(.reward-equip-modal-v82) .reward-equip-modal-v82{width:100%!important;max-width:100%!important}
+}

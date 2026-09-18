@@ -1,9 +1,9 @@
 {
-  "version": "7.4.0",
-  "deployId": "FUSEWILD-V740-QA-REFRESH-20260918",
-  "builtAt": "2026-09-18T00:34:11.447Z",
+  "version": "7.5.0",
+  "deployId": "FUSEWILD-V750-POKEROGUE-UX-20260918",
+  "builtAt": "2026-09-18T03:21:56.506Z",
   "cards": 315,
-  "items": 128,
+  "items": 144,
   "enemies": 205,
   "maxDungeonFloor": 50,
   "difficulties": [
