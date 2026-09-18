@@ -63,6 +63,9 @@ const SPELL_DECK_MAX = DECK_MAX;
 const MONSTER_PARTY_MAX = Number(CATALOG.monsterParty?.maxSlots || 6);
 const MONSTER_POINT_BUDGET = Number(CATALOG.monsterParty?.pointBudget || 10);
 const MONSTERS = [...ENEMIES, ...BOSSES];
+const MONSTER_ARCHIVE_CONFIG = { singleCost: 180, tenCost: 1700, rotationDays: 5, pityLegendary: 10, rates: { mythic: 0.01, legendary: 0.09, rare: 0.20, common: 0.70 } };
+const MONSTER_ARCHIVE_POOL = MONSTERS.filter(m => ['legendary','mythic'].includes(m.monsterRarity || m.tier));
+const MONSTER_ARCHIVE_SUPPORT_POOL = MONSTERS.filter(m => ['common','rare','ultra'].includes(m.monsterRarity || m.tier));
 const MONSTER_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const STARTER_MONSTERS = (CATALOG.monsterParty?.starterIds || ENEMIES.filter(e => e.tier === 'common').slice(0, 3).map(e => e.id)).slice(0,3).filter(id => MONSTER_BY_ID[id]);
 const ELEMENT_ADVANTAGE = {
@@ -751,7 +754,7 @@ function publicMonster(m) {
     playerAtk:Number(m.playerAtk||m.atk||8),passive:clone(m.passive||{}),evolutionName:m.evolutionName||`${m.name} · 진화형`,
     resonanceName:m.resonanceName||`공명 ${m.name}`,abyssName:m.abyssName||`균열개화 ${m.name}`,
     evolutionSprite:m.evolutionSprite||m.sprite,resonanceSprite:m.resonanceSprite||m.sprite,riftSprite:m.riftSprite||m.sprite,
-    evolutionLevel:evolutionLevel(m),movePoolCount:movePoolCountFor(m),learnsetCount:speciesLearnset(m).length,moves:buildMonsterMoves(m)
+    evolutionLevel:evolutionLevel(m),evolutionItemId:m.evolutionItemId||null,evolutionItemName:m.evolutionItemName||'',evolutionItemOnly:Boolean(m.evolutionItemOnly),movePoolCount:movePoolCountFor(m),learnsetCount:speciesLearnset(m).length,moves:buildMonsterMoves(m)
   };
 }
 function createRunMonster(speciesId, index = 0) {
@@ -764,7 +767,7 @@ function createRunMonster(speciesId, index = 0) {
     evolutionSprite:m.evolutionSprite||m.sprite,resonanceSprite:m.resonanceSprite||m.sprite,riftSprite:m.riftSprite||m.sprite,fusionSprite:null,fusionArt:null,fusionPrimarySprite:null,fusionSecondarySprite:null,
     element:m.element, secondaryElement:null, archetype:m.archetype||'beast', role:m.role||'striker', passive:clone(m.passive||{}),
     pointCost:monsterPointCost(m), level:Number(BATTLE_RULES.startMonsterLevel||5), xp:0, hp:maxHp, maxHp, power, block:startBlock, counter:0,
-    evolutionLevel:evolutionLevel(m), pendingLearnMoves:[], gene:0, resonance:0, rift:0, evolved:false, fused:false, fusionWith:null, resonanceTurns:0, abyssBloom:false,
+    evolutionLevel:evolutionLevel(m), evolutionItemId:m.evolutionItemId||null, evolutionItemName:m.evolutionItemName||'', evolutionItemOnly:Boolean(m.evolutionItemOnly), pendingLearnMoves:[], gene:0, resonance:0, rift:0, evolved:false, fused:false, fusionWith:null, resonanceTurns:0, abyssBloom:false,
     secondaryArchetype:null, secondaryPassive:null, fusionLineage:[m.id], fusionDepth:0, nextAttackBonus:0, kills:0,
     revived:false, firstHitTaken:false, summonedTurn:0, slotOrder:index, acted:false, levelUpsThisBattle:0, heldItemId:null, heldItemUsed:false, majorStatus:null, statusTurns:0, statStages:{atk:0,def:0,speed:0,accuracy:0,evasion:0},
     moves:buildMonsterMoves(m).map(x=>{const p=normalizeMovePp(x);return {...x,cooldownRemaining:0,maxPp:p.maxPp,pp:p.maxPp};})
@@ -832,6 +835,63 @@ function applyElementDamage(target, amount, attackerElement) {
   return applyDamage(target, Math.round(Number(amount || 0) * elementalMultiplier(attackerElement, target?.element)));
 }
 
+function currentMonsterArchiveBanner(now = Date.now()) {
+  const rotationMs = Number(MONSTER_ARCHIVE_CONFIG.rotationDays || 5) * 86400000;
+  const cycle = Math.max(0, Math.floor(Number(now || Date.now()) / rotationMs));
+  const pool = MONSTER_ARCHIVE_POOL.length ? MONSTER_ARCHIVE_POOL : MONSTERS;
+  const featured = pool[cycle % pool.length] || pool[0] || MONSTERS[0];
+  const endsAt = (cycle + 1) * rotationMs;
+  return {
+    featuredId: featured?.id || '',
+    endsAt,
+    singleCost: MONSTER_ARCHIVE_CONFIG.singleCost,
+    tenCost: MONSTER_ARCHIVE_CONFIG.tenCost,
+    pityLegendary: MONSTER_ARCHIVE_CONFIG.pityLegendary,
+    rotationDays: MONSTER_ARCHIVE_CONFIG.rotationDays,
+    rates: clone(MONSTER_ARCHIVE_CONFIG.rates),
+    featured: publicMonster(featured)
+  };
+}
+
+function monsterArchiveRarityRoll(profile, countIndex = 0) {
+  profile.monsterArchivePity = Number(profile.monsterArchivePity || 0) + 1;
+  if (profile.monsterArchivePity >= Number(MONSTER_ARCHIVE_CONFIG.pityLegendary || 10)) {
+    profile.monsterArchivePity = 0;
+    return Math.random() < 0.12 ? 'mythic' : 'legendary';
+  }
+  const r = Math.random();
+  const rates = MONSTER_ARCHIVE_CONFIG.rates;
+  if (r < Number(rates.mythic || 0)) return 'mythic';
+  if (r < Number(rates.mythic || 0) + Number(rates.legendary || 0)) { profile.monsterArchivePity = 0; return 'legendary'; }
+  if (r < Number(rates.mythic || 0) + Number(rates.legendary || 0) + Number(rates.rare || 0)) return 'rare';
+  return 'common';
+}
+
+function pullMonsterArchive(profile, count) {
+  const n = Number(count) === 10 ? 10 : 1;
+  const cost = n === 10 ? Number(MONSTER_ARCHIVE_CONFIG.tenCost || 1700) : Number(MONSTER_ARCHIVE_CONFIG.singleCost || 180);
+  if (Number(profile.gems || 0) < cost) throw new Error('프리즘이 부족합니다.');
+  profile.gems = Number(profile.gems || 0) - cost;
+  const banner = currentMonsterArchiveBanner();
+  const featuredId = banner.featuredId;
+  const results = [];
+  for (let i = 0; i < n; i++) {
+    const rarity = monsterArchiveRarityRoll(profile, i);
+    const highPool = MONSTERS.filter(m => (m.monsterRarity || m.tier) === rarity);
+    const lowPool = rarity === 'common' ? MONSTERS.filter(m => ['common','rare'].includes(m.monsterRarity || m.tier)) : MONSTERS.filter(m => ['rare','ultra'].includes(m.monsterRarity || m.tier));
+    let pool = (rarity === 'legendary' || rarity === 'mythic') ? highPool : lowPool;
+    if (!pool.length) pool = MONSTER_ARCHIVE_SUPPORT_POOL.length ? MONSTER_ARCHIVE_SUPPORT_POOL : MONSTERS;
+    let picked = null;
+    if ((rarity === 'legendary' || rarity === 'mythic') && featuredId && Math.random() < 0.68) picked = pool.find(m => m.id === featuredId) || null;
+    if (!picked) picked = choose(pool);
+    addMonsterToProfile(profile, picked.id, 1, false);
+    profile.stats.monsterArchivePulls = Number(profile.stats.monsterArchivePulls || 0) + 1;
+    results.push(publicMonster(picked));
+  }
+  saveProfiles();
+  return { results, cost, profile: profileView(profile), banner: currentMonsterArchiveBanner() };
+}
+
 function migrateProfile(p) {
   p.cloud = Boolean(p.cloud);
   p.accountId = p.accountId ? String(p.accountId) : '';
@@ -872,8 +932,9 @@ function migrateProfile(p) {
   const defaults = {
     journeys:0,dungeons:0,dungeonClears:0,bosses:0,cardsCaught:0,monstersCaught:0,bestDungeonFloor:0,bestJourneyFloor:0,gachaPulls:0,
     journeyUnlocks:0,dungeonCardsPlayed:0,normalClears:0,hardClears:0,hellClears:0,bestNormalFloor:0,bestHardFloor:0,bestHellFloor:0,
-    loginCount:0,lastLoginAt:0,perfectBattles:0,bestChain:0,overdrives:0,evolutions:0,fusions:0,resonanceEvolutions:0,riftBlooms:0
+    loginCount:0,lastLoginAt:0,perfectBattles:0,bestChain:0,overdrives:0,evolutions:0,fusions:0,resonanceEvolutions:0,riftBlooms:0,monsterArchivePulls:0
   };
+  p.monsterArchivePity = Number(p.monsterArchivePity || 0);
   for (const [k,v] of Object.entries(defaults)) if (p.stats[k] == null) p.stats[k]=v;
   p.history = Array.isArray(p.history) ? p.history.filter(x => x && typeof x === 'object').slice(0,20) : [];
   return p;
@@ -902,7 +963,7 @@ function addMonsterToProfile(p, monsterId, count = 1, save = true) {
   if(save)saveProfiles(); return wasNew;
 }
 function profileView(p) {
-  return { id:p.id,nickname:p.nickname,gems:p.gems,dust:p.dust,seals:p.seals,pity:p.pity,collection:p.collection,cardOrigins:p.cardOrigins||{},deck:p.deck,
+  return { id:p.id,nickname:p.nickname,gems:p.gems,dust:p.dust,seals:p.seals,pity:p.pity,monsterArchivePity:Number(p.monsterArchivePity||0),collection:p.collection,cardOrigins:p.cardOrigins||{},deck:p.deck,
     monsters:p.monsters||{},monsterParty:p.monsterParty||[],monsterPartyCost:monsterPartyCost(p.monsterParty||[]),monsterPointBudget:MONSTER_POINT_BUDGET,
     stats:p.stats,history:p.history||[],ownedCount:Object.keys(p.collection).length,totalCards:CARDS.length,monsterOwnedCount:Object.keys(p.monsters||{}).length,
     totalMonsters:MONSTERS.length,cloud:Boolean(p.cloud),accountId:p.accountId||'',activeRoomId:p.activeRoomId||'' };
@@ -1613,11 +1674,19 @@ function monsterDamage(room, pc, u, amount, source=null){
   if(dealt>0)u.rift=clamp(Number(u.rift||0)+Math.max(1,Math.ceil(dealt/18)),0,5);
   const heldItem=heldItemDef(u), held=heldItem?.held;
   if(u.hp>0&&!u.heldItemUsed&&held?.kind==='lowHpHeal'&&u.hp/u.maxHp<=Number(held.threshold||.4)){
-    const heal=Math.max(1,Math.round(u.maxHp*Number(held.healPct||.2)));u.hp=clamp(u.hp+heal,0,u.maxHp);u.heldItemUsed=true;
-    pushRoomEvent(room,'held-item',`${u.name}의 ${heldItem.name} 발동 · HP +${heal}`,{playerId:pc.playerId,instanceId:u.instanceId,itemId:heldItem.id,heal});
+    const heal=Math.max(1,Math.round(u.maxHp*Number(held.healPct||.2)));u.hp=clamp(u.hp+heal,0,u.maxHp);
+    if(held.cureMajor){u.majorStatus=null;u.statusTurns=0;}
+    u.heldItemUsed=true;
+    pushRoomEvent(room,'held-item',`${u.name}의 ${heldItem.name} 발동 · HP +${heal}${held.cureMajor?' · 상태 회복':''}`,{playerId:pc.playerId,instanceId:u.instanceId,itemId:heldItem.id,heal});
   }else if(u.hp>0&&!u.heldItemUsed&&held?.kind==='lowHpGuard'&&u.hp/u.maxHp<=Number(held.threshold||.5)){
     const guard=Math.max(1,Number(held.block||12));u.block=Number(u.block||0)+guard;u.heldItemUsed=true;
     pushRoomEvent(room,'held-item',`${u.name}의 ${heldItem.name} 발동 · 방어 +${guard}`,{playerId:pc.playerId,instanceId:u.instanceId,itemId:heldItem.id,block:guard});
+  }else if(u.hp>0&&!u.heldItemUsed&&held?.kind==='lowHpCleanse'&&u.hp/u.maxHp<=Number(held.threshold||.45)){
+    const beforeMajor=u.majorStatus;
+    u.majorStatus=null;u.statusTurns=0;
+    for(const key of ['burn','poison','shock','weak','vulnerable','intentSeal']) if(u.debuffs?.[key]) u.debuffs[key]=0;
+    u.heldItemUsed=true;
+    pushRoomEvent(room,'held-item',`${u.name}의 ${heldItem.name} 발동 · 상태이상 정화`,{playerId:pc.playerId,instanceId:u.instanceId,itemId:heldItem.id,cured:beforeMajor||'debuff'});
   }
   if(dealt>0&&source&&held?.kind==='thorns'&&Number(source.hp||0)>0){const reflect=applyDamage(source,Math.max(1,Number(held.damage||4)));if(reflect>0)pushRoomEvent(room,'held-item',`${u.name}의 ${heldItem.name} · 반사 ${reflect}`,{playerId:pc.playerId,instanceId:u.instanceId,itemId:heldItem.id,damage:reflect,enemyUid:source.uid||null});}
   let revived=false;
@@ -2864,7 +2933,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/healthz' || p === '/api/version') return ok(res, { service: 'FUSEWILD_SERVER', version: VERSION, deployId: DEPLOY_ID, storage: SUPABASE_ACTIVE ? 'supabase+json-fallback' : 'json-local', auth: SUPABASE_AUTH_ACTIVE ? 'supabase' : 'guest-only', cards: CARDS.length, items: ITEMS.length, monsters: ENEMIES.length + BOSSES.length, monsterMoves: MOVE_LIBRARY.length, maxDungeonFloor: DUNGEON_MAX_FLOOR, rooms: rooms.size, uptime: Math.round(process.uptime()) });
     if (p === '/api/meta' && req.method === 'GET') return ok(res, {
       cards: CARDS.map(publicCard), items: ITEMS.map(publicItem), monsters: MONSTERS.map(publicMonster), rarities: RARITY, elements: ELEMENTS, elementMatchups: ELEMENT_ADVANTAGE, monsterRules:{maxSlots:MONSTER_PARTY_MAX,pointBudget:MONSTER_POINT_BUDGET,moveLibraryCount:MOVE_LIBRARY.length}, spellRules:{min:DECK_MIN,max:DECK_MAX}, battleRules:{...BATTLE_RULES,xpModel:'battle-end',moveLibraryCount:MOVE_LIBRARY.length,moveMasteryThresholds:MOVE_MASTERY_THRESHOLDS}, biomes: BIOMES,
-      relics: RELICS, banner: BANNER, difficulties: DIFFICULTIES, version: VERSION, maxDungeonFloor: DUNGEON_MAX_FLOOR, authEnabled: SUPABASE_AUTH_ACTIVE
+      relics: RELICS, banner: BANNER, monsterBanner: currentMonsterArchiveBanner(), difficulties: DIFFICULTIES, version: VERSION, maxDungeonFloor: DUNGEON_MAX_FLOOR, authEnabled: SUPABASE_AUTH_ACTIVE
     });
     if (p === '/api/auth/status' && req.method === 'GET') {
       const user = await authUserFromRequest(req, res);
@@ -2930,6 +2999,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/gacha/pull' && req.method === 'POST') {
       const b = await parseBody(req); const prof = await authProfile(req, res, b); return ok(res, pullGacha(prof, b.count));
+    }
+    if (p.startsWith('/api/monster-archive') && req.method === 'POST') {
+      const b = await parseBody(req); const prof = await authProfile(req, res, b); return ok(res, pullMonsterArchive(prof, b.count));
     }
     if (p === '/api/rooms/resume' && req.method === 'POST') {
       const b=await parseBody(req); const prof=await authProfile(req,res,b);
