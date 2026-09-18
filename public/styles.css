@@ -2611,3 +2611,52 @@ body.combat-narrating-v72 .battle-v74 .enemy-mon-v52{
   .battle-v74 .move-btn-v52{grid-template-columns:24px 34px minmax(0,1fr) auto!important;padding:9px!important}
   .afterbattle-v74 .afterbattle-token-v64.reward-card-v71{flex-basis:88vw!important;width:88vw!important;grid-template-columns:68px minmax(0,1fr) auto!important}
 }
+
+/* --- 2026-09 patch: monster archive, held item badge, responsive reward/battle polish --- */
+.dual-gacha-page .gacha-dual-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:stretch}
+.monster-banner-panel{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:16px;align-items:center}
+.monster-banner-meta{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px}
+.monster-banner-meta span{padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.08);font-size:12px}
+.monster-pickup-showcase{display:flex;justify-content:center;align-items:center}
+.monster-mini-card{position:relative;display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(20,28,48,.96),rgba(9,14,24,.96));box-shadow:0 10px 26px rgba(0,0,0,.25);text-align:left;animation:pullRise .45s ease both}
+.monster-mini-card.featured{border-color:rgba(250,208,96,.6);box-shadow:0 14px 36px rgba(250,208,96,.18)}
+.monster-mini-top{display:flex;justify-content:space-between;gap:8px;font-size:11px;opacity:.85}
+.monster-mini-art{height:150px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:radial-gradient(circle at top,rgba(255,255,255,.16),rgba(255,255,255,.03) 70%);overflow:hidden}
+.monster-mini-art img{max-width:100%;max-height:100%;image-rendering:auto;object-fit:contain}
+.monster-mini-card b{font-size:18px;line-height:1.2}
+.monster-mini-card small{line-height:1.45;opacity:.8}
+.monster-mini-card em{font-style:normal;font-size:12px;opacity:.76}
+.pickup-tag{position:absolute;top:10px;right:10px;padding:5px 10px;border-radius:999px;background:linear-gradient(135deg,#f6d365,#fda085);color:#1c1400;font-weight:800;font-size:11px}
+.monster-pull-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;width:min(1080px,92vw)}
+.monster-pull-inner{width:min(1180px,94vw)}
+.battle-held-badge-v80{position:absolute;left:8px;top:8px;z-index:2;max-width:calc(100% - 16px);padding:5px 8px;border-radius:999px;background:rgba(8,12,24,.88);border:1px solid rgba(255,255,255,.18);font-size:11px;font-weight:700;line-height:1.2;backdrop-filter:blur(6px);box-shadow:0 8px 18px rgba(0,0,0,.25)}
+.mon-sprite-v52{position:relative;min-height:148px}
+.battle-held-v53{margin-top:8px;font-size:12px;font-weight:700;color:#e8eefc}
+.afterbattle-v51,.afterbattle-stage-v64{align-items:start}
+.reward-grid-v71{grid-template-columns:repeat(auto-fit,minmax(188px,1fr));gap:14px}
+.reward-card-v71,.shop-card,.gacha-banner,.monster-mini-card{min-width:0}
+.reward-art-v71 img{object-fit:contain}
+.afterbattle-strip-v64{grid-auto-columns:minmax(220px,24rem)}
+.active-mon-v52{min-width:0}
+.active-mon-v52 .mon-top-v52 strong,.bench-mon-v52 .bench-name-v52{word-break:keep-all;overflow-wrap:anywhere}
+@media (max-width: 980px){
+  .dual-gacha-page .gacha-dual-grid{grid-template-columns:1fr}
+  .monster-banner-panel{grid-template-columns:1fr}
+  .afterbattle-stage-v64{grid-template-columns:1fr !important}
+  .afterbattle-strip-v64{grid-auto-columns:minmax(180px,78vw)}
+}
+@media (max-width: 720px){
+  .page-head{align-items:flex-start}
+  .gacha-art,.monster-pull-grid{grid-template-columns:1fr 1fr}
+  .monster-mini-art{height:124px}
+  .battle-held-badge-v80{font-size:10px;padding:4px 7px}
+  .mon-sprite-v52{min-height:126px}
+  .reward-grid-v71{grid-template-columns:1fr}
+  .active-mon-v52 .mon-meta-v52{grid-template-columns:repeat(3,minmax(0,1fr));font-size:11px}
+}
+@media (max-width: 560px){
+  .gacha-art,.monster-pull-grid{grid-template-columns:1fr}
+  .banner-actions{display:grid;grid-template-columns:1fr;gap:10px}
+  .monster-banner-meta{flex-direction:column;align-items:flex-start}
+  .active-mon-v52,.bench-mon-v52,.reward-card-v71,.shop-card{border-radius:16px}
+}
