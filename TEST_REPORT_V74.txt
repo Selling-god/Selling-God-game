@@ -1,0 +1,43 @@
+
+> fusewild-monster-fusion-roguelite@7.4.0 check
+> node --check server.js && node --check public/app.js && node --check data/move-library.js
+
+
+> fusewild-monster-fusion-roguelite@7.4.0 test
+> npm run build && node scripts/run-release-tests.js
+
+
+> fusewild-monster-fusion-roguelite@7.4.0 build
+> node scripts/build.js
+
+BUILD_WARN Supabase SQL setup file is not committed. Build will continue because the SQL file is not required at runtime.
+BUILD_OK v7.4.0 deploy=FUSEWILD-V740-QA-REFRESH-20260918 cards=315 items=128 enemies=205 floors=50
+SUPABASE_SETUP_FILE optional-missing
+STATIC_GUARD_OK out/index.html created (diagnostic only; game requires Node Web Service)
+  PASS  catalog-test
+  PASS  smoke-test
+  PASS  auth-test
+  PASS  cloud-room-test
+  PASS  multiplayer-test
+  PASS  combat-depth-test
+  PASS  fifty-floor-test
+  PASS  expedition-hunt-test
+  PASS  shop-cadence-test
+  PASS  fusion-name-fuzz-test
+  PASS  game-feel-test
+  PASS  v40-monster-evolution-test
+  PASS  v42-rift-rewrite-test
+  PASS  v47-premium-loop-test
+  PASS  v51-combat-ux-test
+  PASS  v52-classic-battle-test
+  PASS  v53-held-item-test
+  PASS  v531-client-runtime-test
+  PASS  v532-battleflow-resume-test
+  PASS  v55-status-command-resume-test
+  PASS  v56-fusion-pp-battle-test
+  PASS  v63-trainer-heal-test
+  PASS  v74-release-test
+  PASS  v74-runtime-test
+
+RELEASE TESTS 24/24 passed
+RELEASE_GATE_OK
