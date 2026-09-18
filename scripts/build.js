@@ -78,7 +78,7 @@ if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets
 
 const info = {
   version: String(pkg.version || catalog.version || '6.2.1'),
-  deployId: 'FUSEWILD-V740-QA-REFRESH-20260918',
+  deployId: 'FUSEWILD-V750-POKEROGUE-UX-20260918',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,
@@ -92,11 +92,11 @@ const info = {
 };
 fs.writeFileSync(path.join(root, 'public', 'build-info.json'), JSON.stringify(info, null, 2));
 fs.writeFileSync(path.join(root, 'public', 'version.json'), JSON.stringify({
-  release: 'FUSEWILD-V740-QA-REFRESH',
-  buildId: 'fusewild-v740-qa-refresh',
+  release: 'FUSEWILD-V750-POKEROGUE-UX',
+  buildId: 'fusewild-v750-pokerogue-ux',
   generatedAt: info.builtAt,
   version: info.version,
-  label: 'FUSEWILD V7.4.0 QA REFRESH + MOBILE CONTAINMENT + RELEASE GATE',
+  label: 'FUSEWILD V7.5.0 MONSTER-ONLY PICKUP + HELD-ITEM REWARD FLOW + NO-CROP UI',
   deployId: info.deployId
 }, null, 2));
 
