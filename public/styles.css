@@ -3033,3 +3033,291 @@ body.reward-screen-v64{overflow:auto!important}
   .modal:has(.reward-equip-modal-v82){width:100%!important;max-width:100%!important}
   .modal:has(.reward-equip-modal-v82) .reward-equip-modal-v82{width:100%!important;max-width:100%!important}
 }
+
+/* ======================================================================
+   FUSEWILD v7.6 — SINGLE-CANVAS RESPONSIVE UI REBUILD
+   Design principle: one contained battle surface, proportional regions,
+   no viewport-fixed child geometry, no off-canvas card composition.
+   ====================================================================== */
+
+/* The battle owns the viewport. The site chrome must not add 58px above a
+   100dvh battle surface (that combination was the main low-height crop). */
+body.battle-focus-v31{margin:0!important;width:100%!important;height:100dvh!important;min-height:0!important;overflow:hidden!important;background:#070b12!important}
+body.battle-focus-v31 #app{width:100%!important;height:100dvh!important;min-height:0!important;overflow:hidden!important}
+body.battle-focus-v31 .topbar,
+body.battle-focus-v31 .footer-bar{display:none!important}
+body.battle-focus-v31 .screen{width:100%!important;height:100dvh!important;min-height:0!important;overflow:hidden!important;padding:0!important;margin:0!important}
+
+/* Battle frame — all major regions are percentages/remaining-space based. */
+.battle-v82{
+  position:relative!important;inset:auto!important;
+  width:100%!important;height:100%!important;min-height:0!important;max-height:100dvh!important;
+  display:grid!important;
+  grid-template-rows:clamp(38px,8dvh,64px) minmax(0,1fr) clamp(118px,25dvh,190px)!important;
+  overflow:hidden!important;background:#090e16!important;color:#f6f3e8!important;
+  isolation:isolate!important;
+}
+.battle-v82,.battle-v82 *{box-sizing:border-box;min-width:0}
+.battle-v82 .battle-bg-v52{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;background-size:cover!important;background-position:center!important;z-index:0!important}
+.battle-v82 .battle-atmos-v52{position:absolute!important;inset:0!important;z-index:1!important;pointer-events:none!important;background:linear-gradient(180deg,rgba(6,11,18,.82),rgba(6,11,18,.08) 25%,rgba(6,11,18,.04) 62%,rgba(6,10,17,.86))!important}
+
+/* Compact information rail, equivalent to a game-canvas HUD rather than a web header. */
+.battle-v82 .battle-top-v52{
+  position:relative!important;inset:auto!important;z-index:20!important;
+  width:100%!important;height:100%!important;min-height:0!important;
+  display:grid!important;grid-template-columns:minmax(150px,1fr) minmax(140px,.72fr) auto auto!important;
+  align-items:center!important;gap:clamp(5px,1vw,12px)!important;
+  padding:clamp(4px,.8dvh,8px) clamp(8px,1.4vw,18px)!important;
+  overflow:hidden!important;background:linear-gradient(180deg,rgba(12,20,31,.96),rgba(9,15,24,.90))!important;
+  border:0!important;border-bottom:1px solid rgba(204,215,211,.48)!important;box-shadow:0 5px 16px rgba(0,0,0,.30)!important;
+}
+.battle-v82 .battle-title-v52{overflow:hidden!important;min-width:0!important}
+.battle-v82 .battle-title-v52 small{display:block!important;font-size:clamp(7px,1.1dvh,10px)!important;line-height:1.1!important;letter-spacing:.10em!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.battle-v82 .battle-title-v52 b{display:block!important;font-size:clamp(12px,2.3dvh,20px)!important;line-height:1.08!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.battle-v82 .trainer-title-v63{display:block!important;font-size:clamp(6px,1dvh,9px)!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.battle-v82 .party-mini-v52{display:flex!important;justify-content:center!important;align-items:center!important;gap:clamp(2px,.45vw,5px)!important;overflow:hidden!important;height:100%!important}
+.battle-v82 .party-mini-v52>span{flex:0 1 clamp(24px,3.2dvh,38px)!important;width:clamp(24px,3.2dvh,38px)!important;height:clamp(24px,3.2dvh,38px)!important;min-width:20px!important}
+.battle-v82 .party-mini-v52 img{width:100%!important;height:100%!important;object-fit:contain!important}
+.battle-v82 .battle-core-v52{display:flex!important;align-items:center!important;gap:5px!important;white-space:nowrap!important;overflow:hidden!important}
+.battle-v82 .battle-core-v52 span{font-size:clamp(7px,1.15dvh,10px)!important;padding:4px 6px!important}
+.battle-v82 .battle-tools-v52{display:flex!important;align-items:center!important;gap:4px!important;white-space:nowrap!important}
+.battle-v82 .battle-tools-v52 button{width:auto!important;min-width:clamp(30px,4dvh,40px)!important;height:clamp(26px,4.8dvh,38px)!important;padding:0 7px!important;font-size:clamp(7px,1.15dvh,10px)!important}
+
+/* The battlefield is a true contained grid. Status plate is a ROW above the
+   sprite, never an absolute layer stealing height from the monster. */
+.battle-v82 .battle-arena-v52{
+  position:relative!important;inset:auto!important;z-index:4!important;
+  width:100%!important;height:100%!important;min-height:0!important;
+  display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  align-items:stretch!important;gap:clamp(8px,2.2vw,36px)!important;
+  padding:clamp(5px,1.2dvh,12px) clamp(8px,3vw,54px) clamp(3px,.8dvh,9px)!important;
+  overflow:hidden!important;
+}
+.battle-v82 .player-field-v52,.battle-v82 .enemy-field-v52{
+  position:relative!important;inset:auto!important;width:100%!important;height:100%!important;min-height:0!important;
+  display:grid!important;grid-template-columns:repeat(auto-fit,minmax(0,1fr))!important;
+  align-items:stretch!important;justify-items:center!important;gap:clamp(4px,1vw,14px)!important;overflow:hidden!important;
+}
+.battle-v82 .active-mon-v52,.battle-v82 .enemy-mon-v52{
+  position:relative!important;inset:auto!important;transform:none!important;
+  width:100%!important;max-width:clamp(220px,34vw,470px)!important;height:100%!important;max-height:none!important;min-height:0!important;
+  display:grid!important;grid-template-rows:auto minmax(0,1fr)!important;align-items:stretch!important;
+  padding:0!important;margin:0!important;border:0!important;background:transparent!important;overflow:hidden!important;
+}
+.battle-v82.mode-double .active-mon-v52,.battle-v82.mode-double .enemy-mon-v52{max-width:none!important}
+.battle-v82 .mon-status-v52,.battle-v82 .enemy-status-v52{
+  position:relative!important;inset:auto!important;transform:none!important;z-index:8!important;
+  width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;
+  display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:3px 8px!important;align-items:center!important;
+  padding:clamp(5px,1dvh,9px) clamp(7px,1vw,11px)!important;
+  overflow:hidden!important;border:1px solid rgba(235,238,229,.82)!important;border-radius:2px!important;
+  background:linear-gradient(180deg,rgba(18,26,39,.95),rgba(11,17,27,.92))!important;box-shadow:3px 3px 0 rgba(4,7,12,.45)!important;
+}
+.battle-v82 .mon-status-v52>div,.battle-v82 .enemy-status-v52>div{min-width:0!important;overflow:hidden!important}
+.battle-v82 .mon-status-v52 b,.battle-v82 .enemy-status-v52 b{display:block!important;font-size:clamp(10px,2dvh,16px)!important;line-height:1.15!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.battle-v82 .mon-status-v52 small,.battle-v82 .enemy-status-v52 small{display:block!important;font-size:clamp(7px,1.15dvh,10px)!important;line-height:1.15!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.battle-v82 .mon-status-v52>span,.battle-v82 .enemy-status-v52>span{font-size:clamp(8px,1.45dvh,12px)!important;font-weight:900!important;white-space:nowrap!important}
+.battle-v82 .mon-status-v52>i,.battle-v82 .enemy-status-v52>i{grid-column:1/-1!important;position:relative!important;inset:auto!important;width:100%!important;height:clamp(4px,.9dvh,8px)!important;margin:0!important}
+.battle-v82 .boss-hp-segments-v56,.battle-v82 .live-status-layer-v62{max-height:clamp(12px,2.2dvh,22px)!important;overflow:hidden!important}
+
+.battle-v82 .mon-sprite-v52,.battle-v82 .enemy-sprite-v52{
+  position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
+  transform:none!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;
+  display:flex!important;align-items:flex-end!important;justify-content:center!important;overflow:hidden!important;padding:clamp(2px,.7dvh,7px)!important;
+}
+.battle-v82 .mon-sprite-v52>img:not(.fusion-ghost-v40),
+.battle-v82 .enemy-sprite-v52>img.enemy-sprite{
+  position:relative!important;inset:auto!important;transform:none!important;
+  width:auto!important;height:auto!important;max-width:96%!important;max-height:100%!important;
+  object-fit:contain!important;object-position:center bottom!important;
+  filter:drop-shadow(0 clamp(5px,1.5dvh,14px) clamp(3px,.8dvh,8px) rgba(0,0,0,.48))!important;
+}
+.battle-v82 .fusion-ghost-v40{max-width:80%!important;max-height:80%!important;object-fit:contain!important}
+.battle-v82 .mon-shadow-v41,.battle-v82 .enemy-shadow-v41{max-width:80%!important;bottom:1%!important}
+.battle-v82 .acted-mark-v51{position:absolute!important;right:6px!important;bottom:5px!important;z-index:12!important;font-size:clamp(7px,1.3dvh,10px)!important}
+.battle-v82 .held-corner-v80{left:5px!important;top:5px!important;max-width:min(66%,170px)!important;padding:4px 6px!important;gap:5px!important}
+.battle-v82 .held-corner-v80>i{width:20px!important;height:20px!important;font-size:11px!important}
+.battle-v82 .held-corner-v80 b{font-size:8px!important}.battle-v82 .held-corner-v80 small{font-size:6px!important}
+
+/* Message + commands are one game window. */
+.battle-v82 .command-box-v52{
+  position:relative!important;inset:auto!important;z-index:30!important;
+  width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;
+  display:grid!important;grid-template-columns:minmax(210px,.36fr) minmax(0,.64fr)!important;
+  padding:0!important;gap:0!important;overflow:hidden!important;
+  border:0!important;border-top:2px solid rgba(236,237,226,.92)!important;background:#111722f5!important;box-shadow:0 -6px 20px rgba(0,0,0,.36)!important;
+}
+.battle-v82 .battle-dialog-v57{
+  position:relative!important;inset:auto!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
+  display:flex!important;flex-direction:column!important;justify-content:center!important;
+  padding:clamp(8px,1.8dvh,17px) clamp(11px,1.4vw,22px)!important;overflow:hidden!important;
+  border:0!important;border-right:1px solid rgba(70,82,83,.72)!important;background:linear-gradient(135deg,#efedd4,#d9ddc7)!important;color:#151d28!important;text-shadow:none!important;
+}
+.battle-v82 .battle-dialog-v57 small{font-size:clamp(7px,1.25dvh,10px)!important;line-height:1.2!important;color:#52645e!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.battle-v82 .battle-dialog-v57 b{margin-top:3px!important;font-size:clamp(15px,3.25dvh,25px)!important;line-height:1.08!important;max-width:100%!important;white-space:normal!important;overflow:hidden!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important}
+.battle-v82 .battle-dialog-v57 span{position:relative!important;inset:auto!important;margin-top:5px!important;font-size:clamp(8px,1.45dvh,12px)!important;color:#52605a!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.battle-v82 .command-content-v52{
+  position:relative!important;inset:auto!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;
+  padding:clamp(5px,1dvh,10px)!important;overflow:auto!important;background:rgba(12,18,29,.98)!important;
+}
+.battle-v82 .root-command-v52{width:100%!important;height:100%!important;min-height:0!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important;gap:clamp(4px,.8dvh,8px)!important}
+.battle-v82 .root-command-v52 button{width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;padding:clamp(5px,1dvh,10px) clamp(7px,1vw,12px)!important;display:grid!important;grid-template-columns:clamp(26px,4.5dvh,42px) minmax(0,1fr)!important;grid-template-rows:auto auto!important;column-gap:clamp(5px,.8vw,10px)!important;align-content:center!important;overflow:hidden!important}
+.battle-v82 .root-command-v52 button>span{grid-row:1/3!important;align-self:center!important;font-size:clamp(18px,4dvh,30px)!important}
+.battle-v82 .root-command-v52 button>b{font-size:clamp(12px,2.4dvh,18px)!important;line-height:1.1!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.battle-v82 .root-command-v52 button>small{font-size:clamp(7px,1.35dvh,10px)!important;line-height:1.15!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+
+/* Fight submenu uses the same 2x2 grammar as PokéRogue's command/move windows. */
+.battle-v82 .move-command-v52,.battle-v82 .party-command-v52,.battle-v82 .fusion-command-panel-v56,.battle-v82 .capture-command-v45,.battle-v82 .replacement-command-v70,.battle-v82 .info-command-v51{width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;overflow:hidden!important}
+.battle-v82 .move-command-v52{display:grid!important;grid-template-rows:auto minmax(0,1fr)!important}
+.battle-v82 .subcommand-head-v52{min-height:0!important;height:auto!important;padding:0 0 clamp(3px,.6dvh,6px)!important}
+.battle-v82 .subcommand-head-v52 b{font-size:clamp(9px,1.7dvh,14px)!important;line-height:1.1!important}
+.battle-v82 .subcommand-head-v52 small{font-size:clamp(6px,1dvh,9px)!important}
+.battle-v82 .move-grid-v52{width:100%!important;height:100%!important;min-height:0!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important;gap:clamp(4px,.7dvh,7px)!important;padding:0!important;overflow:hidden!important}
+.battle-v82 .move-btn-v52{width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;overflow:hidden!important;padding:clamp(4px,.8dvh,8px)!important;grid-template-columns:clamp(18px,3dvh,28px) clamp(20px,3.2dvh,32px) minmax(0,1fr) auto!important;gap:4px!important;align-items:center!important}
+.battle-v82 .move-btn-v52 b{font-size:clamp(9px,1.8dvh,14px)!important;line-height:1.1!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.battle-v82 .move-btn-v52 small{font-size:clamp(6px,1dvh,9px)!important;line-height:1.15!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.battle-v82 .move-effect-tags-v54{max-height:clamp(10px,2dvh,18px)!important;overflow:hidden!important;display:flex!important;gap:2px!important;flex-wrap:nowrap!important}
+.battle-v82 .move-effect-tags-v54 i{font-size:clamp(5px,.9dvh,8px)!important;white-space:nowrap!important}
+.battle-v82 .party-switch-v52,.battle-v82 .fusion-partner-grid-v56,.battle-v82 .replacement-grid-v70{min-height:0!important;max-height:100%!important;overflow:auto!important}
+
+/* Very short landscape windows: keep arena alive instead of allowing fixed HUD
+   and command heights to consume the whole viewport. */
+@media (min-width:701px) and (max-height:520px){
+  .battle-v82{grid-template-rows:36px minmax(0,1fr) 116px!important}
+  .battle-v82 .battle-top-v52{grid-template-columns:minmax(130px,1fr) auto auto!important;padding:3px 8px!important;gap:5px!important}
+  .battle-v82 .party-mini-v52{display:none!important}
+  .battle-v82 .battle-core-v52 span{padding:2px 4px!important;font-size:7px!important}
+  .battle-v82 .battle-tools-v52 button{height:26px!important;min-width:29px!important;padding:0 5px!important;font-size:7px!important}
+  .battle-v82 .battle-arena-v52{padding:4px clamp(7px,2vw,28px) 2px!important;gap:10px!important}
+  .battle-v82 .mon-status-v52,.battle-v82 .enemy-status-v52{padding:3px 6px!important;gap:2px 6px!important}
+  .battle-v82 .mon-status-v52 b,.battle-v82 .enemy-status-v52 b{font-size:10px!important}
+  .battle-v82 .mon-status-v52 small,.battle-v82 .enemy-status-v52 small{font-size:6px!important}
+  .battle-v82 .mon-status-v52>span,.battle-v82 .enemy-status-v52>span{font-size:7px!important}
+  .battle-v82 .mon-status-v52>i,.battle-v82 .enemy-status-v52>i{height:4px!important}
+  .battle-v82 .live-status-layer-v62,.battle-v82 .boss-hp-segments-v56{display:none!important}
+  .battle-v82 .held-corner-v80{transform:scale(.82)!important;transform-origin:top left!important}
+  .battle-v82 .command-box-v52{grid-template-columns:minmax(190px,.34fr) minmax(0,.66fr)!important}
+  .battle-v82 .battle-dialog-v57{padding:6px 10px!important}
+  .battle-v82 .battle-dialog-v57 small{font-size:7px!important}.battle-v82 .battle-dialog-v57 b{font-size:15px!important;-webkit-line-clamp:1!important}.battle-v82 .battle-dialog-v57 span{font-size:7px!important;margin-top:3px!important}
+  .battle-v82 .command-content-v52{padding:5px!important}
+  .battle-v82 .root-command-v52{gap:4px!important}
+  .battle-v82 .root-command-v52 button{grid-template-columns:26px minmax(0,1fr)!important;padding:4px 7px!important}
+  .battle-v82 .root-command-v52 button>span{font-size:18px!important}.battle-v82 .root-command-v52 button>b{font-size:12px!important}.battle-v82 .root-command-v52 button>small{font-size:7px!important}
+  .battle-v82 .subcommand-head-v52{display:none!important}
+  .battle-v82 .move-command-v52{grid-template-rows:minmax(0,1fr)!important}
+  .battle-v82 .move-btn-v52{padding:3px 5px!important;grid-template-columns:16px 18px minmax(0,1fr) auto!important}
+  .battle-v82 .move-btn-v52 b{font-size:9px!important}.battle-v82 .move-btn-v52 small{font-size:6px!important}.battle-v82 .move-effect-tags-v54{display:none!important}
+}
+@media (min-width:701px) and (max-height:330px){
+  .battle-v82{grid-template-rows:28px minmax(0,1fr) 88px!important}
+  .battle-v82 .battle-title-v52 small,.battle-v82 .battle-title-v52 .trainer-title-v63{display:none!important}
+  .battle-v82 .battle-title-v52 b{font-size:11px!important}
+  .battle-v82 .battle-top-v52{grid-template-columns:minmax(110px,1fr) auto!important}
+  .battle-v82 .battle-core-v52{display:none!important}
+  .battle-v82 .mon-status-v52 small,.battle-v82 .enemy-status-v52 small{display:none!important}
+  .battle-v82 .mon-status-v52,.battle-v82 .enemy-status-v52{padding:2px 5px!important;grid-template-columns:minmax(0,1fr) auto!important}
+  .battle-v82 .command-box-v52{grid-template-columns:minmax(150px,.30fr) minmax(0,.70fr)!important}
+  .battle-v82 .battle-dialog-v57 small,.battle-v82 .battle-dialog-v57 span{display:none!important}
+  .battle-v82 .battle-dialog-v57 b{font-size:12px!important}
+  .battle-v82 .root-command-v52 button>small{display:none!important}
+}
+
+/* Portrait / small tablets: grow vertically and scroll; nothing is intentionally
+   clipped. This is a separate layout, not a shrunken desktop layout. */
+@media (max-width:700px){
+  body.battle-focus-v31{height:auto!important;min-height:100svh!important;overflow-y:auto!important}
+  body.battle-focus-v31 #app,body.battle-focus-v31 .screen{height:auto!important;min-height:100svh!important;overflow:visible!important}
+  .battle-v82{height:auto!important;min-height:100svh!important;max-height:none!important;grid-template-rows:auto minmax(330px,45svh) auto!important;overflow:visible!important}
+  .battle-v82 .battle-top-v52{height:auto!important;min-height:48px!important;grid-template-columns:minmax(0,1fr) auto auto!important;padding:6px 7px!important}
+  .battle-v82 .party-mini-v52{display:none!important}
+  .battle-v82 .battle-title-v52 b{font-size:14px!important}.battle-v82 .battle-title-v52 small{font-size:7px!important}
+  .battle-v82 .battle-core-v52{gap:2px!important}.battle-v82 .battle-core-v52 span{font-size:7px!important;padding:3px!important}
+  .battle-v82 .battle-tools-v52 button{height:30px!important;min-width:30px!important;font-size:8px!important;padding:0 5px!important}
+  .battle-v82 .battle-arena-v52{height:auto!important;min-height:330px!important;padding:8px 5px 5px!important;gap:5px!important;overflow:hidden!important}
+  .battle-v82 .player-field-v52,.battle-v82 .enemy-field-v52{gap:3px!important}
+  .battle-v82 .active-mon-v52,.battle-v82 .enemy-mon-v52{max-width:none!important}
+  .battle-v82 .mon-status-v52,.battle-v82 .enemy-status-v52{padding:5px 6px!important;gap:2px 4px!important}
+  .battle-v82 .mon-status-v52 b,.battle-v82 .enemy-status-v52 b{font-size:11px!important}.battle-v82 .mon-status-v52 small,.battle-v82 .enemy-status-v52 small{font-size:7px!important}.battle-v82 .mon-status-v52>span,.battle-v82 .enemy-status-v52>span{font-size:8px!important}
+  .battle-v82.mode-double .mon-status-v52 small,.battle-v82.mode-double .enemy-status-v52 small{display:none!important}
+  .battle-v82 .held-corner-v80{max-width:86%!important}
+  .battle-v82 .command-box-v52{height:auto!important;min-height:0!important;display:block!important;overflow:visible!important}
+  .battle-v82 .battle-dialog-v57{height:auto!important;min-height:86px!important;padding:10px 12px!important;border-right:0!important;border-bottom:1px solid #6d7772!important}
+  .battle-v82 .battle-dialog-v57 small{font-size:8px!important}.battle-v82 .battle-dialog-v57 b{font-size:19px!important;overflow:visible!important;display:block!important}.battle-v82 .battle-dialog-v57 span{font-size:9px!important}
+  .battle-v82 .command-content-v52{height:auto!important;min-height:0!important;overflow:visible!important;padding:7px!important}
+  .battle-v82 .root-command-v52{height:auto!important;grid-auto-rows:minmax(68px,auto)!important;grid-template-rows:repeat(2,minmax(68px,auto))!important;gap:6px!important}
+  .battle-v82 .root-command-v52 button{height:auto!important;min-height:68px!important;padding:8px!important;grid-template-columns:31px minmax(0,1fr)!important}
+  .battle-v82 .root-command-v52 button>span{font-size:23px!important}.battle-v82 .root-command-v52 button>b{font-size:14px!important}.battle-v82 .root-command-v52 button>small{font-size:8px!important}
+  .battle-v82 .move-command-v52{height:auto!important;overflow:visible!important}
+  .battle-v82 .subcommand-head-v52{min-height:44px!important;padding-bottom:6px!important}
+  .battle-v82 .move-grid-v52{height:auto!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:none!important;grid-auto-rows:minmax(82px,auto)!important;overflow:visible!important}
+  .battle-v82 .move-btn-v52{height:auto!important;min-height:82px!important;grid-template-columns:20px minmax(0,1fr) auto!important;grid-template-rows:auto auto!important;align-content:center!important}
+  .battle-v82 .move-btn-v52>span{display:none!important}.battle-v82 .move-btn-v52 b{font-size:11px!important}.battle-v82 .move-btn-v52 small{font-size:7px!important}.battle-v82 .move-effect-tags-v54{display:none!important}
+  .battle-v82 .party-switch-v52,.battle-v82 .fusion-partner-grid-v56,.battle-v82 .replacement-grid-v70{max-height:none!important;overflow:visible!important}
+}
+
+/* ----------------------------------------------------------------------
+   GACHA v7.6 — one card = one cell. No tilt, no aura sibling over art,
+   result cards are normal-flow grid items and can only scroll vertically.
+   ---------------------------------------------------------------------- */
+.gacha-page-v82{width:100%!important;min-width:0!important;overflow-x:hidden!important;overflow-y:visible!important}
+.gacha-page-v82 .gacha-hero{width:min(1180px,100%)!important;min-width:0!important;margin:0 auto!important;padding:clamp(12px,2.2vw,26px)!important}
+.gacha-page-v82 .monster-only-banner-v81{width:100%!important;min-width:0!important;display:grid!important;grid-template-columns:minmax(0,1fr) clamp(260px,31vw,350px)!important;gap:clamp(12px,2vw,22px)!important;align-items:stretch!important;overflow:hidden!important}
+.gacha-page-v82 .monster-banner-copy-v81{min-width:0!important;overflow:hidden!important}
+.gacha-page-v82 .monster-pickup-stage-v82{position:relative!important;isolation:isolate!important;width:100%!important;min-width:0!important;min-height:0!important;height:auto!important;display:grid!important;place-items:center!important;padding:clamp(10px,1.8vw,18px)!important;overflow:hidden!important;background:radial-gradient(circle at 50% 38%,rgba(255,223,113,.17),rgba(255,255,255,.025) 48%,rgba(0,0,0,.08) 75%)!important}
+.gacha-page-v82 .monster-pickup-stage-v82::before{content:"";position:absolute;z-index:0;width:min(80%,270px);aspect-ratio:1;border-radius:50%;border:1px solid rgba(255,224,130,.22);box-shadow:0 0 50px rgba(255,207,73,.11),inset 0 0 54px rgba(255,214,101,.06);pointer-events:none}
+.gacha-page-v82 .monster-pull-card-v80{position:relative!important;z-index:1!important;width:min(100%,310px)!important;max-width:310px!important;min-width:0!important;height:auto!important;display:grid!important;grid-template-rows:auto auto auto auto auto!important;gap:7px!important;margin:0!important;padding:12px!important;transform:none!important;rotate:0deg!important;overflow:hidden!important}
+.gacha-page-v82 .monster-pull-art-v80{position:relative!important;width:100%!important;height:auto!important;aspect-ratio:1.18/1!important;min-height:0!important;overflow:hidden!important;display:grid!important;place-items:center!important}
+.gacha-page-v82 .monster-pull-art-v80 img{position:relative!important;inset:auto!important;transform:none!important;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center!important}
+.gacha-page-v82 .monster-pull-card-v80>b{font-size:clamp(16px,2.1vw,21px)!important;line-height:1.15!important;white-space:normal!important;overflow-wrap:anywhere!important}
+.gacha-page-v82 .monster-pull-card-v80>p{min-height:0!important;margin:0!important;display:-webkit-box!important;-webkit-line-clamp:3!important;-webkit-box-orient:vertical!important;overflow:hidden!important}
+.gacha-page-v82 .pickup-ribbon-v80{max-width:55%!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+
+/* Summon result overlay: all cards participate in grid flow. */
+.monster-pull-result-v82{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-width:none!important;padding:clamp(8px,1.5vw,18px)!important;display:block!important;overflow-x:hidden!important;overflow-y:auto!important;background:rgba(5,8,13,.96)!important}
+.monster-pull-result-v82 .pull-result-inner{width:min(1180px,100%)!important;max-width:100%!important;min-height:100%!important;margin:0 auto!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;gap:7px!important;overflow:visible!important;padding:8px 0 16px!important}
+.monster-pull-result-v82 .summon-orb{flex:0 0 auto!important;width:clamp(46px,8dvh,76px)!important;height:clamp(46px,8dvh,76px)!important;margin:2px auto 5px!important}
+.monster-pull-result-v82 h2{flex:0 0 auto!important;margin:0 0 4px!important;font-size:clamp(17px,3dvh,28px)!important}
+.monster-pull-grid-v82{flex:1 1 auto!important;width:100%!important;max-width:100%!important;min-height:0!important;max-height:none!important;display:grid!important;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr))!important;grid-auto-rows:auto!important;align-items:start!important;gap:10px!important;overflow:visible!important;padding:4px!important}
+.monster-pull-grid-v82 .monster-pull-card-v80{position:relative!important;inset:auto!important;transform:none!important;rotate:0deg!important;width:100%!important;max-width:230px!important;height:100%!important;min-height:0!important;justify-self:center!important;margin:0!important;padding:9px!important;overflow:hidden!important}
+.monster-pull-grid-v82 .monster-pull-art-v80{width:100%!important;height:auto!important;aspect-ratio:1.18/1!important;min-height:0!important;overflow:hidden!important}
+.monster-pull-grid-v82 .monster-pull-art-v80 img{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;transform:none!important}
+.monster-pull-grid-v82 .monster-pull-card-v80>b{font-size:14px!important;line-height:1.15!important}
+.monster-pull-grid-v82 .monster-pull-card-v80>p{font-size:9px!important;line-height:1.35!important;min-height:0!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important}
+.monster-pull-result-v82 .close-pull{flex:0 0 auto!important;position:sticky!important;bottom:8px!important;z-index:5!important;min-width:160px!important;margin-top:6px!important}
+
+@media (max-width:900px){
+  .gacha-page-v82 .monster-only-banner-v81{grid-template-columns:1fr!important}
+  .gacha-page-v82 .monster-pickup-stage-v82{max-width:520px!important;width:100%!important;margin:0 auto!important}
+}
+@media (max-width:520px){
+  .gacha-page-v82 .gacha-hero{padding:8px 6px 24px!important}
+  .gacha-page-v82 .monster-only-banner-v81{padding:10px!important;gap:10px!important}
+  .gacha-page-v82 .monster-pickup-stage-v82{padding:8px!important}
+  .gacha-page-v82 .monster-pull-card-v80{max-width:300px!important;padding:9px!important}
+  .gacha-page-v82 .monster-pull-art-v80{aspect-ratio:1.35/1!important}
+  .monster-pull-grid-v82{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+  .monster-pull-grid-v82 .monster-pull-card-v80{max-width:none!important;padding:7px!important}
+  .monster-pull-grid-v82 .monster-pull-card-v80>small{font-size:7px!important}.monster-pull-grid-v82 .monster-pull-card-v80>b{font-size:11px!important}.monster-pull-grid-v82 .monster-pull-card-v80>p{font-size:7px!important}
+}
+@media (min-width:701px) and (max-height:620px){
+  .gacha-page-v82 .gacha-hero{padding-top:10px!important;padding-bottom:18px!important}
+  .gacha-page-v82 .gacha-head-v81{margin-bottom:8px!important}
+  .gacha-page-v82 .gacha-head-v81 p{display:none!important}
+  .gacha-page-v82 .monster-only-banner-v81{grid-template-columns:minmax(0,1fr) 250px!important;padding:14px!important;gap:12px!important}
+  .gacha-page-v82 .pickup-title-row-v81 h2{font-size:25px!important}
+  .gacha-page-v82 .pickup-desc-v81{font-size:10px!important;line-height:1.45!important;margin-top:8px!important}
+  .gacha-page-v82 .coin-wallet-v81{margin:8px 0!important;padding:7px 9px!important}
+  .gacha-page-v82 .monster-rate-table-v81{margin:7px 0!important}.gacha-page-v82 .monster-rate-table-v81 .rate-cell{padding:5px 3px!important}
+  .gacha-page-v82 .gacha-note-v81{margin:6px 0 8px!important;padding:6px 8px!important}
+  .gacha-page-v82 .monster-banner-actions-v81 .cta{min-height:42px!important;padding:6px 9px!important}
+  .gacha-page-v82 .monster-pull-card-v80{max-width:220px!important;padding:8px!important}
+  .gacha-page-v82 .monster-pull-art-v80{aspect-ratio:1.4/1!important}
+  .gacha-page-v82 .monster-pull-card-v80>p{font-size:8px!important;-webkit-line-clamp:2!important}
+  .monster-pull-result-v82 .summon-orb{display:none!important}
+  .monster-pull-result-v82 .pull-result-inner{padding-top:2px!important;gap:4px!important}
+  .monster-pull-grid-v82{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:6px!important}
+  .monster-pull-grid-v82 .monster-pull-card-v80{max-width:none!important;padding:6px!important}
+  .monster-pull-grid-v82 .monster-pull-card-v80>p{display:none!important}
+}
+/* v7.6 QA: confirmation belongs after the result grid; never float above cards. */
+.monster-pull-result-v82 .close-pull{position:relative!important;bottom:auto!important;left:auto!important;right:auto!important;align-self:center!important;margin:10px auto 0!important;z-index:1!important}
