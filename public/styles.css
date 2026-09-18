@@ -2612,51 +2612,193 @@ body.combat-narrating-v72 .battle-v74 .enemy-mon-v52{
   .afterbattle-v74 .afterbattle-token-v64.reward-card-v71{flex-basis:88vw!important;width:88vw!important;grid-template-columns:68px minmax(0,1fr) auto!important}
 }
 
-/* --- 2026-09 patch: monster archive, held item badge, responsive reward/battle polish --- */
-.dual-gacha-page .gacha-dual-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:stretch}
-.monster-banner-panel{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:16px;align-items:center}
-.monster-banner-meta{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px}
-.monster-banner-meta span{padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.08);font-size:12px}
-.monster-pickup-showcase{display:flex;justify-content:center;align-items:center}
-.monster-mini-card{position:relative;display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(20,28,48,.96),rgba(9,14,24,.96));box-shadow:0 10px 26px rgba(0,0,0,.25);text-align:left;animation:pullRise .45s ease both}
-.monster-mini-card.featured{border-color:rgba(250,208,96,.6);box-shadow:0 14px 36px rgba(250,208,96,.18)}
-.monster-mini-top{display:flex;justify-content:space-between;gap:8px;font-size:11px;opacity:.85}
-.monster-mini-art{height:150px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:radial-gradient(circle at top,rgba(255,255,255,.16),rgba(255,255,255,.03) 70%);overflow:hidden}
-.monster-mini-art img{max-width:100%;max-height:100%;image-rendering:auto;object-fit:contain}
-.monster-mini-card b{font-size:18px;line-height:1.2}
-.monster-mini-card small{line-height:1.45;opacity:.8}
-.monster-mini-card em{font-style:normal;font-size:12px;opacity:.76}
-.pickup-tag{position:absolute;top:10px;right:10px;padding:5px 10px;border-radius:999px;background:linear-gradient(135deg,#f6d365,#fda085);color:#1c1400;font-weight:800;font-size:11px}
-.monster-pull-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;width:min(1080px,92vw)}
-.monster-pull-inner{width:min(1180px,94vw)}
-.battle-held-badge-v80{position:absolute;left:8px;top:8px;z-index:2;max-width:calc(100% - 16px);padding:5px 8px;border-radius:999px;background:rgba(8,12,24,.88);border:1px solid rgba(255,255,255,.18);font-size:11px;font-weight:700;line-height:1.2;backdrop-filter:blur(6px);box-shadow:0 8px 18px rgba(0,0,0,.25)}
-.mon-sprite-v52{position:relative;min-height:148px}
-.battle-held-v53{margin-top:8px;font-size:12px;font-weight:700;color:#e8eefc}
-.afterbattle-v51,.afterbattle-stage-v64{align-items:start}
-.reward-grid-v71{grid-template-columns:repeat(auto-fit,minmax(188px,1fr));gap:14px}
-.reward-card-v71,.shop-card,.gacha-banner,.monster-mini-card{min-width:0}
-.reward-art-v71 img{object-fit:contain}
-.afterbattle-strip-v64{grid-auto-columns:minmax(220px,24rem)}
-.active-mon-v52{min-width:0}
-.active-mon-v52 .mon-top-v52 strong,.bench-mon-v52 .bench-name-v52{word-break:keep-all;overflow-wrap:anywhere}
-@media (max-width: 980px){
-  .dual-gacha-page .gacha-dual-grid{grid-template-columns:1fr}
-  .monster-banner-panel{grid-template-columns:1fr}
-  .afterbattle-stage-v64{grid-template-columns:1fr !important}
-  .afterbattle-strip-v64{grid-auto-columns:minmax(180px,78vw)}
+/* =========================================================
+   V7.4 USER FEEDBACK PATCH · 2026-09-18
+   - 5 day legend pickup / coin summon
+   - readable battle cadence
+   - held-item identity and consumable berries
+   - special evolution materials
+   - stronger reward/next-wave presentation
+   - crop/overlap fixes for desktop + mobile
+   ========================================================= */
+.wallet.coin{border-color:rgba(255,206,84,.28);background:linear-gradient(180deg,rgba(84,65,18,.72),rgba(34,28,11,.72))}
+.wallet.coin span{color:#ffd45a;text-shadow:0 0 12px rgba(255,212,90,.45)}
+
+/* Gacha hub */
+.gacha-page-v80{min-height:100%;padding-bottom:30px}
+.gacha-page-v80 .gacha-hero{width:min(1460px,96vw);margin:0 auto}
+.gacha-grid-v80{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:stretch}
+.gacha-grid-v80 .gacha-banner{min-width:0;height:100%;overflow:hidden;border-radius:22px}
+.monster-banner-v80{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(230px,38%);gap:16px;padding:20px!important;background:linear-gradient(135deg,rgba(26,26,47,.97),rgba(10,20,31,.98))!important;border:1px solid rgba(255,217,104,.26)!important;position:relative;isolation:isolate}
+.monster-banner-v80:before{content:"";position:absolute;inset:-25%;background:radial-gradient(circle at 78% 40%,rgba(255,211,84,.16),transparent 34%),radial-gradient(circle at 20% 85%,rgba(87,133,255,.12),transparent 34%);z-index:-1}
+.monster-banner-copy-v80{display:flex;flex-direction:column;min-width:0}
+.monster-banner-copy-v80 h2{font-size:clamp(25px,3vw,42px);margin:8px 0 10px;line-height:1.1}
+.monster-banner-copy-v80>p{font-size:13px;line-height:1.65;opacity:.84;max-width:62ch}
+.pickup-timer-v80{display:flex;align-items:center;gap:10px;width:max-content;max-width:100%;padding:8px 11px;border-radius:12px;background:rgba(255,255,255,.07);font-size:11px}
+.pickup-timer-v80 b{font-size:13px;color:#ffe08a}
+.coin-wallet-v80{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;gap:2px 10px;align-items:center;margin:14px 0;padding:12px 14px;border-radius:15px;background:rgba(255,204,70,.09);border:1px solid rgba(255,204,70,.22)}
+.coin-wallet-v80>span{grid-row:1/3;font-size:10px;letter-spacing:.14em;opacity:.66}
+.coin-wallet-v80>b{font-size:20px;color:#ffe071}
+.coin-wallet-v80>small{font-size:10px;opacity:.62}
+.monster-pickup-stage-v80{position:relative;display:grid;place-items:center;min-height:430px;overflow:hidden;border-radius:18px;background:radial-gradient(circle at 50% 45%,rgba(255,222,117,.18),rgba(255,255,255,.03) 38%,rgba(0,0,0,.12) 72%)}
+.pickup-aura-v80{position:absolute;width:280px;height:280px;border-radius:50%;border:1px solid rgba(255,225,130,.26);box-shadow:0 0 60px rgba(255,204,72,.15),inset 0 0 70px rgba(255,214,101,.08);animation:pickupPulseV80 2.8s ease-in-out infinite;pointer-events:none}
+@keyframes pickupPulseV80{50%{transform:scale(1.08);opacity:.58}}
+.monster-pull-card-v80{position:relative;z-index:2;width:min(100%,290px);min-width:0;display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:19px;background:linear-gradient(180deg,rgba(22,31,49,.96),rgba(8,13,22,.98));border:1px solid rgba(255,255,255,.12);box-shadow:0 18px 42px rgba(0,0,0,.35);text-align:left;overflow:hidden}
+.monster-pull-card-v80.featured{border-color:rgba(255,220,103,.55);box-shadow:0 20px 50px rgba(246,195,58,.18)}
+.monster-pull-art-v80{height:220px;display:grid;place-items:center;border-radius:14px;background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.16),transparent 55%);overflow:hidden}
+.monster-pull-art-v80 img{width:100%;height:100%;object-fit:contain;image-rendering:auto;filter:drop-shadow(0 15px 18px rgba(0,0,0,.34))}
+.monster-pull-card-v80>b{font-size:21px;line-height:1.18;overflow-wrap:anywhere}
+.monster-pull-card-v80>small{font-size:10px;opacity:.72}
+.monster-pull-card-v80>p{font-size:11px;line-height:1.5;opacity:.8;margin:0;min-height:3em}
+.monster-pull-card-v80>em{font-style:normal;font-size:10px;opacity:.62}
+.pickup-ribbon-v80{position:absolute;z-index:3;right:10px;top:10px;padding:6px 9px;border-radius:999px;background:linear-gradient(135deg,#ffe48b,#eeb84a);color:#241800;font-size:9px;font-weight:900;letter-spacing:.08em}
+.monster-pull-result-v80 .pull-result-inner{width:min(1180px,94vw)}
+.monster-pull-grid-v80{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:13px;max-height:68vh;overflow:auto;padding:4px}
+.monster-pull-grid-v80 .monster-pull-card-v80{width:100%}
+.monster-pull-grid-v80 .monster-pull-art-v80{height:150px}
+
+/* Held item: visible at upper-left of the active monster, not buried in text. */
+.battle-v74 .mon-sprite-v52{position:relative!important}
+.held-corner-v80{position:absolute;z-index:12;left:6px;top:6px;display:flex;align-items:center;gap:7px;max-width:min(82%,190px);padding:6px 8px;border-radius:12px;background:rgba(7,12,22,.90);border:1px solid rgba(151,207,255,.28);box-shadow:0 7px 18px rgba(0,0,0,.32);backdrop-filter:blur(5px);text-align:left;pointer-events:none}
+.held-corner-v80.consumable{border-color:rgba(255,215,101,.45);background:rgba(35,26,8,.9)}
+.held-corner-v80>i{font-style:normal;width:24px;height:24px;display:grid;place-items:center;border-radius:7px;background:rgba(255,255,255,.08);font-size:13px;flex:0 0 auto}
+.held-corner-v80>span{display:block;min-width:0}
+.held-corner-v80 b{display:block;font-size:9px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.held-corner-v80 small{display:block;font-size:6px;line-height:1.2;opacity:.62;margin-top:2px}
+.held-choice-v53 em{display:block;margin-top:3px;font-size:9px;font-style:normal;opacity:.62}
+
+/* Evolution material button */
+.evo-material-v80 .material-evo-v80:not([disabled]){border-color:rgba(255,216,95,.55)!important;background:linear-gradient(135deg,rgba(102,75,18,.65),rgba(30,30,45,.9))!important;box-shadow:0 0 24px rgba(255,205,73,.10)}
+
+/* Reward cards: no clipping, clear held/evolution identity */
+.afterbattle-v74 .reward-card-v71{overflow:visible!important;min-width:0!important}
+.afterbattle-v74 .reward-card-v71 .reward-art-v71{overflow:hidden!important;display:grid!important;place-items:center!important}
+.afterbattle-v74 .reward-card-v71 .reward-art-v71 img{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;padding:3px!important}
+.afterbattle-v74 .reward-copy-v71{overflow:visible!important;min-width:0!important}
+.afterbattle-v74 .reward-copy-v71>b{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere!important}
+.afterbattle-v74 .reward-copy-v71>i{display:inline-flex!important;width:max-content;max-width:100%;margin:3px 0 5px;padding:3px 6px;border-radius:999px;background:rgba(135,187,255,.12);font-style:normal;font-size:8px;line-height:1.2;white-space:normal}
+.afterbattle-v74 .evo-material-reward-v80 .reward-copy-v71>i{background:rgba(255,207,83,.14);color:#ffe39a}
+.afterbattle-v74 .reward-copy-v71>em{display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:4!important;white-space:normal!important;overflow:hidden!important;line-height:1.42!important}
+
+/* Chosen reward screen - replaces the tiny checkmark panel. */
+.reward-ready-v80{position:relative;isolation:isolate;display:flex;flex-direction:column;gap:14px;width:100%;min-height:100%;padding:18px;border-radius:20px;overflow:hidden;background:linear-gradient(135deg,rgba(9,21,32,.92),rgba(19,20,39,.94));border:1px solid rgba(130,201,255,.18)}
+.reward-ready-glow-v80{position:absolute;z-index:-1;inset:-30%;background:radial-gradient(circle at 22% 35%,rgba(98,192,255,.14),transparent 30%),radial-gradient(circle at 78% 58%,rgba(255,210,84,.12),transparent 32%)}
+.reward-ready-v80>header{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center}
+.reward-ready-v80>header small{grid-column:1;font-size:9px;letter-spacing:.18em;opacity:.6}
+.reward-ready-v80>header b{grid-column:1;font-size:clamp(20px,2.3vw,31px)}
+.reward-ready-v80>header strong{grid-column:2;grid-row:1/3;align-self:center;padding:8px 12px;border-radius:12px;background:rgba(255,211,83,.13);font-size:18px;color:#ffe083}
+.reward-ready-main-v80{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(240px,.8fr);gap:14px;align-items:stretch}
+.reward-ready-item-v80,.reward-ready-next-v80{min-width:0;border-radius:17px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.08)}
+.reward-ready-item-v80{display:grid;grid-template-columns:118px minmax(0,1fr);gap:14px;align-items:center;padding:14px}
+.reward-ready-item-v80 .reward-art-v71{width:110px;height:110px;border-radius:15px;background:rgba(255,255,255,.06);display:grid;place-items:center;overflow:hidden}
+.reward-ready-item-v80 .reward-art-v71 img{width:100%;height:100%;object-fit:contain;padding:8px}
+.reward-ready-item-v80>div{min-width:0}
+.reward-ready-item-v80 small{font-size:9px;opacity:.6}
+.reward-ready-item-v80 b{display:block;margin:4px 0 6px;font-size:clamp(17px,2vw,24px);overflow-wrap:anywhere}
+.reward-ready-item-v80 p{font-size:11px;line-height:1.5;opacity:.8;margin:0}
+.reward-ready-item-v80 em{display:inline-flex;margin-top:8px;padding:4px 7px;border-radius:999px;background:rgba(112,190,255,.12);font-size:9px;font-style:normal}
+.reward-ready-check-v80{width:110px;height:110px;border-radius:50%;display:grid;place-items:center;background:rgba(111,220,167,.12);font-size:54px;color:#8cf0b8}
+.reward-ready-next-v80{display:grid;grid-template-columns:50px 1fr;gap:10px;align-items:center;padding:14px}
+.reward-ready-next-v80>span{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.08);font-size:26px}
+.reward-ready-next-v80 small{font-size:8px;letter-spacing:.15em;opacity:.55}
+.reward-ready-next-v80 b{display:block;font-size:18px;margin:4px 0}
+.reward-ready-next-v80 p{font-size:10px;line-height:1.45;opacity:.66;margin:0}
+.reward-ready-v80 .reward-party-strip-v62{margin-top:auto}
+
+/* Next-wave bridge: stronger than the old tiny diamond/one-line screen. */
+.wave-bridge-v80{position:relative;isolation:isolate;width:min(760px,92vw);min-height:360px;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:32px 28px!important;border-radius:28px!important;background:linear-gradient(145deg,rgba(8,18,29,.90),rgba(18,20,38,.90))!important;border:1px solid rgba(145,211,255,.20)!important;box-shadow:0 22px 55px rgba(0,0,0,.36)!important;overflow:hidden!important}
+.wave-bridge-v80:before{content:"";position:absolute;z-index:-1;inset:-25%;background:radial-gradient(circle at 50% 38%,rgba(87,176,255,.17),transparent 30%),radial-gradient(circle at 70% 80%,rgba(255,213,102,.09),transparent 28%)}
+.bridge-signal-v80{display:grid;grid-template-columns:80px 92px 80px;align-items:center;gap:10px;margin-bottom:4px}
+.bridge-signal-v80>i{height:1px;background:linear-gradient(90deg,transparent,rgba(155,221,255,.7))}
+.bridge-signal-v80>i:last-child{transform:scaleX(-1)}
+.bridge-signal-v80>strong{width:92px;height:92px;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle,rgba(111,199,255,.22),rgba(255,255,255,.03) 65%);border:1px solid rgba(147,219,255,.28);font-size:38px;box-shadow:0 0 40px rgba(91,187,255,.12)}
+.wave-bridge-v80>small{font-size:9px;letter-spacing:.17em;opacity:.6}
+.wave-bridge-v80>h1{font-size:clamp(28px,4vw,46px);margin:0;line-height:1.05}
+.wave-bridge-v80>b{font-size:14px}
+.wave-bridge-v80>span{font-size:11px;line-height:1.5;opacity:.72;text-align:center}
+.bridge-party-v80{display:flex;gap:7px;justify-content:center;margin-top:12px;max-width:100%;overflow:hidden}
+.bridge-party-v80>span{position:relative;width:54px;height:54px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);overflow:hidden}
+.bridge-party-v80>span.ko{opacity:.35;filter:grayscale(1)}
+.bridge-party-v80 img{width:100%;height:100%;object-fit:contain;padding:4px}
+.bridge-party-v80 i{position:absolute;left:4px;right:auto;bottom:4px;height:3px;background:#81e79c;border-radius:99px}
+.bridge-progress-v80{position:absolute!important;left:0!important;right:auto!important;bottom:0!important;height:4px!important;width:100%!important;background:linear-gradient(90deg,#79cbff,#ffe27b)!important;transform-origin:left center!important;animation:bridgeProgressV80 var(--bridge-ms,1800ms) linear forwards!important}
+@keyframes bridgeProgressV80{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+/* Battle composition / crop fixes */
+.battle-v74 .battle-arena-v52{padding:10px clamp(16px,4.2vw,70px)!important;gap:clamp(8px,2vw,22px)!important;overflow:hidden!important;align-items:stretch!important}
+.battle-v74 .player-field-v52,.battle-v74 .enemy-field-v52{min-width:0!important;overflow:visible!important;gap:clamp(6px,1.3vw,14px)!important;padding:0 2px!important}
+.battle-v74 .active-mon-v52,.battle-v74 .enemy-mon-v52{min-width:0!important;max-width:100%!important;overflow:visible!important}
+.battle-v74 .mon-sprite-v52>img,.battle-v74 .enemy-sprite-v52>img{width:auto!important;height:auto!important;max-width:86%!important;max-height:84%!important;object-fit:contain!important;object-position:center bottom!important}
+.battle-v74 .mon-status-v52,.battle-v74 .enemy-status-v52{max-width:100%!important}
+
+/* Mobile / tablet: prevent overlap without shrinking text into illegibility. */
+@media(max-width:980px){
+  .gacha-grid-v80{grid-template-columns:1fr}
+  .monster-banner-v80{grid-template-columns:minmax(0,1fr) minmax(210px,34%)}
+  .reward-ready-main-v80{grid-template-columns:1fr}
 }
-@media (max-width: 720px){
-  .page-head{align-items:flex-start}
-  .gacha-art,.monster-pull-grid{grid-template-columns:1fr 1fr}
-  .monster-mini-art{height:124px}
-  .battle-held-badge-v80{font-size:10px;padding:4px 7px}
-  .mon-sprite-v52{min-height:126px}
-  .reward-grid-v71{grid-template-columns:1fr}
-  .active-mon-v52 .mon-meta-v52{grid-template-columns:repeat(3,minmax(0,1fr));font-size:11px}
+@media(max-width:720px){
+  .topbar{gap:4px!important;padding-left:6px!important;padding-right:6px!important}
+  .topbar .brand-copy,.topbar .server-badge{display:none!important}
+  .topbar .wallet{padding:5px 7px!important;gap:4px!important;min-width:0!important}
+  .topbar .wallet b{font-size:10px!important}
+  .topbar .profile-chip b{display:none!important}
+  .gacha-page-v80 .gacha-hero{width:100%;padding:0 8px}
+  .monster-banner-v80{grid-template-columns:1fr;padding:14px!important}
+  .monster-pickup-stage-v80{min-height:330px}
+  .monster-pull-card-v80{width:min(100%,330px)}
+  .monster-pull-art-v80{height:190px}
+  .monster-pull-grid-v80{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:70vh}
+  .monster-pull-grid-v80 .monster-pull-card-v80{padding:9px}
+  .monster-pull-grid-v80 .monster-pull-art-v80{height:110px}
+  .monster-pull-grid-v80 .monster-pull-card-v80>b{font-size:14px}
+  .monster-pull-grid-v80 .monster-pull-card-v80>p{font-size:9px;min-height:0}
+  .battle-v74{grid-template-rows:auto minmax(300px,43svh) auto!important;height:auto!important;min-height:100svh!important;overflow:visible!important}
+  .battle-v74 .battle-arena-v52{height:43svh!important;min-height:300px!important;padding:5px 7px!important;gap:5px!important;overflow:hidden!important}
+  .battle-v74 .player-field-v52,.battle-v74 .enemy-field-v52{height:100%!important;min-height:0!important;align-items:stretch!important}
+  .battle-v74 .active-mon-v52,.battle-v74 .enemy-mon-v52{height:100%!important;min-height:0!important}
+  .battle-v74 .mon-status-v52,.battle-v74 .enemy-status-v52{min-height:68px!important;padding:6px 7px!important}
+  .battle-v74 .mon-status-v52 b,.battle-v74 .enemy-status-v52 b{font-size:12px!important;line-height:1.2!important}
+  .battle-v74 .mon-status-v52 small,.battle-v74 .enemy-status-v52 small{font-size:8px!important;line-height:1.25!important}
+  .battle-v74 .mon-sprite-v52,.battle-v74 .enemy-sprite-v52{height:calc(100% - 70px)!important;min-height:150px!important;top:auto!important;bottom:auto!important;position:relative!important}
+  .battle-v74 .mon-sprite-v52>img,.battle-v74 .enemy-sprite-v52>img{max-width:92%!important;max-height:88%!important}
+  .held-corner-v80{left:4px;top:4px;max-width:88%;padding:4px 6px;gap:4px;border-radius:9px}
+  .held-corner-v80>i{width:20px;height:20px;font-size:10px}
+  .held-corner-v80 b{font-size:7px}
+  .held-corner-v80 small{font-size:5px}
+  .afterbattle-v74 .afterbattle-stage-v64{padding:8px 7px 20px!important}
+  .afterbattle-v74 .afterbattle-token-v64.reward-card-v71{flex:0 0 min(86vw,350px)!important;width:min(86vw,350px)!important;min-height:150px!important;height:auto!important;grid-template-columns:82px minmax(0,1fr) auto!important;padding:10px!important}
+  .afterbattle-v74 .reward-card-v71 .reward-art-v71{width:78px!important;height:78px!important}
+  .afterbattle-v74 .reward-copy-v71>b{font-size:16px!important}
+  .afterbattle-v74 .reward-copy-v71>i{font-size:8px!important}
+  .afterbattle-v74 .reward-copy-v71>em{font-size:11px!important;line-height:1.4!important;-webkit-line-clamp:4!important}
+  .reward-ready-v80{padding:12px;gap:10px}
+  .reward-ready-v80>header b{font-size:22px}
+  .reward-ready-item-v80{grid-template-columns:82px minmax(0,1fr);gap:10px;padding:10px}
+  .reward-ready-item-v80 .reward-art-v71,.reward-ready-check-v80{width:78px;height:78px}
+  .reward-ready-item-v80 b{font-size:17px}
+  .reward-ready-item-v80 p{font-size:10px}
+  .reward-ready-next-v80{padding:10px}
+  .wave-bridge-v80{width:92vw;min-height:320px;padding:24px 16px!important}
+  .bridge-signal-v80{grid-template-columns:55px 74px 55px}
+  .bridge-signal-v80>strong{width:74px;height:74px;font-size:30px}
+  .bridge-party-v80>span{width:46px;height:46px}
 }
-@media (max-width: 560px){
-  .gacha-art,.monster-pull-grid{grid-template-columns:1fr}
-  .banner-actions{display:grid;grid-template-columns:1fr;gap:10px}
-  .monster-banner-meta{flex-direction:column;align-items:flex-start}
-  .active-mon-v52,.bench-mon-v52,.reward-card-v71,.shop-card{border-radius:16px}
+@media(max-width:480px){
+  .topbar .wallet.dust{display:none!important}
+  .monster-pull-grid-v80{grid-template-columns:1fr 1fr}
+  .monster-banner-copy-v80 h2{font-size:27px}
+  .banner-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:6px!important}
+  .banner-actions button{min-width:0!important;padding-inline:6px!important;font-size:10px!important}
+  .battle-v74 .battle-arena-v52{min-height:286px!important;height:41svh!important}
+  .battle-v74 .mon-status-v52 b,.battle-v74 .enemy-status-v52 b{font-size:11px!important}
+  .battle-v74 .mon-sprite-v52>img,.battle-v74 .enemy-sprite-v52>img{max-width:96%!important;max-height:86%!important}
+  .afterbattle-v74 .afterbattle-token-v64.reward-card-v71{flex-basis:88vw!important;width:88vw!important}
+  .reward-ready-item-v80{grid-template-columns:70px minmax(0,1fr)}
+  .reward-ready-item-v80 .reward-art-v71,.reward-ready-check-v80{width:66px;height:66px}
+  .reward-ready-next-v80{grid-template-columns:42px 1fr}
+  .reward-ready-next-v80>span{width:40px;height:40px}
+  .wave-bridge-v80>h1{font-size:30px}
+  .bridge-party-v80{gap:4px}
+  .bridge-party-v80>span{width:40px;height:40px}
 }
