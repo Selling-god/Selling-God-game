@@ -15422,7 +15422,10 @@
       "abyssName": "균열개화 · 전류족제비",
       "evolutionSprite": "/assets/monsters/forms/e003_evolution.png",
       "resonanceSprite": "/assets/monsters/forms/e003_resonance.png",
-      "riftSprite": "/assets/monsters/forms/e003_rift.png"
+      "riftSprite": "/assets/monsters/forms/e003_rift.png",
+      "evolutionItemId": "i030",
+      "evolutionItemName": "폭풍 핵",
+      "evolutionItemOnly": false
     },
     {
       "id": "e004",
@@ -15482,7 +15485,10 @@
       "abyssName": "균열개화 · 심연의 박쥐",
       "evolutionSprite": "/assets/monsters/forms/e005_evolution.png",
       "resonanceSprite": "/assets/monsters/forms/e005_resonance.png",
-      "riftSprite": "/assets/monsters/forms/e005_rift.png"
+      "riftSprite": "/assets/monsters/forms/e005_rift.png",
+      "evolutionItemId": "i029",
+      "evolutionItemName": "월영 파편",
+      "evolutionItemOnly": false
     },
     {
       "id": "e006",
@@ -15782,7 +15788,10 @@
       "abyssName": "균열개화 · 꽃덩굴 나가",
       "evolutionSprite": "/assets/monsters/forms/e015_evolution.png",
       "resonanceSprite": "/assets/monsters/forms/e015_resonance.png",
-      "riftSprite": "/assets/monsters/forms/e015_rift.png"
+      "riftSprite": "/assets/monsters/forms/e015_rift.png",
+      "evolutionItemId": "i028",
+      "evolutionItemName": "태양 개화석",
+      "evolutionItemOnly": false
     },
     {
       "id": "e016",
