@@ -1,8 +1,8 @@
 {
   "name": "fusewild-monster-fusion-roguelite",
-  "version": "7.4.0",
+  "version": "7.5.0",
   "private": true,
-  "description": "FUSEWILD: original monster fusion roguelite. PokeRogue-style cadence (shop after every wave, wave-10 NPC keeper duels), mode-specific heal rules, five-turn fusion, capture, co-op and resume.",
+  "description": "FUSEWILD: original monster fusion roguelite with monster-only five-day pickup summons, per-monster held-item rewards, responsive battle/reward UI, five-turn fusion, capture, co-op and resume.",
   "scripts": {
     "build": "node scripts/build.js",
     "start": "node server.js",

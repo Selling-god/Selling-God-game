@@ -11,7 +11,7 @@
  * - battle-turn fusion: spend one action to combine two owned monsters
  * - after EVERY dungeon floor, each player drafts one run item
  * - journey encounters can permanently seal/capture monsters
- * - limited rerun gacha and persistent collection/profile
+ * - five-day monster pickup summon and persistent monster/profile progression
  * - no copyrighted game assets; all shipped art is original procedural pixel art
  */
 
@@ -32,8 +32,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PROFILE_FILE = process.env.PROFILE_FILE ? path.resolve(process.env.PROFILE_FILE) : path.join(DATA_DIR, 'profiles.json');
 const ROOM_TTL = 1000 * 60 * 60 * 12;
 const DUNGEON_MAX_FLOOR = 50;
-const VERSION = '7.4.0';
-const DEPLOY_ID = 'FUSEWILD-V740-QA-REFRESH-20260918';
+const VERSION = '7.5.0';
+const DEPLOY_ID = 'FUSEWILD-V750-POKEROGUE-UX-20260918';
 const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ADMIN_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '');
 const SUPABASE_PUBLIC_KEY = String(process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '');
@@ -63,7 +63,7 @@ const SPELL_DECK_MAX = DECK_MAX;
 const MONSTER_PARTY_MAX = Number(CATALOG.monsterParty?.maxSlots || 6);
 const MONSTER_POINT_BUDGET = Number(CATALOG.monsterParty?.pointBudget || 10);
 const MONSTERS = [...ENEMIES, ...BOSSES];
-const MONSTER_PICKUP = { singleCost:500, tenCost:4500, rotationDays:5, pity:30, featuredRate:0.70, rates:{ mythic:0.005, legendary:0.045, ultra:0.20, rare:0.35, common:0.40 } };
+const MONSTER_PICKUP = { singleCost:5000, tenCost:45000, rotationDays:5, pity:300, featuredRate:0.50, rates:{ mythic:0.0003, legendary:0.0027, ultra:0.027, rare:0.17, common:0.80 } };
 const MONSTER_BY_ID = Object.fromEntries(MONSTERS.map(m => [m.id, m]));
 const STARTER_MONSTERS = (CATALOG.monsterParty?.starterIds || ENEMIES.filter(e => e.tier === 'common').slice(0, 3).map(e => e.id)).slice(0,3).filter(id => MONSTER_BY_ID[id]);
 const ELEMENT_ADVANTAGE = {
@@ -975,6 +975,10 @@ function equipHeldItem(room, playerId, instanceId, itemId) {
     return { instanceId, itemId:null, item:old?publicItem(old):null };
   }
   const item = ITEM_BY_ID[itemId]; if (!item?.held) throw new Error('이 아이템은 몬스터에게 장착할 수 없습니다.');
+  if(item.held?.kind==='evolutionCatalyst'){
+    const ids=Array.isArray(item.held.speciesIds)?item.held.speciesIds:[];
+    if(ids.length&&!ids.includes(monster.speciesId)) throw new Error(`${item.name}은(는) 이 몬스터의 진화 재료가 아닙니다.`);
+  }
   const owned = itemStacks(run,itemId), used = equippedHeldCount(run,itemId,monster.instanceId);
   if (owned <= used) throw new Error('장착 가능한 보유 수량이 부족합니다.');
   monster.heldItemId = itemId; monster.heldItemUsed = false;
@@ -1667,7 +1671,7 @@ function evolveMonster(room, playerId, instanceId, mode='evolve'){
   if(mode==='evolve'){
     if(u.evolved)throw new Error('이미 진화했습니다.');if(u.evolutionItemOnly)throw new Error(`${u.evolutionItemName||'특수 진화 재료'}가 필요한 몬스터입니다.`);const natural=Number(u.level||1)>=Number(u.evolutionLevel||evolutionLevel(species));const accelerated=Number(u.level||1)>=3&&Number(u.gene||0)>=3;if(!natural&&!accelerated)throw new Error(`자연 진화는 Lv.${u.evolutionLevel}, 조기 진화에는 Lv.3 + GENE 3이 필요합니다.`);if(!natural)u.gene-=3;applyStandardEvolution(room,playerId,u,{natural,emit:true});
   }else if(mode==='item'){
-    if(u.evolved)throw new Error('이미 진화했습니다.');const itemId=u.evolutionItemId||species?.evolutionItemId,itemName=u.evolutionItemName||species?.evolutionItemName||'특수 진화 재료',run=room.runState?.[playerId];if(!itemId)throw new Error('이 몬스터는 특수 진화 대상이 아닙니다.');if(Number(run?.items?.[itemId]||0)<=0)throw new Error(`${itemName}가 없습니다.`);run.items[itemId]=Number(run.items[itemId])-1;if(run.items[itemId]<=0)delete run.items[itemId];applyStandardEvolution(room,playerId,u,{natural:false,emit:true});pushRoomEvent(room,'evolution-item',`${u.name} · ${itemName} 사용`,{playerId,instanceId:u.instanceId,itemId,itemName});
+    if(u.evolved)throw new Error('이미 진화했습니다.');const itemId=u.evolutionItemId||species?.evolutionItemId,itemName=u.evolutionItemName||species?.evolutionItemName||'특수 진화 재료',run=room.runState?.[playerId];if(!itemId)throw new Error('이 몬스터는 특수 진화 대상이 아닙니다.');if(Number(run?.items?.[itemId]||0)<=0)throw new Error(`${itemName}가 없습니다.`);if(u.heldItemId!==itemId)throw new Error(`${itemName}를 이 몬스터에게 먼저 장착해 주세요.`);const catalyst=ITEM_BY_ID[itemId];applyStandardEvolution(room,playerId,u,{natural:false,emit:true});consumeHeldItem(room,pc,u,catalyst,'진화');pushRoomEvent(room,'evolution-item',`${u.name} · ${itemName} 사용`,{playerId,instanceId:u.instanceId,itemId,itemName});
   }else if(mode==='resonance'){
     if(u.resonanceTurns>0)throw new Error('이미 공명진화 상태입니다.');if(u.resonance<4)throw new Error('공명진화에는 RES 4가 필요합니다.');const fromSprite=u.evolved?(u.evolutionSprite||u.sprite):u.sprite;u.resonance-=4;u.resonanceTurns=3;u.block=Number(u.block||0)+6;prof.stats.resonanceEvolutions++;pushRoomEvent(room,'monster-evolve',`${u.name} 공명진화!`,{playerId,instanceId:u.instanceId,mode:'resonance',fromName:u.name,toName:u.resonanceName||u.name,fromSprite,toSprite:u.resonanceSprite||fromSprite,element:u.element});
   }else if(mode==='rift'){
@@ -2404,7 +2408,7 @@ function rewardItemWeight(room, run, item, tier) {
   if (tier === 'merchant' && ['rare', 'ultra'].includes(item.rarity)) w *= 2.1;
   if (item.held) w *= tier==='merchant'?2.35:1.65;
   if (item.category === '열매') w *= 1.35;
-  if (item.category === '진화재료') w *= tier==='boss'?1.80:tier==='elite'?1.10:tier==='merchant'?.35:.80;
+  if (item.category === '진화재료') w *= tier==='boss'?.22:tier==='elite'?.10:tier==='merchant'?.08:.035;
   if (itemStacks(run, item.id) >= Number(item.maxStack || 1)) return 0;
   return w;
 }
@@ -2426,15 +2430,19 @@ function rewardCardOptions(room, playerId, n, tier = 'combat') {
 }
 function rewardItemOptions(room, playerId, n, tier = 'combat') {
   const run = playerId ? room.runState[playerId] : null;
-  const legacy = /\uCE74\uB4DC|\uC2A4\uD3A0|\uC5D0\uB108\uC9C0|\uB4DC\uB85C\uC6B0|\uC190\uD328|spell|card|energy|draw|hand/i;
-  const pool = ITEMS.filter(i => (!Array.isArray(i.modes) || i.modes.includes(room.mode)) && (i.held || !legacy.test(JSON.stringify(i))));
+  // Every free wave reward is a monster-held item. The player first chooses an
+  // item and then chooses the monster that will carry it.
+  const pool = ITEMS.filter(i => {
+    if(!i?.held || (Array.isArray(i.modes)&&!i.modes.includes(room.mode))) return false;
+    if(i.held.kind==='evolutionCatalyst'&&run){const ids=Array.isArray(i.held.speciesIds)?i.held.speciesIds:[];if(ids.length&&!(run.monsters||[]).some(m=>ids.includes(m.speciesId)&&!m.evolved))return false;}
+    return true;
+  });
   const out = [];
   let guard = 0;
-  while (out.length < n && guard++ < 500) {
+  while (out.length < n && guard++ < 600) {
     const i = weighted(pool, i => rewardItemWeight(room, run, i, tier));
     if (i && !out.some(x => x.id === i.id)) out.push(i);
   }
-  if(playerId&&n>=3&&!out.some(i=>i?.held)){const heldPool=pool.filter(i=>i.held&&!out.some(x=>x.id===i.id)&&itemStacks(run,i.id)<Number(i.maxStack||1));const held=weighted(heldPool,i=>rewardItemWeight(room,run,i,tier)*(i.held?.kind==='xpBoost'?1.35:i.category==='열매'?1.25:1));if(held){if(out.length>=n){const idx=out.findIndex(x=>!x?.held&&x?.category!=='진화재료');out[idx>=0?idx:out.length-1]=held;}else out.push(held);}}
   return out;
 }
 
@@ -2565,7 +2573,7 @@ function campRewardAction(room, playerId, mode, cardId) {
   return { label };
 }
 
-function claimReward(room, playerId, rewardId) {
+function claimReward(room, playerId, rewardId, targetInstanceId='') {
   if (room.status !== 'reward' || !room.reward) throw new Error('보상 단계가 아닙니다.');
   if (room.reward.claims[playerId]) throw new Error('이미 보상을 선택했습니다.');
   const options = room.reward.playerOptions?.[playerId] || [];
@@ -2574,13 +2582,19 @@ function claimReward(room, playerId, rewardId) {
   if (!opt) throw new Error('보상이 없습니다.');
   const p = profiles[playerId];
   const run = room.runState[playerId];
-  if (opt.type === 'card') {
-    if (run && run.runDeck.length < 40) { run.runDeck.push(opt.cardId); run.cardsAdded++; }
-    room.reward.claims[playerId] = { type: 'card', id: opt.cardId, label: `${CARD_BY_ID[opt.cardId].name} · RUN` };
-  } else if (opt.type === 'item') {
-    const item = addItemToRun(run, opt.itemId);
-    room.reward.claims[playerId] = { type: 'item', id: opt.itemId, label: item.name };
-  } else throw new Error('지원하지 않는 보상입니다.');
+  if (opt.type !== 'item') throw new Error('현재 원정 보상은 몬스터 장착 아이템만 지원합니다.');
+  const itemDef=ITEM_BY_ID[opt.itemId];
+  if(!itemDef?.held)throw new Error('무료 보상은 몬스터 장착 아이템만 선택할 수 있습니다.');
+  const ids=itemDef.held?.kind==='evolutionCatalyst'&&Array.isArray(itemDef.held.speciesIds)?itemDef.held.speciesIds:[];
+  let target=(run?.monsters||[]).find(m=>m.instanceId===String(targetInstanceId||''));
+  // New clients always ask the player to choose a holder. Older clients/tests that
+  // omit the target are kept compatible by selecting the first eligible party member.
+  if(!target)target=(run?.monsters||[]).find(m=>!ids.length||ids.includes(m.speciesId))||null;
+  if(!target)throw new Error('아이템을 장착할 수 있는 몬스터가 없습니다.');
+  if(ids.length&&!ids.includes(target.speciesId))throw new Error(`${itemDef.name}을(를) 사용할 수 있는 몬스터를 선택해 주세요.`);
+  const item = addItemToRun(run, opt.itemId);
+  equipHeldItem(room,playerId,target.instanceId,item.id);
+  room.reward.claims[playerId] = { type:'item',id:item.id,label:`${item.name} → ${target.name}`,targetInstanceId:target.instanceId,targetName:target.name };
   saveProfiles();
   pushRoomEvent(room, 'reward', `${p.nickname} 님이 「${room.reward.claims[playerId].label}」 선택.`);
 }
@@ -2968,7 +2982,7 @@ const server = http.createServer(async (req, res) => {
       const b=await parseBody(req),prof=await authProfile(req,res,b),seen=new Set();const raw=(Array.isArray(b.deck)?b.deck:[]).filter(cid=>CARD_BY_ID[cid]?.type==='spell'&&prof.collection[cid]>0&&!seen.has(cid)&&seen.add(cid)).slice(0,DECK_MAX);if(raw.length<DECK_MIN)throw new Error(`공명 지령 덱은 최소 ${DECK_MIN}종이 필요합니다.`);prof.deck=raw;saveProfiles();return ok(res,{profile:profileView(prof)});
     }
     if (p === '/api/gacha/pull' && req.method === 'POST') {
-      const b = await parseBody(req); const prof = await authProfile(req, res, b); return ok(res, pullGacha(prof, b.count));
+      return fail(res, 410, '카드 복각 소환은 종료되었습니다. 몬스터 픽업 소환을 이용해 주세요.');
     }
     if (p === '/api/monster-pickup/pull' && req.method === 'POST') {
       const b = await parseBody(req); const prof = await authProfile(req, res, b); return ok(res, pullMonsterPickup(prof, b.count));
@@ -3036,7 +3050,7 @@ const server = http.createServer(async (req, res) => {
         if (action === 'replace-monster' || action === 'replacement') { const unit=resolveReplacement(room,prof.id,b.benchId,b.slotIndex); return ok(res,{result:{name:unit.name,instanceId:unit.instanceId},room:roomView(room)}); }
         if (action === 'end-turn') { endTurn(room, prof.id); return ok(res, { room: roomView(room) }); }
         if (action === 'event') { chooseEvent(room, prof.id, b.choiceId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
-        if (action === 'reward') { claimReward(room, prof.id, b.rewardId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
+        if (action === 'reward') { claimReward(room, prof.id, b.rewardId, b.targetInstanceId); return ok(res, { room: roomView(room), profile: profileView(profiles[prof.id]) }); }
         if (action === 'learn-move') { const result=teachMonsterMove(room,prof.id,b.moveId,b.replaceIndex); return ok(res,{result,room:roomView(room)}); }
         if (action === 'skip-move') { const result=skipMonsterMoveOffer(room,prof.id); return ok(res,{result,room:roomView(room)}); }
         if (action === 'rewrite-move') { const result=claimMoveRewrite(room,prof.id,b.rewriteId); return ok(res,{result,room:roomView(room)}); }
