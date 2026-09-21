@@ -1,9 +1,9 @@
 {
-  "version": "7.4.0",
-  "deployId": "FUSEWILD-V740-QA-REFRESH-20260918",
-  "builtAt": "2026-09-18T00:34:11.447Z",
+  "version": "8.0.0",
+  "deployId": "FUSEWILD-V800-EXPEDITION-20260921",
+  "builtAt": "2026-09-21T01:09:28.929Z",
   "cards": 315,
-  "items": 128,
+  "items": 144,
   "enemies": 205,
   "maxDungeonFloor": 50,
   "difficulties": [

@@ -8,14 +8,15 @@
   <title>FUSEWILD : MONSTER FUSION ROGUELITE</title>
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="stylesheet" href="/styles.css?v=FUSEWILD-V740-QA-REFRESH-20260918" />
+  <link rel="stylesheet" href="/styles.css?v=FUSEWILD-V800-EXPEDITION-20260921" />
+  <link rel="stylesheet" href="/expedition.css?v=FUSEWILD-V800-EXPEDITION-20260921" />
 </head>
-<body>
+<body class="fw-v8">
   <div id="boot" class="boot-screen">
     <div class="boot-grid"></div>
     <div class="boot-core"><span></span><span></span><span></span></div>
     <div class="boot-title">FUSEWILD</div>
-    <div class="boot-sub">MONSTER FUSION // WAVE BATTLE // ROGUELITE v7.4.0</div>
+    <div class="boot-sub">MONSTER FUSION // WAVE BATTLE // ROGUELITE v8.0.0</div>
     <div class="boot-line"><i></i></div>
     <div class="boot-copy">CONNECTING TO DYNAMIC SERVER...</div>
   </div>
@@ -28,8 +29,9 @@
       </button>
       <div id="serverBadge" class="server-badge"><span></span>LIVE SERVER</div>
       <div class="top-spacer"></div>
-      <div class="wallet" title="프리즘"><span>◆</span><b id="gemCount">0</b></div>
-      <div class="wallet dust" title="잔광"><span>✦</span><b id="dustCount">0</b></div>
+      <div class="wallet legacy-currency" title="레거시 재화" aria-hidden="true"><span>◆</span><b id="gemCount">0</b></div>
+      <div class="wallet coin" title="몬스터 소환 코인"><span>●</span><b id="coinCount">0</b></div>
+      <div class="wallet dust legacy-currency" title="레거시 재화" aria-hidden="true"><span>✦</span><b id="dustCount">0</b></div>
       <button id="fxBtn" class="icon-button" data-action="fx" title="전투 이펙트">✦</button>
       <button id="soundBtn" class="icon-button" data-action="sound" title="사운드">♪</button>
       <button class="profile-chip" data-action="profile"><span id="avatarMini">R</span><b id="nicknameMini">방랑자</b></button>
@@ -39,27 +41,28 @@
 
     <footer class="footer-bar">
       <span id="versionLabel">FUSEWILD</span>
-      <span class="footer-hint">기술 1~4 · 1턴 융합 · 전용기/디버프 표시 · ESC 뒤로</span>
+      <span class="footer-hint">기술 1~4 · 5턴 융합 · 속성 연계 · ESC 뒤로</span>
     </footer>
   </div>
 
   <div id="modalRoot"></div>
   <div id="toastRoot" class="toast-root" aria-live="polite"></div>
   <script>
-  window.__RIFT_DEPLOY_ID__ = 'FUSEWILD-V740-QA-REFRESH-20260918';
+  window.__RIFT_DEPLOY_ID__ = 'FUSEWILD-V800-EXPEDITION-20260921';
   (async function resetLegacyCaches(){
     try {
       if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations) {
         const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map(r => r.unregister()));
+        await Promise.all(regs.filter(r => /\/(?:sw|serviceworker|service-worker)\.js(?:\?|$)/.test(r.active?.scriptURL || '')).map(r => r.unregister()));
       }
       if ('caches' in window) {
         const keys = await caches.keys();
-        await Promise.all(keys.map(k => caches.delete(k)));
+        await Promise.all(keys.filter(k => /^(?:riftdeck|fusewild|rift-)/i.test(k)).map(k => caches.delete(k)));
       }
     } catch (e) { console.warn('[FUSEWILD] legacy cache reset skipped', e); }
   })();
   </script>
-  <script src="/app.js?v=FUSEWILD-V740-QA-REFRESH-20260918" defer></script>
+  <script src="/resonance.js?v=FUSEWILD-V800-EXPEDITION-20260921" defer></script>
+  <script src="/app.js?v=FUSEWILD-V800-EXPEDITION-20260921" defer></script>
 </body>
 </html>
