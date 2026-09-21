@@ -1,0 +1,202 @@
+{
+  "version": "8.0.0",
+  "deploy_id": "FUSEWILD-V800-EXPEDITION-20260921",
+  "base_archive": "Selling-God-game-main (5)(2).zip",
+  "base_archive_sha256": "333efaa0a7a9ea2c2d89b67889e11a1fe92297a8d8cc3fdc0d500c5328122a2a",
+  "format": "overlay existing project at directory containing package.json; no deletions",
+  "includes_original_assets": false,
+  "includes_credentials_or_profiles": false,
+  "manifest_scope": "payload files only; excludes this manifest itself",
+  "payload_count": 27,
+  "files": [
+    {
+      "path": "CHANGELOG.md",
+      "action": "replace",
+      "old_sha256": "6b309b90262ee62f5528e77f22f069aeb1c23c8afbb25731ed42e149098dc199",
+      "new_sha256": "bfbc22e84d397b9b8d66acdf91eed689739160f3006c4e9380097013f6dcb9e3",
+      "size_bytes": 8493
+    },
+    {
+      "path": "PATCH_APPLY_V800_EXPEDITION_KO.md",
+      "action": "add",
+      "old_sha256": null,
+      "new_sha256": "f327b47d3fe3faa6412ac62a2eaf1c76647ab8283720e4abef55bac1ac72f1a9",
+      "size_bytes": 6907
+    },
+    {
+      "path": "QA_REPORT_V800_EXPEDITION.md",
+      "action": "add",
+      "old_sha256": null,
+      "new_sha256": "704e6c7d5faa89df3d431b770c9a9ee8106f906165d5213d472cb80dd181f872",
+      "size_bytes": 8334
+    },
+    {
+      "path": "README.md",
+      "action": "replace",
+      "old_sha256": "c87e8b37ada67c6828d41b80146ef57dda667a5af23f6f8ee21004b3924ea35e",
+      "new_sha256": "891455bedd0ec82d81a7b75d2c77d441562756bf5a92e559b223d3028f4de3dd",
+      "size_bytes": 3411
+    },
+    {
+      "path": "out/index.html",
+      "action": "replace",
+      "old_sha256": "90f536532b2e758f463a8a9c754a027e3937e0d7935531958ce309a91bd46b64",
+      "new_sha256": "cfb4935bd60e9b2c1a286cd0cd3aeda5817164b359ec8e92c9b180480d245cdc",
+      "size_bytes": 3475
+    },
+    {
+      "path": "out/version.json",
+      "action": "replace",
+      "old_sha256": "0bc1cf32cba33d629992c7f98069161ffc6a9bf861073edfdf0c160eea08198e",
+      "new_sha256": "f3489505eb7d615b3778964bb943f656f6dac2bb8babbeb69ad23e9f2107a729",
+      "size_bytes": 363
+    },
+    {
+      "path": "package-lock.json",
+      "action": "replace",
+      "old_sha256": "3e653335f444397a06fc840d2f2f5d3518a8aa8fbe7b4189321d537a4b1fb7b2",
+      "new_sha256": "9dfc7792d51b83b05ae39c78841e7e9580ea58a318ab6a925a293fd2c5ccbd43",
+      "size_bytes": 284
+    },
+    {
+      "path": "package.json",
+      "action": "replace",
+      "old_sha256": "672bc253372efe47b7f504d9b93ec04e5465c5e22d88133d4e26a4f2da2c374f",
+      "new_sha256": "97b3fb7973cf9ccbfa20956524ad4b8d81fb199686dce38f92b59f562478ccf3",
+      "size_bytes": 586
+    },
+    {
+      "path": "public/app.js",
+      "action": "replace",
+      "old_sha256": "d74c5511daa9740b7a14fb948ca5fe3272cdcc614497cf35e73015e74f6378e6",
+      "new_sha256": "62722aa5d2ef15b33c2f7aaa69471295a8368716196b11789c2ab1e457e81a68",
+      "size_bytes": 282283
+    },
+    {
+      "path": "public/build-info.json",
+      "action": "replace",
+      "old_sha256": "da0c2067e5f177ac7bb67ee7bf466788f1c1974157289696ac61c34e86c3816b",
+      "new_sha256": "f3489505eb7d615b3778964bb943f656f6dac2bb8babbeb69ad23e9f2107a729",
+      "size_bytes": 363
+    },
+    {
+      "path": "public/expedition.css",
+      "action": "add",
+      "old_sha256": null,
+      "new_sha256": "f336bd484b74df0b4300a2ac6919b285d5856d856fb5bae9e41ffd70ec939460",
+      "size_bytes": 81368
+    },
+    {
+      "path": "public/index.html",
+      "action": "replace",
+      "old_sha256": "e0bd079b06e396048d54ab1b14dcca09b8bf7206efc1cdce090bff200bc0e1c9",
+      "new_sha256": "cfb4935bd60e9b2c1a286cd0cd3aeda5817164b359ec8e92c9b180480d245cdc",
+      "size_bytes": 3475
+    },
+    {
+      "path": "public/resonance.js",
+      "action": "add",
+      "old_sha256": null,
+      "new_sha256": "2e3fce92c9d188d95e6b68816607abcab234e976cbeb3e331d4cc482a1b4ccd2",
+      "size_bytes": 1981
+    },
+    {
+      "path": "public/version.json",
+      "action": "replace",
+      "old_sha256": "d41f62a56eb4f9dff02a2fe35a92d8ac0b1033f5263c9d75d5d0eee8af5c9e38",
+      "new_sha256": "ea2bf3c643772856c565d699c7cf1be42952587dc0dba43d90b4ba80c3d6235c",
+      "size_bytes": 273
+    },
+    {
+      "path": "scripts/build.js",
+      "action": "replace",
+      "old_sha256": "8db87c2fb645d027cccc6cc44546c7a70e6808fd255ddb6dc9c7c12dec028291",
+      "new_sha256": "d624d7ad5be673967dcad8880323e764a141daf9dc92342899c63e863bac0f0e",
+      "size_bytes": 5294
+    },
+    {
+      "path": "scripts/qa/browser_harness.py",
+      "action": "add",
+      "old_sha256": null,
+      "new_sha256": "e0d505e1736e7671a2f9844705b6c6a6fa01e4c02b96b1e575fdb3b42d5ec88a",
+      "size_bytes": 2466
+    },
+    {
+      "path": "scripts/qa/v8_browser_test.py",
+      "action": "add",
+      "old_sha256": null,
+      "new_sha256": "71d665793086b4732cb5dd3f17ff9bdadc9c3f65bc042977632dc0385e017a49",
+      "size_bytes": 12475
+    },
+    {
+      "path": "scripts/run-release-tests.js",
+      "action": "replace",
+      "old_sha256": "28ebdd7dbdfe74a991120924bd0bfe2a69768457c6d44677bee61711c707fc8e",
+      "new_sha256": "29ed32422ac418987b2e28ced35a2355524c79e8a9dcfa5f0ec8e86bcd9f4d4e",
+      "size_bytes": 1673
+    },
+    {
+      "path": "scripts/v47-premium-loop-test.js",
+      "action": "replace",
+      "old_sha256": "b4a221496d42a5c0b9545d55cc2b2c01fb19ea874827782f58b30d4b0dffd2d3",
+      "new_sha256": "820fbdf6d537b0b1113a6d9cee4c90c10a2ed3d2f8fc6145425b254d41c4ebae",
+      "size_bytes": 1965
+    },
+    {
+      "path": "scripts/v55-status-command-resume-test.js",
+      "action": "replace",
+      "old_sha256": "417ff2aeeb78de67f4bd1734d2aeb0a3c766569337fd64bf9957a940abd5f3fd",
+      "new_sha256": "14950e5e8905c94f2aba56be16d7022240a9dc7df6f671793ec3298abdc9f12e",
+      "size_bytes": 4375
+    },
+    {
+      "path": "scripts/v56-fusion-pp-battle-test.js",
+      "action": "replace",
+      "old_sha256": "ac63f31320cdfcede9f770eb2f7c8482d19b3acd33cf910d11b422d7178ccd1b",
+      "new_sha256": "7a3c853424a3f72159f741d93bfb1ff8713ed699a2217f0c697ef3179fec6ba7",
+      "size_bytes": 10371
+    },
+    {
+      "path": "scripts/v74-release-test.js",
+      "action": "replace",
+      "old_sha256": "c80fe957c45e5f64f61054038d2335901d62b5d3b63141b9f0fad92e160d7041",
+      "new_sha256": "090543712777db0b96cabbd1b7fd3410531f7f9c1f245a0d92c09954cdde2e97",
+      "size_bytes": 2920
+    },
+    {
+      "path": "scripts/v74-runtime-test.js",
+      "action": "replace",
+      "old_sha256": "ceaa80640b80f850a68a423abc13831f4a4039164b0872f25478c1947669ecbe",
+      "new_sha256": "80875612e1f43a6e2dde324c2f5e0c749bffad41a066da4d364b856e79066ca7",
+      "size_bytes": 4059
+    },
+    {
+      "path": "scripts/v75-feedback-test.js",
+      "action": "replace",
+      "old_sha256": "9f6a742e807c287ad941dc88994562cfc1bfb4d362d31d84a7987aa172742ac6",
+      "new_sha256": "1acfedaf1a247c3c9b5604f4e88150586c6da0f4b09d1242c518a8a533ffbbe6",
+      "size_bytes": 3244
+    },
+    {
+      "path": "scripts/v8-element-relay-test.js",
+      "action": "add",
+      "old_sha256": null,
+      "new_sha256": "7946dfeebd09578ed319a4638ede7032d2188347e8002ce3eb119541586c968c",
+      "size_bytes": 3029
+    },
+    {
+      "path": "scripts/v8-runtime-relay-test.js",
+      "action": "add",
+      "old_sha256": null,
+      "new_sha256": "f399aa1d55bb90b047eb52978bb3c81e15d26bfd154ba79948262e2842454d48",
+      "size_bytes": 8547
+    },
+    {
+      "path": "server.js",
+      "action": "replace",
+      "old_sha256": "6c96bc4234ab9a22402f6ca9189d508713eb6ebce0719aea9c9ac326e1106efd",
+      "new_sha256": "0d319a60f750fef032f9ff704d5494add8e740729201327a5cb00ca39ac791e7",
+      "size_bytes": 232748
+    }
+  ]
+}

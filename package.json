@@ -1,13 +1,13 @@
 {
   "name": "fusewild-monster-fusion-roguelite",
-  "version": "7.5.0",
+  "version": "8.0.0",
   "private": true,
-  "description": "FUSEWILD: original monster fusion roguelite with monster-only five-day pickup summons, per-monster held-item rewards, responsive battle/reward UI, five-turn fusion, capture, co-op and resume.",
+  "description": "FUSEWILD: Element Relay, turn fusion, original monster roguelite. Expedition UI and accessibility release.",
   "scripts": {
     "build": "node scripts/build.js",
     "start": "node server.js",
     "dev": "node server.js",
-    "check": "node --check server.js && node --check public/app.js && node --check data/move-library.js",
+    "check": "node --check server.js && node --check public/app.js && node --check public/resonance.js && node --check data/move-library.js",
     "test": "npm run build && node scripts/run-release-tests.js"
   },
   "engines": {
