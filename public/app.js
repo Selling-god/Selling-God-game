@@ -66,7 +66,11 @@
     rewardFocus: null,
     battlePhaseLock: null,
     battleSpeed: localStorage.getItem('fusewild.battleSpeed') || 'normal',
-    localBattleAction: null
+    localBattleAction: null,
+    reduceMotion: localStorage.getItem('fusewild.reduceMotion') === 'on',
+    largeText: localStorage.getItem('fusewild.largeText') === 'on',
+    pendingRoomWrite: false,
+    connectionLost: false
   };
   localStorage.setItem('riftdeck.guestProfileId', state.guestProfileId);
 
@@ -99,10 +103,14 @@
     return 'rd_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
   async function api(path, opts={}){
-    const res=await fetch(path,{method:opts.method||(opts.body?'POST':'GET'),credentials:'same-origin',headers:opts.body?{'Content-Type':'application/json'}:{},body:opts.body?JSON.stringify(opts.body):undefined});
-    let data;try{data=await res.json();}catch{data={ok:false,error:'서버 응답을 읽지 못했습니다.'};}
-    if(!res.ok||!data.ok)throw new Error(data.error||`HTTP ${res.status}`);
-    return data;
+    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),18000);
+    try{
+      const res=await fetch(path,{method:opts.method||(opts.body?'POST':'GET'),credentials:'same-origin',signal:controller.signal,headers:opts.body?{'Content-Type':'application/json'}:{},body:opts.body?JSON.stringify(opts.body):undefined});
+      let data;try{data=await res.json();}catch{data={ok:false,error:'서버 응답을 읽지 못했습니다.'};}
+      if(!res.ok||!data.ok)throw new Error(data.error||`HTTP ${res.status}`);
+      return data;
+    }catch(e){if(e.name==='AbortError')throw new Error('응답이 지연되고 있습니다. 진행 상태를 확인한 뒤 다시 시도해 주세요.');throw e;}
+    finally{clearTimeout(timeout);}
   }
   async function loadProfile(){
     const body=state.auth.authenticated?{profileId:state.profileId}:{profileId:state.profileId,nickname:state.nickname||'방랑자'};
@@ -142,8 +150,13 @@
   }
   function toast(message,type=''){const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=message;toastRoot.appendChild(el);setTimeout(()=>el.remove(),3400);}
   function setBusy(v){state.busy=!!v;document.body.style.cursor=v?'progress':'';}
-  function modal(html){modalRoot.innerHTML=`<div class="modal-backdrop"><div class="modal">${html}</div></div>`;}
-  function closeModal(){modalRoot.innerHTML='';}
+  function modal(html){
+    if(!modalRoot.innerHTML)state.modalReturnFocus=document.activeElement;
+    modalRoot.innerHTML=`<div class="modal-backdrop"><div class="modal fw-modal" role="dialog" aria-modal="true" aria-label="게임 메뉴" tabindex="-1"><button class="fw-modal-close" data-action="modal-close" aria-label="창 닫기">×</button>${html}</div></div>`;
+    $('#app')?.setAttribute('inert','');
+    requestAnimationFrame(()=>$('.fw-modal',modalRoot)?.focus({preventScroll:true}));
+  }
+  function closeModal(){modalRoot.innerHTML='';$('#app')?.removeAttribute('inert');const focus=state.modalReturnFocus;state.modalReturnFocus=null;if(focus?.isConnected)focus.focus?.({preventScroll:true});}
   function audioEngine(){
     const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx)return null;state.audio ||= new Ctx();if(state.audio.state==='suspended')state.audio.resume?.();return state.audio;
   }
@@ -169,8 +182,8 @@
     }catch{}
   }
   const wait = ms => new Promise(resolve=>setTimeout(resolve,ms));
-  function reducedMotion(){return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;}
-  function fxOn(){return !!state.fx;}
+  function reducedMotion(){return state.reduceMotion||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;}
+  function fxOn(){return !!state.fx&&!reducedMotion();}
   function fullMotionV55(){return !!state.fx&&!reducedMotion();}
   function rectCenter(el){if(!el)return{x:innerWidth*.5,y:innerHeight*.45};const r=el.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2};}
   function fxRoot(){let root=$('#combatFxRoot');if(!root){root=document.createElement('div');root.id='combatFxRoot';root.className='combat-fx-root';document.body.appendChild(root);}return root;}
@@ -563,6 +576,7 @@
   }
   function acceptRoomUpdate(next,{initial=false,sourceAction=''}={}){
     const prev=state.room;
+    if(!initial&&prev?.id===next?.id&&Number(next?.seq||0)<Number(prev?.seq||0))return;
     if(!initial&&prev&&Number(next?.seq||0)===Number(prev?.seq||0)&&next?.status===prev?.status)return;
     const after=initial?Number(next?.seq||0):Number(state.lastFxSeq||prev?.seq||0),changed=!!prev&&prev.status!==next?.status;
     const leavingBattle=!initial&&state.current==='battle'&&next?.status!=='battle'&&(prev?.status==='battle'||state.battleExitPending);
@@ -601,7 +615,22 @@
   function animateBattleEntrance(){
     const r=state.room,key=r?.battle?`${r.id}:${r.floor}:${r.battle.tier}`:'';if(!key||state.battleEntranceKey===key)return;state.battleEntranceKey=key;const enemies=$$('.enemy-mon-v41, .enemy-actor-v31'),units=$$('.active-mon-v41, .monster-actor-v40.filled, .unit-actor-v31.filled'),cards=$$('.spell-fan-v41 .visual-card-v31, .battle-hand-v31 .visual-card-v31');enemies.forEach((el,i)=>{try{el.animate([{transform:'translate3d(70px,10px,0) scale(.72)',opacity:0,filter:'brightness(2)'},{transform:'translate3d(0,0,0) scale(1.04)',opacity:1,filter:'brightness(1)',offset:.72},{transform:'translate3d(0,0,0) scale(1)',opacity:1}],{duration:480+i*70,delay:i*70,easing:'cubic-bezier(.16,.82,.18,1)'});}catch{}});units.forEach((el,i)=>{try{el.animate([{transform:'translate3d(-45px,12px,0) scale(.75)',opacity:0},{transform:'translate3d(0,0,0) scale(1)',opacity:1}],{duration:380,delay:130+i*65,easing:'cubic-bezier(.2,.8,.2,1)'});}catch{}});cards.forEach((el,i)=>{try{el.animate([{transform:'translate3d(0,70px,0) rotate(0deg)',opacity:0},{transform:'translate3d(0,0,0)',opacity:1}],{duration:300,delay:180+i*45,easing:'cubic-bezier(.2,.8,.2,1)'});}catch{}});
   }
-  function setScreen(name,html){clearTimers();if(name!=='battle'){clearTimeout(state.battleExitTimer);clearTimeout(state.battleExitFallbackTimer);state.battleExitTimer=0;state.battleExitFallbackTimer=0;state.battleExitPending=false;}state.current=name;if(name!=='reward')state.rewardFocus=null;const runScreens=['route','battle','reward','event','end','roomLobby'];const inRun=runScreens.includes(name);document.body.classList.toggle('in-run-v27',inRun);document.body.classList.toggle('visual-run-v31',inRun);document.body.classList.toggle('battle-focus-v31',name==='battle');document.body.classList.toggle('reward-screen-v61',name==='reward');document.body.classList.toggle('reward-screen-v64',name==='reward');document.body.classList.toggle('main-menu-v41',name==='home');screen.innerHTML=html;screen.classList.remove('screen-enter-v26');void screen.offsetWidth;screen.classList.add('screen-enter-v26');setTimeout(()=>screen.classList.remove('screen-enter-v26'),220);window.scrollTo({top:0,behavior:'instant'});if(name==='battle')requestAnimationFrame(()=>requestAnimationFrame(animateBattleEntrance));}
+  function setScreen(name,html){
+    const previous=state.current,key=`${name}:${state.room?.id||''}:${state.room?.floor||0}`;
+    const same=state.screenKey===key,scrollY=window.scrollY,scrollX=window.scrollX;
+    const focused=document.activeElement,focusAction=focused?.dataset?.action,focusId=focused?.dataset?.monsterId;
+    clearTimers();
+    if(name!=='battle'){clearTimeout(state.battleExitTimer);clearTimeout(state.battleExitFallbackTimer);state.battleExitTimer=0;state.battleExitFallbackTimer=0;state.battleExitPending=false;}
+    state.current=name;state.screenKey=key;if(name!=='reward')state.rewardFocus=null;
+    const inRun=['route','battle','reward','event','end','roomLobby'].includes(name);
+    document.body.classList.toggle('in-run-v27',inRun);document.body.classList.toggle('visual-run-v31',inRun);
+    document.body.classList.toggle('battle-focus-v31',name==='battle');document.body.classList.toggle('reward-screen-v61',name==='reward');
+    document.body.classList.toggle('reward-screen-v64',name==='reward');document.body.classList.toggle('main-menu-v41',name==='home');
+    screen.innerHTML=html;screen.classList.toggle('screen-enter-v26',!same&&!reducedMotion());
+    if(!same)window.scrollTo({top:0,behavior:'instant'});
+    else requestAnimationFrame(()=>{window.scrollTo({top:scrollY,left:scrollX,behavior:'instant'});if(focusAction&&focusId)$(`[data-action="${CSS.escape(focusAction)}"][data-monster-id="${CSS.escape(focusId)}"]`)?.focus({preventScroll:true});});
+    if(name==='battle'&&previous!=='battle')requestAnimationFrame(()=>requestAnimationFrame(animateBattleEntrance));
+  }
 
   function shortLine(value,max=42){const s=String(value||'').replace(/\s+/g,' ').trim();return s.length>max?`${s.slice(0,max-1)}…`:s;}
   function elementGlyph(element){return ({'화염':'◆','물':'≈','자연':'✦','빛':'✧','그림자':'◒','강철':'✕','바람':'〰','번개':'ϟ','별':'★','시간':'◷','공허':'●','수정':'◇'})[element]||'◇';}
@@ -801,6 +830,7 @@
   async function playNamedMonsterMoveV45(payload,enemySide=false){
     if(!payload)return;
     battleMoveFeedbackV51(payload,enemySide);
+    if(!enemySide&&payload.elementRelay?.burst){toast('속성 연계 완성 · 기술 위력 +20% · BREAK +8','good');sound('chain');}
     let actor=null,target=null;
     if(enemySide){
       actor=$(`[data-enemy="${CSS.escape(payload.enemyUid||'')}"]`)||$('.enemy-mon-v52.selected')||$('.enemy-mon-v52');
@@ -1119,10 +1149,101 @@
   async function logout(){
     try{await api('/api/auth/logout',{body:{}});}catch{}state.stream?.close();state.stream=null;state.auth={enabled:!!state.meta?.authEnabled,authenticated:false,user:null};state.profile=null;state.profileId=state.guestProfileId;state.room=null;state.roomId='';localStorage.removeItem('riftdeck.roomId');state.guestMode=false;localStorage.removeItem('riftdeck.guestMode');renderAuth();toast('로그아웃했습니다.','good');
   }
+
+  // V8 Expedition UI. Keeps the existing authoritative APIs and sprite library.
+  function fwRelayPreview(pc, move, monster) {
+    return window.FusewildRelay?.preview(pc?.elementRelay, move?.element || monster?.element, move?.kind) || { burst:false, repeats:false, count:0 };
+  }
+  function fwMatchup(move, monster, enemy) {
+    if (!['attack','burst'].includes(move?.kind) || !enemy) return {label:'지원 기술', cls:'support', value:1};
+    const el=move.element||monster?.element, target=enemy.element;
+    const value=el===target?1:elementStrongAgainst(el).includes(target)?1.35:elementStrongAgainst(target).includes(el)?.75:1;
+    return {label:value>1?'유리 ×1.35':value<1?'불리 ×0.75':'보통 ×1.0',cls:value>1?'strong':value<1?'weak':'neutral',value};
+  }
+  function fwMoveTile(move, i, monster, enemy, me) {
+    if (!move) return `<button class="fw-move empty" disabled><kbd>${i+1}</kbd><b>미습득 기술</b></button>`;
+    const el=move.element||monster.element, can=moveUsable(move,monster,me), matchup=fwMatchup(move,monster,enemy);
+    const relay=fwRelayPreview(me,move,monster), pp=Number(move.pp??move.maxPp??0), max=Number(move.maxPp||1);
+    const reason=pp<=0?'PP 소진':monster.acted?'행동 완료':me.ended?'상대 차례':Number(monster.level)<Number(move.unlockLevel||1)?`Lv.${move.unlockLevel} 필요`:'';
+    const tags=moveEffectTagsV54(move).filter(x=>x.k!=='signature').slice(0,3);
+    return `<button class="fw-move element-${elementClass(el)} ${move.signature?'fw-signature':''} ${relay.burst?'fw-relay-ready':''}" data-action="move-use" data-move-id="${esc(move.id)}" ${can?'':'disabled'} aria-label="${esc(move.name)} · ${esc(matchup.label)} · PP ${pp}/${max}${relay.burst?' · 연계 완성 가능':''}">
+      <div class="fw-move-top"><span class="fw-type">${elementGlyph(el)} ${esc(el)}</span><span class="fw-matchup ${matchup.cls}">${matchup.label}</span><kbd>${i+1}</kbd></div>
+      <div class="fw-move-name"><b>${esc(move.name)}</b>${move.signature?'<span class="fw-sig">전용기</span>':''}</div>
+      <div class="fw-move-stats"><span>${esc(movePowerLine(move))}</span><span>명중 ${Number(move.accuracy||100)}%</span></div>
+      <div class="fw-move-bottom"><span class="fw-move-tags">${tags.map(x=>`<i>${esc(x.t)}</i>`).join('')}${relay.burst?'<i class="fw-relay-bonus">연계 +20%</i>':''}</span><span class="fw-pp ${pp<=Math.max(2,max*.2)?'low':''}">${reason||`PP <b>${pp}</b> / ${max}`}</span></div>
+    </button>`;
+  }
+  function fwRelayPanel(me) {
+    const relay=window.FusewildRelay?.normalize(me?.elementRelay)||{elements:[],activations:0};
+    return `<div class="fw-relay" aria-label="속성 연계 ${relay.elements.length}/3"><div class="fw-relay-name"><span>◇</span><div><b>속성 연계</b><small>ELEMENT RELAY</small></div></div>
+      <div class="fw-relay-slots">${[0,1,2].map(i=>`<span class="${relay.elements[i]?'filled':''} ${i===2&&relay.elements.length===2?'primed':''}">${relay.elements[i]?`${elementGlyph(relay.elements[i])} ${esc(relay.elements[i])}`:i===2?'✦':'·'}</span>`).join('<i>›</i>')}</div>
+      <p>${relay.elements.length===2?'새로운 속성 명중 시 위력 +20% · BREAK +8':'서로 다른 속성 공격 3번으로 연계 완성'}</p><button data-action="fw-guide" aria-label="속성 연계 설명">?</button></div>`;
+  }
+  function fwIntent(enemy) {
+    if (!enemy) return '';
+    const intent=enemy.intent||{}, kind=String(intent.type||'attack');
+    const labels={guard:'방어 준비',attack:'공격 준비',multi:'연속 공격',defend:'방어 준비',block:'방어 준비',buff:'강화 준비',debuff:'약화 준비',heavy:'강공격 준비',heal:'회복 준비'};
+    const blocked=!!enemy.broken||Number(enemy.debuffs?.intentSeal)>0;
+    const label=enemy.broken?'자세 붕괴 · 이번 행동 불가':blocked?'행동 봉쇄':intent.planned&&intent.moveName?intent.moveName:labels[kind]||'전투 준비';
+    const hint=intent.planned?'서버에 예약된 다음 기술입니다. 상태이상·BREAK·봉쇄로 취소될 수 있습니다. 기준값에는 상성·방어·난수가 반영되지 않습니다.':'이전 저장의 기본 전투 정보입니다. 다음 턴부터 실제 예약 기술이 표시됩니다.';
+    return `<div class="fw-intent ${blocked?'broken':''}" title="${esc(hint)}"><span>${esc(blocked?'✧':intent.icon||'⚔')}</span><div><small>${intent.planned?'다음 상대 기술':'상대 기본 정보'}</small><b>${esc(label)}</b></div>${!blocked&&Number(intent.value)>0?`<strong>${Number(intent.value)}<small>${kind==='guard'?'방어막':kind==='heal'?'회복량':'기준값'}</small></strong>`:''}</div>`;
+  }
+  function fwBattleHeader(r, b, run, partyMini) {
+    const floor=Number(r.floor||1),wave=((floor-1)%10)+1;
+    return `<header class="fw-battle-header"><button class="fw-back" data-action="fw-pause" aria-label="원정 메뉴">☰</button><div class="fw-location"><small>${esc(b.encounterType==='boss'?'BOSS ENCOUNTER':b.trainer?'TRAINER DUEL':'WILD ENCOUNTER')} · ${esc(difficultyKo(r.difficulty))}</small><h1>${esc(b.trainer?.name||sceneName(r)||r.biome?.name||'원정')}</h1></div><div class="fw-wave"><b>${String(floor).padStart(2,'0')}</b><span>${r.mode==='dungeon'?' / 50':' WAVE'}<small>${esc(r.biome?.name||'')}</small></span></div><div class="fw-battle-currency"><small>원정 골드</small><b>◈ ${Number(run.gold||0).toLocaleString('ko-KR')}</b></div><div class="fw-battle-tools"><button data-action="battle-speed" title="전투 속도">${battleSpeedLabelV73()}</button><button data-action="toggle-combat-log">기록</button><button data-action="fw-settings" aria-label="설정">⚙</button></div>
+      <div class="fw-wave-track" aria-label="구역 진행 ${wave}/10">${Array.from({length:10},(_,i)=>`<span class="${i+1<wave?'done':i+1===wave?'current':''}" title="${Math.floor((floor-1)/10)*10+i+1}층"><i>${i===9?'◆':i+1<wave?'✓':i+1}</i></span>`).join('')}</div></header>`;
+  }
+  function fwApplyPreferences() {
+    document.body.classList.add('fw-v8');
+    document.body.classList.toggle('fw-reduce-motion',state.reduceMotion);
+    document.body.dataset.fwText=state.largeText?'large':'normal';
+  }
+  function fwShowSettings() {
+    modal(`<div class="fw-modal-copy"><span class="fw-eyebrow">YOUR EXPEDITION</span><h2>편안하게 플레이하세요.</h2><p>이 브라우저의 설정으로 저장됩니다. 진행 중인 원정은 유지됩니다.</p>
+      <div class="fw-setting-row"><div><b>효과음</b><small>타격 · 기술 · 보상 효과음</small></div><button data-action="fw-setting" data-setting="sound" aria-pressed="${state.sound}" class="fw-toggle ${state.sound?'on':''}">${state.sound?'켜짐':'꺼짐'}</button></div>
+      <div class="fw-setting-row"><div><b>전투 이펙트</b><small>낮은 사양에서 끄면 연출 부하를 줄입니다.</small></div><button data-action="fw-setting" data-setting="fx" aria-pressed="${state.fx}" class="fw-toggle ${state.fx?'on':''}">${state.fx?'켜짐':'꺼짐'}</button></div>
+      <div class="fw-setting-row"><div><b>움직임 줄이기</b><small>화면 흔들림 · 번쩍임 · 이동 연출 제한</small></div><button data-action="fw-setting" data-setting="reduceMotion" aria-pressed="${state.reduceMotion}" class="fw-toggle ${state.reduceMotion?'on':''}">${state.reduceMotion?'켜짐':'꺼짐'}</button></div>
+      <div class="fw-setting-row"><div><b>큰 글씨</b><small>주요 화면의 글자를 더 크게 표시</small></div><button data-action="fw-setting" data-setting="largeText" aria-pressed="${state.largeText}" class="fw-toggle ${state.largeText?'on':''}">${state.largeText?'켜짐':'꺼짐'}</button></div>
+      <div class="fw-setting-row fw-speed-setting"><div><b>전투 속도</b><small>메시지와 연출을 함께 조절합니다.</small></div><div class="fw-segment">${[['slow','느리게'],['normal','보통'],['fast','빠르게']].map(([id,label])=>`<button data-action="fw-speed" data-speed="${id}" class="${state.battleSpeed===id?'on':''}" aria-pressed="${state.battleSpeed===id}">${label}</button>`).join('')}</div></div>
+      <button class="fw-primary fw-wide" data-action="modal-close">설정 완료 <span>✓</span></button></div>`);
+  }
+  function fwShowGuide() {
+    modal(`<div class="fw-modal-copy fw-guide"><span class="fw-eyebrow">FIELD GUIDE / 01</span><h2>힘만으로는 돌파할 수 없습니다.</h2><p>포획한 몬스터, 고른 기술, 장착 아이템으로 자신만의 원정을 만드세요.</p>
+      <div class="fw-guide-grid"><article><span>01 / BATTLE</span><h3>상대보다 한 수 앞서기</h3><p>기술에는 대상과의 상성이 표시됩니다. 유리하면 ×1.35, 불리하면 ×0.75입니다. 상대의 예약된 다음 기술과 BREAK 게이지도 함께 확인하세요. 상태이상·BREAK·봉쇄로 예정 행동을 막을 수 있습니다.</p></article>
+      <article><span>02 / RELAY</span><h3>속성을 이어 붙이기</h3><p>서로 다른 속성의 공격을 3번 명중시키면 세 번째 기술의 위력이 20%, BREAK가 8 증가합니다. 진행 중인 속성을 다시 쓰면 1개부터 시작합니다. 지원기와 빗나감은 진행도를 유지합니다.</p></article>
+      <article><span>03 / FUSION</span><h3>두 몬스터, 하나의 선택</h3><p>행동 한 번으로 파트너와 융합합니다. 기술을 직접 구성하고 5턴 동안 싸우세요. 전투가 먼저 끝나면 즉시 해제됩니다. 교대·융합을 해도 속성 연계는 유지됩니다.</p></article>
+      <article><span>04 / SURVIVE</span><h3>다음 전투까지 생각하기</h3><p>HP·PP·상태는 다음 웨이브에도 이어집니다. 전투 후 보상을 고르고 장착할 몬스터를 지정하세요. 상점은 선택 사항이며, 다음 웨이브는 직접 진행합니다.</p></article></div>
+      <div class="fw-guide-note"><b>조작</b> 기술 화면에서 1~4 · Tab으로 이동 / Enter로 선택 · ESC로 창 닫기</div><button class="fw-primary fw-wide" data-action="modal-close">원정으로 돌아가기 <span>→</span></button></div>`);
+  }
+  function fwShowPause() {
+    modal(`<div class="fw-modal-copy"><span class="fw-eyebrow">EXPEDITION MENU</span><h2>잠시 숨을 고르세요.</h2><p>메뉴를 열거나 홈으로 돌아가도 현재 원정을 포기하지 않습니다. 협동 원정의 다른 플레이어는 계속 행동할 수 있습니다.</p><div class="fw-menu-stack"><button data-action="modal-close"><b>원정으로 돌아가기</b><span>→</span></button><button data-action="run-info"><b>파티 · 장착 아이템</b><span>↗</span></button><button data-action="fw-guide"><b>플레이 가이드</b><span>?</span></button><button data-action="fw-settings"><b>설정</b><span>⚙</span></button><button data-action="home"><b>홈으로 돌아가기</b><span>⌂</span></button></div></div>`);
+  }
+  function fwConnectionStatus(connected) {
+    state.connectionLost=!connected;
+    let notice=$('#fwConnectionNotice');
+    if(!notice){notice=document.createElement('div');notice.id='fwConnectionNotice';notice.className='fw-connection hidden';notice.setAttribute('role','status');notice.innerHTML='<span>연결이 잠시 끊겼습니다. 자동 재연결 중입니다.</span><button data-action="fw-reconnect">다시 연결</button>';document.body.appendChild(notice);}
+    notice.classList.toggle('hidden',connected);
+    $('#serverBadge')?.classList.toggle('warn',!connected);
+  }
+
   function homeHtml(){
-    const activeRoom=state.room&&!['ended','cleared'].includes(state.room.status)?state.room:null,active=!!activeRoom||!!state.profile.activeRoomId,party=(state.profile.monsterParty||[]).map(monsterById).filter(Boolean),mons=state.profile.monsterOwnedCount||0,records=state.profile.stats||{};
-    const showcase=(party.length?party:state.meta.monsters.slice(0,3)).slice(0,3),bg=state.meta.biomes?.[0]?.scenes?.[0]?.background||state.meta.biomes?.[0]?.background||'';
-    return `<section class="home-menu-v41"><div class="home-menu-bg-v41" style="background-image:url('${esc(bg)}')"></div><div class="home-menu-scan-v41"></div><header class="home-title-v41"><small>FUSEWILD ONLINE</small><h1>FUSEWILD</h1><span>MONSTER FUSION ROGUELITE</span></header><aside class="home-record-v41"><b>EXPEDITION DATA</b><div><span>MONSTERS</span><strong>${mons}<em>/205</em></strong></div><div><span>BEST</span><strong>${records.bestDungeonFloor||0}<em>F</em></strong></div><div><span>CLEAR</span><strong>${records.dungeonClears||0}</strong></div><small>${state.profile.cloud?'● CLOUD SAVE':'○ GUEST SAVE'}</small></aside><div class="home-showcase-v41">${showcase.map((m,i)=>`<div class="home-mon-v41 m${i+1}"><i></i><img src="${esc(m.sprite)}" alt=""><b>${esc(m.name)}</b><small>${m.pointCost||1}P · ${esc(m.element)}</small></div>`).join('')}</div><nav class="home-command-v41">${active?`<button class="primary resume-v55" data-action="resume-room"><span>▶</span><b>이어하기</b><small>${activeRoom?`${activeRoom.floor||0}F · ${activeRoom.mode==='dungeon'?'던전':'여행'}`:'서버에 저장된 원정 불러오기'}</small></button>`:''}<button class="${active?'':'primary'}" data-action="new-game-menu"><span>◆</span><b>새 게임</b><small>여행 / 심연 던전</small></button><button data-action="party-loadout"><span>▦</span><b>편성</b><small>MONSTER PARTY / HELD ITEMS / PP</small></button><button data-action="gacha"><span>✦</span><b>몬스터 소환</b><small>5일 픽업 전설 · 코인 소환</small></button><button data-action="profile"><span>☰</span><b>기록 · 설정</b><small>계정 / 클라우드</small></button></nav><div class="home-tip-v41"><b>TIP</b><span>HP·PP·상태는 다음 웨이브에 이어집니다. 공격할지, 교대할지, 한 턴을 써서 융합할지 판단하세요.</span></div></section>`;
+    const activeRoom=state.room&&!['ended','cleared'].includes(state.room.status)?state.room:null;
+    const active=!!activeRoom||!!state.profile.activeRoomId, records=state.profile.stats||{};
+    const party=(state.profile.monsterParty||[]).map(monsterById).filter(Boolean);
+    const showcase=(party.length?party:state.meta.monsters.slice(0,3)).slice(0,3);
+    const total=state.meta.monsters.length,owned=state.profile.monsterOwnedCount||0;
+    const bg=state.meta.biomes?.[0]?.scenes?.[0]?.background||state.meta.biomes?.[0]?.background||'';
+    const pickup=state.meta.monsterPickup||{},featured=monsterById(pickup.featuredId);
+    return `<section class="fw-home">
+      <div class="fw-home-landscape" style="background-image:url('${esc(bg)}')"></div><div class="fw-home-grain"></div>
+      <header class="fw-home-header"><a class="fw-wordmark" href="#" data-action="home"><span>◇</span> FUSEWILD <small>EXPEDITION</small></a><nav><button data-action="fw-guide">플레이 가이드</button><button data-action="fw-settings" aria-label="설정">⚙</button><button class="fw-profile" data-action="profile"><i>${esc((state.profile.nickname||'탐험가').slice(0,1))}</i><span>${esc(state.profile.nickname)}<small>${state.profile.cloud?'클라우드 계정':'게스트 프로필'}</small></span></button></nav></header>
+      <main class="fw-home-hero"><div class="fw-hero-copy"><span class="fw-eyebrow"><i></i> MONSTER FUSION ROGUELITE</span><h1>FUSE<span>WILD</span><em>EXPEDITION</em></h1><h2>둘의 힘으로,<br>다음 한계를 넘다.</h2><p>발견하고, 연결하고, 돌파하세요.<br>당신의 선택으로 완성되는 몬스터 원정.</p>
+        <div class="fw-hero-actions"><button class="fw-primary" data-action="${active?'resume-room':'new-game-menu'}"><div><b>${active?'원정 이어하기':'원정 시작'}</b><small>${activeRoom?`${activeRoom.floor||1}층 · ${esc(activeRoom.biome?.name||'진행 중인 원정')}`:active?'저장된 원정 불러오기':'일반 여행 / 50층 심연 던전'}</small></div><span>→</span></button><button class="fw-secondary" data-action="${active?'new-game-menu':'fw-guide'}">${active?'새 원정':'처음 오셨나요?'} <span>↗</span></button></div>
+        <div class="fw-hero-stats"><div><b>${owned}<small> / ${total}</small></b><span>발견한 몬스터</span></div><div><b>${records.bestDungeonFloor||0}<small> F</small></b><span>최고 도달 층</span></div><div><b>${records.dungeonClears||0}</b><span>던전 클리어</span></div></div>
+      </div><div class="fw-showcase"><div class="fw-orbit"><i></i><i></i><i></i></div><div class="fw-showcase-caption"><span>YOUR EXPEDITION TEAM</span><b>함께라면, 더 멀리.</b></div><div class="fw-home-monsters">${showcase.map((m,i)=>`<button class="fw-home-mon fw-home-mon-${i}" data-action="party-loadout" aria-label="${esc(m.name)} 편성 확인"><div><img src="${esc(m.sprite)}" alt="${esc(m.name)}" decoding="async"></div><span>${elementGlyph(m.element)} ${esc(m.element)}</span><b>${esc(m.name)}</b></button>`).join('')}</div><div class="fw-showcase-foot"><span>◇ 속성 연계</span><i></i><span>∞ 5턴 융합</span></div></div></main>
+      <nav class="fw-home-cards"><button data-action="party-loadout"><span class="fw-card-icon">▦</span><div><small>YOUR COLLECTION</small><b>몬스터 편성</b><p>6슬롯 · 10포인트로 만드는 나만의 파티</p></div><em>↗</em></button><button data-action="gacha"><span class="fw-card-icon gold">✦</span><div><small>ROTATING PICKUP</small><b>몬스터 소환</b><p>${featured?esc(featured.name)+' · ':''}5일마다 변경되는 전설 픽업</p></div><em>↗</em></button><button data-action="profile"><span class="fw-card-icon violet">⌁</span><div><small>EXPEDITION ARCHIVE</small><b>원정 기록</b><p>지금까지의 발견과 성장의 흔적</p></div><em>↗</em></button></nav>
+      <footer class="fw-home-footer"><span><i></i> ${state.profile.cloud?'CLOUD PROFILE':'GUEST PROFILE'} <em>·</em> v${esc(state.meta.version)}</span><p>교대와 융합으로 속성을 연결하세요. 세 번째 속성 공격이 더 강해집니다.</p><button data-action="fw-guide">FIELD GUIDE <span>↗</span></button></footer>
+    </section>`;
   }
   function showNewGameMenu(){
     modal(`<div class="new-game-v41"><div class="section-label">NEW EXPEDITION</div><h2>어디로 떠날까요?</h2><div class="new-game-grid-v41"><button data-action="journey-create"><span>◇</span><b>일반 여행</b><small>야생 몬스터를 발견하고 봉인 · 컬렉션 확장</small></button><button data-action="dungeon-lobby"><span>◆</span><b>심연 던전</b><small>HP·PP·상태를 관리하며 50층 도전 · 전투 중 1턴 융합 · 최대 4인</small></button></div><button class="cta" data-action="modal-close">취소</button></div>`);
@@ -1131,12 +1252,23 @@
   function tickBanner(){const el=$('#bannerClock'),pel=$('#monsterPickupClock');if(el){const ms=Math.max(0,new Date(state.meta.banner.endsAt)-Date.now()),d=Math.floor(ms/86400000),h=Math.floor(ms/3600000)%24,m=Math.floor(ms/60000)%60,s=Math.floor(ms/1000)%60;el.textContent=`${d}D ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;}if(pel){const ms=Math.max(0,Number(state.meta.monsterPickup?.endsAt||0)-Date.now()),d=Math.floor(ms/86400000),h=Math.floor(ms/3600000)%24,m=Math.floor(ms/60000)%60,s=Math.floor(ms/1000)%60;pel.textContent=`${d}D ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;}}
 
   function renderExpeditionPrep(mode,reset=false){
-    const entering=reset||state.current!=='prep'||state.prepMode!==mode;state.prepMode=mode;if(entering){state.monsterDraft=[...(state.profile.monsterParty||[])];state.deckDraft=[...(state.profile.deck||[])];}state.current='prep';
-    const rules=state.meta.monsterRules||{maxSlots:6,pointBudget:10},cost=monsterDraftCost(),owned=state.meta.monsters.filter(m=>Number(state.profile.monsters?.[m.id]||0)>0).sort((a,b)=>Number(a.pointCost)-Number(b.pointCost)||a.name.localeCompare(b.name,'ko'));
-    const selected=state.monsterDraft.map(monsterById).filter(Boolean),slots=Array.from({length:rules.maxSlots},(_,i)=>{const m=selected[i];return m?`<button class="prep-party-slot-v41 rarity-${m.rarity}" data-action="monster-remove" data-monster-id="${esc(m.id)}"><img src="${esc(m.sprite)}" alt=""><span><b>${esc(shortLine(m.name,11))}</b><small>${m.pointCost}P · ${esc(m.element)}</small></span><em>×</em></button>`:`<div class="prep-party-slot-v41 empty"><span>+</span><small>EMPTY</small></div>`;}).join('');
-    const library=owned.map(m=>{const on=state.monsterDraft.includes(m.id),moves=(m.moves||[]).filter(x=>Number(x.unlockLevel||1)<=1).slice(0,2);return `<button class="prep-mon-card-v41 rarity-${m.rarity} ${on?'selected':''}" data-action="${on?'monster-remove':'monster-add'}" data-monster-id="${esc(m.id)}"><div class="prep-mon-art-v41"><img src="${esc(m.sprite)}" alt=""><i>${m.pointCost}P</i></div><b>${esc(m.name)}</b><small>${esc(m.element)} · ${esc(m.role||m.archetype||'')} · 기술 풀 ${Number(m.movePoolCount||0)}</small><div>${moves.map(x=>`<span>${esc(x.name)}</span>`).join('')}</div><em>${on?'편성됨':'+'}</em></button>`;}).join('');
-    const spells=[]; // v5.6 expedition combat is monster-only.
-    setScreen('prep',`<section class="prep-v41"><header><button data-action="home">←</button><div><small>${mode==='journey'?'JOURNEY':'DUNGEON'} PARTY</small><h1>${mode==='manage'?'파티 편성':'원정 준비'}</h1></div><div class="prep-points-v41 ${cost>rules.pointBudget?'over':''}"><b>${cost}</b><span>/ ${rules.pointBudget}P</span></div></header><section class="prep-selected-v41"><div class="prep-party-row-v41">${slots}</div><div class="prep-spells-v41 prep-rules-v56"><span>BATTLE RULE</span><b>HP / PP KEEP</b><small>${state.room?.mode==='dungeon'?'NO FREE HEAL // SHOP ONLY':'FULL HEAL AFTER WAVE 10 KEEPER'} / TURN FUSION</small></div></section><main class="prep-library-v41">${library||'<div class="empty-library-v41">보유 몬스터가 없습니다.</div>'}</main><footer><div><b>편성 규칙</b><span>강한 몬스터일수록 포인트가 높습니다. 처음 계정은 기본 몬스터 3마리만 보유합니다.</span></div><button class="prep-save-v41" data-action="prep-start" ${!state.monsterDraft.length||cost>rules.pointBudget?'disabled':''}>${mode==='manage'?'편성 저장':mode==='journey'?'여행 시작':'던전으로'}</button></footer></section>`);
+    const entering=reset||state.current!=='prep'||state.prepMode!==mode;state.prepMode=mode;
+    if(entering){state.monsterDraft=[...(state.profile.monsterParty||[])];state.deckDraft=[...(state.profile.deck||[])];state.prepSearch='';}
+    const rules=state.meta.monsterRules||{maxSlots:6,pointBudget:10},cost=monsterDraftCost();
+    const owned=state.meta.monsters.filter(m=>Number(state.profile.monsters?.[m.id]||0)>0).sort((a,b)=>Number(a.pointCost)-Number(b.pointCost)||a.name.localeCompare(b.name,'ko'));
+    const selected=state.monsterDraft.map(monsterById).filter(Boolean),elements=[...new Set(selected.map(m=>m.element))];
+    const slots=Array.from({length:rules.maxSlots},(_,i)=>{const m=selected[i];return m?`<button class="fw-prep-slot" data-action="monster-remove" data-monster-id="${esc(m.id)}" aria-label="${esc(m.name)} 편성 해제"><small>0${i+1}</small><img src="${esc(m.sprite)}" alt=""><div><b>${esc(m.name)}</b><span>${esc(m.element)} · ${m.pointCost}P</span></div><em>×</em></button>`:`<div class="fw-prep-slot empty"><small>0${i+1}</small><span>+</span><b>빈 슬롯</b></div>`;}).join('');
+    const library=owned.map(m=>{const on=state.monsterDraft.includes(m.id),moves=(m.moves||[]).filter(x=>Number(x.unlockLevel||1)<=1).slice(0,2);return `<button class="fw-prep-mon ${on?'selected':''}" data-action="${on?'monster-remove':'monster-add'}" data-monster-id="${esc(m.id)}" data-prep-search="${esc(`${m.name} ${m.element} ${rarityKo(m.rarity)}`.toLocaleLowerCase())}" aria-pressed="${on}"><div class="fw-prep-art"><span>${m.pointCost}<small>P</small></span><img src="${esc(m.sprite)}" alt="" loading="lazy"><i>${on?'✓ 편성됨':'+ 편성'}</i></div><div class="fw-prep-mon-copy"><small>${elementGlyph(m.element)} ${esc(m.element)} · ${esc(rarityKo(m.rarity))}</small><b>${esc(m.name)}</b><span>습득 가능 기술 ${Number(m.movePoolCount||0)}종</span><div>${moves.map(x=>`<i>${esc(x.name)}</i>`).join('')}</div></div></button>`;}).join('');
+    setScreen('prep',`<section class="fw-prep prep-v41"><header class="fw-prep-header"><button class="fw-back" data-action="home" aria-label="홈으로">←</button><div><small>${mode==='manage'?'YOUR COLLECTION':mode==='journey'?'JOURNEY':'ABYSS DUNGEON'}</small><h1>${mode==='manage'?'나만의 원정 파티':'원정 준비'}</h1><p>서로 다른 속성과 역할을 연결해 다음 전투를 준비하세요.</p></div><div class="fw-prep-budget ${cost>rules.pointBudget?'over':''}"><b>${cost}</b><span>/ ${rules.pointBudget}<small>편성 포인트</small></span></div></header>
+    <section class="fw-prep-selected"><div class="fw-prep-label"><b>선택한 몬스터 <span>${selected.length} / ${rules.maxSlots}</span></b><span>몬스터를 누르면 편성이 해제됩니다.</span></div><div class="fw-prep-slots">${slots}</div><div class="fw-prep-tip"><b>◇ ${elements.length}가지 속성</b><span>${elements.length>=3?'교대와 융합으로 세 가지 속성 공격을 연결해 보세요.':'서로 다른 속성 공격 3번이 적중하면 위력 +20% · BREAK +8'}</span></div></section>
+    <section class="fw-prep-library"><div class="fw-prep-label"><b>보유 몬스터 <span>${owned.length}</span></b><label class="fw-prep-search"><span>⌕</span><input id="fw-party-search" type="search" placeholder="이름 · 속성으로 찾기" aria-label="보유 몬스터 검색" value="${esc(state.prepSearch||'')}"></label></div><div class="fw-prep-grid">${library||'<p>보유 몬스터가 없습니다.</p>'}</div><p class="fw-prep-noresults hidden">검색 결과가 없습니다.</p></section>
+    <footer class="fw-prep-footer"><div><b>HP · PP · 상태이상은 다음 전투에도 이어집니다.</b><span>${mode==='manage'?'최대 6마리, 10포인트 이내로 편성합니다.':mode==='dungeon'?'심연 던전: 무료 자동 회복 없이 정비 상점을 활용하세요.':'일반 여행: 10웨이브 수문장 승리 후 파티가 회복됩니다.'} 융합은 5턴 동안 유지됩니다.</span></div><button class="fw-primary" data-action="prep-start" ${!state.monsterDraft.length||cost>rules.pointBudget?'disabled':''}>${mode==='manage'?'편성 저장':mode==='journey'?'여행 시작':'던전으로'} <span>→</span></button></footer></section>`);
+    fwFilterParty(state.prepSearch||'');
+  }
+  function fwFilterParty(value){
+    state.prepSearch=String(value||'');const q=state.prepSearch.trim().toLocaleLowerCase();let count=0;
+    document.querySelectorAll('[data-prep-search]').forEach(card=>{const show=!q||card.dataset.prepSearch.includes(q);card.hidden=!show;if(show)count++;});
+    document.querySelector('.fw-prep-noresults')?.classList.toggle('hidden',count>0);
   }
   async function savePrepAndProceed(){
     const cost=monsterDraftCost(),budget=state.meta.monsterRules?.pointBudget||10;if(!state.monsterDraft.length)return toast('몬스터를 최소 1마리 선택하세요.','error');if(cost>budget)return toast(`파티 포인트는 ${budget}P 이하여야 합니다.`,'error');
@@ -1156,9 +1288,9 @@
   async function createJourney(){if(state.busy)return;setBusy(true);try{const d=await api('/api/rooms/create',{body:{profileId:state.profileId,nickname:state.profile.nickname,mode:'journey',name:`${state.profile.nickname}의 여행`,difficulty:'normal'}});enterRoom(d.room);await roomPost('start',{});}catch(e){toast(e.message,'error');}finally{setBusy(false);}}
   async function joinRoom(roomId){roomId=String(roomId||'').replace(/\D/g,'').slice(0,6);if(roomId.length!==6)return toast('6자리 방 코드를 입력해 주세요.','error');if(state.busy)return;setBusy(true);try{const d=await api('/api/rooms/join',{body:{profileId:state.profileId,nickname:state.profile.nickname,roomId}});enterRoom(d.room);}catch(e){toast(e.message,'error');}finally{setBusy(false);}}
   function enterRoom(room){state.roomId=room.id;localStorage.setItem('riftdeck.roomId',room.id);state.lastFxSeq=Number(room.seq||0);acceptRoomUpdate(room,{initial:true});connectStream(room.id);}
-  function connectStream(roomId){if(state.stream)state.stream.close();const es=new EventSource(`/api/room/${roomId}/stream?profileId=${encodeURIComponent(state.profileId)}`,{withCredentials:true});state.stream=es;es.addEventListener('room-update',ev=>{try{acceptRoomUpdate(JSON.parse(ev.data));}catch{}});es.onerror=()=>{$('#serverBadge')?.classList.add('warn');};es.onopen=()=>{$('#serverBadge')?.classList.remove('warn');};}
+  function connectStream(roomId){if(state.stream)state.stream.close();const es=new EventSource(`/api/room/${roomId}/stream?profileId=${encodeURIComponent(state.profileId)}`,{withCredentials:true});state.stream=es;es.addEventListener('room-update',ev=>{try{acceptRoomUpdate(JSON.parse(ev.data));}catch{}});es.onerror=()=>{if(state.roomId===roomId)fwConnectionStatus(false);};es.onopen=()=>{fwConnectionStatus(true);};}
   function closeStreamIfInactive(){if(!state.room||['ended','cleared'].includes(state.room.status)){state.stream?.close();state.stream=null;}}
-  async function roomPost(action,payload={}){if(!state.roomId)throw new Error('원정 방이 없습니다.');setBusy(true);try{const d=await api(`/api/room/${state.roomId}/${action}`,{body:{profileId:state.profileId,nickname:state.profile.nickname,...payload}});if(d.profile){state.profile=d.profile;state.profileId=d.profile.id;updateTopbar();}if(d.room)acceptRoomUpdate(d.room,{sourceAction:action});return d;}catch(e){toast(e.message,'error');sound('error');throw e;}finally{setBusy(false);}}
+  async function roomPost(action,payload={}){if(state.pendingRoomWrite)throw new Error('이전 행동을 처리하고 있습니다.');if(!state.roomId)throw new Error('원정 방이 없습니다.');state.pendingRoomWrite=true;setBusy(true);try{const d=await api(`/api/room/${state.roomId}/${action}`,{body:{profileId:state.profileId,nickname:state.profile.nickname,...payload}});if(d.profile){state.profile=d.profile;state.profileId=d.profile.id;updateTopbar();}if(d.room)acceptRoomUpdate(d.room,{sourceAction:action});return d;}catch(e){toast(e.message,'error');sound('error');throw e;}finally{state.pendingRoomWrite=false;setBusy(false);}}
 
   function renderRoom(){const r=state.room;if(!r)return renderHome();if(r.status==='lobby')return renderRoomLobby(r);if(r.status==='route')return renderRoute(r);if(r.status==='battle')return renderBattle(r);if(r.status==='event')return renderEvent(r);if(r.status==='reward')return renderReward(r);if(['ended','cleared'].includes(r.status))return renderEnd(r);}
   function renderRoomLobby(r){
@@ -1236,18 +1368,25 @@
   // battle-resource-v51 compatibility marker: V52 folds the old resource HUD into battle-dialog-v52.
   // V7.1: readability-first battle layout, reward effect text, and organic move FX.
   function renderBattle(r){
+    // A delayed animation or an older HTTP completion must never replace a reward,
+    // route, or newly resumed room with the previous battlefield.
+    if(!r?.battle||r.status!=='battle'){
+      if(state.current==='battle'&&state.room?.id===r?.id)renderRoom();
+      return;
+    }
+    if(state.room?.id===r.id&&Number(r.seq||0)<Number(state.room.seq||0))return;
     const b=r.battle,me=b.party.find(p=>p.playerId===state.profileId);if(!me)return;
     const alive=b.enemies.filter(e=>e.hp>0),ready=(me.units||[]).filter(u=>u.hp>0&&!u.acted);
     if(!state.selectedEnemy||!alive.some(e=>e.uid===state.selectedEnemy))state.selectedEnemy=alive[0]?.uid||null;
     if(!state.selectedMonster||!me.units.some(u=>u.instanceId===state.selectedMonster&&u.hp>0&&!u.acted))state.selectedMonster=ready[0]?.instanceId||me.units.find(u=>u.hp>0)?.instanceId||me.units[0]?.instanceId||null;
     const run=r.runState[state.profileId],selectedEnemy=alive.find(e=>e.uid===state.selectedEnemy)||alive[0],selectedMon=me.units.find(u=>u.instanceId===state.selectedMonster)||ready[0]||me.units[0];
     const pendingReplacement=Array.isArray(me.pendingReplacements)?me.pendingReplacements[0]:null,mode=b.battleMode||((b.activeSlots||1)>1?'double':'single'),replacementMode=b.phase==='replacement'&&!!pendingReplacement,menu=replacementMode?'replacement':(state.battleMenu||'root');
-    const monActors=me.units.map(u=>{const held=heldItemClient(u);return `<button class="active-mon-v41 active-mon-v44 active-mon-v51 active-mon-v52 ${state.selectedMonster===u.instanceId?'selected':''} ${u.acted?'acted':''}" data-action="select-monster" data-monster="${esc(u.instanceId)}" ${u.hp<=0?'disabled':''}><div class="mon-status-v51 mon-status-v52"><div><b>${esc(u.name)}</b><small>Lv.${u.level} · ${esc(u.element)} ${playerStatusBadgeV56(u)}${statStageBadgesV56(u)}</small></div><span>${u.hp}/${u.maxHp}</span><i><em style="width:${pct(u.hp,u.maxHp)}%"></em></i></div><div class="mon-sprite-v51 mon-sprite-v52">${held?`<div class="held-corner-v80 ${held.held?.consume?'consumable':''}" title="${esc(held.text||'')}"><i>${esc(held.icon||'◆')}</i><span><b>${esc(held.name)}</b><small>${held.held?.consume?'1회용':'장착'}</small></span></div>`:''}<i class="mon-shadow-v41"></i>${u.fusionSprite&&!u.fused?`<img class="fusion-ghost-v40" src="${esc(u.fusionSprite)}" alt="">`:''}<img src="${esc(monsterDisplaySprite(u))}" alt="${esc(u.name)}" decoding="async" data-hires-v72="1"><span class="mon-ring-v41"></span></div>${u.acted?'<em class="acted-mark-v51">완료</em>':''}</button>`;}).join('');
-    const enemyActors=alive.map(e=>{const it=intentCompact(e.intent);return `<button class="enemy-mon-v41 enemy-mon-v44 enemy-mon-v51 enemy-mon-v52 ${state.selectedEnemy===e.uid?'selected':''} ${e.tier==='boss'?'is-boss-v50':''}" data-action="select-enemy" data-enemy="${esc(e.uid)}"><div class="enemy-status-v51 enemy-status-v52"><div><b>${esc(e.name)}</b><small>${esc(e.element||'')} ${enemyWeakBadge(e.element)}</small></div><span>${e.hp}/${e.maxHp}</span><i><em style="width:${pct(e.hp,e.maxHp)}%"></em></i>${Number(e.hpSegmentsMax||1)>1?`<div class="boss-hp-segments-v56">${Array.from({length:Number(e.hpSegmentsMax||1)},(_,si)=>`<i class="${si<Number(e.hpSegments||1)?'on':''}"></i>`).join('')}<small>SHIELD ${Number(e.hpSegments||1)}/${Number(e.hpSegmentsMax||1)}</small></div>`:''}${enemyDebuffBadgesV54(e)}</div><div class="enemy-sprite-v51 enemy-sprite-v52"><i class="enemy-shadow-v41"></i><img class="enemy-sprite" src="${esc(e.sprite)}" alt="${esc(e.name)}" decoding="async" data-hires-v72="1"><span class="target-ring-v41"></span></div></button>`;}).join('');
+    const monActors=me.units.map(u=>{const held=heldItemClient(u);return `<button class="active-mon-v41 active-mon-v44 active-mon-v51 active-mon-v52 ${state.selectedMonster===u.instanceId?'selected':''} ${u.acted?'acted':''}" data-action="select-monster" data-monster="${esc(u.instanceId)}" ${u.hp<=0?'disabled':''}><div class="mon-status-v51 mon-status-v52"><div><b>${esc(u.name)}</b><small>Lv.${u.level} · ${esc(u.element)} ${playerStatusBadgeV56(u)}${statStageBadgesV56(u)}</small></div><span>${u.hp}/${u.maxHp}${u.block?` <small>▰ ${u.block}</small>`:''}</span><i><em style="width:${pct(u.hp,u.maxHp)}%"></em></i></div><div class="mon-sprite-v51 mon-sprite-v52">${held?`<div class="held-corner-v80 ${held.held?.consume?'consumable':''}" title="${esc(held.text||'')}"><i>${esc(held.icon||'◆')}</i><span><b>${esc(held.name)}</b><small>${held.held?.consume?'1회용':'장착'}</small></span></div>`:''}<i class="mon-shadow-v41"></i>${u.fusionSprite&&!u.fused?`<img class="fusion-ghost-v40" src="${esc(u.fusionSprite)}" alt="">`:''}<img src="${esc(monsterDisplaySprite(u))}" alt="${esc(u.name)}" decoding="async" data-hires-v72="1"><span class="mon-ring-v41"></span></div>${u.acted?'<em class="acted-mark-v51">완료</em>':''}</button>`;}).join('');
+    const enemyActors=alive.map(e=>{const it=intentCompact(e.intent);return `<button class="enemy-mon-v41 enemy-mon-v44 enemy-mon-v51 enemy-mon-v52 ${state.selectedEnemy===e.uid?'selected':''} ${e.tier==='boss'?'is-boss-v50':''}" data-action="select-enemy" data-enemy="${esc(e.uid)}"><div class="enemy-status-v51 enemy-status-v52"><div><b>${esc(e.name)}</b><small>${esc(e.element||'')} ${enemyWeakBadge(e.element)}</small></div><span>${e.hp}/${e.maxHp}${e.block?` <small>▰ ${e.block}</small>`:''}</span><i><em style="width:${pct(e.hp,e.maxHp)}%"></em></i>${Number(e.hpSegmentsMax||1)>1?`<div class="boss-hp-segments-v56">${Array.from({length:Number(e.hpSegmentsMax||1)},(_,si)=>`<i class="${si<Number(e.hpSegments||1)?'on':''}"></i>`).join('')}<small>SHIELD ${Number(e.hpSegments||1)}/${Number(e.hpSegmentsMax||1)}</small></div>`:''}${enemyDebuffBadgesV54(e)}<div class="fw-break-track"><small>BREAK</small><i><em style="width:${pct(e.stagger,e.staggerMax)}%"></em></i><b>${Number(e.stagger||0)}/${Number(e.staggerMax||0)}</b></div></div><div class="enemy-sprite-v51 enemy-sprite-v52"><i class="enemy-shadow-v41"></i><img class="enemy-sprite" src="${esc(e.sprite)}" alt="${esc(e.name)}" decoding="async" data-hires-v72="1"><span class="target-ring-v41"></span></div></button>`;}).join('');
 
     const rootMenu=`<div class="root-command-v51 root-command-v52"><button class="fight" data-action="battle-menu" data-menu="moves" ${selectedMon?.acted?'disabled':''}><span>⚔</span><b>기술</b><small>몬스터 기술</small></button><button class="fusion fusion-command-v56" data-action="battle-menu" data-menu="fusion" ${selectedMon?.acted||selectedMon?.fused||([...(me.units||[]),...(me.bench||[])]).filter(x=>x.hp>0&&!x.fused&&x.instanceId!==selectedMon?.instanceId).length<1?'disabled':''}><span>∞</span><b>융합</b><small>5턴 결합 · 전투 종료 시 해제</small></button><button class="party" data-action="battle-menu" data-menu="party" ${!(me.bench||[]).length||selectedMon?.acted?'disabled':''}><span>↔</span><b>교대</b><small>${(me.bench||[]).length} 대기</small></button><button class="capture" data-action="battle-menu" data-menu="capture" ${!['wild','boss'].includes(b.encounterType)||selectedMon?.acted?'disabled':''}><span>◉</span><b>봉인</b><small>${selectedEnemy?`${Math.round(Number(selectedEnemy.hp||0)/Math.max(1,Number(selectedEnemy.maxHp||1))*100)}% HP`:'대상 없음'}</small></button></div>`;
     const moves=selectedMon?.moves||[];
-    const moveMenu=`<div class="move-command-v51 move-command-v52 move-command-v54"><div class="subcommand-head-v51 subcommand-head-v52"><button data-action="battle-menu" data-menu="root">←</button><div><small>${esc(selectedMon?.name||'MONSTER')}</small><b>기술을 선택하세요</b></div></div><div class="move-grid-v51 move-grid-v52">${[0,1,2,3].map(i=>{const mv=moves[i];if(!mv)return `<button class="move-btn-v51 move-btn-v52 empty" disabled><em>${i+1}</em><b>비어 있음</b></button>`;const can=moveUsable(mv,selectedMon,me),power=movePowerLine(mv),el=mv.element||selectedMon.element,tags=moveEffectTagsV54(mv);return `<button class="move-btn-v51 move-btn-v52 move-btn-v54 element-${elementClass(el)} ${mv.signature?'signature-move-v54':''}" data-action="move-use" data-move-id="${esc(mv.id)}" ${can?'':'disabled'}><em>${i+1}</em><span>${namedSkillGlyphV47(namedMoveFamily({skill:mv.name,element:el,move:mv}))}</span><div><b>${esc(mv.name)}</b><small class="move-type-line-v54">${elementGlyph(el)} ${esc(el)} · ${esc(moveKindKo(mv))} · 명중 ${mv.accuracy||100}% · PP ${Number(mv.pp??mv.maxPp??0)}/${Number(mv.maxPp||mv.pp||1)}</small><small>${esc(power||moveKindKo(mv))}</small><div class="move-effect-tags-v54">${tags.map(x=>`<i class="effect-${x.k}">${esc(x.t)}</i>`).join('')}</div></div><strong>${mv.signature?'★ SIG':moveStatus(mv,selectedMon)}</strong></button>`;}).join('')}</div></div>`;
+    const moveMenu=`<div class="fw-move-menu"><div class="fw-command-heading"><button class="fw-back" data-action="battle-menu" data-menu="root" aria-label="행동 선택으로 돌아가기">←</button><b>기술 선택</b><span>상성은 선택한 상대 기준</span></div><div class="fw-move-grid">${[0,1,2,3].map(i=>fwMoveTile(moves[i],i,selectedMon,selectedEnemy,me)).join('')}</div></div>`;
     const fusionPartners=[...(me.units||[]),...(me.bench||[])].filter(x=>x.hp>0&&!x.fused&&x.instanceId!==selectedMon?.instanceId);
     const fusionMenu=`<div class="fusion-command-panel-v56"><div class="subcommand-head-v51 subcommand-head-v52"><button data-action="battle-menu" data-menu="root">←</button><div><small>TURN FUSION</small><b>${esc(selectedMon?.name||'몬스터')}와 융합할 파트너를 선택하세요</b></div></div><div class="fusion-explain-v56"><b>∞ 우리 게임의 핵심 전술</b><span>공격 대신 행동 1회를 사용합니다. 두 몬스터의 능력과 기술 풀이 합쳐지며 5턴 후 자동 해제됩니다. 전투가 먼저 끝나면 즉시 원래 두 몬스터로 돌아옵니다.</span></div><div class="fusion-partner-grid-v56">${fusionPartners.map(u=>`<button data-action="fusion-partner" data-primary="${esc(selectedMon?.instanceId||'')}" data-secondary="${esc(u.instanceId)}"><img src="${esc(monsterDisplaySprite(u))}" alt=""><div><b>${esc(u.name)}</b><small>${esc(u.element)}${u.secondaryElement?` / ${esc(u.secondaryElement)}`:''} · Lv.${u.level}</small><span>HP ${u.hp}/${u.maxHp} · ${u.fused?'융합체':'기본체'}</span></div><strong>융합</strong></button>`).join('')||'<span class="fusion-none-v56">융합 가능한 다른 몬스터가 없습니다.</span>'}</div></div>`;
     const captureMenu=battleCaptureMenuV45(selectedEnemy,run,b,me,selectedMon);
@@ -1258,7 +1397,15 @@
     const partyMini=[...(me.units||[]),...(me.bench||[])].slice(0,6).map(u=>`<span class="${u.hp<=0?'ko':state.selectedMonster===u.instanceId?'on':''}" title="${esc(u.name)}"><img src="${esc(monsterDisplaySprite(u))}" decoding="async"><i style="width:${pct(u.hp,u.maxHp)}%"></i></span>`).join('');
     const actionHint=replacementMode?'다음 몬스터를 선택해야 전투가 계속됩니다.':ready.length>1?`${ready.length}마리 행동 남음`:ready.length===1?`${ready[0].name}의 차례`:'적의 행동을 기다리는 중';
     const prompt=menu==='replacement'?'다음에 누가 나갈까?':menu==='root'?'무엇을 할까?':menu==='moves'?'어떤 기술을 사용할까?':menu==='fusion'?'누구와 융합할까?':menu==='party'?'누구와 교대할까?':menu==='capture'?'어떤 봉인구를 사용할까?':'전투 정보';
-    setScreen('battle',`<section class="monster-battle-v51 monster-battle-v52 battle-v70 battle-v71 battle-v72 battle-v73 battle-v74 battle-v82 mode-${mode} ${replacementMode?'replacement-phase-v70':''}"><div class="battle-bg-v51 battle-bg-v52" style="background-image:url('${esc(sceneBg(r))}')"></div><div class="battle-atmos-v51 battle-atmos-v52"></div><header class="battle-top-v51 battle-top-v52"><div class="battle-title-v52"><small>${esc(b.trainer?'TRAINER DUEL':b.encounterType==='boss'?'BOSS':b.encounterType==='rival'?'RIFT HUNTER':mode==='double'?'DOUBLE BATTLE':'WILD BATTLE')} · ${r.floor}F</small><b>${esc(b.trainer?`${b.trainer.emblem||'◆'} ${b.trainer.name}`:(b.encounterLabel||r.biome.name))}</b>${b.trainer?`<i class="trainer-title-v63">${esc(b.trainer.title)}</i>`:''}</div><div class="party-mini-v51 party-mini-v52">${partyMini}</div><div class="battle-core-v52"><span class="battle-money-v53">G ${Number(run.gold||0).toLocaleString('ko-KR')}</span><span class="battle-wave-resource-v56">WAVE ${String(((Number(r.floor||1)-1)%10)+1).padStart(2,'0')}/10</span></div><div class="battle-tools-v52"><button class="battle-speed-v73" data-action="battle-speed" title="전투 속도">${battleSpeedLabelV73()}</button><button data-action="battle-menu" data-menu="info">i</button><button data-action="toggle-combat-log">LOG</button></div></header><main class="battle-arena-v51 battle-arena-v52"><section class="player-field-v51 player-field-v52">${monActors}</section><section class="enemy-field-v51 enemy-field-v52">${enemyActors}</section></main><footer class="command-box-v51 command-box-v52 command-box-v57"><div class="battle-dialog-v52 battle-dialog-v57" role="status" aria-live="polite"><small>${esc(actionHint)}</small><b>${esc(prompt)}</b><span>${selectedMon?`${esc(selectedMon.name)} · Lv.${selectedMon.level}`:''}</span></div><div class="command-content-v51 command-content-v52">${replacementMode?command:(me.ended?'<div class="turn-wait-v51"><span>…</span><b>적 턴 진행 중</b></div>':command)}</div></footer><aside class="battle-log-drawer-v31 ${state.combatLogOpen?'open':''}"><div><b>LOG</b><button data-action="toggle-combat-log">×</button></div>${b.log.slice(-10).reverse().map(x=>`<p>${esc(x.text)}</p>`).join('')}</aside></section>`);
+    const disabledBattle=me.ended||b.phase!=='players';
+    setScreen('battle',`<section class="fw-battle monster-battle-v51 monster-battle-v52 battle-v70 battle-v71 battle-v72 battle-v73 battle-v74 battle-v82 mode-${mode} ${replacementMode?'replacement-phase-v70':''}">
+      <div class="battle-bg-v51 battle-bg-v52 fw-battle-landscape" style="background-image:url('${esc(sceneBg(r))}')"></div><div class="fw-battle-shade"></div>
+      ${fwBattleHeader(r,b,run,partyMini)}
+      <div class="fw-battle-meta">${fwRelayPanel(me)}${fwIntent(selectedEnemy)}</div>
+      <main class="battle-arena-v51 battle-arena-v52 fw-arena"><div class="fw-field-label ally">YOUR TEAM</div><div class="fw-field-label foe">${b.trainer?'OPPONENT':'WILD MONSTER'}</div><section class="player-field-v51 player-field-v52">${monActors}</section><section class="enemy-field-v51 enemy-field-v52">${enemyActors}</section><div class="fw-arena-center">VS</div></main>
+      <div class="fw-party-row"><div class="party-mini-v51 party-mini-v52">${partyMini}</div><span>${me.units.filter(u=>u.hp>0).length+(me.bench||[]).filter(u=>u.hp>0).length}마리 전투 가능</span><button data-action="run-info">파티 · 장착 정보 ↗</button></div>
+      <footer class="command-box-v51 command-box-v52 command-box-v57 fw-command"><div class="battle-dialog-v52 battle-dialog-v57 fw-dialog" role="status" aria-live="polite"><small>${esc(actionHint)}</small><b>${esc(prompt)}</b><span>${selectedMon?`${esc(selectedMon.name)} · Lv.${selectedMon.level}`:''}</span><div class="fw-dialog-hint">${menu==='moves'?'PP는 다음 전투에도 이어집니다.':menu==='fusion'?'융합에 행동 1회를 사용합니다.':'서로 다른 속성으로 연계를 완성하세요.'}</div></div><div class="command-content-v51 command-content-v52">${replacementMode?command:(disabledBattle?'<div class="turn-wait-v51"><span>…</span><b>다음 행동을 기다리는 중</b></div>':command)}</div></footer>
+      <aside class="battle-log-drawer-v31 ${state.combatLogOpen?'open':''}" aria-label="전투 기록"><div><b>전투 기록</b><button data-action="toggle-combat-log" aria-label="기록 닫기">×</button></div>${b.log.slice(-20).reverse().map(x=>`<p>${esc(x.text)}</p>`).join('')}</aside></section>`);
   }
 
   function fieldServiceHtml(r,run){
@@ -1290,7 +1437,7 @@
     const mons=(run.monsters||[]).filter(m=>m.hp>0||true);clearTimeout(state.rewardAutoTimer);state.rewardAutoTimer=0;
     modal(`<div class="reward-equip-modal-v82"><header><div class="reward-equip-item-v82">${rewardArtV71(it)}<div><small>FREE HELD ITEM</small><h2>${esc(it.name)}</h2><p>${esc(it.text||'')}</p><em>${esc(itemMetaV80(it))}</em></div></div><button data-action="modal-close" aria-label="닫기">×</button></header><section><small>WHO WILL HOLD IT?</small><h3>장착할 몬스터를 선택하세요</h3><p>보상은 선택한 몬스터에게 즉시 장착됩니다. 기존 장착 아이템은 가방에 그대로 남아 다른 몬스터에게 옮길 수 있습니다.</p><div class="reward-equip-grid-v82">${mons.map(m=>{const held=heldItemClient(m),ok=rewardEquipEligibleV82(it,m);return `<button data-action="reward-equip-target" data-reward-id="${esc(rewardId)}" data-monster="${esc(m.instanceId)}" ${ok?'':'disabled'}><div class="reward-equip-mon-art-v82"><img src="${esc(monsterDisplaySprite(m))}" alt=""></div><div><b>${esc(m.name)}</b><small>Lv.${m.level} · ${esc(m.element)} · HP ${m.hp}/${m.maxHp}</small><span>${held?`현재 장착 · ${esc(held.icon||'◆')} ${esc(held.name)}`:'현재 장착 아이템 없음'}</span>${!ok?'<em>이 진화 재료의 대상이 아닙니다.</em>':''}</div><strong>${ok?'장착':'불가'}</strong></button>`;}).join('')}</div></section><footer><button data-action="modal-close">다시 고르기</button><small>전투 후 보상 아이템은 전부 몬스터별 장착형입니다.</small></footer></div>`);
   }
-  async function finishRewardEquipV82(rewardId,targetInstanceId){if(state.busy)return;closeModal();const d=await roomPost('reward',{rewardId,targetInstanceId});if(d.profile)state.profile=d.profile;else await loadProfile();sound('reward');const claim=d.room?.reward?.claims?.[state.profileId];toast(claim?.label?`장착 완료 · ${claim.label}`:'보상 장착 완료.','good');renderRoom();requestAnimationFrame(()=>{clearTimeout(state.rewardConfirmTimer);state.rewardConfirmTimer=setTimeout(()=>{state.rewardConfirmTimer=0;if(state.room?.status==='reward'&&!state.room?.reward?.continueBy?.includes(state.profileId))roomPost('continue',{}).catch(()=>{});},5200);});}
+  async function finishRewardEquipV82(rewardId,targetInstanceId){if(state.busy)return;closeModal();const d=await roomPost('reward',{rewardId,targetInstanceId});if(d.profile)state.profile=d.profile;else await loadProfile();sound('reward');const claim=d.room?.reward?.claims?.[state.profileId];toast(claim?.label?`장착 완료 · ${claim.label}`:'보상 장착 완료.','good');renderRoom();clearTimeout(state.rewardConfirmTimer);state.rewardConfirmTimer=0;}
   function rewardTokenV64(o){
     if(o.type==='card')return `<button class="afterbattle-token-v64 reward-token-v64 reward-card-v71 legacy" data-action="reward-salvage" data-reward-focus-v64="1" data-focus-name="균열 파편" data-focus-meta="LEGACY DATA" data-focus-desc="이전 버전 카드 보상을 균열 파편으로 변환합니다."><span class="reward-art-v71 fallback"><i>◇</i></span><div class="reward-copy-v71"><b>균열 파편</b><em>이전 버전 카드 보상을 파편으로 변환합니다.</em></div><small>FREE</small></button>`;
     const it=o.item;
@@ -1309,7 +1456,7 @@
     if(!el)return;const name=el.dataset.focusName||'보상을 선택하세요',meta=el.dataset.focusMeta||'POST BATTLE',desc=el.dataset.focusDesc||'상점에서 필요한 정비를 한 뒤 무료 보상 하나를 선택하세요.';
     const m=$('#rewardFocusMetaV64'),n=$('#rewardFocusNameV64'),d=$('#rewardFocusDescV64');if(m)m.textContent=meta;if(n)n.textContent=name;if(d)d.textContent=desc;
   }
-  function rewardReadyPanelV80(r,run,claim,grade){const item=claim?.type==='item'?byId(state.meta.items,claim.id):null,art=item?rewardArtV71(item):'<span class="reward-ready-check-v80">✓</span>',party=rewardPartyStripV62(r,run);return `<section class="reward-ready-v80"><div class="reward-ready-glow-v80"></div><header><small>WAVE ${String(((Number(r.floor||1)-1)%10)+1).padStart(2,'0')} COMPLETE</small><b>보상 선택 완료</b>${grade?`<strong>${esc(grade)}</strong>`:''}</header><div class="reward-ready-main-v80"><div class="reward-ready-item-v80 ${item?`rarity-${esc(item.rarity)}`:''}">${art}<div><small>${item?esc(item.category||rarityKo(item.rarity)):'READY'}</small><b>${esc(claim?.label||'정비 완료')}</b><p>${esc(item?.text||'원정대가 다음 전투를 준비하고 있습니다.')}</p>${itemMetaV80(item)?`<em>${esc(itemMetaV80(item))}</em>`:''}</div></div><div class="reward-ready-next-v80"><span>→</span><div><small>NEXT WAVE</small><b>${r.finalClearPending?'최종 정산':'다음 조우 준비'}</b><p>잠시 후 자동으로 이동합니다. 바로 진행할 수도 있습니다.</p></div></div></div>${party}</section>`;}
+  function rewardReadyPanelV80(r,run,claim,grade){const item=claim?.type==='item'?byId(state.meta.items,claim.id):null,art=item?rewardArtV71(item):'<span class="reward-ready-check-v80">✓</span>',party=rewardPartyStripV62(r,run);return `<section class="reward-ready-v80"><div class="reward-ready-glow-v80"></div><header><small>WAVE ${String(((Number(r.floor||1)-1)%10)+1).padStart(2,'0')} COMPLETE</small><b>보상 선택 완료</b>${grade?`<strong>${esc(grade)}</strong>`:''}</header><div class="reward-ready-main-v80"><div class="reward-ready-item-v80 ${item?`rarity-${esc(item.rarity)}`:''}">${art}<div><small>${item?esc(item.category||rarityKo(item.rarity)):'READY'}</small><b>${esc(claim?.label||'정비 완료')}</b><p>${esc(item?.text||'원정대가 다음 전투를 준비하고 있습니다.')}</p>${itemMetaV80(item)?`<em>${esc(itemMetaV80(item))}</em>`:''}</div></div><div class="reward-ready-next-v80"><span>→</span><div><small>NEXT WAVE</small><b>${r.finalClearPending?'최종 정산':'다음 조우 준비'}</b><p>준비되면 아래의 다음 웨이브 버튼을 눌러 이동하세요.</p></div></div></div>${party}</section>`;}
   function renderReward(r){
     const rw=r.reward,run=r.runState[state.profileId],pid=state.profileId,options=rw.playerOptions?.[pid]||[],claim=rw.claims?.[pid],continued=rw.continueBy?.includes(pid),relicOpts=rw.relicOptions?.[pid]||[],relicClaim=rw.relicClaims?.[pid],campDone=!rw.camp||!!rw.campBy?.[pid],rewardDone=!options.length||!!claim;
     const skillOffer=rw.skillOffers?.[pid],skillDone=!skillOffer||!!rw.skillClaims?.[pid],rewriteOffer=rw.rewriteOffers?.[pid],rewriteDone=!rewriteOffer||!!rw.rewriteClaims?.[pid];
@@ -1327,13 +1474,13 @@
       step='RELIC';focusName='유물 하나를 선택하세요.';focusMeta='RELIC';focusDesc='이번 원정 동안 강력한 효과를 제공하는 유물입니다.';body=`<section class="reward-simple-v51"><header><small>RELIC</small><b>유물 하나를 선택하세요</b></header><div class="three-choice-v51">${relicOpts.map(x=>`<button data-action="relic-pick" data-relic-id="${esc(x.id)}"><span>${x.art?`<img src="${esc(x.art)}" alt="">`:esc(x.icon||'✦')}</span><b>${esc(x.name)}</b><small>${esc(shortLine(x.text,44))}</small></button>`).join('')}</div></section>`;
     }else if(!rewardDone){
       step='SHOP + REWARD';normalShop=true;focusName='보상을 선택하세요.';focusMeta=`${esc(r.biome?.name||'EXPEDITION')} · WAVE ${String(((Number(r.floor||1)-1)%10)+1).padStart(2,'0')} CLEAR`;focusDesc='상점은 선택 사항입니다. 무료 보상은 모두 몬스터 장착형이며, 아이템을 고른 뒤 장착할 몬스터를 지정합니다.';
-      body=`<section class="afterbattle-group-v64 shop-group-v64"><header><small>SHOP</small><b>정비 상점</b><span>필요한 것만 구매</span></header><div class="afterbattle-strip-v64 shop-strip-v64">${(rw.shop||[]).map(x=>merchantTokenV64(r,x)).join('')}</div></section><section class="afterbattle-group-v64 reward-group-v64"><header><small>REWARD</small><b>무료 보상</b><span>하나 선택</span></header><div class="afterbattle-strip-v64 reward-strip-v64">${options.map(rewardTokenV64).join('')}</div></section>`;
+      body=`<section class="afterbattle-group-v64 reward-group-v64"><header><small>01 / REWARD</small><b>이번 전투의 보상</b><span>무료 · 하나 선택 후 몬스터에 장착</span></header><div class="afterbattle-strip-v64 reward-strip-v64">${options.map(rewardTokenV64).join('')}</div></section><section class="afterbattle-group-v64 shop-group-v64"><header><small>02 / OPTIONAL</small><b>정비 상점</b><span>구매하지 않아도 진행할 수 있습니다.</span></header><div class="afterbattle-strip-v64 shop-strip-v64">${(rw.shop||[]).map(x=>merchantTokenV64(r,x)).join('')}</div></section>`;
       actions=`${rw.serviceCosts?'<button data-action="open-field-service">정비</button>':''}<button data-action="run-info">아이템 관리</button><button data-action="reward-reroll">재굴림 ${nextRerollCost(r)}G</button>${run.fragments>0?'<button data-action="reward-reroll-fragment">◇ 1</button>':''}<button data-action="reward-salvage">분해</button>`;
     }else{
       step='READY';const grade=rw.gradeBy?.[pid];focusName=claim?claim.label:'정비 완료';focusMeta=`WAVE CLEAR${grade?` · ${grade}`:''}`;focusDesc='선택한 보상을 확인한 뒤 다음 웨이브로 이동합니다.';body=rewardReadyPanelV80(r,run,claim,grade);actions=`${rw.kind==='battle'&&rw.serviceCosts?'<button data-action="open-field-service">정비</button>':''}<button data-action="run-info">아이템 관리</button><button class="next-v64" data-action="reward-continue">${continued?'대기 중':r.finalClearPending?'클리어':'바로 다음 웨이브'}</button>`;
     }
     const lead=rewardLeadPanelV64(r,run),special=normalShop?body:`<section class="afterbattle-special-v64">${body}</section>`;
-    setScreen('reward',`<section class="run-stage-v31 reward-v64 reward-v73 reward-v74"><div class="run-bg-v31" style="background-image:url('${esc(sceneBg(r))}')"></div><div class="run-shade-v31 reward-shade-v64"></div>${compactRunHud(r,run)}<main class="afterbattle-v64 afterbattle-v70 afterbattle-v71 afterbattle-v73 afterbattle-v74"><header class="afterbattle-top-v64"><div><small>${esc(r.biome?.name||'EXPEDITION')} · ${r.floor}F</small><b>${esc(step)}</b></div><div><span>LUCK ${esc(rw.gradeBy?.[pid]||'-')}</span><strong>G ${Number(run.gold||0).toLocaleString('ko-KR')}</strong></div></header><section class="afterbattle-stage-v64"><div class="afterbattle-main-v64">${special}</div>${lead}</section><footer class="afterbattle-footer-v64"><div class="afterbattle-dialog-v64"><small id="rewardFocusMetaV64">${focusMeta}</small><b id="rewardFocusNameV64">${esc(focusName)}</b><span id="rewardFocusDescV64">${esc(focusDesc)}</span></div><div class="afterbattle-controls-v64">${actions}</div></footer></main></section>`);
+    setScreen('reward',`<section class="fw-reward run-stage-v31 reward-v64 reward-v73 reward-v74"><div class="run-bg-v31" style="background-image:url('${esc(sceneBg(r))}')"></div><div class="run-shade-v31 reward-shade-v64"></div>${compactRunHud(r,run)}<main class="afterbattle-v64 afterbattle-v70 afterbattle-v71 afterbattle-v73 afterbattle-v74"><header class="afterbattle-top-v64"><div><small>${esc(r.biome?.name||'EXPEDITION')} · ${r.floor}F</small><b>${esc(step)}</b></div><div><span>LUCK ${esc(rw.gradeBy?.[pid]||'-')}</span><strong>G ${Number(run.gold||0).toLocaleString('ko-KR')}</strong></div></header><section class="afterbattle-stage-v64"><div class="afterbattle-main-v64">${special}</div>${lead}</section><footer class="afterbattle-footer-v64"><div class="afterbattle-dialog-v64"><small id="rewardFocusMetaV64">${focusMeta}</small><b id="rewardFocusNameV64">${esc(focusName)}</b><span id="rewardFocusDescV64">${esc(focusDesc)}</span></div><div class="afterbattle-controls-v64">${actions}</div></footer></main></section>`);
     scheduleRewardAutoAdvanceV54(r,step,continued);
   }
   function merchantHtmlCompact(r){
@@ -1360,7 +1507,7 @@
   function renderGacha(){
     const p=state.meta.monsterPickup||{},pickup=p.featured,rates=p.rates||{};
     const highRate=(Number(rates.legendary||0)+Number(rates.mythic||0))*100;
-    setScreen('gacha',`<section class="gacha-page gacha-page-v80 gacha-page-v81 gacha-page-v82"><div class="gacha-hero"><div class="page-head gacha-head-v81"><button class="back-btn" data-action="home">← 홈</button><div><div class="section-label">5-DAY MONSTER PICKUP</div><h1>전설 몬스터 픽업 소환</h1><p>카드 복각 소환은 제거했습니다. 이제 소환은 몬스터 전용이며, 픽업 전설은 5일마다 교체됩니다.</p></div></div><section class="monster-only-banner-v81"><div class="monster-banner-copy-v80 monster-banner-copy-v81"><div class="pickup-title-row-v81"><div><div class="section-label">CURRENT PICKUP</div><h2>${pickup?esc(pickup.name):'전설 몬스터 픽업'}</h2></div><div class="pickup-timer-v80"><span>교체까지</span><b id="monsterPickupClock">--</b></div></div><p class="pickup-desc-v81">전설·신화 합산 기본 확률은 <b>${highRate.toFixed(2)}%</b>로 매우 낮습니다. 전설이 등장했을 때 픽업 대상이 될 확률은 50%이며, 10회 소환 마지막 1회는 희귀 이상만 보장합니다.</p><div class="coin-wallet-v80 coin-wallet-v81"><span>COIN</span><b>● ${Number(state.profile.coins||0).toLocaleString('ko-KR')}</b><small>전투 승리 보상으로 획득</small></div><div class="rate-table monster-rate-table-v81">${Object.entries(rates).reverse().map(([k,v])=>`<div class="rate-cell"><b class="rarity-${k}">${esc(rarityKo(k))}</b>${(Number(v)*100).toFixed(Number(v)<.01?2:1)}%</div>`).join('')}</div><div class="gacha-note-v81"><span>전설 확정 천장</span><b>${Number(state.profile.monsterPickupPity||0)} / ${p.pity||300}</b></div><div class="banner-actions monster-banner-actions-v81"><button class="cta mint" data-action="monster-pickup-pull" data-count="1"><span>1회</span><b>●${Number(p.singleCost||5000).toLocaleString('ko-KR')}</b></button><button class="cta gold" data-action="monster-pickup-pull" data-count="10"><span>10회</span><b>●${Number(p.tenCost||45000).toLocaleString('ko-KR')}</b></button></div></div><div class="monster-pickup-stage-v80 monster-pickup-stage-v81 monster-pickup-stage-v82">${pickup?monsterPullCardV80(pickup,true):'<div class="small-note">픽업 몬스터 정보를 불러오는 중...</div>'}</div></section></div></section>`);
+    setScreen('gacha',`<section class="fw-gacha gacha-page gacha-page-v80 gacha-page-v81 gacha-page-v82"><div class="gacha-hero"><div class="page-head gacha-head-v81"><button class="back-btn" data-action="home">← 홈</button><div><div class="section-label">5-DAY MONSTER PICKUP</div><h1>전설 몬스터 픽업 소환</h1><p>카드 복각 소환은 제거했습니다. 이제 소환은 몬스터 전용이며, 픽업 전설은 5일마다 교체됩니다.</p></div></div><section class="monster-only-banner-v81"><div class="monster-banner-copy-v80 monster-banner-copy-v81"><div class="pickup-title-row-v81"><div><div class="section-label">CURRENT PICKUP</div><h2>${pickup?esc(pickup.name):'전설 몬스터 픽업'}</h2></div><div class="pickup-timer-v80"><span>교체까지</span><b id="monsterPickupClock">--</b></div></div><p class="pickup-desc-v81">전설·신화 합산 기본 확률은 <b>${highRate.toFixed(2)}%</b>로 매우 낮습니다. 전설이 등장했을 때 픽업 대상이 될 확률은 50%이며, 10회 소환 마지막 1회는 희귀 이상만 보장합니다.</p><div class="coin-wallet-v80 coin-wallet-v81"><span>COIN</span><b>● ${Number(state.profile.coins||0).toLocaleString('ko-KR')}</b><small>전투 승리 보상으로 획득</small></div><div class="rate-table monster-rate-table-v81">${Object.entries(rates).reverse().map(([k,v])=>`<div class="rate-cell"><b class="rarity-${k}">${esc(rarityKo(k))}</b>${(Number(v)*100).toFixed(Number(v)<.01?2:1)}%</div>`).join('')}</div><div class="gacha-note-v81"><span>전설 확정 천장</span><b>${Number(state.profile.monsterPickupPity||0)} / ${p.pity||300}</b></div><div class="banner-actions monster-banner-actions-v81"><button class="cta mint" data-action="monster-pickup-pull" data-count="1"><span>1회</span><b>●${Number(p.singleCost||5000).toLocaleString('ko-KR')}</b></button><button class="cta gold" data-action="monster-pickup-pull" data-count="10"><span>10회</span><b>●${Number(p.tenCost||45000).toLocaleString('ko-KR')}</b></button></div></div><div class="monster-pickup-stage-v80 monster-pickup-stage-v81 monster-pickup-stage-v82">${pickup?monsterPullCardV80(pickup,true):'<div class="small-note">픽업 몬스터 정보를 불러오는 중...</div>'}</div></section></div></section>`);
     tickBanner();
   }
   async function doMonsterPickup(count){if(state.busy)return;setBusy(true);try{const d=await api('/api/monster-pickup/pull',{body:{profileId:state.profileId,nickname:state.profile.nickname,count:Number(count)}});state.profile=d.profile;state.meta.monsterPickup=d.banner||state.meta.monsterPickup;updateTopbar();showMonsterPullV80(d.results);}catch(e){toast(e.message,'error');sound('error');}finally{setBusy(false);}}
@@ -1388,8 +1535,25 @@
   document.addEventListener('pointerover',e=>{const el=e.target.closest?.('[data-reward-focus-v64]');if(el&&state.current==='reward')updateRewardFocusV64(el);});
   document.addEventListener('focusin',e=>{const el=e.target.closest?.('[data-reward-focus-v64]');if(el&&state.current==='reward')updateRewardFocusV64(el);});
   document.addEventListener('click',async e=>{
-    const el=e.target.closest('[data-action]');if(!el)return;const action=el.dataset.action;sound('click');
+    const el=e.target.closest('[data-action]');if(!el||el.disabled)return;const action=el.dataset.action;if(state.pendingRoomWrite&&!['modal-close','fw-guide','fw-settings','fw-pause'].includes(action))return;sound('click');
     try{
+
+      if(action==='fw-guide')return fwShowGuide();
+      if(action==='fw-settings')return fwShowSettings();
+      if(action==='fw-pause')return fwShowPause();
+      if(action==='fw-setting'){
+        const key=el.dataset.setting;if(!['sound','fx','reduceMotion','largeText'].includes(key))return;
+        state[key]=!state[key];localStorage.setItem(['sound','fx'].includes(key)?`riftdeck.${key}`:`fusewild.${key}`,state[key]?'on':'off');
+        fwApplyPreferences();updateTopbar();return fwShowSettings();
+      }
+      if(action==='fw-speed'){
+        if(!['slow','normal','fast'].includes(el.dataset.speed))return;
+        state.battleSpeed=el.dataset.speed;localStorage.setItem('fusewild.battleSpeed',state.battleSpeed);return fwShowSettings();
+      }
+      if(action==='fw-reconnect'){
+        try{if(state.roomId){const d=await api(`/api/room/${state.roomId}`);acceptRoomUpdate(d.room);connectStream(state.roomId);}else await api('/healthz');fwConnectionStatus(true);toast('서버에 다시 연결했습니다.','good');}catch{fwConnectionStatus(false);}return;
+      }
+
       if(action==='auth-tab'){state.authMode=el.dataset.mode==='register'?'register':'login';return renderAuth();}
       if(action==='auth-login')return authSubmit('login');
       if(action==='auth-signup')return authSubmit('signup');
@@ -1399,7 +1563,7 @@
       if(action==='open-auth'){state.authMode='login';state.authFromGuest=!!state.profile&&!state.profile.cloud;state.authProfileMode='cloud';return renderAuth();}
       if(action==='logout')return logout();
       if(action==='fx'){state.fx=!state.fx;localStorage.setItem('riftdeck.fx',state.fx?'on':'off');updateTopbar();toast(`전투 이펙트 ${state.fx?'ON':'OFF'}`,'good');if(state.current==='profile')renderProfile();return;}
-      if(action==='home')return renderHome();
+      if(action==='home'){closeModal();return renderHome();}
       if(action==='profile')return renderProfile();
       if(action==='new-game-menu')return showNewGameMenu();
       if(action==='party-loadout')return renderExpeditionPrep('manage',true);
@@ -1421,7 +1585,7 @@
       if(action==='encounter-start')return startEncounterV53(el,el.dataset.node);
       if(action==='route-vote'){el.classList.add('v26-committed');await wait(80);return roomPost('vote',{nodeId:el.dataset.node});}
       if(action==='battle-menu'){state.battleMenu=el.dataset.menu||'root';return renderBattle(state.room);}
-      if(action==='move-use'){if(state.busy)return;const me=state.room?.battle?.party?.find(p=>p.playerId===state.profileId),u=me?.units?.find(x=>x.instanceId===state.selectedMonster)||me?.units?.find(x=>x.hp>0&&!x.acted)||me?.units?.[0];if(!u)return;const mv=(u.moves||[]).find(x=>x.id===el.dataset.moveId);beginLocalMoveFeedbackV73(u,mv);const d=await roomPost('move',{instanceId:u.instanceId,moveId:el.dataset.moveId,targetUid:state.selectedEnemy});await wait(30);await waitForCombatCinematicV54();if(d.room?.status==='reward'){state.battleMenu='root';sound('win');return;}const nextMe=state.room?.battle?.party?.find(p=>p.playerId===state.profileId),next=nextMe?.units?.find(x=>x.hp>0&&!x.acted);if(next){state.selectedMonster=next.instanceId;state.battleMenu='moves';showCenterBanner(next.name,'다음 몬스터의 기술을 선택하세요','turn');renderBattle(state.room);}else state.battleMenu='root';return;}
+      if(action==='move-use'){if(state.busy||state.current!=='battle'||state.room?.status!=='battle')return;const actionRoomId=state.roomId;const me=state.room?.battle?.party?.find(p=>p.playerId===state.profileId),u=me?.units?.find(x=>x.instanceId===state.selectedMonster)||me?.units?.find(x=>x.hp>0&&!x.acted)||me?.units?.[0];if(!u)return;const mv=(u.moves||[]).find(x=>x.id===el.dataset.moveId);beginLocalMoveFeedbackV73(u,mv);const d=await roomPost('move',{instanceId:u.instanceId,moveId:el.dataset.moveId,targetUid:state.selectedEnemy});await wait(30);await waitForCombatCinematicV54();if(state.roomId!==actionRoomId)return;if(state.room?.status!=='battle'){state.battleMenu='root';if(state.current==='battle')renderRoom();return;}if(state.current!=='battle')return;const nextMe=state.room?.battle?.party?.find(p=>p.playerId===state.profileId),next=nextMe?.units?.find(x=>x.hp>0&&!x.acted);if(next){state.selectedMonster=next.instanceId;state.battleMenu='moves';showCenterBanner(next.name,'다음 몬스터의 기술을 선택하세요','turn');renderBattle(state.room);}else state.battleMenu='root';return;}
       if(action==='battle-capture'){if(state.busy)return;const me=state.room?.battle?.party?.find(p=>p.playerId===state.profileId),u=me?.units?.find(x=>x.instanceId===state.selectedMonster)||me?.units?.find(x=>x.hp>0&&!x.acted)||me?.units?.[0],enemy=state.room?.battle?.enemies?.find(e=>e.uid===state.selectedEnemy);if(!u||!enemy)return;await captureThrowFx(el,enemy,el.dataset.seal);const d=await roomPost('capture',{sealType:el.dataset.seal,enemyUid:enemy.uid,instanceId:u.instanceId});await captureResultFx(d.result.monster,d.result.success,false,d.result.newDiscovery);await loadProfile();toast(d.result.success?`봉인 성공 · ${d.result.monster.name} 획득!`:`봉인 실패 · 성공률 ${Math.round(Number(d.result.chance||0)*100)}%`,d.result.success?'good':'error');if(d.room?.status==='reward'){state.battleMenu='root';return;}const nextMe=d.room?.battle?.party?.find(p=>p.playerId===state.profileId),next=nextMe?.units?.find(x=>x.hp>0&&!x.acted);if(next){state.selectedMonster=next.instanceId;state.battleMenu='moves';return renderBattle(d.room);}state.battleMenu='root';return renderRoom();}
       if(action==='open-evolution')return showEvolutionMenu(el.dataset.monster);
       if(action==='select-enemy'){state.selectedEnemy=el.dataset.enemy;return renderBattle(state.room);}
@@ -1457,7 +1621,7 @@
       if(action==='skip-rewrite'){await roomPost('skip-rewrite',{});return renderRoom();}
       if(action==='reward-pick'){if(state.busy)return;el.classList.add('v60-reward-chosen');return showRewardEquipPickerV82(el.dataset.rewardId);}
       if(action==='reward-equip-target')return finishRewardEquipV82(el.dataset.rewardId,el.dataset.monster);
-      if(action==='reward-salvage'){if(state.busy)return;await roomPost('salvage',{});sound('reward');toast('보상을 분해했습니다. 결과를 확인한 뒤 다음 웨이브로 이동합니다.','good');renderRoom();requestAnimationFrame(()=>{clearTimeout(state.rewardConfirmTimer);state.rewardConfirmTimer=setTimeout(()=>{state.rewardConfirmTimer=0;if(state.room?.status==='reward'&&!state.room?.reward?.continueBy?.includes(state.profileId))roomPost('continue',{}).catch(()=>{});},2100);});return;}
+      if(action==='reward-salvage'){if(state.busy)return;await roomPost('salvage',{});sound('reward');toast('보상을 분해했습니다. 결과를 확인한 뒤 다음 웨이브로 이동합니다.','good');renderRoom();clearTimeout(state.rewardConfirmTimer);state.rewardConfirmTimer=0;return;}
       if(action==='relic-pick'){await roomPost('relic',{relicId:el.dataset.relicId});sound('reward');return renderRoom();}
       if(action==='camp-rest'){const d=await roomPost('camp',{mode:'rest'});toast(d.result.label,'good');return renderRoom();}
       if(action==='camp-pp'){closeModal();await roomPost('camp',{mode:'pp'});return renderRoom();}
@@ -1494,9 +1658,21 @@
   document.addEventListener('pointerup',()=>clearTimeout(inspectHoldTimer),{passive:true});
   document.addEventListener('pointercancel',()=>clearTimeout(inspectHoldTimer),{passive:true});
 
-  document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea'))return;if(state.current==='battle'&&state.room?.battle){if(/^Digit[1-4]$/.test(e.code)&&state.battleMenu==='moves'){const i=Number(e.code.slice(-1))-1;$$('[data-action="move-use"]')[i]?.click();return;}if(/^Digit[1-9]$/.test(e.code)&&state.battleMenu==='spells'){const i=Number(e.code.slice(-1))-1;$(`[data-action="play-card"][data-index="${i}"]`)?.click();return;}if(e.code==='Escape'&&!modalRoot.innerHTML&&state.battleMenu!=='root'){state.battleMenu='root';renderBattle(state.room);return;}}if(e.code==='Escape'&&modalRoot.innerHTML)closeModal();});
+  document.addEventListener('keydown',e=>{
+    if(modalRoot.innerHTML){
+      if(e.code==='Escape'){e.preventDefault();closeModal();return;}
+      if(e.key==='Tab'){
+        const items=$$('button:not([disabled]),a[href],input,select,textarea,[tabindex="0"]',modalRoot).filter(n=>n.getClientRects().length);
+        const first=items[0],last=items[items.length-1];
+        if(e.shiftKey&&(document.activeElement===first||document.activeElement?.classList.contains('fw-modal'))){e.preventDefault();last?.focus();}
+        else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}
+      }
+      return;
+    }
+    if(e.target.matches('input,textarea,select,[contenteditable="true"]'))return;if(state.current==='battle'&&state.room?.battle){if(/^Digit[1-4]$/.test(e.code)&&state.battleMenu==='moves'){const i=Number(e.code.slice(-1))-1;$$('[data-action="move-use"]')[i]?.click();return;}if(/^Digit[1-9]$/.test(e.code)&&state.battleMenu==='spells'){const i=Number(e.code.slice(-1))-1;$(`[data-action="play-card"][data-index="${i}"]`)?.click();return;}if(e.code==='Escape'&&!modalRoot.innerHTML&&state.battleMenu!=='root'){state.battleMenu='root';renderBattle(state.room);return;}}if(e.code==='Escape'&&modalRoot.innerHTML)closeModal();});
 
   async function init(){
+    fwApplyPreferences();
     try{
       const meta=await api('/api/meta');state.meta=meta;if(!state.meta.difficulties[state.selectedDifficulty])state.selectedDifficulty='normal';
       await loadAuth();
@@ -1510,6 +1686,7 @@
       setTimeout(()=>{renderHome();if(state.auth.enabled&&!state.auth.authenticated)toast('게스트 모드입니다. 로그인하면 기록을 클라우드에 저장할 수 있습니다.');},180);
     }catch(e){boot.classList.remove('hidden');app.classList.add('hidden');boot.innerHTML=`<div class="boot-title" style="font-size:26px">SERVER OFFLINE</div><div class="boot-copy" style="margin-top:18px">${esc(e.message)}</div><div class="boot-copy">동적 서버를 실행한 뒤 새로고침해 주세요.</div>`;}
   }
+  document.addEventListener('input',e=>{if(e.target.id==='fw-party-search')fwFilterParty(e.target.value);});
   init();
 })();
 

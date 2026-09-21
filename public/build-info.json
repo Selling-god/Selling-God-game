@@ -1,7 +1,7 @@
 {
-  "version": "7.5.0",
-  "deployId": "FUSEWILD-V750-POKEROGUE-UX-20260918",
-  "builtAt": "2026-09-18T03:21:56.506Z",
+  "version": "8.0.0",
+  "deployId": "FUSEWILD-V800-EXPEDITION-20260921",
+  "builtAt": "2026-09-21T01:09:28.929Z",
   "cards": 315,
   "items": 144,
   "enemies": 205,
