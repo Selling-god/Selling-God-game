@@ -2,7 +2,7 @@
 const http=require('http'),cp=require('child_process'),path=require('path'),fs=require('fs'),os=require('os');
 const root=path.join(__dirname,'..'),catalog=require(path.join(root,'data','catalog.json')),moves=require(path.join(root,'data','move-library.js'));
 const app=fs.readFileSync(path.join(root,'public','app.js'),'utf8'),css=fs.readFileSync(path.join(root,'public','styles.css'),'utf8'),server=fs.readFileSync(path.join(root,'server.js'),'utf8');
-for(const token of ['function nextRerollCost','function statusEffectFxV55','function tacticCommandFxV55','RIFT COMMAND','공명 지령','function fxOn(){return !!state.fx;}','state.profile?.activeRoomId'])if(!app.includes(token))throw Error(`client token ${token}`);
+for(const token of ['function nextRerollCost','function statusEffectFxV55','function tacticCommandFxV55','RIFT COMMAND','공명 지령','function fxOn(){return !!state.fx&&!reducedMotion();}','state.profile?.activeRoomId'])if(!app.includes(token))throw Error(`client token ${token}`);
 for(const token of ['.status-effect-fx-v55','.status-poison','.tactic-cast-v55','.move-grid-v52{height:auto','.combat-fx-root{display:block!important}'])if(!css.includes(token))throw Error(`css token ${token}`);
 for(const token of ['activeRoomSnapshot','persistRoomFallbackToProfiles','status-tick','debuffs.poison','공명 지령'])if(!server.includes(token))throw Error(`server token ${token}`);
 const monsters=[...(catalog.enemies||[]),...(catalog.bosses||[])];let poisonSigs=0;const names=new Set(),families=new Set();

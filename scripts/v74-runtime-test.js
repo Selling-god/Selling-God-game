@@ -8,7 +8,7 @@ function req(method,p,body){return new Promise((resolve,reject)=>{const r=http.r
 async function ready(){for(let i=0;i<120;i++){try{return await req('GET','/healthz')}catch{await new Promise(r=>setTimeout(r,50))}}throw Error('server not ready')}
 (async()=>{try{
  proc=cp.spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,PORT:String(port),PROFILE_FILE:profileFile,TEST_MODE:'1',SUPABASE_URL:'',SUPABASE_SERVICE_ROLE_KEY:'',SUPABASE_SECRET_KEY:''},stdio:['ignore','ignore','inherit']});
- const hz=await ready();assert(hz.version==='7.5.0','health version');assert(hz.deployId==='FUSEWILD-V750-POKEROGUE-UX-20260918','health deploy');assert(hz.monsters===205,'monster count');
+ const hz=await ready();assert(hz.version===require('../package.json').version,'health version');assert(hz.deployId==='FUSEWILD-V800-EXPEDITION-20260921','health deploy');assert(hz.monsters===205,'monster count');
  const u={profileId:'v74-bot',nickname:'V74BOT'};let profile=(await req('POST','/api/profile',u)).profile;
  await req('POST','/api/loadout',{...u,monsterParty:(profile.monsterParty||[]).slice(0,3)});
  let room=(await req('POST','/api/rooms/create',{...u,mode:'journey',difficulty:'normal',name:'V74 QA'})).room;

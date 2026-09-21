@@ -20,7 +20,7 @@ function staticChecks(){
   }
   if(sigNames.size!==205)throw Error(`signature names ${sigNames.size}`);
   if(fxFamilies.size<18)throw Error(`fx families ${fxFamilies.size}`); staticFxFamilyCount=fxFamilies.size;
-  for(const token of ['fusionDraft','openFusionBuilderV56','TURN FUSION','PP ${pp}/${max}','function moveSpectacleV56','function playerStatusEventFxV56','HP / PP KEEP','NO FREE HEAL // SHOP ONLY','FULL HEAL AFTER WAVE 10 KEEPER'])if(!app.includes(token))throw Error(`app token ${token}`);
+  for(const token of ['fusionDraft','openFusionBuilderV56','TURN FUSION','PP ${pp}/${max}','function moveSpectacleV56','function playerStatusEventFxV56','HP · PP · 상태이상은 다음 전투에도 이어집니다.','무료 자동 회복 없이 정비 상점을 활용하세요.','10웨이브 수문장 승리 후 파티가 회복됩니다.'])if(!app.includes(token))throw Error(`app token ${token}`);
   for(const token of ['family-slash','family-claw','family-bite','family-beam','family-thunder','family-flame','family-ice','family-toxin','family-shadow','family-meteor','family-quake','family-time','status-paralysis','status-sleep','status-freeze','fusion-cinematic-v56','boss-hp-segments-v56'])if(!css.includes(token))throw Error(`css token ${token}`);
   for(const token of ['function fuseMonsters','consumesAction:true','majorStatus','statusTurns','ppBonus','10웨이브 돌파 · HP / PP / 상태이상이 모두 회복되었습니다.','V5.6 원정 전투에서는 카드를 사용하지 않습니다.','hpSegmentsMax','boss-shield-break'])if(!server.includes(token))throw Error(`server token ${token}`);
   if(!/type:\s*web/.test(render)||!/startCommand:\s*npm start/.test(render)||!/healthCheckPath:\s*\/healthz/.test(render))throw Error('render web service config');
@@ -61,6 +61,10 @@ async function clearReward(room,u){if(room.status!=='reward')throw Error(`expect
   // Card damage system is disabled in V56.
   const cardTry=await req('POST',`/api/room/${room.id}/play`,{...u,handIndex:0},{allowError:true});if(cardTry.status<400||!/카드를 사용하지 않습니다/.test(cardTry.error||''))throw Error('legacy card combat still active');
 
+  // The random enemy reply to fusion may inflict sleep/freeze. Clear it through
+  // the pre-existing TEST_MODE-only helper so this fixture tests an executed
+  // move's PP, not a correctly skipped action (covered by status-command tests).
+  room=(await req('POST',`/api/room/${room.id}/debug-monster`,{...u,instanceId:primaryId,majorStatus:null,statusTurns:0})).room;
   // Fused monster can act next round; PP must decrease and remain persistent across waves.
   pc=pcOf(room,u.profileId);fused=allMons(pc).find(x=>x.instanceId===primaryId);let enemy=room.battle.enemies.find(x=>x.hp>0);let mv=(fused.moves||[]).find(x=>Number(x.pp)>0&&['attack','burst'].includes(x.kind))||(fused.moves||[]).find(x=>Number(x.pp)>0);if(!mv)throw Error('usable move missing');const beforePp=Number(mv.pp);
   room=(await req('POST',`/api/room/${room.id}/move`,{...u,instanceId:fused.instanceId,moveId:mv.id,targetUid:enemy.uid})).room;

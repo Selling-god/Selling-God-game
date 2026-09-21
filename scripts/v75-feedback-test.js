@@ -6,7 +6,7 @@ function req(method,p,body,allow=false){return new Promise((resolve,reject)=>{co
 async function ready(){for(let i=0;i<100;i++){try{return await req('GET','/healthz')}catch{await new Promise(r=>setTimeout(r,60))}}throw Error('server not ready')}
 (async()=>{try{
  proc=cp.spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,PORT:String(port),PROFILE_FILE:profileFile,TEST_MODE:'1',SUPABASE_URL:'',SUPABASE_SERVICE_ROLE_KEY:'',SUPABASE_SECRET_KEY:''},stdio:['ignore','ignore','inherit']});
- const hz=await ready();assert(hz.version==='7.5.0','version');
+ const hz=await ready();assert(hz.version===require('../package.json').version,'version');
  const meta=await req('GET','/api/meta');const pick=meta.monsterPickup;assert(pick.singleCost===5000&&pick.tenCost===45000,'summon price');assert(Math.abs((pick.rates.legendary+pick.rates.mythic)-.003)<1e-12,'high rarity 0.30%');assert(pick.pity===300,'pity');
  const legacy=await req('POST','/api/gacha/pull',{profileId:'x',count:1},true);assert(legacy.status===410,'card gacha must be gone');
  const u={profileId:'v75-feedback-bot',nickname:'V75'};let profile=(await req('POST','/api/profile',u)).profile;

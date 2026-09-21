@@ -13,6 +13,8 @@ const required = [
   'public/index.html',
   'public/app.js',
   'public/styles.css',
+  'public/expedition.css',
+  'public/resonance.js',
   'data/catalog.json',
   'assets/fusion/frame-base.svg',
   'assets/fusion/grid-overlay.svg',
@@ -78,7 +80,7 @@ if (missing.length) throw new Error(`BUILD_FAIL missing ${missing.length} assets
 
 const info = {
   version: String(pkg.version || catalog.version || '6.2.1'),
-  deployId: 'FUSEWILD-V750-POKEROGUE-UX-20260918',
+  deployId: 'FUSEWILD-V800-EXPEDITION-20260921',
   builtAt: new Date().toISOString(),
   cards: catalog.cards.length,
   items: catalog.items.length,
@@ -92,11 +94,11 @@ const info = {
 };
 fs.writeFileSync(path.join(root, 'public', 'build-info.json'), JSON.stringify(info, null, 2));
 fs.writeFileSync(path.join(root, 'public', 'version.json'), JSON.stringify({
-  release: 'FUSEWILD-V750-POKEROGUE-UX',
-  buildId: 'fusewild-v750-pokerogue-ux',
+  release: 'FUSEWILD-V800-EXPEDITION',
+  buildId: 'fusewild-v800-expedition',
   generatedAt: info.builtAt,
   version: info.version,
-  label: 'FUSEWILD V7.5.0 MONSTER-ONLY PICKUP + HELD-ITEM REWARD FLOW + NO-CROP UI',
+  label: 'FUSEWILD V8.0 EXPEDITION / ELEMENT RELAY / RESPONSIVE UI',
   deployId: info.deployId
 }, null, 2));
 

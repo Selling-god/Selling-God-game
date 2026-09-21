@@ -8,7 +8,7 @@ const tests=[
   'fusion-name-fuzz-test.js','game-feel-test.js','v40-monster-evolution-test.js','v42-rift-rewrite-test.js',
   'v47-premium-loop-test.js','v51-combat-ux-test.js','v52-classic-battle-test.js','v53-held-item-test.js',
   'v531-client-runtime-test.js','v532-battleflow-resume-test.js','v55-status-command-resume-test.js',
-  'v56-fusion-pp-battle-test.js','v63-trainer-heal-test.js','v74-release-test.js','v74-runtime-test.js'
+  'v56-fusion-pp-battle-test.js','v63-trainer-heal-test.js','v74-release-test.js','v74-runtime-test.js','v8-element-relay-test.js','v8-runtime-relay-test.js'
 ];
 let pass=0;const failed=[];
 for(const f of tests){
