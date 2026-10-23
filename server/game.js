@@ -1,3 +1,6 @@
+import {prepareStories,storyAction,recordStory,storyTracker} from './stories.js';
+import {prepareAtlas,privateAtlas,revealTerrain,interactPoint,atlasAction,trialView,tickFieldTrial,cancelFieldTrial,fieldTrialKill} from './atlas.js';
+import {LazyWorldMap} from './lazy-worlds.js';
 import {prepareRPG,rpgAction,onDeath,recoverSoul} from './rpg.js';
 import {bossVisual} from '../shared/visuals.js';
 import {prepareProgression,recordProgress,evaluateJobs,readRelic,progressionAction,ensureDaily,metric} from './progression.js';
@@ -16,14 +19,14 @@ export function newCharacter(id,name,classId='novice'){
     quests:{},completed:[],opened:[],kills:0,bossKills:0,gathered:0,playSeconds:0,
     title:'별빛을 따라온 자',titles:['별빛을 따라온 자'],revision:1,createdAt:Date.now()
   };
-  prepareProgression(p);prepareRPG(p);const s=getStats(p);p.hp=s.maxHp;p.mp=s.maxMp;return p;
+  prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareRPG(p);const s=getStats(p);p.hp=s.maxHp;p.mp=s.maxMp;return p;
 }
 export function hydrate(state){
   const p={...state};
   p.inventory={...p.inventory};p.equipment={...p.equipment};p.enhancements={...p.enhancements};
   p.quests=structuredClone(p.quests||{});p.completed=[...(p.completed||[])];p.opened=[...(p.opened||[])];
   if(!CLASSES[p.classId])p.classId='novice';
-  prepareProgression(p);
+  prepareProgression(p);prepareStories(p);prepareAtlas(p);
   p.titles=[...(p.titles||['별빛을 따라온 자'])];p.level=clamp(p.level||1,1,MAX_LEVEL);
   prepareRPG(p);
   if(!ZONES[p.zone])p.zone='town';
@@ -37,33 +40,45 @@ export function hydrate(state){
   return p;
 }
 export function serialize(p){
-  const keys=['id','name','classId','level','xp','gold','zone','x','y','hp','mp','inventory','equipment','enhancements','quests','completed','opened','kills','bossKills','gathered','playSeconds','title','titles','revision','createdAt','schemaVersion','discovery','daily','attributes','statResets','enhancePity','deaths','deathWeakUntil','soul','lastDeath'];
+  const keys=['id','name','classId','level','xp','gold','zone','x','y','hp','mp','inventory','equipment','enhancements','quests','completed','opened','kills','bossKills','gathered','playSeconds','title','titles','revision','createdAt','schemaVersion','discovery','journey','atlas','daily','attributes','statResets','enhancePity','deaths','deathWeakUntil','soul','lastDeath'];
   return structuredClone(Object.fromEntries(keys.map(k=>[k,p[k]])));
 }
 export class Game {
   constructor({send=()=>{},broadcast=()=>{},save=()=>{},random=Math.random,eventStore=null}={}){
     this.players=new Map();this.worlds=new Map();this.parties=new Map();this.invites=new Map();
     this.send=send;this.broadcast=broadcast;this.save=save;this.random=random;this.now=Date.now();this.castSeq=0;
-    for(const id of Object.keys(ZONES)){
-      const map=createMap(id),world={id,map,mobs:[],nodes:map.resources.map(x=>({...x,readyAt:0})),casts:[]};
-      if(id!=='town'){
-        const rand=seeded(ZONES[id].seed||{forest:551,ruins:989,citadel:1411}[id]);
-        const types=ZONES[id].mobTypes||(id==='forest'?['slime','slime','beetle','wolf']:id==='ruins'?['skeleton','skeleton','wisp','golem']:['imp','ash_knight','ash_knight']);
-        const count=ZONES[id].mobCount||(id==='forest'?34:id==='ruins'?28:24);
-        for(let i=0;i<count;i++){
-          const pt=spawnPoint(map,rand);
-          const type=types[i%types.length];world.mobs.push(this.makeMob(`${id}_m${i}`,type,pt.x,pt.y));
-        }
-        // A handful of gentle first encounters beside the entrance path.
-        if(id==='forest')for(let i=0;i<5;i++){
-          const x=(i%2?27:33)*TILE+16,y=(37-Math.floor(i/2)*3)*TILE+16;
-          if(!isBlocked(map,x,y,14))world.mobs.push(this.makeMob(`forest_intro${i}`,'slime',x,y));
-        }
-        const b=BOSS_SPAWNS[id];world.mobs.push(this.makeMob(`${id}_boss`,b.type,b.x,b.y));
-      }
-      this.worlds.set(id,world);
-    }
+    this.worlds=new LazyWorldMap(this,id=>this.createWorld(id));
+    this.worlds.get('town');
     this.events=new WorldEvents(this,eventStore);
+  }
+  createWorld(id){
+    const z=ZONES[id];if(!z)throw new Error('Unknown region');
+    const map=createMap(id),world={id,map,mobs:[],nodes:map.resources.map(x=>({...x,readyAt:0})),casts:[],lastAccess:this.now,fieldTrial:null};
+    if(id!=='town'){
+      const rand=seeded(z.seed||{forest:551,ruins:989,citadel:1411}[id]);
+      const types=z.mobTypes||(id==='forest'?['slime','slime','beetle','wolf']:id==='ruins'?['skeleton','skeleton','wisp','golem']:['imp','ash_knight','ash_knight']);
+      const count=z.mobCount||(id==='forest'?34:id==='ruins'?28:24);
+      for(let i=0;i<count;i++){
+        let pt;
+        if(map.encounters?.length){
+          const anchor=map.encounters[i%map.encounters.length];
+          for(let tries=0;tries<25;tries++){
+            const angle=rand()*Math.PI*2,r=25+rand()*80;
+            pt={x:anchor.x+Math.cos(angle)*r,y:anchor.y+Math.sin(angle)*r};
+            if(!isBlocked(map,pt.x,pt.y,16))break;
+          }
+          if(!pt||isBlocked(map,pt.x,pt.y,16))pt=anchor;
+        }else pt=spawnPoint(map,rand);
+        world.mobs.push(this.makeMob(`${id}_m${i}`,types[i%types.length],pt.x,pt.y));
+      }
+      if(id==='forest')for(let i=0;i<5;i++){
+        const x=(i%2?27:33)*TILE+16,y=(37-Math.floor(i/2)*3)*TILE+16;
+        if(!isBlocked(map,x,y,14))world.mobs.push(this.makeMob(`forest_intro${i}`,'slime',x,y));
+      }
+      const b=BOSS_SPAWNS[id];
+      if(b?.type)world.mobs.push(this.makeMob(`${id}_boss`,b.type,b.x,b.y));
+    }
+    return world;
   }
   makeMob(id,type,x,y){
     const m=MONSTERS[type];
@@ -86,7 +101,7 @@ export class Game {
       dead:p.hp<=0,weapon:p.equipment.weapon,equipment:{...p.equipment},gearEnhance:Object.fromEntries(Object.values(p.equipment).filter(Boolean).map(id=>[id,p.enhancements[id]||0])),weakened:s.weakened,partyId:p.partyId};
   }
   privatePlayer(p){
-    return {...serialize(p),stats:this.stats(p),cooldowns:{...p.cooldowns},target:p.target,partyId:p.partyId,
+    return {...serialize(p),atlas:privateAtlas(p),storyTracker:storyTracker(p),stats:this.stats(p),cooldowns:{...p.cooldowns},target:p.target,partyId:p.partyId,
       shieldUntil:p.shieldUntil,respawnAt:p.respawnAt,lastCombat:p.lastCombat,
       soul:p.soul&&p.soul.expires>this.now?p.soul:null,achievementProgress:Object.fromEntries(ACHIEVEMENTS.map(a=>[a.id,metric(p,a.metric)]))};
   }
@@ -107,7 +122,7 @@ export class Game {
       soul:p.soul?.expires>this.now&&p.soul.zone===p.zone?p.soul:null,
       online:[...this.players.values()].filter(x=>x.active).length,
       zoneOnline:[...this.players.values()].filter(x=>x.active&&x.zone===p.zone).length,
-      events:withEvents?this.events.view(this.now):undefined,eventError:withEvents?this.events.error:undefined,
+      fieldTrial:trialView(w,this.now),events:withEvents?this.events.view(this.now):undefined,eventError:withEvents?this.events.error:undefined,
       party:this.partyView(p),profile:full?this.privatePlayer(p):undefined
     };
   }
@@ -172,22 +187,26 @@ export class Game {
     if((p.cooldowns[skillId]||0)>this.now)return {ok:false,quiet:true};
     if(p.mp<skill.mp)return {ok:false,error:'마나가 부족합니다. 2번 물약을 사용해 보세요.'};
     if(skill.power===0){
+      let restored=0;const beforeHeal=p.hp;
       p.mp-=skill.mp;p.cooldowns[skillId]=this.now+skill.cd;
       if(skill.shield)p.shieldUntil=this.now+5000;
       if(skill.heal)p.hp=Math.min(this.stats(p).maxHp,p.hp+this.stats(p).maxHp*skill.heal*(1+(c.passive?.healBonus||0)));
+      restored+=Math.max(0,p.hp-beforeHeal);
       if(skill.haste||c.identity==='haste')p.speedUntil=this.now+4500;
       if(skill.partyHeal){
         const party=this.parties.get(p.partyId);
         for(const id of party?.members||[]){
           const ally=this.players.get(id);if(!ally?.active||ally.id===p.id||ally.zone!==p.zone||ally.hp<=0||dist(ally,p)>260)continue;
           const amount=Math.min(this.stats(ally).maxHp-ally.hp,this.stats(ally).maxHp*skill.heal*(1+(c.passive?.healBonus||0)));
-          ally.hp+=amount;this.mark(ally);
-          for(const mob of this.worlds.get(p.zone).mobs)if(mob.alive&&mob.worldKey&&mob.contributors.has(ally.id)&&amount>0){
+          ally.hp+=amount;restored+=Math.max(0,amount);this.mark(ally);
+          for(const mob of this.worlds.get(p.zone).mobs)if(mob.alive&&(mob.worldKey||mob.trialKey)&&mob.contributors.has(ally.id)&&amount>0){
             mob.contributors.set(p.id,this.now);mob.supportLog.set(p.id,(mob.supportLog.get(p.id)||0)+amount);
           }
         }
       }
-      recordProgress(this,p,'heal','any',1);
+      if(restored>0){recordProgress(this,p,'heal','any',1);recordStory(this,p,{kind:'restore',target:'any'});}
+      // Buffs without an actual combat target do not satisfy offensive practice.
+
       this.fx(p.zone,{type:'skill',id:p.id,job:p.classId,skill:skillId,x:p.x,y:p.y,tx:p.x,ty:p.y,color:c.color});this.mark(p);return {ok:true};
     }
     const target=this.getTarget(p,skill.range);
@@ -200,6 +219,7 @@ export class Game {
     const center=skill.center==='self'||!skill.center&&(c.family||p.classId)==='guardian'?p:target;
     const victims=skill.radius?w.mobs.filter(m=>m.alive&&dist(m,center)<=skill.radius&&lineOfSight(w.map,p,m)):[target];
     this.fx(p.zone,{type:'attack',id:p.id,classId:c.family||p.classId,job:p.classId,center:skill.center||((c.family||p.classId)==='guardian'?'self':'target'),skill:skillId,x:p.x,y:p.y,tx:target.x,ty:target.y,radius:skill.radius,color:c.color});
+    if(victims.length)recordStory(this,p,{kind:skillId==='basic'?'hit':'skill',target:c.family||p.classId,skill:skillId});
     for(const m of victims){
       const crit=this.random()*100<this.stats(p).crit;
       const damage=Math.max(1,Math.round((this.stats(p).atk*skill.power-MONSTERS[m.type].def*.65*(1-(c.passive?.armorPierce||0)))*(0.92+this.random()*.16)*(crit?1.65:1)));
@@ -221,6 +241,7 @@ export class Game {
   }
   killMob(zone,m){
     if(!m.alive)return;
+    if(m.trialKey&&fieldTrialKill(this,this.worlds.get(zone),m))return;
     const spec=MONSTERS[m.type];m.alive=false;m.hp=0;m.respawnAt=m.worldKey?Infinity:this.now+(spec.boss?120000:18000+this.random()*10000);
     if(m.worldKey)this.events.defeated(m);
     const eligible=new Set();
@@ -271,7 +292,7 @@ export class Game {
     if(p.hp<=0||p.invulnerableUntil>this.now)return;
     let damage=Math.max(1,Math.round(amount-this.stats(p).def*.65));
     damage=Math.max(1,Math.round(damage*(1-(CLASSES[p.classId].passive?.reduction||0))));
-    if(p.shieldUntil>this.now)damage=Math.max(1,Math.round(damage*.45));
+    if(p.shieldUntil>this.now){const before=damage;damage=Math.max(1,Math.round(damage*.45));if(before>damage)recordStory(this,p,{kind:'guard',target:'any'});}
     p.hp=Math.max(0,p.hp-damage);p.lastCombat=this.now;
     this.fx(p.zone,{type:'hit',id:p.id,x:p.x,y:p.y-25,amount:damage,kind:'player'});
     if(p.hp<=0){
@@ -282,7 +303,7 @@ export class Game {
   }
   teleport(p,zone,x,y){
     p.zone=zone;p.x=x;p.y=y;p.path=[];p.input={x:0,y:0};p.target=null;p.vx=0;p.vy=0;p.moving=false;p.motionId=(p.motionId||0)+1;
-    recordProgress(this,p,'visit',zone);
+    recordProgress(this,p,'visit',zone);p.nextSurveyAt=0;revealTerrain(this,p);
     p.invulnerableUntil=this.now+2200;this.mark(p);
     this.send(p.id,'zone',{zone,profile:this.privatePlayer(p)});
   }
@@ -295,11 +316,13 @@ export class Game {
       ...w.map.portals.map(n=>({...n,entity:'portal'})),
       ...w.nodes.filter(n=>n.readyAt<=this.now).map(n=>({...n,entity:'node'})),
       ...w.map.chests.filter(n=>!p.opened.includes(n.id)).map(n=>({...n,entity:'chest'})),
-      ...(w.map.relics||[]).map(n=>({...n,entity:'relic'}))
+      ...(w.map.relics||[]).map(n=>({...n,entity:'relic'})),
+      ...(w.map.storyPoints||[]).map(n=>({...n,entity:'storyPoint'}))
     ].filter(n=>dist(p,n)<95&&(!id||n.id===id)).sort((a,b)=>dist(p,a)-dist(p,b));
     const obj=options[0];if(!obj)return {ok:false,error:'가까이 다가가서 F를 눌러주세요.'};
     p.lastInteract=this.now;
     if(obj.entity==='soul')return recoverSoul(this,p,obj.id);
+    if(obj.entity==='storyPoint')return interactPoint(this,p,obj);
     if(obj.entity==='relic')return readRelic(this,p,obj);
     if(obj.entity==='npc'){
       if(obj.kind==='heal'){
@@ -320,7 +343,7 @@ export class Game {
       this.send(p.id,'loot',{gold:0,xp:8,items:[{id:node.type,count:1}]});return {ok:true};
     }
     if(obj.entity==='chest'){
-      p.opened.push(obj.id);evaluateJobs(this,p);const gold=40+ZONES[p.zone].minLevel*12;p.gold+=gold;
+      p.opened.push(obj.id);recordStory(this,p,{kind:'chest',target:'any'});evaluateJobs(this,p);const gold=40+ZONES[p.zone].minLevel*12;p.gold+=gold;
       this.addItem(p,'potion',2);this.addItem(p,'ore',2);this.giveXP(p,40);
       this.mark(p);this.send(p.id,'loot',{gold,xp:40,items:[{id:'potion',count:2},{id:'ore',count:2}],boss:true,name:'잊힌 여행자의 보물'});
       return {ok:true};
@@ -329,6 +352,8 @@ export class Game {
   action(p,a){
     if(!a||typeof a.type!=='string')return {ok:false,error:'잘못된 요청입니다.'};
     if(p.hp<=0&&a.type!=='respawn')return {ok:false,quiet:true};
+    const storyResult=storyAction(this,p,a);if(storyResult)return storyResult;
+    const atlasResult=atlasAction(this,p,a);if(atlasResult)return atlasResult;
     const rpgResult=rpgAction(this,p,a);if(rpgResult)return rpgResult;
     const expansionResult=progressionAction(this,p,a);if(expansionResult)return expansionResult;
     if(a.type==='worldJoin')return this.events.join(p,a.id);
@@ -366,7 +391,7 @@ export class Game {
       const s=this.stats(p),isHp=a.id==='potion';
       if((isHp?p.hp>=s.maxHp:p.mp>=s.maxMp))return {ok:false,error:isHp?'체력이 가득합니다.':'마나가 가득합니다.'};
       p.inventory[a.id]--;p.cooldowns[a.id]=this.now+5000;
-      if(isHp)p.hp=Math.min(s.maxHp,p.hp+s.maxHp*.45);else p.mp=Math.min(s.maxMp,p.mp+s.maxMp*.5);
+      if(isHp){p.hp=Math.min(s.maxHp,p.hp+s.maxHp*.45);recordStory(this,p,{kind:'restore',target:'any'});}else p.mp=Math.min(s.maxMp,p.mp+s.maxMp*.5);
       this.mark(p);this.fx(p.zone,{type:'buff',id:p.id,x:p.x,y:p.y,color:isHp?'#dd998e':'#8fbcf0'});return {ok:true};
     }
     if(a.type==='equip'){
@@ -471,6 +496,7 @@ export class Game {
     for(const [id,invite] of this.invites)if(invite.expires<now)this.invites.delete(id);
     const active=[...this.players.values()].filter(p=>p.active);
     for(const p of active){
+      if(p.storyPendingSync&&now-(p.lastStorySync||0)>=800){p.storyPendingSync=false;p.lastStorySync=now;this.mark(p);}
       if(ensureDaily(p,now))this.mark(p);
       if(p.soul&&p.soul.expires<=now){p.soul=null;this.mark(p);}
       if(p.deathWeakUntil&&p.deathWeakUntil<=now){p.deathWeakUntil=0;this.mark(p);}
@@ -494,8 +520,9 @@ export class Game {
       p.moving=Math.abs(p.x-oldX)+Math.abs(p.y-oldY)>.1;p.vx=dt>0?(p.x-oldX)/dt:0;p.vy=dt>0?(p.y-oldY)/dt:0;
       if(p.moving){
         p.dir=Math.abs(v.x)>Math.abs(v.y)?(v.x>0?'e':'w'):(v.y>0?'s':'n');
-        p.dirty=true;
+        p.dirty=true;recordStory(this,p,{kind:'walk',target:'any',count:Math.hypot(p.x-oldX,p.y-oldY)/TILE});
       }
+      revealTerrain(this,p);
       if(now-p.lastRegen>=1000){
         p.lastRegen=now;const s=this.stats(p);
         const before=p.hp+p.mp;
@@ -505,8 +532,16 @@ export class Game {
         if(before!==p.hp+p.mp)this.mark(p);
       }
     }
+    const zonePlayers=new Map();
+    for(const p of active){if(!zonePlayers.has(p.zone))zonePlayers.set(p.zone,[]);if(p.hp>0)zonePlayers.get(p.zone).push(p);}
+    this.perf={loadedRegions:this.worlds.size,occupiedRegions:zonePlayers.size,awakeMobs:0,sleepingMobs:0};
     for(const [zone,w]of this.worlds){
-      const inZone=active.filter(p=>p.zone===zone&&p.hp>0);
+      const inZone=zonePlayers.get(zone)||[];
+      if(!inZone.length){
+        w.casts=[];
+        if(w.fieldTrial)this.cancelFieldTrial(w);
+        continue;
+      }
       for(const m of w.mobs){
         const spec=MONSTERS[m.type];
         if(!m.alive){
@@ -514,6 +549,12 @@ export class Game {
           continue;
         }
         m.moving=false;
+        // Server-authoritative interest management: keep nearby encounters alive,
+        // but do not run distant wandering, LOS, targeting and spell calculations.
+        if(!m.target&&!m.dots?.length&&!m.trialKey&&!inZone.some(p=>dist(p,m)<1120)){
+          this.perf.sleepingMobs++;continue;
+        }
+        this.perf.awakeMobs++;
         if(spec.boss){
           const phase=m.hp/m.maxHp<.45?2:m.hp/m.maxHp<.7?1:0;
           if(phase>(m.visualPhase||0))this.fx(zone,{type:'armorBreak',x:m.x,y:m.y,theme:bossVisual(m.type).theme,phase});
@@ -546,7 +587,7 @@ export class Game {
             m.nextAttack=now+1700;m.castUntil=now+430;
             const ranged=spec.range>80;
             w.casts.push({id:++this.castSeq,owner:m.id,shape:'circle',x:target.x,y:target.y,radius:ranged?45:39,inner:0,
-              starts:now,ends:now+(ranged?700:430),damage:spec.atk,boss:false,name:spec.name});
+              starts:now,ends:now+(ranged?700:430),damage:spec.atk*(m.attackScale||1),boss:false,name:spec.name});
           }else if(d>spec.range*.8&&m.castUntil<=now){
             const speed=spec.speed*(m.slowUntil>now? .5:1),ox=m.x,oy=m.y;
             if(d>0)moveEntity(w.map,m,dx/d*speed*dt,dy/d*speed*dt,12);
@@ -578,14 +619,18 @@ export class Game {
         this.fx(zone,{type:'impact',x:cast.x,y:cast.y,radius:cast.radius,shape:cast.shape,inner:cast.inner,angle:cast.angle,length:cast.length,width:cast.width,boss:cast.boss,theme:cast.theme,monster:cast.monster});
       }
       w.casts=w.casts.filter(c=>c.ends>now);
+      this.tickFieldTrial(w);
     }
+    this.worlds.sweep(now,new Set(active.map(p=>p.zone)));
   }
+  tickFieldTrial(w){tickFieldTrial(this,w);}
+  cancelFieldTrial(w){cancelFieldTrial(this,w);}
   bossCast(w,m,target){
     const spec=MONSTERS[m.type],phase=m.phase++%3;
     const enraged=m.hp<m.maxHp*.45;
     const duration=enraged?1000:1350;
     m.nextAttack=this.now+(enraged?2700:3400);m.castUntil=this.now+duration;
-    const base={owner:m.id,starts:this.now,ends:this.now+duration,damage:spec.atk*(enraged?1.15:1),boss:true,theme:bossVisual(m.type).theme,monster:m.type};
+    const base={owner:m.id,starts:this.now,ends:this.now+duration,damage:spec.atk*(m.attackScale||1)*(enraged?1.15:1),boss:true,theme:bossVisual(m.type).theme,monster:m.type};
     if(spec.worldBoss){
       const pattern=spec.pattern,angle=Math.atan2(target.y-m.y,target.x-m.x);
       if(pattern==='tempest'){

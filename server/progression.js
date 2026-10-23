@@ -1,3 +1,5 @@
+import {storyBook,recordStory} from './stories.js';
+import {recordAtlas} from './atlas.js';
 import {CLASSES,ITEMS,ZONES,getStats} from '../shared/content.js';
 import {JOB_HINTS,JOB_TIERS,RELICS,DAILY_TASKS,ACHIEVEMENTS} from '../shared/expansion.js';
 
@@ -52,7 +54,7 @@ export function prepareProgression(p,now=Date.now()){
   crafted:d.crafted||0,healed:d.healed||0,worldKills:{...(d.worldKills||{})},sequences:{...(d.sequences||{})},claims:[...(d.claims||[])],
   rewardedWindows:[...(d.rewardedWindows||[])].slice(-100),issuedWeapons:[...new Set([p.equipment?.weapon,...(d.issuedWeapons||[])])].filter(Boolean)};
  // Existing accounts keep their chosen profession, equipment and progress.
- p.schemaVersion=2;
+ p.schemaVersion=3;
  ensureDaily(p,now);
 }
 export function ensureDaily(p,now){
@@ -79,20 +81,9 @@ export function metric(p,key){
   hidden:d.jobs.filter(id=>CLASSES[id]?.tier==='hidden').length})[key]||0;
 }
 export function evaluateJobs(game,p,notify=true){
- const unlocked=[];
- // Iterate twice so base prerequisite unlocks can unlock a second grade in the same evaluation.
- for(let pass=0;pass<2;pass++)for(const [id,requirements]of Object.entries(JOB_REQUIREMENTS)){
-  if(p.discovery.jobs.includes(id)||!requirements.every(r=>metric(p,r.metric)>=r.goal))continue;
-  p.discovery.jobs.push(id);unlocked.push(id);
- }
- if(unlocked.length){
-  game.mark(p);
-  if(notify){
-   game.toast(p,`새로운 길 발견 · ${unlocked.map(id=>CLASSES[id].name).join(', ')}! 마을에서 C 전직 도감을 확인하세요.`,'success');
-   game.send(p.id,'jobUnlocked',{ids:unlocked});
-  }
- }
- return unlocked;
+ // Professions are granted only by completing a server-validated story.
+ // Previously owned professions remain in discovery.jobs when loading a save.
+ return [];
 }
 export function recordProgress(game,p,kind,id,count=1){
  const d=p.discovery;ensureDaily(p,game.now);
@@ -104,19 +95,11 @@ export function recordProgress(game,p,kind,id,count=1){
  if(kind==='quest')d.mastery[p.classId]=(d.mastery[p.classId]||0)+5;
  if(kind==='visit'&&!d.visited.includes(id))d.visited.push(id);
  if(kind==='world')d.worldKills[id]=(d.worldKills[id]||0)+count;
+ if(p.journey)recordStory(game,p,{kind,target:id,count});
+ if(p.atlas)recordAtlas(game,p,kind,id);
  evaluateJobs(game,p);
 }
-export function jobBook(p){
- return Object.entries(JOB_REQUIREMENTS).map(([id,rs],i)=>{
-  const c=CLASSES[id],owned=p.discovery.jobs.includes(id);
-  const discovered=c.tier!=='hidden'||owned||(p.discovery.sequences[id]||0)>0||
-   id==='starweaver'&&p.discovery.relics.includes('observatory_star')||id==='nameless_king'&&p.discovery.relics.includes('observatory_crown');
-  return {id,owned,discovered,name:discovered?c.name:'이름 없는 직업 '+String(i-29).padStart(2,'0'),tier:c.tier,
-   hint:discovered?JOB_HINTS[id]:'세계 어딘가의 유물에 첫 단서가 남아 있습니다.',
-   requirements:discovered?rs.map(r=>({...r,value:metric(p,r.metric)})):[],
-   mastery:p.discovery.mastery[id]||0};
- });
-}
+export function jobBook(p){return storyBook(p);}
 export function readRelic(game,p,relic){
  const d=p.discovery,first=!d.relics.includes(relic.id),steps=[];
  if(first){
@@ -128,12 +111,13 @@ export function readRelic(game,p,relic){
   if(list[n]===relic.id){
    d.sequences[id]=n+1;
    const next=RELICS.find(r=>r.id===list[n+1]);
-   steps.push({title:sequenceNames[id],step:n+1,total:list.length,message:next?`${ZONES[next.zone].name}의 「${next.name}」에서 다음 문장을 읽어 보세요.`:'문장이 완성되었습니다. 전직 도감에서 남은 조건을 확인하세요.'});
+   steps.push({title:sequenceNames[id],step:n+1,total:list.length,message:next?`${ZONES[next.zone].name}의 「${next.name}」에서 다음 문장을 읽어 보세요.`:'오래된 문장이 이어졌습니다. 이제 새 원정 지역의 기록을 찾아 전직 이야기를 시작해 보세요.'});
   }else if(list.includes(relic.id)&&n<list.length){
    const next=RELICS.find(r=>r.id===list[n]);
    steps.push({title:sequenceNames[id],step:n,total:list.length,message:`문장의 앞부분이 비어 있습니다. ${ZONES[next.zone].name}의 「${next.name}」부터 읽어 보세요.`});
   }
  }
+ recordStory(game,p,{kind:'relic',target:relic.id});
  game.mark(p);evaluateJobs(game,p);
  game.send(p.id,'relicRead',{id:relic.id,name:relic.name,text:relic.text,first,steps});
  return {ok:true};
@@ -178,7 +162,7 @@ export function progressionAction(game,p,a){
  }
  if(a.type==='travel'){
   const z=ZONES[a.id];
-  if(p.zone!=='town'||!z||!p.discovery.visited.includes(a.id)||p.level<z.minLevel)return {ok:false,error:'마을에서는 이미 방문한 지역으로만 이동할 수 있습니다.'};
+  if(p.zone!=='town'||!z||z.expedition||!p.discovery.visited.includes(a.id)||p.level<z.minLevel)return {ok:false,error:'마을에서는 이미 방문한 지역으로만 이동할 수 있습니다.'};
   if(game.now-p.lastCombat<8000)return {ok:false,error:'전투가 끝난 뒤 이동하세요.'};
   game.teleport(p,a.id,z.spawn[0]*32+16,z.spawn[1]*32+16);return {ok:true};
  }

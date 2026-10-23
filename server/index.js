@@ -81,10 +81,10 @@ const game=new Game({
 });
 async function persist(p){
   if(!p)return;
-  const snapshot=serialize(p);
+  const snapshot=serialize(p),storyStamp=p.storySaveStamp||0;
   try{
     await store.save(snapshot);
-    if(p.revision===snapshot.revision)p.dirty=false;
+    if(p.revision===snapshot.revision&&(p.storySaveStamp||0)===storyStamp)p.dirty=false;
     sockets.get(p.id)?.emit('saved',{at:Date.now(),revision:snapshot.revision,local:devGuest});
   }catch(err){
     p.dirty=true;console.error('Save failed:',err.message);
@@ -150,7 +150,7 @@ io.on('connection',async(socket)=>{
       socket.emit('welcome',{existing:true,profile:game.privatePlayer(p),local:devGuest});
       socket.emit('state',game.snapshot(p,true));
       ack({ok:true});
-      game.toast(p,'별여울에 오신 것을 환영합니다. 리아에게 다가가 F로 첫 의뢰를 받아보세요.','success');
+      game.toast(p,'별여울에 오신 것을 환영합니다. 리아에게 첫 의뢰를 받고, 마을 남쪽 스승에게 F로 말을 걸어 전직 이야기를 시작하세요. V는 전승, M은 지도입니다.','success');
     }catch(e){ack({ok:false,error:e.message});}finally{joining.delete(id);}
   });
   socket.on('input',data=>{
@@ -168,7 +168,7 @@ io.on('connection',async(socket)=>{
       p.actions.set(data.nonce,result);
       while(p.actions.size>256)p.actions.delete(p.actions.keys().next().value);
       ack(result);
-      if(result.ok&&['buy','sell','craft','enhance','quest','equip','title','changeJob','dailyClaim','achievement','interact','allocateStats','resetStats','recoverSoul'].includes(data.type))scheduleSave(p);
+      if(result.ok&&['buy','sell','craft','enhance','quest','equip','title','changeJob','dailyClaim','achievement','interact','allocateStats','resetStats','recoverSoul','storyAccept','storyClaim','storyPause','storyResume','storyTrack','contractAccept','contractClaim','surveyClaim','waypoint'].includes(data.type))scheduleSave(p);
     }catch(e){console.error('Action error:',e);ack({ok:false,error:'요청을 처리하지 못했습니다.'});}
   });
   socket.on('chat',(data,ack=()=>{})=>{
