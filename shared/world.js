@@ -1,0 +1,169 @@
+import { TILE, ZONES, NPCS } from './content.js';
+
+export function seeded(seed) {
+  let a=seed|0;
+  return () => {a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};
+}
+export const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+export const PORTALS = {
+  town: [{ id:'town_forest', x:24*TILE+16,y:4*TILE+16,to:'forest',tx:30*TILE+16,ty:40*TILE+16,name:'속삭이는 숲',level:1 }],
+  forest: [
+    {id:'forest_town',x:30*TILE+16,y:42*TILE+16,to:'town',tx:24*TILE+16,ty:7*TILE+16,name:'별여울 마을',level:1},
+    {id:'forest_ruins',x:30*TILE+16,y:4*TILE+16,to:'ruins',tx:28*TILE+16,ty:38*TILE+16,name:'달잠 유적',level:5}
+  ],
+  ruins: [
+    {id:'ruins_forest',x:28*TILE+16,y:40*TILE+16,to:'forest',tx:30*TILE+16,ty:7*TILE+16,name:'속삭이는 숲',level:1},
+    {id:'ruins_citadel',x:28*TILE+16,y:4*TILE+16,to:'citadel',tx:28*TILE+16,ty:38*TILE+16,name:'재의 성채',level:9}
+  ],
+  citadel: [{id:'citadel_ruins',x:28*TILE+16,y:40*TILE+16,to:'ruins',tx:28*TILE+16,ty:7*TILE+16,name:'달잠 유적',level:5}]
+};
+export const BOSS_SPAWNS = {
+  forest:{x:49*TILE+16,y:18*TILE+16,type:'moss_guardian'},
+  ruins:{x:46*TILE+16,y:15*TILE+16,type:'moon_witch'},
+  citadel:{x:28*TILE+16,y:13*TILE+16,type:'eclipse_dragon'}
+};
+
+const cache=new Map();
+export function createMap(id) {
+  if(cache.has(id))return cache.get(id);
+  const z=ZONES[id]; if(!z)throw new Error('Unknown zone');
+  const {width:w,height:h}=z, seed={town:73,forest:928,ruins:1049,citadel:5408}[id], rand=seeded(seed);
+  const tiles=new Uint8Array(w*h), blocked=new Uint8Array(w*h), props=[], resources=[], chests=[];
+  const center=id==='town'?24:id==='forest'?30:28;
+  const isPath=(x,y)=>Math.abs(x-center)<=2||Math.abs(y-(id==='town'?21:33))<=1||
+    (id==='forest'&&Math.abs(y-18)<=1&&x>=29&&x<=52)||
+    (id==='ruins'&&Math.abs(y-15)<=1&&x>=27&&x<=48)||
+    (id==='citadel'&&Math.hypot(x-28,y-13)<7);
+  const isArena=(x,y)=>id!=='town'&&Math.hypot(x-BOSS_SPAWNS[id].x/TILE,y-BOSS_SPAWNS[id].y/TILE)<6;
+  const ponds=id==='town'?[[10,12,5,4]]:id==='forest'?[[13,13,6,4],[48,34,5,4]]:id==='ruins'?[[12,14,4,5]]:[[12,17,5,6],[45,27,5,5]];
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const idx=y*w+x, border=x<2||y<2||x>=w-2||y>=h-2;
+    const pond=ponds.some(([cx,cy,rx,ry])=>((x-cx)/rx)**2+((y-cy)/ry)**2<1+Math.sin(x*2+y)*.07);
+    tiles[idx]=isPath(x,y)||isArena(x,y)?1:pond?2:0;
+    if(border)blocked[idx]=1;
+    if(pond&&!isPath(x,y)&&!isArena(x,y))blocked[idx]=1;
+    if(id==='town'&&Math.hypot(x-24,y-21)<5){tiles[idx]=3;blocked[idx]=0;}
+  }
+  function prop(sprite,tx,ty,solid=true,scale=1){
+    const x=tx*TILE+16,y=ty*TILE+20;
+    props.push({id:`prop${props.length}`,sprite,x,y,scale});
+    if(solid)blocked[Math.floor(ty)*w+Math.floor(tx)]=1;
+  }
+  if(id==='town'){
+    const houses=[{x:16,y:16,s:'house_blue'},{x:30,y:16,s:'house_red'},{x:16,y:26,s:'house_red'},{x:31,y:27,s:'house_blue'}];
+    for(const o of houses){
+      prop(o.s,o.x,o.y,false);
+      for(let dy=-2;dy<=0;dy++)for(let dx=-2;dx<=2;dx++)blocked[(o.y+dy)*w+o.x+dx]=1;
+    }
+    prop('stall',18,20,false);
+    prop('forge',30,20,false);
+    prop('well',22,18,true);
+    prop('campfire',23,23,false);
+    for(const [x,y] of [[21,15],[27,15],[20,24],[28,24],[23,8],[25,29]])prop('lantern',x,y,true);
+    for(const [x,y] of [[14,21],[34,21],[20,29],[30,30]])prop('bench',x,y,true);
+  }else{
+    const b=BOSS_SPAWNS[id];
+    props.push({id:'altar',sprite:'altar',x:b.x,y:b.y+40,scale:1.3});
+    for(let a=0;a<8;a++){
+      const ang=a*Math.PI/4;
+      prop(id==='forest'?'rune':'pillar',Math.round(b.x/TILE+Math.cos(ang)*5.2),Math.round(b.y/TILE+Math.sin(ang)*5.2),true);
+    }
+  }
+  // Scatter deterministic scenery; the walking grid is shared by client and server.
+  for(let y=2;y<h-2;y++)for(let x=2;x<w-2;x++){
+    if(blocked[y*w+x]||tiles[y*w+x]!==0||isPath(x,y)||isArena(x,y))continue;
+    if(id==='town'&&x>12&&x<36&&y>12&&y<31)continue;
+    const r=rand(), closeEdge=x<4||y<4||x>w-5||y>h-5;
+    if(r<(closeEdge? .46:id==='town'? .13:.12)){
+      prop(id==='town'||id==='forest'?(rand()>.25?'tree':'pine'):(id==='ruins'?(rand()>.35?'dead_tree':'pillar'):(rand()>.4?'dead_tree':'basalt')),x,y,true,0.9+rand()*.3);
+    }else if(r<.19){
+      prop(id==='citadel'?'basalt':'rock',x,y,true,.65+rand()*.35);
+    }else if(r<.32){
+      prop(id==='town'||id==='forest'?(rand()>.45?'flowers':'bush'):(id==='ruins'?'mushroom':'crystal'),x,y,false,.7+rand()*.4);
+    }
+  }
+  // Clear a full route and each point of arrival. Decorative non-blocking props are kept.
+  function clearAt(px,py,r=1){
+    const tx=Math.floor(px/TILE),ty=Math.floor(py/TILE);
+    for(let y=ty-r;y<=ty+r;y++)for(let x=tx-r;x<=tx+r;x++)if(x>1&&y>1&&x<w-2&&y<h-2){blocked[y*w+x]=0;tiles[y*w+x]=1;}
+    for(let n=props.length-1;n>=0;n--)if(Math.abs(props[n].x-px)<(r+1)*TILE&&Math.abs(props[n].y-py)<(r+1)*TILE)props.splice(n,1);
+  }
+  for(const p of PORTALS[id])clearAt(p.x,p.y,2);
+  clearAt(z.spawn[0]*TILE+16,z.spawn[1]*TILE+16,1);
+  for(const n of NPCS.filter(n=>n.zone===id))clearAt(n.x,n.y,0);
+  const map={id,w,h,width:w*TILE,height:h*TILE,tiles,blocked,props,resources,chests,portals:PORTALS[id],npcs:NPCS.filter(n=>n.zone===id)};
+  if(id!=='town'){
+    for(let i=0;i<22;i++){
+      let p;
+      for(let j=0;j<100;j++){
+        p={x:(5+Math.floor(rand()*(w-10)))*TILE+16,y:(7+Math.floor(rand()*(h-14)))*TILE+16};
+        if(!isBlocked(map,p.x,p.y,12)&&dist(p,BOSS_SPAWNS[id])>220&&!resources.some(a=>dist(a,p)<85))break;
+      }
+      if(isBlocked(map,p.x,p.y,12))continue;
+      const type=id==='forest'?(i%3===0?'ore':i%3===1?'wood':'herb'):(id==='ruins'?(i%3===0?'herb':'ore'):(i%4===0?'herb':'ore'));
+      resources.push({id:`${id}_node_${i}`,type,x:p.x,y:p.y});
+    }
+    const chestCells=id==='forest'?[[9,31],[53,9],[39,25]]:id==='ruins'?[[9,32],[50,30],[15,7]]:[[8,32],[48,10],[42,35]];
+    chestCells.forEach(([x,y],i)=>{clearAt(x*TILE+16,y*TILE+16,0);chests.push({id:`${id}_chest_${i}`,x:x*TILE+16,y:y*TILE+16});});
+  }
+  cache.set(id,map);
+  return map;
+}
+export function isBlocked(map,x,y,r=10) {
+  if(!Number.isFinite(x)||!Number.isFinite(y))return true;
+  for(const [dx,dy] of [[-r,-r],[r,-r],[-r,r],[r,r]]){
+    const tx=Math.floor((x+dx)/TILE),ty=Math.floor((y+dy)/TILE);
+    if(tx<0||ty<0||tx>=map.w||ty>=map.h||map.blocked[ty*map.w+tx])return true;
+  }
+  return false;
+}
+export function moveEntity(map,p,dx,dy,r=10) {
+  // Small substeps prevent tunneling through a wall during a dash.
+  const count=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/8));
+  for(let i=0;i<count;i++){
+    if(!isBlocked(map,p.x+dx/count,p.y,r))p.x+=dx/count;
+    if(!isBlocked(map,p.x,p.y+dy/count,r))p.y+=dy/count;
+  }
+}
+export function lineOfSight(map,a,b) {
+  const n=Math.ceil(dist(a,b)/12);
+  for(let i=1;i<n;i++)if(isBlocked(map,a.x+(b.x-a.x)*i/n,a.y+(b.y-a.y)*i/n,2))return false;
+  return true;
+}
+export function findPath(map,from,to) {
+  const sx=Math.floor(from.x/TILE),sy=Math.floor(from.y/TILE);
+  let ex=clamp(Math.floor(to.x/TILE),2,map.w-3),ey=clamp(Math.floor(to.y/TILE),2,map.h-3);
+  if(map.blocked[ey*map.w+ex]){
+    let found=false;
+    for(let r=1;r<=4&&!found;r++)for(let yy=ey-r;yy<=ey+r&&!found;yy++)for(let xx=ex-r;xx<=ex+r;xx++){
+      if(xx>1&&yy>1&&xx<map.w-2&&yy<map.h-2&&!map.blocked[yy*map.w+xx]){ex=xx;ey=yy;found=true;break;}
+    }
+    if(!found)return [];
+  }
+  const start=sy*map.w+sx,end=ey*map.w+ex;
+  if(start===end)return [{x:ex*TILE+16,y:ey*TILE+16}];
+  const open=[start],g=new Map([[start,0]]),parent=new Map(),closed=new Set();
+  const heuristic=(n)=>Math.hypot(n%map.w-ex,Math.floor(n/map.w)-ey);
+  let loops=0;
+  while(open.length&&loops++<map.w*map.h){
+    open.sort((a,b)=>(g.get(a)+heuristic(a))-(g.get(b)+heuristic(b)));
+    const cur=open.shift();if(cur===end){const out=[];let v=end;while(v!==start){out.push({x:(v%map.w)*TILE+16,y:Math.floor(v/map.w)*TILE+16});v=parent.get(v);}return out.reverse();}
+    closed.add(cur);const cx=cur%map.w,cy=Math.floor(cur/map.w);
+    for(const [dx,dy]of [[0,1],[1,0],[-1,0],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]]){
+      const x=cx+dx,y=cy+dy,n=y*map.w+x;
+      if(x<1||y<1||x>=map.w-1||y>=map.h-1||map.blocked[n]||closed.has(n))continue;
+      if(dx&&dy&&(map.blocked[cy*map.w+x]||map.blocked[y*map.w+cx]))continue;
+      const ng=g.get(cur)+(dx&&dy?1.414:1);
+      if(ng<(g.get(n)??Infinity)){g.set(n,ng);parent.set(n,cur);if(!open.includes(n))open.push(n);}
+    }
+  }
+  return [];
+}
+export function spawnPoint(map,rand,avoidCenter=false) {
+  for(let i=0;i<300;i++){
+    const p={x:(5+rand()*(map.w-10))*TILE,y:(6+rand()*(map.h-12))*TILE};
+    if(!isBlocked(map,p.x,p.y,16)&&map.portals.every(q=>dist(p,q)>150)&&(!avoidCenter||Math.abs(p.x-map.width/2)>100))return p;
+  }
+  return {x:map.width/2+16,y:map.height/2+16};
+}
