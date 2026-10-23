@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: starfall-online
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: ALLOW_DEV_GUEST
+        value: "false"
+      - key: MAX_PLAYERS
+        value: "24"
+      - key: SNAPSHOT_HZ
+        value: "6"
+      - key: WS_COMPRESSION
+        value: "true"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

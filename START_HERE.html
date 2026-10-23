@@ -1,0 +1,37 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>잔별의 숲 · 배포 시작 안내</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101e25;color:#e9e6d7;font:16px/1.8 "Malgun Gothic","Apple SD Gothic Neo",sans-serif}header{background:linear-gradient(90deg,#102129f5,#102129bb),url('public/assets/title.png') center/cover;padding:65px max(6vw,22px);border-bottom:1px solid #31464b}main{max-width:1100px;margin:auto;padding:32px 22px 65px}h1{font-size:clamp(36px,6vw,62px);margin:12px 0}h2{font-size:24px;color:#e3c38b;margin-top:42px}h3{font-size:17px;margin:0 0 10px}p{color:#bdc9c2}a{color:#e3c38b}code,pre{font-family:Consolas,monospace}pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:18px;background:#0d181e;border:1px solid #35464a;border-radius:10px;font-size:14px}code{color:#d6c7a7}small{color:#9baea6}.tag{font-size:11px;letter-spacing:4px;color:#e3c38b}.intro{max-width:760px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card{padding:22px;background:#192e34;border:1px solid #33494b;border-radius:12px}.n{display:inline-block;color:#e4c58c;font-size:32px;margin-bottom:8px}.warn{border-left:3px solid #e3c38b;background:#223136;padding:18px 22px;margin:25px 0}.btn{display:inline-block;text-decoration:none;padding:10px 20px;background:#e1c18a;color:#17282c;border-radius:7px;margin:10px 10px 0 0;font-weight:bold}.btn.secondary{background:#263c43;color:#d6ddcf;border:1px solid #4c6261}.gallery{display:grid;grid-template-columns:1fr 1fr;gap:15px}.gallery img{width:100%;border-radius:10px;border:1px solid #465957}.gallery figcaption{font-size:12px;color:#a9bcb3}figure{margin:0}table{border-collapse:collapse;width:100%;font-size:14px}td,th{text-align:left;vertical-align:top;padding:12px;border-bottom:1px solid #3b4c4d}th{color:#dec18d}details{padding:17px 0;border-bottom:1px solid #3a4e50}summary{cursor:pointer;font-weight:bold}footer{color:#94a89e;margin-top:50px;font-size:12px}@media(max-width:720px){.cards,.gallery{grid-template-columns:1fr}header{padding:42px 22px}td,th{padding:9px;font-size:12px}}
+</style>
+<header><div class="tag">STARFALL ONLINE · START HERE</div><h1>잔별의 숲</h1><div class="intro"><p>직접 배포하고 함께 탐험하는 도트 액션 RPG.<br>마을의 불빛에서 시작해 마지막 별을 되찾는 작은 온라인 세계입니다.</p></div><a class="btn" href="README_KO.md">상세 배포 가이드</a><a class="btn secondary" href="docs/TEST_REPORT.md">검증 범위 확인</a></header>
+<main>
+<div class="warn"><strong>이 안내 파일은 게임 실행 파일이 아닙니다.</strong><br>게임은 Node 서버에서 실행됩니다. 로컬은 START_LOCAL.bat 또는 명령어로, 온라인은 Render의 <b>Web Service</b>로 실행하세요. 무료 서비스용 소규모 초기 버전이며 대규모 상용 MMORPG를 뜻하지 않습니다.</div>
+<div class="cards"><section class="card"><span class="n">01</span><h3>Supabase 준비</h3><p>무료 프로젝트의 SQL Editor에서 <code>supabase/setup.sql</code>을 실행합니다. Anonymous Sign-Ins를 켜고 URL·공개키·서버 비밀키를 준비합니다.</p></section><section class="card"><span class="n">02</span><h3>GitHub에 코드 올리기</h3><p><code>package.json</code>이 저장소 최상위에 오도록 폴더 내용물을 올립니다. 실제 <code>.env</code>, 개인 저장 폴더, 비밀키는 업로드하지 않습니다.</p></section><section class="card"><span class="n">03</span><h3>Render Web Service</h3><p>GitHub 저장소를 연결하고 Free 인스턴스를 선택합니다. 아래 빌드·시작 명령과 환경변수를 등록한 뒤 배포합니다.</p></section></div>
+<h2>먼저 내 컴퓨터에서 실행</h2><p>Node.js 22 계열의 22.12 이상 버전이 필요합니다. Windows는 <code>START_LOCAL.bat</code>, macOS/Linux는 <code>sh start-local.sh</code>를 사용할 수 있습니다. 최초 설치에는 인터넷이 필요합니다.</p>
+<pre>npm ci
+npm run build
+# .env.example을 .env로 복사한 뒤:
+npm start
+
+# 브라우저에서 http://localhost:3000 접속</pre>
+<h2>Render에 넣을 값</h2>
+<table><tr><th>항목</th><th>값</th></tr><tr><td>종류</td><td>Web Service / Node / Free — Static Site가 아닙니다.</td></tr><tr><td>Build Command</td><td><code>npm ci &amp;&amp; npm run build</code></td></tr><tr><td>Start Command</td><td><code>npm start</code></td></tr><tr><td>Health Check</td><td><code>/health</code></td></tr></table>
+<pre>NODE_ENV=production
+NODE_VERSION=22
+ALLOW_DEV_GUEST=false
+SUPABASE_URL=프로젝트 URL
+SUPABASE_ANON_KEY=공개 publishable 또는 anon 키
+SUPABASE_SERVICE_ROLE_KEY=서버 secret 또는 service_role 키
+MAX_PLAYERS=24
+SNAPSHOT_HZ=6
+WS_COMPRESSION=true</pre>
+<p>배포 주소를 Supabase의 Site URL 및 Redirect URLs에 등록하세요. <code>render.yaml</code>도 포함되어 있습니다.</p>
+<div class="warn"><strong>이메일 계정과 빠른 시작은 다릅니다.</strong><br>빠른 시작은 같은 브라우저의 익명 계정으로 플레이합니다. 브라우저 기록 삭제·로그아웃 전에 이메일을 연결해야 복구할 수 있습니다. 일반 사용자의 이메일 인증·비밀번호 찾기·계정 연결에는 Supabase Custom SMTP 설정이 필요합니다. 자세한 순서는 README에 있습니다.</div>
+<h2>실제 실행 화면</h2><div class="gallery"><figure><img src="docs/screenshots/town.png" alt="PC에서 실행한 마을 화면"><figcaption>로컬 브라우저에서 실행한 마을·NPC·HUD.</figcaption></figure><figure><img src="docs/screenshots/dragon.png" alt="용 보스 전투 화면"><figcaption>전투 확인용 테스트 캐릭터로 실행한 재의 성채.</figcaption></figure></div>
+<h2>처음 플레이하는 순서</h2><p>마을 중앙 리아에게 다가가 <b>F</b>로 대화하고 첫 의뢰를 받으세요. 북쪽 포탈에서 F를 눌러 숲으로 갑니다. WASD 이동, Space 기본 공격, Q/E/R 기술, Shift 회피, 1/2 물약, H 귀환입니다. 모바일은 화면 조이스틱과 버튼을 씁니다.</p>
+<details open><summary>저장과 무료 서버의 한계</summary><p>운영 저장은 Supabase에 보관합니다. Render 무료 서버는 일정 시간 트래픽이 없으면 휴면하며 첫 접속이 늦어질 수 있습니다. 사용량 한도도 있으므로 무제한 무료 운영을 보장하지 않습니다. 마지막 성공한 저장 이후의 진행은 강제 종료·저장 장애 시 되돌아갈 수 있습니다.</p></details>
+<details><summary>어디까지 검증했나요?</summary><p>게임 규칙·네트워크·저장 자동 테스트, 두 브라우저의 파티/채팅/재접속, 모바일 세로/가로 UI, 로컬 24개 연결의 짧은 부하 검사를 수행했습니다. 실제 사용자의 Render/Supabase 프로젝트 배포, SMTP 발송, 장시간 운영·실물 모바일 성능은 검증하지 않았습니다. TEST_REPORT에 테스트 환경과 의존성 제한을 적었습니다.</p></details>
+<details><summary>무엇이 포함되고 빠졌나요?</summary><p>3직업, 4지역, 3보스, 8개 메인 의뢰, 반복 의뢰, 최대 4인 파티, 제작·강화·상점·칭호가 들어 있습니다. PvP, 길드, 경매장, 결제, 수천 명 규모의 다중 서버는 포함하지 않았습니다.</p></details>
+<details><summary>안전하게 공개하려면?</summary><p>작은 테스트 그룹으로 시작하세요. 불특정 다수에게 공개하기 전에 CAPTCHA, 운영 모더레이션, 백업과 장애 감시를 보완해야 합니다. 현재 CAPTCHA 위젯 연동은 없습니다. server secret 키를 클라이언트나 GitHub에 올리지 마세요.</p></details>
+<footer>STARFALL ONLINE 1.0 · 2026-10-23<br>실행 화면은 로컬 테스트에서 촬영했습니다. 세부 출처와 포함 리소스의 권리는 docs/SOURCES_AND_LICENSES.md 및 LICENSE를 확인하세요.</footer>
+</main></html>

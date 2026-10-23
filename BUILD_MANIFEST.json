@@ -1,0 +1,469 @@
+{
+  "project": "Starfall Online",
+  "version": "1.0.0",
+  "built_on": "2026-10-23",
+  "contents": "Source, original assets, deployment configuration, documentation, tests and execution screenshots.",
+  "excluded": "Private credentials, local test accounts, runtime data, installed dependencies, generated dist and temporary test adapters.",
+  "files": [
+    {
+      "path": ".env.example",
+      "bytes": 476,
+      "sha256": "6c38a95869c46dcc34ac779b35735508ae91c24291346c77a83d524b304527fb"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "bytes": 302,
+      "sha256": "987a1bf8e3b0629db865feb4bf57574feb7201fdf2c50d4cdec3a5033e36748d"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 89,
+      "sha256": "ce2ac5431a0298430761d83e39b8de36cf9fb14e08d664c5d91633dc80a99b08"
+    },
+    {
+      "path": ".nvmrc",
+      "bytes": 3,
+      "sha256": "f14b4987904bcb5814e4459a057ed4d20f58a633152288a761214dcd28780b56"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1356,
+      "sha256": "2b1d29f92d3892b33964fa687e2e6b209ca9dc220edac10ed98a0517fb8d5008"
+    },
+    {
+      "path": "README_KO.md",
+      "bytes": 20106,
+      "sha256": "e0dd24ec5c755a3f72da1abb29b9390b30b852ed282943bf217a4d93c2818d28"
+    },
+    {
+      "path": "SECURITY.md",
+      "bytes": 2557,
+      "sha256": "a66f5bf73df4b3c268e8259f6ac3254c0f36c54344bccdaa33af8148db4002e9"
+    },
+    {
+      "path": "START_HERE.html",
+      "bytes": 7986,
+      "sha256": "44c13595a887a7aeaacc56d1a85f8db797e28fc9b918b5d5bd251c3a86724817"
+    },
+    {
+      "path": "START_LOCAL.bat",
+      "bytes": 558,
+      "sha256": "c34dea73d33ca7364418fc52a31d2387522a5641f0a09525ac67bdd3668f4ea9"
+    },
+    {
+      "path": "client/audio.js",
+      "bytes": 2079,
+      "sha256": "1316a3cb5e9c5d483d4c9ecfdcf6c39349d241af4af7d4b0ad0427ae52017ddd"
+    },
+    {
+      "path": "client/main.js",
+      "bytes": 56899,
+      "sha256": "13991daad37d26892e96475d71a947617f15f6bdb3564fa5c5dade518271e602"
+    },
+    {
+      "path": "client/net.js",
+      "bytes": 7143,
+      "sha256": "a9cc40694c742b9f792673be12fc828b42f7cb39a5aa6100e9d3de18f99e6683"
+    },
+    {
+      "path": "client/render.js",
+      "bytes": 18867,
+      "sha256": "096cfb926137d06b08301c6740d0b86f94e2afaf776aa06542bbe4e8479c3b5b"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "bytes": 3993,
+      "sha256": "e168bf1b4aaf8e4a6def4d525a41ca597962d27bd14824eaa8b2cc3544db85cf"
+    },
+    {
+      "path": "docs/CONTENT_GUIDE.md",
+      "bytes": 2769,
+      "sha256": "419b65f8971c6261bf17a6fe25b78db80e8baafc3a92e024b1c5495974e3e7bb"
+    },
+    {
+      "path": "docs/SOURCES_AND_LICENSES.md",
+      "bytes": 3839,
+      "sha256": "f2aa9959db5a8ac26cde49a25bedc05e0c9dbb92ae255c7347708798f2bf8ee4"
+    },
+    {
+      "path": "docs/TEST_REPORT.md",
+      "bytes": 7830,
+      "sha256": "f5b27437884d7d5b1527f7118d5a05f6e8c1071b2693ac2d81f103394d9bc7fc"
+    },
+    {
+      "path": "docs/screenshots/dragon.png",
+      "bytes": 743101,
+      "sha256": "69303fe1f29dc3b3ab73be0a5c50656e9166bf270df86b80718c1621506d334b"
+    },
+    {
+      "path": "docs/screenshots/inventory.png",
+      "bytes": 444824,
+      "sha256": "e5bbeec9ad6246796a9430d024c9b895803328d6202f3287eaa83a64ae2001c7"
+    },
+    {
+      "path": "docs/screenshots/landing.png",
+      "bytes": 427730,
+      "sha256": "4fe00516eb30ba350e718762081834c88a390af0d127553b3e9e7ae52f3c74a1"
+    },
+    {
+      "path": "docs/screenshots/mobile.png",
+      "bytes": 189897,
+      "sha256": "8dd60db1c19b8c163532c327d3a3ad1877039f09405cee5e9d33048c2f000716"
+    },
+    {
+      "path": "docs/screenshots/mobile_landscape.png",
+      "bytes": 248267,
+      "sha256": "324edfe85ec47dd4fd6f2539bd127c81769fe4916b56a95fe79e75cc722be48a"
+    },
+    {
+      "path": "docs/screenshots/moon_boss.png",
+      "bytes": 722363,
+      "sha256": "3c657d648077db22138bd3a97ecf510d11192c7a08e586c6ea280abbca73b895"
+    },
+    {
+      "path": "docs/screenshots/quest.png",
+      "bytes": 432592,
+      "sha256": "19cd69727acdbe96eff5e34ce78150ec81eb7f601d6e0cd6ccadcb37fee1ad26"
+    },
+    {
+      "path": "docs/screenshots/town.png",
+      "bytes": 700570,
+      "sha256": "cb8bef250b14a8db3d6ba96dba1d098e0c9dbcdfa1f6fac3620ab3e010b17187"
+    },
+    {
+      "path": "docs/test-results/browser-report.json",
+      "bytes": 1002,
+      "sha256": "98c60c032040e011a9df8860fbde29631cf3673e7b425957244e782f5553445e"
+    },
+    {
+      "path": "docs/test-results/load-smoke.txt",
+      "bytes": 590,
+      "sha256": "d897b3865ea2cda464f8a2250225590f9ee9dde2291242e5358d77a1a21255b4"
+    },
+    {
+      "path": "docs/test-results/node-tests.txt",
+      "bytes": 5836,
+      "sha256": "ae56e562f4f9b97fa44865d8ada9b899de4fbf06c3d54be6f5bdb8c3190d2d7d"
+    },
+    {
+      "path": "docs/test-results/visual-report.json",
+      "bytes": 334,
+      "sha256": "f552c2516853aa7b127e63b062bda58eabae3c7c8213881aca0c07090eae20c0"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 786,
+      "sha256": "273f6a19643b306cd5fe4be8f739a5b09f0281456924f1ca398cfc8b1b80265a"
+    },
+    {
+      "path": "package.json",
+      "bytes": 600,
+      "sha256": "0b57f7362fddcec758193232f6466b88091f9f598307e36850146de0c7d8591a"
+    },
+    {
+      "path": "public/assets/atlas.json",
+      "bytes": 17786,
+      "sha256": "4704ab2c4bb1440973030d74ea04e94919b81b896be56ed01805251424c9c9ea"
+    },
+    {
+      "path": "public/assets/atlas.png",
+      "bytes": 77266,
+      "sha256": "009a2de4512c041479fab5b693ebc6d0ac0ac9fe31a4b57cf674d378bfc362eb"
+    },
+    {
+      "path": "public/assets/favicon.png",
+      "bytes": 365,
+      "sha256": "2544be853ba3bd3b3ad3f8f76cbcba9ac44358c53889770557f7d99713d4b010"
+    },
+    {
+      "path": "public/assets/guardian_s_0.png",
+      "bytes": 914,
+      "sha256": "3b13e1b2151ec0f12c7748d87bad9415433efbb8e3ed57fc2003c6bee43b1ced"
+    },
+    {
+      "path": "public/assets/healer_s_0.png",
+      "bytes": 924,
+      "sha256": "07c560b69158880a215137b46f54b3b436615502ed9859c12476c1eed8a7bb26"
+    },
+    {
+      "path": "public/assets/icon_armor.png",
+      "bytes": 265,
+      "sha256": "79005bdce679ddb30425d8ddc2f4faba7fd6a8c90ab60f66791cb016f62fb2c5"
+    },
+    {
+      "path": "public/assets/icon_arrow.png",
+      "bytes": 236,
+      "sha256": "8d20882a2cceefd41be9939addc10c651b5b16a1dcb01fec35b39379aacb48fa"
+    },
+    {
+      "path": "public/assets/icon_bag.png",
+      "bytes": 161,
+      "sha256": "12a76f1f798eb9af54d5e01c49d43626653113d7da9da27c0ff89f537714c4a1"
+    },
+    {
+      "path": "public/assets/icon_boot.png",
+      "bytes": 151,
+      "sha256": "d7408deaa0f60ed93d79203b88767baffec17f53f14e6f0d30c09ff61fdd144d"
+    },
+    {
+      "path": "public/assets/icon_bow.png",
+      "bytes": 236,
+      "sha256": "8d20882a2cceefd41be9939addc10c651b5b16a1dcb01fec35b39379aacb48fa"
+    },
+    {
+      "path": "public/assets/icon_charm.png",
+      "bytes": 268,
+      "sha256": "5d9781e03d572b6cf2ff9d6eb1287444cc7b63df6c42c8a3567dc148bb659ffa"
+    },
+    {
+      "path": "public/assets/icon_coin.png",
+      "bytes": 246,
+      "sha256": "015b1fe092744e98efcdae5ba38f2de30ee5aa0eb13203c7cf0ecae426beb703"
+    },
+    {
+      "path": "public/assets/icon_dragon.png",
+      "bytes": 236,
+      "sha256": "1f8b7a5894a59c0872a2f3847266fe881435374154f903390e62626b902037bb"
+    },
+    {
+      "path": "public/assets/icon_ember.png",
+      "bytes": 236,
+      "sha256": "c1d5202d5617ab87d36417d58319ef6e8c7866b68b23cd6d81c029f4c19a6795"
+    },
+    {
+      "path": "public/assets/icon_gel.png",
+      "bytes": 236,
+      "sha256": "a13b345825e99d9b9a6edf3880182cfc285c99632b877d97dfa03927b3ff79f1"
+    },
+    {
+      "path": "public/assets/icon_heart.png",
+      "bytes": 236,
+      "sha256": "26a2c03058b7b316c9233efa69cee00219e4f860d4c66499c06a09d7a4e42a81"
+    },
+    {
+      "path": "public/assets/icon_herb.png",
+      "bytes": 259,
+      "sha256": "6ff3777358eb7af90fd420c5472d371e0a10b0e3422aabe4a26a7e1742cec350"
+    },
+    {
+      "path": "public/assets/icon_leaf.png",
+      "bytes": 259,
+      "sha256": "6ff3777358eb7af90fd420c5472d371e0a10b0e3422aabe4a26a7e1742cec350"
+    },
+    {
+      "path": "public/assets/icon_mana.png",
+      "bytes": 227,
+      "sha256": "6e8be36a7ec26d7db63839cbb6641fb0ae19a99cde6b6b9b79028e27af9f3560"
+    },
+    {
+      "path": "public/assets/icon_map.png",
+      "bytes": 159,
+      "sha256": "f9f0d212fff32585c9cd0fcae07f65e4bf7f4cbf62438e3adf02ac3d182ace17"
+    },
+    {
+      "path": "public/assets/icon_moon.png",
+      "bytes": 239,
+      "sha256": "c79e71483d6df414dd32336c58d4a66efca8db957a57669c3cfb7feaa5534aae"
+    },
+    {
+      "path": "public/assets/icon_nova.png",
+      "bytes": 249,
+      "sha256": "3ce67859b5fc257cf7204f32c47c26d8672b2114cf3f9b6b7d426a07d0313231"
+    },
+    {
+      "path": "public/assets/icon_orb.png",
+      "bytes": 252,
+      "sha256": "73f9b93b1a23c524d0fbc573ead14994bd7fd0ca04b0dbd4c0fff6d49c27b298"
+    },
+    {
+      "path": "public/assets/icon_ore.png",
+      "bytes": 245,
+      "sha256": "92a9a70cb71b2cd151e28b116fa4ebf3803ffe9f9d128a9574b4ddca5664f180"
+    },
+    {
+      "path": "public/assets/icon_party.png",
+      "bytes": 174,
+      "sha256": "dca16a2505162638a84bc517f2c2e28a382286512c48fcf37d8b737c7dfb5760"
+    },
+    {
+      "path": "public/assets/icon_pelt.png",
+      "bytes": 210,
+      "sha256": "9d8b4285f886f70f4ba6f46ebe6cfec6653910f45d89b798f9bb5384d0938a5f"
+    },
+    {
+      "path": "public/assets/icon_potion.png",
+      "bytes": 227,
+      "sha256": "e6ec6cbed7b548e4aa451ed02ecd520991d846fc6c2254d9b0e5f86e2c06598f"
+    },
+    {
+      "path": "public/assets/icon_quest.png",
+      "bytes": 141,
+      "sha256": "e2bd688314123afa7ab6e8a5b25dbadf4ac29fda833e2a097d60ab3a1f5dbb13"
+    },
+    {
+      "path": "public/assets/icon_settings.png",
+      "bytes": 166,
+      "sha256": "0e2d31e81680ad8a65fc61eb66d03184dc795bffe47624df0d07398408ede202"
+    },
+    {
+      "path": "public/assets/icon_shard.png",
+      "bytes": 239,
+      "sha256": "0f57438146ff8148482dbeab57fbd70b9ab068b7db765051e54c53a367a92942"
+    },
+    {
+      "path": "public/assets/icon_shield.png",
+      "bytes": 265,
+      "sha256": "6067880ba6f522d53dd49dc0b6d2b167116bf43e765f811e232bac043501fb61"
+    },
+    {
+      "path": "public/assets/icon_slash.png",
+      "bytes": 305,
+      "sha256": "6b2ca34aa607764104b17719471bc09a6308d9c76056803899be4c60fe13a929"
+    },
+    {
+      "path": "public/assets/icon_staff.png",
+      "bytes": 252,
+      "sha256": "73f9b93b1a23c524d0fbc573ead14994bd7fd0ca04b0dbd4c0fff6d49c27b298"
+    },
+    {
+      "path": "public/assets/icon_sword.png",
+      "bytes": 305,
+      "sha256": "6b2ca34aa607764104b17719471bc09a6308d9c76056803899be4c60fe13a929"
+    },
+    {
+      "path": "public/assets/icon_wood.png",
+      "bytes": 185,
+      "sha256": "d84062dec02225d4a0b5c54444423cb3aa118debce1d263761df0df8551dfdbe"
+    },
+    {
+      "path": "public/assets/lia_s_0.png",
+      "bytes": 924,
+      "sha256": "faaee0d5ae6b516858fdd2b0fb8bad8a0cfee16f7a5dc2d2da7337b22b4cb2cf"
+    },
+    {
+      "path": "public/assets/mage_s_0.png",
+      "bytes": 944,
+      "sha256": "3c50e2f8507a3d4297a2eb249a8eb3b4005bd08f6ef1565672b0008018f40f0d"
+    },
+    {
+      "path": "public/assets/merchant_s_0.png",
+      "bytes": 852,
+      "sha256": "fc9de3188293d2c13c69f171728d8a773f1a750e83dac7b87a36dc4a9e536bc0"
+    },
+    {
+      "path": "public/assets/ranger_s_0.png",
+      "bytes": 1022,
+      "sha256": "3f085bb0f09212683c26aacff10adbdfe218f8f39351bb79af6626914d005c5a"
+    },
+    {
+      "path": "public/assets/smith_s_0.png",
+      "bytes": 781,
+      "sha256": "90d99fb709214547a44669f26dd41416dfc66e2282b8349c5139fd526d29731b"
+    },
+    {
+      "path": "public/assets/title.png",
+      "bytes": 15034,
+      "sha256": "9e1e18a08d0f28fb629d92963a93967445adba1d750de7badd6d02cad2d4db23"
+    },
+    {
+      "path": "public/index.html",
+      "bytes": 7678,
+      "sha256": "5a42fbde33bd181b49f8c0009e0134e3c16f42bf16490e6a01abe7ab8b42899f"
+    },
+    {
+      "path": "public/style.css",
+      "bytes": 35074,
+      "sha256": "f9b1cb2066d1207c020b0320a9bb0ec7998d31b2a5946d671b5af7965e34e762"
+    },
+    {
+      "path": "render.yaml",
+      "bytes": 688,
+      "sha256": "ae7607db062a3da12380f5dc3ee95534742d560e7ef127c5e0f4a5d06fb05f86"
+    },
+    {
+      "path": "scripts/build.mjs",
+      "bytes": 428,
+      "sha256": "d94bdea033d071bea5d5bc156e228431f7381e5e4a2ea7af27b286ed85105917"
+    },
+    {
+      "path": "scripts/check-deploy.mjs",
+      "bytes": 1581,
+      "sha256": "fc61ebae06dda0c1d74ef2184f66d952cacfc7c06e4846a26a8cf4779e7ee807"
+    },
+    {
+      "path": "server/game.js",
+      "bytes": 31541,
+      "sha256": "824efa009fce7457d6be0d04d6f19d53e751fbb58caa71c1bc064236bb4e6ffa"
+    },
+    {
+      "path": "server/index.js",
+      "bytes": 14748,
+      "sha256": "34423b5f4bc72f0dfca33d6356622022f61b10e9badd27065cc6a81b5a6494f2"
+    },
+    {
+      "path": "server/store.js",
+      "bytes": 4559,
+      "sha256": "19f838203ef1f1c7b3ad7acc6f30c9760de490e85384e5a1c41ae8f7d45f9172"
+    },
+    {
+      "path": "server/wire.js",
+      "bytes": 3702,
+      "sha256": "2104bf80db1e144c2254016ba50cc240d0f10a5110060745e1d5ee791a930831"
+    },
+    {
+      "path": "shared/content.js",
+      "bytes": 20192,
+      "sha256": "8c9bdcaf63bb9582338adaedfabd2d51a2b43823615d0d7d3dcf54cf56150e16"
+    },
+    {
+      "path": "shared/world.js",
+      "bytes": 8861,
+      "sha256": "d75367b8c3827f96ec0e33bef7b1f7863de2d17d5e0fc474e63d379a494f7c54"
+    },
+    {
+      "path": "start-local.sh",
+      "bytes": 299,
+      "sha256": "6c21ead0372760b2dd7507d43d658562c327b13a57f635eeab0702a5af524851"
+    },
+    {
+      "path": "supabase/setup.sql",
+      "bytes": 1419,
+      "sha256": "c63c621ad7f83e922057f4aa69455d0b82b298cbbb49eb60809ebdd6d28480b8"
+    },
+    {
+      "path": "tests/browser.py",
+      "bytes": 9689,
+      "sha256": "52c106a3047f97c73bd0d95aeec502b99b5f60877f92223ba0fd1262269f696a"
+    },
+    {
+      "path": "tests/game.test.js",
+      "bytes": 11965,
+      "sha256": "ff452de4cd0790c0a6c4d5ae5237d76a8a3f4731fdaa5dae0db0faa7639cb472"
+    },
+    {
+      "path": "tests/load.mjs",
+      "bytes": 3845,
+      "sha256": "1f08e4930985b2fce64be2ccadbf6706003b04f1309d555ab949ebb9072d4d12"
+    },
+    {
+      "path": "tests/network.test.js",
+      "bytes": 8013,
+      "sha256": "3e32a05aa8240a293c0012805fe99081c09a358197b776f06847807ddd453441"
+    },
+    {
+      "path": "tests/store.test.js",
+      "bytes": 3563,
+      "sha256": "e8c167a61adc416240bab669afb3811daa4f539a894b6934fc5ec0c7b821ebcf"
+    },
+    {
+      "path": "tests/visual_world.py",
+      "bytes": 3503,
+      "sha256": "d2b245fd9f0fbb38d9e17dc0788d5c1f50b8527d270767f98b5f6dc126b365a5"
+    },
+    {
+      "path": "tools/generate_art.py",
+      "bytes": 34307,
+      "sha256": "ab589f8c0b490cc9a11939e9d005cbacc26b168a46559fbfaea5ef06643da1fc"
+    }
+  ]
+}
