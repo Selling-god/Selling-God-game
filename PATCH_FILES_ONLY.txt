@@ -1,5 +1,0 @@
-server.js
-public/app.js
-public/styles.css
-public/index.html
-data/catalog.json
