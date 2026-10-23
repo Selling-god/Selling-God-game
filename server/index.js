@@ -23,7 +23,7 @@ if(anon&&secret&&anon===secret)throw new Error('Public and server Supabase keys 
 const configured=Boolean(url&&anon&&secret);
 const devGuest=!production&&process.env.ALLOW_DEV_GUEST==='true'&&!configured;
 const maxPlayers=Math.max(2,Math.min(100,parseInt(process.env.MAX_PLAYERS||'24',10)||24));
-const snapshotHz=Math.max(2,Math.min(12,parseInt(process.env.SNAPSHOT_HZ||'6',10)||6));
+const snapshotHz=Math.max(2,Math.min(12,parseInt(process.env.SNAPSHOT_HZ||'10',10)||10));
 const store=new CharacterStore({url:configured?url:'',key:secret,local:devGuest,dir:devGuest&&process.env.DEV_DATA_DIR?path.resolve(process.env.DEV_DATA_DIR):path.join(root,'.local-data')});
 const isLocal=(ip='')=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(ip);
 const buckets=new Map();
@@ -71,6 +71,7 @@ const io=new WireServer(server,{
 });
 const sockets=new Map(),joining=new Set(),saveTimers=new Map();
 const game=new Game({
+  eventStore:configured||devGuest?store:null,
   send:(id,event,data)=>sockets.get(id)?.emit(event,data),
   broadcast:(zone,event,data)=>{
     for(const [id,socket]of sockets){
@@ -122,7 +123,7 @@ io.on('connection',async(socket)=>{
   try{
     const existing=game.players.get(id);
     if(existing){
-      existing.active=true;existing.input={x:0,y:0};existing.path=[];
+      existing.active=true;existing.input={x:0,y:0};existing.path=[];existing.inputSeq=0;existing.motionId=(existing.motionId||0)+1;
       socket.emit('welcome',{existing:true,profile:game.privatePlayer(existing),local:devGuest});
       socket.emit('state',game.snapshot(existing,true));
     }else{
@@ -136,13 +137,13 @@ io.on('connection',async(socket)=>{
     if(joining.has(id)||game.players.has(id))return ack({ok:false,error:'이미 접속 중인 캐릭터입니다.'});
     const name=String(data?.name||'').trim().normalize('NFC');
     if(!/^[\p{L}\p{N} _-]{2,14}$/u.test(name)||/^\s+$/.test(name))return ack({ok:false,error:'닉네임은 한글·영문·숫자 2~14자로 입력해 주세요.'});
-    if(!Object.hasOwn(CLASSES,data?.classId))return ack({ok:false,error:'직업을 선택해 주세요.'});
+
     joining.add(id);
     try{
       if(!await store.nameAvailable(name,id))throw new Error('이미 사용 중인 닉네임입니다.');
       const saved=await store.load(id);
       if(saved)throw new Error('이미 생성된 캐릭터가 있습니다. 새로고침해 주세요.');
-      const state=newCharacter(id,name,data.classId);
+      const state=newCharacter(id,name,'novice');
       await store.save(state);
       if(!socket.connected)return;
       const p=game.addPlayer(state);
@@ -167,7 +168,7 @@ io.on('connection',async(socket)=>{
       p.actions.set(data.nonce,result);
       while(p.actions.size>256)p.actions.delete(p.actions.keys().next().value);
       ack(result);
-      if(result.ok&&['buy','sell','craft','enhance','quest','equip','title'].includes(data.type))scheduleSave(p);
+      if(result.ok&&['buy','sell','craft','enhance','quest','equip','title','changeJob','dailyClaim','achievement','interact','allocateStats','resetStats','recoverSoul'].includes(data.type))scheduleSave(p);
     }catch(e){console.error('Action error:',e);ack({ok:false,error:'요청을 처리하지 못했습니다.'});}
   });
   socket.on('chat',(data,ack=()=>{})=>{

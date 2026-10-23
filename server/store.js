@@ -80,5 +80,34 @@ export class CharacterStore {
     }
     return out.sort((a,b)=>b.level-a.level||b.bossKills-a.bossKills).slice(0,30);
   }
+  async beginWorldEvent(id,initial){
+    if(this.online){
+      await this.request('/rest/v1/starfall_world_events?on_conflict=id',{
+        method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:{id,state:initial}
+      });
+      const rows=await this.request('/rest/v1/starfall_world_events?select=state&id=eq.'+encodeURIComponent(id)+'&limit=1');
+      if(!rows?.length)throw new Error('World-event ledger unavailable');
+      return rows[0].state;
+    }
+    if(!this.local)throw new Error('World-event storage not configured');
+    await fs.mkdir(path.join(this.dir,'events'),{recursive:true});
+    const f=path.join(this.dir,'events',id.replace(/[^a-zA-Z0-9_-]/g,'_')+'.json');
+    try{return JSON.parse(await fs.readFile(f,'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
+    await fs.writeFile(f,JSON.stringify(initial));return initial;
+  }
+  saveWorldEvent(id,state){
+    const key='event:'+id,copy=structuredClone(state),previous=this.queues.get(key)||Promise.resolve();
+    const next=previous.catch(()=>{}).then(async()=>{
+      if(this.online)await this.request('/rest/v1/starfall_world_events?on_conflict=id',{
+        method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:{id,state:copy,updated_at:new Date().toISOString()}
+      });
+      else if(this.local){
+        const dir=path.join(this.dir,'events');await fs.mkdir(dir,{recursive:true});
+        const f=path.join(dir,id.replace(/[^a-zA-Z0-9_-]/g,'_')+'.json');await fs.writeFile(f+'.tmp',JSON.stringify(copy));await fs.rename(f+'.tmp',f);
+      }
+    });
+    this.queues.set(key,next);next.finally(()=>{if(this.queues.get(key)===next)this.queues.delete(key);}).catch(()=>{});
+    return next;
+  }
   async flush(){await Promise.allSettled([...this.queues.values()]);}
 }
