@@ -11,7 +11,7 @@ export class EquipmentRenderer{
   const cv=document.createElement('canvas');cv.width=48;cv.height=64;const c=cv.getContext('2d');c.imageSmoothingEnabled=false;
   const draw=name=>{const s=meta[name];if(s)c.drawImage(atlas,s.x,s.y,s.w,s.h,0,0,s.w,s.h);};
   draw(`body_${direction}_${frame}`);
-  for(const slot of ['armor','charm','weapon'])if(gear[slot])draw(`gear_${gear[slot]}_${direction}_${frame}`);
+  for(const slot of ['armor','charm','weapon'])if(gear[slot])draw(`gear_${({atlas_coat:'explorer_coat',pilgrim_charm:'relic_charm',memory_crown:'dawn_charm'})[gear[slot]]||gear[slot]}_${direction}_${frame}`);
   this.cache.set(key,cv);if(this.cache.size>700)this.cache.delete(this.cache.keys().next().value);
   return cv;
  }

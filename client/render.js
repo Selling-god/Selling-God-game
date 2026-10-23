@@ -1,3 +1,5 @@
+import {GroundChunks} from './ground-chunks.js';
+import {nearbyScenery} from '../shared/spatial.js';
 import {EquipmentRenderer,drawBossGear} from './equipment.js';
 import {drawSkillEffect} from './effects.js';
 import {THEMES} from '../shared/visuals.js';
@@ -9,7 +11,7 @@ const loadImage=src=>new Promise((resolve,reject)=>{const i=new Image();i.onload
 export class Renderer {
   constructor(canvas){
     this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.w=0;this.h=0;
-    this.atlas=null;this.meta=null;this.gear=new EquipmentRenderer();this.map=null;this.backgrounds=new Map();this.state=null;this.profile=null;
+    this.atlas=null;this.meta=null;this.gear=new EquipmentRenderer();this.map=null;this.backgrounds=new Map();this.ground=new GroundChunks();this.state=null;this.profile=null;
     this.local=null;this.positions=new Map();this.effects=[];this.damage=[];this.flash=new Map();
     this.camera={x:0,y:0};this.zoom=1.65;this.zoomSetting=1;this.shake=0;this.showEffects=true;
     this.last=performance.now();this.clock=0;this.motion=new LocalMotion();this.snapshotPeriod=100;this.lastSnapshotTime=0;this.lowPower=false;this.shakeEnabled=false;this.lastInput={x:0,y:0};
@@ -18,7 +20,7 @@ export class Renderer {
     window.addEventListener('resize',()=>this.resize());this.resize();
   }
   async load(){
-    [this.atlas,this.meta]=await Promise.all([loadImage('/assets/atlas.png?v=2.0.0'),fetch('/assets/atlas.json?v=2.0.0').then(r=>r.json())]);
+    [this.atlas,this.meta]=await Promise.all([loadImage('/assets/atlas.png?v=3.0.0'),fetch('/assets/atlas.json?v=3.0.0').then(r=>r.json())]);
   }
   resize(){
     this.w=window.innerWidth;this.h=window.innerHeight;
@@ -30,7 +32,7 @@ export class Renderer {
   setZone(id){
     this.map=createMap(id);this.positions.clear();this.effects=[];this.damage=[];this.mapCache=null;
     if(this.state?.self)this.camera={x:this.state.self.x,y:this.state.self.y};
-    if(!this.backgrounds.has(id))this.makeGround();
+    this.ground.clear();this.flash.clear();
   }
   setState(s){
     const now=performance.now(),estimate=s.t-Date.now()+this.motion.rtt/2;
@@ -54,22 +56,7 @@ export class Renderer {
   clickMove(point){this.motion.click(this.map,point);}
   predictDash(){if(this.state)this.motion.dash(this.lastInput,performance.now(),this.state.self.dir);}
   start(){if(this.running)return;this.running=true;this.last=performance.now();requestAnimationFrame(t=>this.frame(t));}
-  makeGround(){
-    const m=this.map,cv=document.createElement('canvas');cv.width=m.width;cv.height=m.height;
-    const c=cv.getContext('2d');c.imageSmoothingEnabled=false;
-    for(let y=0;y<m.h;y++)for(let x=0;x<m.w;x++){
-      const v=((x*17+y*31+x*y)%8),sprite=this.meta[`tile_${ZONES[m.id].theme}_${m.tiles[y*m.w+x]}_${v}`]||this.meta[`tile_forest_${m.tiles[y*m.w+x]}_${v}`];
-      c.drawImage(this.atlas,sprite.x,sprite.y,32,32,x*TILE,y*TILE,32,32);
-    }
-    // Shore stones, occasional pavers and delicate meadow flecks.
-    for(let y=2;y<m.h-2;y++)for(let x=2;x<m.w-2;x++){
-      const kind=m.tiles[y*m.w+x],left=m.tiles[y*m.w+x-1];
-      if(kind!==2&&left===2){c.fillStyle=m.id==='citadel'?'#a06850':'#7b8b72';c.fillRect(x*TILE,y*TILE+3,3,22);}
-      if(kind===1&&x%4===1&&y%3===1){c.fillStyle=m.id==='ruins'?'#858495':'#989277';c.fillRect(x*TILE+7,y*TILE+14,9,2);}
-    }
-    this.backgrounds.set(m.id,cv);
-    while(this.backgrounds.size>3){const oldest=this.backgrounds.keys().next().value;this.backgrounds.delete(oldest);}
-  }
+  makeGround(){this.ground.clear();}
   sprite(name,x,y,scale=1,alpha=1){
     const s=this.meta[name];if(!s)return;
     const c=this.ctx;c.globalAlpha=alpha;
@@ -123,7 +110,9 @@ export class Renderer {
     const shakeX=this.showEffects?(Math.random()-.5)*this.shake:0,shakeY=this.showEffects?(Math.random()-.5)*this.shake:0;
     this.shake*=.85;
     c.translate(this.w/2+shakeX,this.h/2+shakeY);c.scale(this.zoom,this.zoom);c.translate(-this.camera.x,-this.camera.y);
-    c.drawImage(this.backgrounds.get(m.id),0,0);
+    this.ground.draw(c,m,this.camera,halfX,halfY,this.atlas,this.meta,this.lowPower);
+    const visibleProps=nearbyScenery(m,this.camera.x-halfX-180,this.camera.y-halfY-180,this.camera.x+halfX+180,this.camera.y+halfY+180);
+    for(const [id,expiry]of this.flash)if(expiry<t)this.flash.delete(id);
     const inView=(x,y,r=160)=>Math.abs(x-this.camera.x)<halfX+r&&Math.abs(y-this.camera.y)<halfY+r;
     // Water glints animate without repainting the tile map.
     c.fillStyle=m.id==='citadel'?'#d8956540':'#8ab7aa25';
@@ -155,7 +144,7 @@ export class Renderer {
       c.strokeStyle='#e9d5a2';c.lineWidth=1;c.beginPath();c.ellipse(this.pointerMark.x,this.pointerMark.y,9,4,0,0,Math.PI*2);c.stroke();
     }
     const drawables=[];
-    for(const obj of m.props)if(inView(obj.x,obj.y))drawables.push({y:obj.y,draw:()=>{
+    for(const obj of visibleProps)if(inView(obj.x,obj.y))drawables.push({y:obj.y,draw:()=>{
       const behind=(obj.sprite==='tree'||obj.sprite==='pine'||obj.sprite.startsWith('house'))&&target.y<obj.y&&target.y>obj.y-100&&Math.abs(target.x-obj.x)<55;
       this.sprite(obj.sprite,obj.x,obj.y,obj.scale||1,behind?.42:1);
     }});
@@ -173,6 +162,20 @@ export class Renderer {
         this.sprite('relic_stone',relic.x,relic.y,.75,known?.7:1);
         if(!known)this.glow(relic.x,relic.y-25,38,'#d5b4f2',.12);
         if(dist(target,relic)<140){this.label(relic.name,relic.x,relic.y-56,'#d9c7ed',10);this.label(known?'F 문장 다시 읽기':'F 잊힌 기록 발견',relic.x,relic.y-43,'#bcc7bd',8);}
+      }});
+    }
+    for(const point of m.storyPoints||[])if(inView(point.x,point.y)){
+      const known=!point.hidden||this.profile?.journey?.discovered?.includes(point.job)||this.profile?.discovery?.jobs?.includes(point.job);
+      drawables.push({y:point.y,draw:()=>{
+        this.shadow(point.x,point.y,point.kind==='camp'?25:16);
+        this.sprite(known?point.sprite:'relic_stone',point.x,point.y,point.kind==='mentor'?.8:.75);
+        const close=dist(target,point)<160;
+        const color=point.kind==='camp'?'#a8d4b4':point.kind==='trial'?'#dba6b7':'#d7c7a2';
+        if(this.showEffects&&point.kind!=='mentor'&&close)this.glow(point.x,point.y-20,45,color,.10);
+        if(close){
+          this.label(known?point.name:'이름 없는 흔적',point.x,point.y-97,color,10);
+          this.label(point.kind==='mentor'?'F 대화 · 전직 이야기':point.kind==='camp'?'F 야영지 · 귀환석':point.kind==='trial'?'F 기억의 시련':'F 기록 읽기',point.x,point.y-83,'#becbc2',9);
+        }else if(point.kind==='mentor'&&known)this.label('◇',point.x,point.y-65,'#e4c697',16);
       }});
     }
     for(const npc of m.npcs)if(inView(npc.x,npc.y))drawables.push({y:npc.y,draw:()=>{
@@ -223,10 +226,23 @@ export class Renderer {
     for(const o of drawables)o.draw();
     // Soft additive lights are intentionally limited to a few scene objects.
     if(this.showEffects){
-      for(const o of m.props)if(inView(o.x,o.y,0)&&['campfire','lantern','forge'].includes(o.sprite)){
+      for(const o of visibleProps)if(inView(o.x,o.y,0)&&['campfire','lantern','forge'].includes(o.sprite)){
         this.glow(o.x,o.y-(o.sprite==='lantern'?52:22),o.sprite==='campfire'?105:65,'#e7b56d',.12+.02*Math.sin(t/370));
       }
       if(m.id!=='town')this.glow(target.x,target.y-20,130,CLASSES[p.classId].color,.035);
+    }
+    const guide=this.profile?.storyTracker?.destination;
+    if(guide?.zone===m.id&&this.profile.storyTracker.active){
+      const gx=guide.x,gy=guide.y;
+      if(inView(gx,gy,0)){
+        c.strokeStyle='#ecd59f';c.setLineDash([5,7]);c.beginPath();c.ellipse(gx,gy,28,12,0,0,Math.PI*2);c.stroke();c.setLineDash([]);
+        this.label('◆ 추적 중',gx,gy-90,'#f1d8a6',10);
+      }else{
+        const angle=Math.atan2(gy-target.y,gx-target.x),distance=Math.floor(Math.hypot(gx-target.x,gy-target.y)/TILE);
+        const px=target.x+Math.cos(angle)*95,py=target.y+Math.sin(angle)*95;
+        c.save();c.translate(px,py);c.rotate(angle);c.fillStyle='#ecd59f';c.beginPath();c.moveTo(10,0);c.lineTo(-5,-5);c.lineTo(-5,5);c.closePath();c.fill();c.restore();
+        this.label(distance+'칸',px,py-16,'#ecd59f',8);
+      }
     }
     this.drawEffects(t);
     c.restore();
@@ -326,9 +342,19 @@ export class Renderer {
       this.mapCache=cv;
     }
     c.imageSmoothingEnabled=false;c.drawImage(this.mapCache,ox,oy,m.width*scale,m.height*scale);
+    const fog=new Set(this.profile?.atlas?.fog?.[m.id]||[]);
+    if(ZONES[m.id].expedition){
+      const cols=Math.ceil(m.w/8),rows=Math.ceil(m.h/8);c.fillStyle='#08131bed';
+      for(let yy=0;yy<rows;yy++)for(let xx=0;xx<cols;xx++)if(!fog.has(yy*cols+xx))c.fillRect(ox+xx*256*scale,oy+yy*256*scale,256*scale+1,256*scale+1);
+    }
     const dot=(x,y,col,r=2)=>{c.fillStyle=col;c.beginPath();c.arc(ox+x*scale,oy+y*scale,r,0,Math.PI*2);c.fill();};
     for(const r of m.relics||[])dot(r.x,r.y,this.profile?.discovery?.relics?.includes(r.id)?'#887d98':'#dab9f4',big?4:2);
     if(this.state.soul)dot(this.state.soul.x,this.state.soul.y,'#b2eef4',big?6:3);
+    for(const point of m.storyPoints||[]){
+      const seen=!ZONES[m.id].expedition||fog.has(Math.floor(point.y/256)*Math.ceil(m.w/8)+Math.floor(point.x/256));
+      if(!seen||point.hidden&&!this.profile?.journey?.discovered?.includes(point.job)&&!this.profile?.discovery?.jobs?.includes(point.job))continue;
+      dot(point.x,point.y,point.kind==='camp'?'#a7dab6':point.kind==='trial'?'#db9ea9':'#e4cea6',big?4:2);
+    }
     for(const n of m.npcs)dot(n.x,n.y,'#ecd3a0',big?4:2);
     for(const p of m.portals){dot(p.x,p.y,'#b7a5ee',big?5:3);if(big){c.fillStyle='#e6d9bd';c.font='12px sans-serif';c.textAlign='center';c.fillText(p.name,ox+p.x*scale,oy+p.y*scale-10);}}
     for(const mob of this.state.mobs)if(MONSTERS[mob.type].boss)dot(mob.x,mob.y,'#e39791',big?6:3);

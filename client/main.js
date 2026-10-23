@@ -1,3 +1,4 @@
+import {adventurePanel,storyTrackHTML} from './adventure-ui.js';
 import {rpgPanel,enhancementRows} from './rpg-ui.js';
 import {freePoints,ATTRIBUTE_KEYS,resetPrice,spentPoints,enhancementBonus} from '../shared/rpg.js';
 import { expansionPanel, timeLeft } from './expansion-ui.js';
@@ -56,7 +57,7 @@ function resetControls(){
 function profileChanged(p){
   const previousClass=profile?.classId;
   profile=p;renderer.profile=p;
-  const sig=JSON.stringify([p.inventory,p.equipment,p.enhancements,p.quests,p.completed,p.level,p.gold,p.titles,p.classId,p.discovery,p.daily,p.attributes,p.enhancePity,p.deathWeakUntil,p.soul]);
+  const sig=JSON.stringify([p.inventory,p.equipment,p.enhancements,p.quests,p.completed,p.level,p.gold,p.titles,p.classId,p.discovery,p.journey,p.atlas,p.storyTracker,p.daily,p.attributes,p.enhancePity,p.deathWeakUntil,p.soul]);
   if(previousClass&&previousClass!==p.classId)renderAbilities();
   const portraitKey=JSON.stringify([p.equipment,p.enhancements]);
   if(portraitKey!==lastPortraitKey){lastPortraitKey=portraitKey;$('portrait').src=renderer.avatarURL(p);}
@@ -136,6 +137,11 @@ async function connectGame(){
     net.on('jobUnlocked',()=>{if(modal==='jobs')action({type:'jobs'});sound.play('level');});
     net.on('jobChanged',()=>{action({type:'jobs'});sound.play('level');});
     net.on('relicRead',data=>openPanel('relic',data));
+    net.on('storyView',data=>{
+      if(modal==='story'&&window._modalData?.id===data.id){window._modalData=data;refreshPanel();}
+      else openPanel('story',data);
+    });
+    net.on('atlasScene',data=>openPanel('atlasScene',data));
     net.on('worldNotice',data=>{addChat({channel:'system',text:data.message});notice(data.message,'info',8500);});
     net.on('dialog',e=>{const npc=NPCS.find(n=>n.id===e.npc);if(npc)openPanel(npc.kind==='quest'?'npcQuest':npc.kind==='shop'?'shop':npc.kind==='craft'?'craft':npc.kind==='jobs'?'jobs':'healer');});
     net.on('chat',msg=>{if(!mutedPlayers.has(msg.playerId))addChat(msg);});
@@ -170,7 +176,7 @@ async function connectGame(){
 }
 function renderClasses(){
   selectedClass='novice';
-  $('class-list').innerHTML=`<div class="novice-intro"><img src="${imgHero('novice')}" alt="무직 모험가"><div><span class="badge">아직 정해지지 않은 36개의 가능성</span><h3>길 잃은 모험가</h3><p>처음에는 직업을 고르지 않습니다.<br>직접 싸우고, 채집하고, 유물을 발견하며 나만의 길을 찾으세요.</p><small>일반 9 · 희귀 12 · 영웅 9 · 히든 6<br>레벨 2부터 첫 직업을 해금할 수 있습니다.</small></div></div>`;
+  $('class-list').innerHTML=`<div class="novice-intro"><img src="${imgHero('novice')}" alt="무직 모험가"><div><span class="badge">아직 정해지지 않은 36개의 가능성</span><h3>길 잃은 모험가</h3><p>처음에는 직업을 고르지 않습니다.<br>직접 싸우고, 채집하고, 유물을 발견하며 나만의 길을 찾으세요.</p><small>일반 9 · 희귀 12 · 영웅 9 · 히든 6<br>마을 남쪽의 스승을 찾아 첫 전직 이야기를 시작하세요.</small></div></div>`;
 }
 $('class-list').addEventListener('click',e=>{const b=e.target.closest('[data-class]');if(b){selectedClass=b.dataset.class;renderClasses();sound.play('click');}});
 $('create-character').addEventListener('click',async()=>{
@@ -211,13 +217,13 @@ function cast(id){
 }
 function renderTracker(){
   if(!profile)return;
-  const active=Object.entries(profile.quests||{});
+  const active=Object.entries(profile.quests||{}),story=storyTrackHTML(profile);
   if(!active.length){
     const complete=profile.completed?.includes('last_star');
-    $('tracked-quests').innerHTML=`<div class="quest-track"><h4>${complete?'새로운 모험을 기다리며':'리아를 찾아가세요'}</h4><div class="objective">${complete?'장비를 완성하고 다른 모험가를 도와주세요.':'마을 중앙의 별지기에게 F로 대화하세요.'}</div></div>`;
+    $('tracked-quests').innerHTML=story+`<div class="quest-track"><h4>${complete?'새로운 모험을 기다리며':'리아를 찾아가세요'}</h4><div class="objective">${complete?'장비를 완성하고 다른 모험가를 도와주세요.':'마을 중앙의 별지기에게 F로 대화하세요.'}</div></div>`;
     return;
   }
-  $('tracked-quests').innerHTML=active.map(([id,s])=>{
+  $('tracked-quests').innerHTML=story+active.map(([id,s])=>{
     const q=QUESTS.find(x=>x.id===id);if(!q)return '';
     const ready=q.objectives.every((o,i)=>(s.progress[i]||0)>=o.count);
     return `<div class="quest-track"><h4>${esc(q.name)}</h4>${q.objectives.map((o,i)=>`<div class="objective ${(s.progress[i]||0)>=o.count?'done':''}"><span>${esc(objectiveLabel(o))}</span><span>${s.progress[i]||0}/${o.count}</span></div>`).join('')}${ready?'<div class="quest-ready">✦ 마을의 리아에게 보상을 받으세요</div>':''}</div>`;
@@ -302,7 +308,8 @@ function renderPanel(){
   const p=profile,c=p&&CLASSES[p.classId],data=window._modalData;
   let title='',eyebrow='STARFALL ONLINE',html='';
   const rpg=profile&&rpgPanel(modal,{profile,draft:statDraft,data,now:Date.now()+renderer.clock});
-  const extra=rpg||(profile&&expansionPanel(modal,{profile,tab:modalTab,book:jobBookData,events:eventList,now:Date.now()+renderer.clock,data}));
+  const adventure=profile&&adventurePanel(modal,{profile,tab:modalTab,data,state,now:Date.now()+renderer.clock});
+  const extra=adventure||rpg||(profile&&expansionPanel(modal,{profile,tab:modalTab,book:jobBookData,events:eventList,now:Date.now()+renderer.clock,data}));
   if(extra){({title,eyebrow,html}=extra);}
   else if(modal==='inventory'){
     title='가방과 장비';eyebrow=`EQUIPMENT & INVENTORY · ${money(p.gold)} G`;
@@ -379,8 +386,8 @@ function renderPanel(){
   }else if(modal==='guide'){
     title='첫 모험을 위한 작은 안내';eyebrow='HOW TO FIND YOUR WAY';
     html=`<div class="info-box">마을 중앙의 <b>리아</b>에게 다가가 <b>F</b>로 첫 의뢰를 받으세요. 마을의 북쪽 문에서 다시 F를 누르면 숲으로 이동합니다. 적을 클릭해 선택하고 공격할 수 있으며, 선택하지 않으면 사거리 안의 가까운 적을 노립니다.</div>
-      <div class="controls-grid">${[['이동','WASD / 방향키'],['클릭 이동','빈 바닥 클릭'],['기본 공격','Space / Z'],['첫 번째 기술','Q'],['두 번째 기술 · Lv.3','E'],['궁극기 · Lv.5','R'],['무적 회피','Shift'],['대화 · 채집 · 이동','F'],['체력 / 마나 물약','1 / 2'],['가방 / 일지 / 지도','I / J / M'],['파티 / 설정','P / Esc'],['기본 공격 자동 반복','T'],['가까운 적 선택','Tab'],['마을 귀환','H']].map(([n,k])=>`<div class="control"><span>${n}</span><kbd>${k}</kbd></div>`).join('')}</div>
-      <div class="info-box">휴대폰·태블릿에서는 왼쪽 조이스틱과 오른쪽 공격·회피·F 버튼을 사용하세요. 공격 버튼을 길게 누르면 기본 공격을 반복합니다. 붉은 원·고리·직선은 보스의 공격 예고입니다. 회피의 짧은 무적 시간을 활용해 보세요.<br><br>쓰러져도 골드와 아이템을 잃지 않고 마을에서 다시 일어납니다. 회복 물약은 상인에게 구매하거나 약초로 제작할 수 있습니다.</div><button class="btn primary" data-act="close">모험 계속하기</button>`;
+      <div class="controls-grid">${[['이동','WASD / 방향키'],['클릭 이동','빈 바닥 클릭'],['기본 공격','Space / Z'],['첫 번째 기술','Q'],['두 번째 기술 · Lv.3','E'],['궁극기 · Lv.5','R'],['무적 회피','Shift'],['대화 · 채집 · 이동','F'],['체력 / 마나 물약','1 / 2'],['가방 / 의뢰 / 지도','I / J / M'],['직업 / 전직 이야기','C / V'],['파티 / 설정','P / Esc'],['기본 공격 자동 반복','T'],['가까운 적 선택','Tab'],['마을 귀환','H']].map(([n,k])=>`<div class="control"><span>${n}</span><kbd>${k}</kbd></div>`).join('')}</div>
+      <div class="info-box">휴대폰·태블릿에서는 왼쪽 조이스틱과 오른쪽 공격·회피·F 버튼을 사용하세요. 공격 버튼을 길게 누르면 기본 공격을 반복합니다. 붉은 원·고리·직선은 보스의 공격 예고입니다. 회피의 짧은 무적 시간을 활용해 보세요.<br><br>레벨 5부터 사망 시 골드·경험치 일부를 잃습니다. 10분 안에 영혼을 회수하면 손실 대부분을 되찾습니다. 장비와 레벨은 잃지 않습니다. 회복 물약은 상인에게 구매하거나 약초로 제작할 수 있습니다.</div><button class="btn primary" data-act="close">모험 계속하기</button>`;
   }else if(modal==='questReward'||modal==='ending'){
     title=modal==='ending'?'새벽이 돌아왔습니다':'의뢰를 마쳤습니다';eyebrow=modal==='ending'?'CHAPTER I · THE LAST STAR':'QUEST COMPLETE';
     html=`<div class="story-complete"><div class="star">✦</div><h3>${esc(data?.name)}</h3><p>${esc(data?.message)}</p><div class="reward-line">${data?.xp||0} EXP · ${data?.gold||0} G · 보상이 가방에 지급되었습니다.</div><p style="margin-top:15px">${modal==='ending'?'이야기를 마쳐도 모험은 계속됩니다. 다른 모험가를 돕고, 새벽 장비를 완성해 보세요.':'리아에게 다시 말을 걸면 다음 의뢰를 확인할 수 있습니다.'}</p><button class="btn primary" data-act="close">모험 계속하기</button></div>`;
@@ -457,6 +464,14 @@ document.addEventListener('click',async e=>{
   if(type==='reload'){location.reload();return;}
   if(type==='authMode'){accountMode=id;renderPanel();return;}
   if(type==='openJobs'){openPanel('jobs');return;}
+  if(type==='openStories'){openPanel('stories');return;}
+  if(type==='openAtlas'){openPanel('map');return;}
+  if(['storyView','storyAccept','storyPause','storyResume','storyTrack'].includes(type)){
+    await action({type,id});return;
+  }
+  if(type==='storyClaim'){
+    await action({type,id,chapter:Number(b.dataset.chapter),vow:b.dataset.vow||undefined});return;
+  }
   if(type==='openStats'){openPanel('stats');return;}
   if(type==='statPlus'||type==='statMinus'){
     if(!ATTRIBUTE_KEYS.includes(id))return;
@@ -501,13 +516,13 @@ document.addEventListener('click',async e=>{
   if(type==='acceptQuest')request={type:'quest',mode:'accept',id};
   else if(type==='claimQuest')request={type:'quest',mode:'claim',id};
   else if(type==='buy5')request={type:'buy',id,count:5};
-  else if(['equip','use','buy','sell','craft','enhance','partyInvite','changeJob','dailyClaim','achievement','worldJoin','travel'].includes(type))request={type,id};
+  else if(['equip','use','buy','sell','craft','enhance','partyInvite','changeJob','dailyClaim','achievement','worldJoin','travel','waypoint','contractAccept','contractClaim','trialStart','surveyClaim'].includes(type))request={type,id};
   else if(['partyAccept','partyLeave','return'].includes(type))request={type};
   if(request){
     b.disabled=true;const result=await action(request);if(b.isConnected)b.disabled=false;
     if(result.ok){
       if(type==='partyAccept'){b.closest('.notice')?.remove();notice('파티에 합류했습니다.','success');}
-      if(['return','travel','worldJoin'].includes(type))closeModal();
+      if(['return','travel','worldJoin','waypoint','trialStart'].includes(type))closeModal();
       uiRefreshNeeded=true;
     }
   }
@@ -546,6 +561,7 @@ document.addEventListener('keydown',e=>{
   if(k==='shift')cast('dash');if(k==='f')action({type:'interact'});
   if(k==='1')cast('potion');if(k==='2')cast('mana');
   if(k==='h')action({type:'return'});
+  if(k==='v')openPanel('stories');
   if(k==='t'){autoAttack=!autoAttack;notice(autoAttack?'자동 기본 공격 켜짐':'자동 기본 공격 꺼짐');}
   if(['i','j','m','p','c','b','n','u'].includes(k))openPanel({i:'inventory',j:'journal',m:'map',p:'party',c:'jobs',b:'events',n:'chronicle',u:'stats'}[k]);
   if(k==='enter'){$('chat').classList.remove('collapsed');$('chat-input').focus();}
@@ -590,7 +606,7 @@ $('world').addEventListener('pointerdown',e=>{
   const point=renderer.screenToWorld(e.clientX,e.clientY);
   const mobs=state.mobs.filter(m=>dist(m,point)<(MONSTERS[m.type].boss?60:34)).sort((a,b)=>dist(a,point)-dist(b,point));
   if(mobs.length){action({type:'target',id:mobs[0].id});cast('basic');return;}
-  const interactables=[...(state.soul?[state.soul]:[]),...renderer.map.npcs,...renderer.map.portals,...(renderer.map.relics||[]),...state.nodes.filter(x=>x.ready),...renderer.map.chests.filter(x=>!profile.opened.includes(x.id))];
+  const interactables=[...(state.soul?[state.soul]:[]),...renderer.map.npcs,...renderer.map.portals,...(renderer.map.relics||[]),...(renderer.map.storyPoints||[]),...state.nodes.filter(x=>x.ready),...renderer.map.chests.filter(x=>!profile.opened.includes(x.id))];
   const target=interactables.filter(x=>dist(point,x)<40).sort((a,b)=>dist(a,point)-dist(b,point))[0];
   if(target&&dist(state.self,target)<95){action({type:'interact',id:target.id});return;}
   if(target)pendingInteract={...target};
@@ -656,6 +672,7 @@ function updateHUD(){
     ...renderer.map.npcs.map(x=>({...x,label:x.name+' · '+x.role})),
     ...renderer.map.portals.map(x=>({...x,label:x.name+' 이동'})),
     ...(renderer.map.relics||[]).map(x=>({...x,label:x.name+' · 문장 읽기'})),
+    ...(renderer.map.storyPoints||[]).map(x=>({...x,label:(x.hidden&&!profile.journey?.discovered?.includes(x.job)?'이름 없는 흔적':x.name)+' · F 대화'})),
     ...state.nodes.filter(x=>x.ready).map(x=>({...x,label:ITEMS[x.type].name+' 채집'})),
     ...renderer.map.chests.filter(x=>!p.opened.includes(x.id)).map(x=>({...x,label:'보물 상자 열기'}))
   ].filter(x=>dist(s,x)<95).sort((a,b)=>dist(s,a)-dist(s,b));
@@ -664,7 +681,7 @@ function updateHUD(){
   for(const element of document.querySelectorAll('[data-countdown]'))element.textContent=element.dataset.countdownMode+' '+timeLeft(Number(element.dataset.countdown)-now);
   const activeEvent=eventList.find(e=>e.status==='active'),nextEvent=eventList.filter(e=>e.start>now).sort((a,b)=>a.start-b.start)[0];
   const event=activeEvent||nextEvent;
-  if($('world-status')){$('world-status').textContent=event?`${activeEvent?'출현 중':'다음 월드 보스'} · ${event.name.split(' · ')[0]} · ${timeLeft((activeEvent?event.end:event.start)-now)}  [B]`:'월드 보스 시간표 [B]';}
+  if($('world-status')){$('world-status').textContent=state.fieldTrial?`기억의 시련 ${state.fieldTrial.wave}/3 · 남은 적 ${state.fieldTrial.alive} · ${timeLeft(state.fieldTrial.ends-now)}`:event?`${activeEvent?'출현 중':'다음 월드 보스'} · ${event.name.split(' · ')[0]} · ${timeLeft((activeEvent?event.end:event.start)-now)}  [B]`:'월드 보스 시간표 [B]';}
   const party=state.party;
   const partySig=party?JSON.stringify(party.members.map(m=>[m.name,m.hp,m.maxHp,m.online])):'';
   if($('party-mini').dataset.sig!==partySig){
