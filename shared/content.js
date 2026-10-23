@@ -1,7 +1,8 @@
 import { cleanAttributes, enhancementBonus } from './rpg.js';
 import { installBossGear } from './visuals.js';
+import { installExpeditions } from './expeditions.js';
 import { installExpansion } from './expansion.js';
-export const VERSION = '2.0.0';
+export const VERSION = '3.0.0';
 export const TILE = 32;
 export const MAX_LEVEL = 30;
 export const CLASSES = {
@@ -164,3 +165,7 @@ export const getStats = (p, now=Date.now()) => {
 installExpansion({CLASSES,ITEMS,MONSTERS,ZONES,NPCS,QUESTS,RECIPES,SHOP});
 
 installBossGear({ITEMS,RECIPES,MONSTERS});
+installExpeditions({ZONES,MONSTERS,ITEMS,RECIPES});
+
+// Every region, including the original four, has a stable UI/save identifier.
+for(const [id,zone]of Object.entries(ZONES))zone.id=id;

@@ -1,3 +1,7 @@
+import { EXPEDITION_ZONES } from './expeditions.js';
+import { VOCATION_SITES } from './vocation-sites.js';
+import { buildExpedition } from './expedition-world.js';
+import { indexScenery } from './spatial.js';
 import { FRONTIER, RELICS } from './expansion.js';
 import { buildFrontier } from './frontier-world.js';
 import { TILE, ZONES, NPCS } from './content.js';
@@ -45,11 +49,44 @@ for(const [a,b]of edges){
 }
 for(const z of FRONTIER)BOSS_SPAWNS[z.id]={x:42*TILE+16,y:12*TILE+16,type:z.boss};
 
+
+// Each province is a 3 x 3 traversable graph, not nine disconnected level selections.
+for(const z of EXPEDITION_ZONES){
+ PORTALS[z.id]=[];
+ BOSS_SPAWNS[z.id]={x:Math.floor(z.width/2)*TILE+16,y:Math.floor(z.height/2)*TILE+16,type:ZONES[z.id].boss};
+}
+const joinRoad=(a,b,sideA,sideB)=>{
+ const cell=(id,side)=>{const z=ZONES[id];return side==='n'?[Math.floor(z.width/2),4]:
+ side==='s'?[Math.floor(z.width/2),z.height-5]:side==='e'?[z.width-5,Math.floor(z.height/2)]:[4,Math.floor(z.height/2)];};
+ const [ax,ay]=cell(a,sideA),[bx,by]=cell(b,sideB);
+ PORTALS[a].push({id:`${a}_to_${b}`,x:ax*TILE+16,y:ay*TILE+16,to:b,tx:bx*TILE+16,ty:by*TILE+16,name:ZONES[b].name,level:ZONES[b].minLevel});
+ PORTALS[b].push({id:`${b}_to_${a}`,x:bx*TILE+16,y:by*TILE+16,to:a,tx:ax*TILE+16,ty:ay*TILE+16,name:ZONES[a].name,level:ZONES[a].minLevel});
+};
+for(const z of EXPEDITION_ZONES){
+ const i=z.sector;
+ if(i%3<2)joinRoad(z.id,`${z.province}_reach_${i+1}`,'e','w');
+ if(i<6)joinRoad(z.id,`${z.province}_reach_${i+3}`,'s','n');
+ if(i===0){
+  const base=ZONES[z.province],x=(base.width-7)*TILE+16,y=(base.height-7)*TILE+16;
+  const tx=4*TILE+16,ty=(z.height-12)*TILE+16;
+  PORTALS[z.province].push({id:z.province+'_expedition',x,y,to:z.id,tx,ty,name:ZONES[z.id].name+' · 원정길',level:z.minLevel});
+  PORTALS[z.id].push({id:z.id+'_home',x:tx,y:ty,to:z.province,tx:x,ty:y,name:base.name+' · 귀로',level:base.minLevel});
+ }
+}
 const cache=new Map();
+export const mapCacheInfo=()=>({size:cache.size,limit:10});
+function remember(id,map){
+ indexScenery(map);
+ cache.delete(id);cache.set(id,map);
+ while(cache.size>10)cache.delete(cache.keys().next().value);
+ return map;
+}
+
 export function createMap(id) {
-  if(cache.has(id))return cache.get(id);
+  if(cache.has(id)){const map=cache.get(id);cache.delete(id);cache.set(id,map);return map;}
   const z=ZONES[id]; if(!z)throw new Error('Unknown zone');
-  if(z.seed){const map=buildFrontier(id,z,PORTALS[id],NPCS.filter(n=>n.zone===id));cache.set(id,map);return map;}
+  if(z.expedition)return remember(id,buildExpedition(id,z,PORTALS[id]));
+  if(z.seed){const map=buildFrontier(id,z,PORTALS[id],NPCS.filter(n=>n.zone===id));map.storyPoints=VOCATION_SITES.filter(s=>s.zone===id);return remember(id,map);}
   const {width:w,height:h}=z, seed={town:73,forest:928,ruins:1049,citadel:5408}[id], rand=seeded(seed);
   const tiles=new Uint8Array(w*h), blocked=new Uint8Array(w*h), props=[], resources=[], chests=[];
   const center=id==='town'?24:id==='forest'?30:28;
@@ -136,8 +173,13 @@ export function createMap(id) {
     for(let x=Math.min(tx,center);x<=Math.max(tx,center);x++)clearAt(x*TILE+16,ty*TILE+16,1);
     clearAt(target.x,target.y,1);
   }
-  cache.set(id,map);
-  return map;
+  map.storyPoints=VOCATION_SITES.filter(s=>s.zone===id);
+  for(const point of map.storyPoints){
+    const tx=Math.floor(point.x/TILE),ty=Math.floor(point.y/TILE);
+    for(let x=Math.min(tx,center);x<=Math.max(tx,center);x++)clearAt(x*TILE+16,ty*TILE+16,1);
+    clearAt(point.x,point.y,1);
+  }
+  return remember(id,map);
 }
 export function isBlocked(map,x,y,r=10) {
   if(!Number.isFinite(x)||!Number.isFinite(y))return true;
@@ -161,33 +203,43 @@ export function lineOfSight(map,a,b) {
   return true;
 }
 export function findPath(map,from,to) {
-  const sx=Math.floor(from.x/TILE),sy=Math.floor(from.y/TILE);
-  let ex=clamp(Math.floor(to.x/TILE),2,map.w-3),ey=clamp(Math.floor(to.y/TILE),2,map.h-3);
-  if(map.blocked[ey*map.w+ex]){
-    let found=false;
-    for(let r=1;r<=4&&!found;r++)for(let yy=ey-r;yy<=ey+r&&!found;yy++)for(let xx=ex-r;xx<=ex+r;xx++){
-      if(xx>1&&yy>1&&xx<map.w-2&&yy<map.h-2&&!map.blocked[yy*map.w+xx]){ex=xx;ey=yy;found=true;break;}
-    }
-    if(!found)return [];
+ if(!Number.isFinite(from.x)||!Number.isFinite(from.y)||!Number.isFinite(to.x)||!Number.isFinite(to.y))return [];
+ const sx=clamp(Math.floor(from.x/TILE),1,map.w-2),sy=clamp(Math.floor(from.y/TILE),1,map.h-2);
+ let ex=clamp(Math.floor(to.x/TILE),2,map.w-3),ey=clamp(Math.floor(to.y/TILE),2,map.h-3);
+ if(map.blocked[ey*map.w+ex]){
+  let found=false;
+  for(let r=1;r<=4&&!found;r++)for(let yy=ey-r;yy<=ey+r&&!found;yy++)for(let xx=ex-r;xx<=ex+r;xx++)
+   if(xx>1&&yy>1&&xx<map.w-2&&yy<map.h-2&&!map.blocked[yy*map.w+xx]){ex=xx;ey=yy;found=true;break;}
+  if(!found)return [];
+ }
+ const start=sy*map.w+sx,end=ey*map.w+ex;
+ if(start===end)return [{x:ex*TILE+16,y:ey*TILE+16}];
+ const size=map.w*map.h,g=new Float32Array(size).fill(Infinity),parent=new Int32Array(size).fill(-1),closed=new Uint8Array(size),heap=[];
+ const h=n=>{const dx=Math.abs(n%map.w-ex),dy=Math.abs(Math.floor(n/map.w)-ey);return Math.max(dx,dy)+.41421356*Math.min(dx,dy);};
+ const push=(n,f)=>{
+  let i=heap.length;heap.push({n,f});
+  while(i>0){const p=(i-1)>>1;if(heap[p].f<=f)break;heap[i]=heap[p];i=p;}heap[i]={n,f};
+ };
+ const pop=()=>{
+  const root=heap[0],last=heap.pop();if(heap.length){
+   let i=0;while(i*2+1<heap.length){let c=i*2+1;if(c+1<heap.length&&heap[c+1].f<heap[c].f)c++;if(last.f<=heap[c].f)break;heap[i]=heap[c];i=c;}heap[i]=last;
+  }return root.n;
+ };
+ g[start]=0;push(start,h(start));let loops=0;
+ const dirs=[[0,1],[1,0],[-1,0],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
+ while(heap.length&&loops++<size*3){
+  const cur=pop();if(closed[cur])continue;
+  if(cur===end){const out=[];for(let v=end;v!==start;v=parent[v]){if(v<0)return [];out.push({x:(v%map.w)*TILE+16,y:Math.floor(v/map.w)*TILE+16});}return out.reverse();}
+  closed[cur]=1;const cx=cur%map.w,cy=Math.floor(cur/map.w);
+  for(const [dx,dy]of dirs){
+   const x=cx+dx,y=cy+dy,n=y*map.w+x;
+   if(x<1||y<1||x>=map.w-1||y>=map.h-1||map.blocked[n]||closed[n])continue;
+   if(dx&&dy&&(map.blocked[cy*map.w+x]||map.blocked[y*map.w+cx]))continue;
+   const ng=g[cur]+(dx&&dy?1.41421356:1);
+   if(ng+1e-5<g[n]){g[n]=ng;parent[n]=cur;push(n,ng+h(n));}
   }
-  const start=sy*map.w+sx,end=ey*map.w+ex;
-  if(start===end)return [{x:ex*TILE+16,y:ey*TILE+16}];
-  const open=[start],g=new Map([[start,0]]),parent=new Map(),closed=new Set();
-  const heuristic=(n)=>Math.hypot(n%map.w-ex,Math.floor(n/map.w)-ey);
-  let loops=0;
-  while(open.length&&loops++<map.w*map.h){
-    open.sort((a,b)=>(g.get(a)+heuristic(a))-(g.get(b)+heuristic(b)));
-    const cur=open.shift();if(cur===end){const out=[];let v=end;while(v!==start){out.push({x:(v%map.w)*TILE+16,y:Math.floor(v/map.w)*TILE+16});v=parent.get(v);}return out.reverse();}
-    closed.add(cur);const cx=cur%map.w,cy=Math.floor(cur/map.w);
-    for(const [dx,dy]of [[0,1],[1,0],[-1,0],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]]){
-      const x=cx+dx,y=cy+dy,n=y*map.w+x;
-      if(x<1||y<1||x>=map.w-1||y>=map.h-1||map.blocked[n]||closed.has(n))continue;
-      if(dx&&dy&&(map.blocked[cy*map.w+x]||map.blocked[y*map.w+cx]))continue;
-      const ng=g.get(cur)+(dx&&dy?1.414:1);
-      if(ng<(g.get(n)??Infinity)){g.set(n,ng);parent.set(n,cur);if(!open.includes(n))open.push(n);}
-    }
-  }
-  return [];
+ }
+ return [];
 }
 export function spawnPoint(map,rand,avoidCenter=false) {
   for(let i=0;i<300;i++){
