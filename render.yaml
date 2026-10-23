@@ -18,7 +18,7 @@ services:
       - key: MAX_PLAYERS
         value: "24"
       - key: SNAPSHOT_HZ
-        value: "6"
+        value: "10"
       - key: WS_COMPRESSION
         value: "true"
       - key: SUPABASE_URL

@@ -1,14 +1,10 @@
 {
-  "project": "Starfall Online",
-  "version": "1.0.0",
-  "built_on": "2026-10-23",
-  "contents": "Source, original assets, deployment configuration, documentation, tests and execution screenshots.",
-  "excluded": "Private credentials, local test accounts, runtime data, installed dependencies, generated dist and temporary test adapters.",
+  "version": "2.0.0",
   "files": [
     {
       "path": ".env.example",
-      "bytes": 476,
-      "sha256": "6c38a95869c46dcc34ac779b35735508ae91c24291346c77a83d524b304527fb"
+      "bytes": 477,
+      "sha256": "6cea0bab6ab31e4f6cd69bc750eb9f61d0ee9730fbbc202510bb3d8ebddc8e73"
     },
     {
       "path": ".github/workflows/ci.yml",
@@ -26,14 +22,19 @@
       "sha256": "f14b4987904bcb5814e4459a057ed4d20f58a633152288a761214dcd28780b56"
     },
     {
+      "path": "CHANGELOG.md",
+      "bytes": 1024,
+      "sha256": "f070a5882a73825dec895f1dbab08268fe08e17b1bb1a312886ee96d0c4c887c"
+    },
+    {
       "path": "LICENSE",
       "bytes": 1356,
       "sha256": "2b1d29f92d3892b33964fa687e2e6b209ca9dc220edac10ed98a0517fb8d5008"
     },
     {
       "path": "README_KO.md",
-      "bytes": 20106,
-      "sha256": "e0dd24ec5c755a3f72da1abb29b9390b30b852ed282943bf217a4d93c2818d28"
+      "bytes": 21605,
+      "sha256": "2271a93b09dacf9c224f9366332ab090a3bcfd9142e2a0918d5b01d1f07b6062"
     },
     {
       "path": "SECURITY.md",
@@ -42,8 +43,8 @@
     },
     {
       "path": "START_HERE.html",
-      "bytes": 7986,
-      "sha256": "44c13595a887a7aeaacc56d1a85f8db797e28fc9b918b5d5bd251c3a86724817"
+      "bytes": 2779,
+      "sha256": "c60b8c40219426fd8b201e996a559f075a459bf528363958c4a245f8239772ba"
     },
     {
       "path": "START_LOCAL.bat",
@@ -56,9 +57,29 @@
       "sha256": "1316a3cb5e9c5d483d4c9ecfdcf6c39349d241af4af7d4b0ad0427ae52017ddd"
     },
     {
+      "path": "client/effects.js",
+      "bytes": 14123,
+      "sha256": "d6d79fd6f453346e2607a6ea52367bdf7973a50f674d55eeae65b3748bfb5f84"
+    },
+    {
+      "path": "client/equipment.js",
+      "bytes": 4354,
+      "sha256": "cec2969ecdf2f73547d5724d144c021279f560c96cc64fc95785dbf074881d3b"
+    },
+    {
+      "path": "client/expansion-ui.js",
+      "bytes": 9466,
+      "sha256": "f1fd367e880a4c860c7a49bb4343795b91bc5ad0fce288c6d9bfc6d89dab8256"
+    },
+    {
       "path": "client/main.js",
-      "bytes": 56899,
-      "sha256": "13991daad37d26892e96475d71a947617f15f6bdb3564fa5c5dade518271e602"
+      "bytes": 61993,
+      "sha256": "c158286889bd32df1856ddf8212df6694e3cd31d46631b6e1cfc91126cbe3a68"
+    },
+    {
+      "path": "client/motion.js",
+      "bytes": 4050,
+      "sha256": "b8495561aa413d5b59d0d5784a00b9ad3419afcd3b2945a4aee3c6098d1e4826"
     },
     {
       "path": "client/net.js",
@@ -67,108 +88,183 @@
     },
     {
       "path": "client/render.js",
-      "bytes": 18867,
-      "sha256": "096cfb926137d06b08301c6740d0b86f94e2afaf776aa06542bbe4e8479c3b5b"
+      "bytes": 21741,
+      "sha256": "ad8010dead028928b296e9d003cdcc2c6bbd6d85616557047f06e074238b52a9"
+    },
+    {
+      "path": "client/rpg-ui.js",
+      "bytes": 6057,
+      "sha256": "b1f57fb0d36bacaee157b0572ddcad1871a48d82d522e288e12d4a3fd71073f5"
     },
     {
       "path": "docs/ARCHITECTURE.md",
-      "bytes": 3993,
-      "sha256": "e168bf1b4aaf8e4a6def4d525a41ca597962d27bd14824eaa8b2cc3544db85cf"
+      "bytes": 2761,
+      "sha256": "79324b92011f5f8a90abaa5e46e748024452e263874e54499fc069b96bd8a890"
     },
     {
       "path": "docs/CONTENT_GUIDE.md",
-      "bytes": 2769,
-      "sha256": "419b65f8971c6261bf17a6fe25b78db80e8baafc3a92e024b1c5495974e3e7bb"
+      "bytes": 8152,
+      "sha256": "829c5efbc2c1f24c1cf5ea55af1d9fa53f6b5c8abe52675bb5b28dc179e1a31f"
     },
     {
       "path": "docs/SOURCES_AND_LICENSES.md",
-      "bytes": 3839,
-      "sha256": "f2aa9959db5a8ac26cde49a25bedc05e0c9dbb92ae255c7347708798f2bf8ee4"
+      "bytes": 4390,
+      "sha256": "5dcec8a271d94f733f5a0dec53d76cae7801362e571c33bb0ea683e2a4070f55"
     },
     {
       "path": "docs/TEST_REPORT.md",
-      "bytes": 7830,
-      "sha256": "f5b27437884d7d5b1527f7118d5a05f6e8c1071b2693ac2d81f103394d9bc7fc"
+      "bytes": 5619,
+      "sha256": "1a1229dc637b071c01f0dd4f769d6b33e5e8c5106ae366ddd8a0c5c94758384f"
     },
     {
-      "path": "docs/screenshots/dragon.png",
-      "bytes": 743101,
-      "sha256": "69303fe1f29dc3b3ab73be0a5c50656e9166bf270df86b80718c1621506d334b"
+      "path": "docs/UPDATE_V2_KO.md",
+      "bytes": 6681,
+      "sha256": "c741513673c7ff5c604d6fb980f944b4d41559c082a237cbcc719728e5bfa2f6"
     },
     {
-      "path": "docs/screenshots/inventory.png",
-      "bytes": 444824,
-      "sha256": "e5bbeec9ad6246796a9430d024c9b895803328d6202f3287eaa83a64ae2001c7"
+      "path": "docs/screenshots/attributes_desktop.png",
+      "bytes": 454716,
+      "sha256": "fdd9f86f50c229740618340618afcaa412565e78534322a4aa9b9890b3805cc1"
     },
     {
-      "path": "docs/screenshots/landing.png",
-      "bytes": 427730,
-      "sha256": "4fe00516eb30ba350e718762081834c88a390af0d127553b3e9e7ae52f3c74a1"
+      "path": "docs/screenshots/attributes_mobile.png",
+      "bytes": 129295,
+      "sha256": "b19aaff96aeb005cba8cd8b838f59374d942a5f132e2d686ea481076be8b85e6"
+    },
+    {
+      "path": "docs/screenshots/death.png",
+      "bytes": 513365,
+      "sha256": "d47c756e526aa7c210377514014c1989d9dbbe691a285e34bc1b175be152e3da"
+    },
+    {
+      "path": "docs/screenshots/enhancement.png",
+      "bytes": 439689,
+      "sha256": "2f7ccc2ea0a2064b2a65d8b42a67c83da1bb85b71e0bdd9a59c9c11611231e16"
+    },
+    {
+      "path": "docs/screenshots/equipment_and_spells.png",
+      "bytes": 85431,
+      "sha256": "9357a6c9d03bc7a310068aaefe8780ed2ad9764e0a18c520b32b755f7d2417c6"
+    },
+    {
+      "path": "docs/screenshots/frost.png",
+      "bytes": 665843,
+      "sha256": "fb458b61be670a11cdf66a06658ac3bdd7913a9b36d8032b9333d29edd5ad9b6"
+    },
+    {
+      "path": "docs/screenshots/jobs.png",
+      "bytes": 484793,
+      "sha256": "ba2a855a93429b317707a08ce3263b6f0d08eccde5c25240abe53dbac910e741"
     },
     {
       "path": "docs/screenshots/mobile.png",
-      "bytes": 189897,
-      "sha256": "8dd60db1c19b8c163532c327d3a3ad1877039f09405cee5e9d33048c2f000716"
+      "bytes": 209872,
+      "sha256": "f14ae2d7f58e0d2bbf73567ee088420816bd6484489893359d063422caa4d617"
     },
     {
-      "path": "docs/screenshots/mobile_landscape.png",
-      "bytes": 248267,
-      "sha256": "324edfe85ec47dd4fd6f2539bd127c81769fe4916b56a95fe79e75cc722be48a"
-    },
-    {
-      "path": "docs/screenshots/moon_boss.png",
-      "bytes": 722363,
-      "sha256": "3c657d648077db22138bd3a97ecf510d11192c7a08e586c6ea280abbca73b895"
-    },
-    {
-      "path": "docs/screenshots/quest.png",
-      "bytes": 432592,
-      "sha256": "19cd69727acdbe96eff5e34ce78150ec81eb7f601d6e0cd6ccadcb37fee1ad26"
+      "path": "docs/screenshots/observatory.png",
+      "bytes": 624109,
+      "sha256": "17938fe638f02b4c088cb471b50a51aabd2789a214928555f221926bd29fad15"
     },
     {
       "path": "docs/screenshots/town.png",
-      "bytes": 700570,
-      "sha256": "cb8bef250b14a8db3d6ba96dba1d098e0c9dbcdfa1f6fac3620ab3e010b17187"
+      "bytes": 696832,
+      "sha256": "a2f535ae2fa6fca7cfd988a8080995ba1666e29386f19f8d45b7f8520f388756"
     },
     {
-      "path": "docs/test-results/browser-report.json",
-      "bytes": 1002,
-      "sha256": "98c60c032040e011a9df8860fbde29631cf3673e7b425957244e782f5553445e"
+      "path": "docs/screenshots/world_schedule.png",
+      "bytes": 429621,
+      "sha256": "bea585360bd5525f38ed91aacb89c458dae8d42ad5feef2afa0766aecd998d47"
     },
     {
-      "path": "docs/test-results/load-smoke.txt",
-      "bytes": 590,
-      "sha256": "d897b3865ea2cda464f8a2250225590f9ee9dde2291242e5358d77a1a21255b4"
+      "path": "docs/test-results/load-smoke-v2.txt",
+      "bytes": 592,
+      "sha256": "e22f077c05023927a012d788856b24d526b99d894e27a199ba63be8c5af365d0"
     },
     {
-      "path": "docs/test-results/node-tests.txt",
-      "bytes": 5836,
-      "sha256": "ae56e562f4f9b97fa44865d8ada9b899de4fbf06c3d54be6f5bdb8c3190d2d7d"
+      "path": "docs/test-results/node-tests-v2.txt",
+      "bytes": 10545,
+      "sha256": "9468d89c40d7aae4d4a77eb0a32afcdccd30f4479d832ce4322a5340be58fb6a"
     },
     {
-      "path": "docs/test-results/visual-report.json",
-      "bytes": 334,
-      "sha256": "f552c2516853aa7b127e63b062bda58eabae3c7c8213881aca0c07090eae20c0"
+      "path": "docs/test-results/offline-render-v2.json",
+      "bytes": 366,
+      "sha256": "a5c958cdfce933b470cb48c209ba97549e3f94c827595ef7a20706221c0764d6"
+    },
+    {
+      "path": "docs/test-results/offline-ui-v2.json",
+      "bytes": 470,
+      "sha256": "e70b0f0648c00e9de433beef6a90dc2c5fb582ff107c1abe2b65324f032ed3c5"
     },
     {
       "path": "package-lock.json",
       "bytes": 786,
-      "sha256": "273f6a19643b306cd5fe4be8f739a5b09f0281456924f1ca398cfc8b1b80265a"
+      "sha256": "e6db8f661177490296bd945d45ca1cce5b2dacb8d144fab7dbb5a77da715f5e2"
     },
     {
       "path": "package.json",
       "bytes": 600,
-      "sha256": "0b57f7362fddcec758193232f6466b88091f9f598307e36850146de0c7d8591a"
+      "sha256": "df3edcf016deafb776a6d97c612c767751a4af9965f1653970d767f9aba71407"
+    },
+    {
+      "path": "public/assets/alchemist_s_0.png",
+      "bytes": 974,
+      "sha256": "708aec37911a42a630e7ae673df608fd6f3a42ca6dd6df2391391d09e8d1ad2a"
     },
     {
       "path": "public/assets/atlas.json",
-      "bytes": 17786,
-      "sha256": "4704ab2c4bb1440973030d74ea04e94919b81b896be56ed01805251424c9c9ea"
+      "bytes": 134588,
+      "sha256": "f9cb499c08de52d4f7282421f2b4fcc03b1a10dfe80a0db986bb7ae6acbbd2b5"
     },
     {
       "path": "public/assets/atlas.png",
-      "bytes": 77266,
-      "sha256": "009a2de4512c041479fab5b693ebc6d0ac0ac9fe31a4b57cf674d378bfc362eb"
+      "bytes": 381743,
+      "sha256": "2da9686115beb94fe8329c593143ab0601e844914760730d0a822fef391cd758"
+    },
+    {
+      "path": "public/assets/bard_s_0.png",
+      "bytes": 1031,
+      "sha256": "7ed81ae4569a34d621aa72d44dc325b98f754f010ff2f856f445ae4dcb04d511"
+    },
+    {
+      "path": "public/assets/beastwarden_s_0.png",
+      "bytes": 1036,
+      "sha256": "c10dc51269dc049ac0bf238baf4cc992b6a89879b43918f4e3c33c89de260dec"
+    },
+    {
+      "path": "public/assets/berserker_s_0.png",
+      "bytes": 935,
+      "sha256": "cea02a7a0d82e4406cf91f6d624349df79bcc7ea7b5ad221aecd32894b8f0bfc"
+    },
+    {
+      "path": "public/assets/chronomancer_s_0.png",
+      "bytes": 1047,
+      "sha256": "a897fb77a46431267d50169b511e627f2753217070bc498a5dd87e3270d4f13b"
+    },
+    {
+      "path": "public/assets/cryomancer_s_0.png",
+      "bytes": 981,
+      "sha256": "3ac2fd852d99f9136a9a411a1f1164a81e19afacca33c18e12cf43bedc807706"
+    },
+    {
+      "path": "public/assets/dragonknight_s_0.png",
+      "bytes": 1030,
+      "sha256": "e5e515e3c475f22f5d14cc179c64c31b5ee226ed7a42c0da0037b3942ea0a99e"
+    },
+    {
+      "path": "public/assets/druid_s_0.png",
+      "bytes": 982,
+      "sha256": "8bbfbe2cb0c4147de94a3cfdd10ba26285a1ab19d8f6b2c5644f60816ccd2502"
+    },
+    {
+      "path": "public/assets/eclipse_reaper_s_0.png",
+      "bytes": 1003,
+      "sha256": "64a23dbd6927ee0122da23d0f5281f9878ae82b46d1b210bf80d1b41156333be"
+    },
+    {
+      "path": "public/assets/engineer_s_0.png",
+      "bytes": 1041,
+      "sha256": "efef4a1f73caa65b15724da3c73980b2901e51ec4ba18075b9f80952d536e70f"
     },
     {
       "path": "public/assets/favicon.png",
@@ -177,13 +273,18 @@
     },
     {
       "path": "public/assets/guardian_s_0.png",
-      "bytes": 914,
-      "sha256": "3b13e1b2151ec0f12c7748d87bad9415433efbb8e3ed57fc2003c6bee43b1ced"
+      "bytes": 942,
+      "sha256": "19ff9f1576987800824426272e954fc1c64702ab45434053ae96550a7207a488"
     },
     {
       "path": "public/assets/healer_s_0.png",
       "bytes": 924,
       "sha256": "07c560b69158880a215137b46f54b3b436615502ed9859c12476c1eed8a7bb26"
+    },
+    {
+      "path": "public/assets/herbalist_s_0.png",
+      "bytes": 1006,
+      "sha256": "8f927e9855348eecf98b55fa082fad48477c256ac763d813eb33ce07deb28127"
     },
     {
       "path": "public/assets/icon_armor.png",
@@ -336,14 +437,19 @@
       "sha256": "d84062dec02225d4a0b5c54444423cb3aa118debce1d263761df0df8551dfdbe"
     },
     {
+      "path": "public/assets/lancer_s_0.png",
+      "bytes": 945,
+      "sha256": "59a464327a427f8d3f4e9cf0faae3f0e73f17a5201204485499d57b9af482648"
+    },
+    {
       "path": "public/assets/lia_s_0.png",
       "bytes": 924,
       "sha256": "faaee0d5ae6b516858fdd2b0fb8bad8a0cfee16f7a5dc2d2da7337b22b4cb2cf"
     },
     {
       "path": "public/assets/mage_s_0.png",
-      "bytes": 944,
-      "sha256": "3c50e2f8507a3d4297a2eb249a8eb3b4005bd08f6ef1565672b0008018f40f0d"
+      "bytes": 984,
+      "sha256": "5e3b4ea3ef95f3757a678798797c8db06fcb077921808ec37e024f3865107422"
     },
     {
       "path": "public/assets/merchant_s_0.png",
@@ -351,9 +457,819 @@
       "sha256": "fc9de3188293d2c13c69f171728d8a773f1a750e83dac7b87a36dc4a9e536bc0"
     },
     {
+      "path": "public/assets/miner_s_0.png",
+      "bytes": 934,
+      "sha256": "f0156252c1cb35661d894fb720964a99fc8f73d378009a5360af1bd3a8eccdb8"
+    },
+    {
+      "path": "public/assets/monk_s_0.png",
+      "bytes": 930,
+      "sha256": "62fd2b8481a114e3278666be8b9b406f2266f0b01b3fa5d4f2299cd451a2ed54"
+    },
+    {
+      "path": "public/assets/nameless_king_s_0.png",
+      "bytes": 1030,
+      "sha256": "cede3176fab06751ea853652bafd74dc2c76edc2bb5c946a6c31efd042fbf92a"
+    },
+    {
+      "path": "public/assets/necromancer_s_0.png",
+      "bytes": 1051,
+      "sha256": "499e330d86781d1d4eb414ab4a6574a9982ae00ed98734b9c2662ce438fb2d5b"
+    },
+    {
+      "path": "public/assets/novice_s_0.png",
+      "bytes": 811,
+      "sha256": "fa7563a30fab2309d4db5469225ae2e04cb0e2fd96235ec9f23b28fd4d713be9"
+    },
+    {
+      "path": "public/assets/paladin_s_0.png",
+      "bytes": 953,
+      "sha256": "fc9271994e2ee4887f9833bea74bfb38912b72291d77a064266218d8d71ea322"
+    },
+    {
+      "path": "public/assets/phoenix_heir_s_0.png",
+      "bytes": 1042,
+      "sha256": "278740c791961007fd1cd7f4d456f7b7c4f468168bef75d02174819fb6a47f65"
+    },
+    {
+      "path": "public/assets/priest_s_0.png",
+      "bytes": 984,
+      "sha256": "1a995d2aa155d237d89bf331e3fa143d44696906ddcff87671a5c86ad36083bf"
+    },
+    {
+      "path": "public/assets/pyromancer_s_0.png",
+      "bytes": 976,
+      "sha256": "0250f7da2c84601035896002cb4b456433188aebe00664c0292a7b97e3c37549"
+    },
+    {
       "path": "public/assets/ranger_s_0.png",
-      "bytes": 1022,
-      "sha256": "3f085bb0f09212683c26aacff10adbdfe218f8f39351bb79af6626914d005c5a"
+      "bytes": 1033,
+      "sha256": "ad56bad271af9496350c21de1190199ac091e94bc718663f2d26d9c65ec30bc5"
+    },
+    {
+      "path": "public/assets/relic_stone.png",
+      "bytes": 605,
+      "sha256": "abfaeedde0fa28946963a663dd23327aea5962d37c5779c4791a439e235218bb"
+    },
+    {
+      "path": "public/assets/rogue_s_0.png",
+      "bytes": 929,
+      "sha256": "c1e2e8dbe174324331ec8f3df2025593b120c437a1c5b834b518b8d10db16acc"
+    },
+    {
+      "path": "public/assets/rune_knight_s_0.png",
+      "bytes": 1025,
+      "sha256": "daca5d468b77e2ec6c28166ea77720e368e6fc34477c89f721427f6d3768860b"
+    },
+    {
+      "path": "public/assets/sentinel_s_0.png",
+      "bytes": 944,
+      "sha256": "448ce4cc20dee01b2fb9e5e5b1894645efc05cf8866135acb75de4a0bc5c757f"
+    },
+    {
+      "path": "public/assets/shadowdancer_s_0.png",
+      "bytes": 1008,
+      "sha256": "85027b6dd462e57b3bac24299f1efec6bee22ce3729b99cde0581c19649bb1ac"
+    },
+    {
+      "path": "public/assets/skill_alchemist_basic.png",
+      "bytes": 352,
+      "sha256": "d536461673ea243db35e665504354ba347ce937d9805ae3fd63a9c25e30814c3"
+    },
+    {
+      "path": "public/assets/skill_alchemist_skill1.png",
+      "bytes": 352,
+      "sha256": "d536461673ea243db35e665504354ba347ce937d9805ae3fd63a9c25e30814c3"
+    },
+    {
+      "path": "public/assets/skill_alchemist_skill2.png",
+      "bytes": 393,
+      "sha256": "4a9309b363103ad68493cefbbdf3543cbcfafab7066c7e60de4adeaabd4ae754"
+    },
+    {
+      "path": "public/assets/skill_alchemist_ultimate.png",
+      "bytes": 382,
+      "sha256": "31454c641c40124b315ed29d70656c665f52ca6c3724ba759d0af1fb875a4e79"
+    },
+    {
+      "path": "public/assets/skill_bard_basic.png",
+      "bytes": 342,
+      "sha256": "9aa72fee610c7694476b6df991b77bc5d07264a76c238ee7de488eeb5e487465"
+    },
+    {
+      "path": "public/assets/skill_bard_skill1.png",
+      "bytes": 342,
+      "sha256": "9aa72fee610c7694476b6df991b77bc5d07264a76c238ee7de488eeb5e487465"
+    },
+    {
+      "path": "public/assets/skill_bard_skill2.png",
+      "bytes": 394,
+      "sha256": "d197031cb2c56ae50d7f322c6864e9b47fe10455393fcc677c41b3d24553b05a"
+    },
+    {
+      "path": "public/assets/skill_bard_ultimate.png",
+      "bytes": 384,
+      "sha256": "8ef401fadd3a55cebb27287bbcfdb4ef49e8a1522788439bd139a6f47f7dedfa"
+    },
+    {
+      "path": "public/assets/skill_beastwarden_basic.png",
+      "bytes": 354,
+      "sha256": "a95b18d944bb684918e338bc6c59429a5184dcf497eb10e30d0795781441f29d"
+    },
+    {
+      "path": "public/assets/skill_beastwarden_skill1.png",
+      "bytes": 354,
+      "sha256": "a95b18d944bb684918e338bc6c59429a5184dcf497eb10e30d0795781441f29d"
+    },
+    {
+      "path": "public/assets/skill_beastwarden_skill2.png",
+      "bytes": 393,
+      "sha256": "5e1ecee7633e6e3b482a856efcc9ac4b5bf8d8ba348bfbbc7b67d5f68b3a7125"
+    },
+    {
+      "path": "public/assets/skill_beastwarden_ultimate.png",
+      "bytes": 385,
+      "sha256": "5fb185a4f2a1f598402be86df672a1b8fcfc36fbeba41bd918f7cbf0be7e3436"
+    },
+    {
+      "path": "public/assets/skill_berserker_basic.png",
+      "bytes": 384,
+      "sha256": "c32bee87496abbe6e01c4890814f26f6783832125d52ed8f05f1d8d79d0b7cdc"
+    },
+    {
+      "path": "public/assets/skill_berserker_skill1.png",
+      "bytes": 384,
+      "sha256": "c32bee87496abbe6e01c4890814f26f6783832125d52ed8f05f1d8d79d0b7cdc"
+    },
+    {
+      "path": "public/assets/skill_berserker_skill2.png",
+      "bytes": 394,
+      "sha256": "c54feddf8b505b1e7d6ab317d6b9ec99f516213eef8ff8cf6a72a8bb4fda5675"
+    },
+    {
+      "path": "public/assets/skill_berserker_ultimate.png",
+      "bytes": 426,
+      "sha256": "cf4d6609ed6673a2a8af7af9dceef761fe3abc6760445eed631bcaef9ed0b0ba"
+    },
+    {
+      "path": "public/assets/skill_chronomancer_basic.png",
+      "bytes": 367,
+      "sha256": "dc7eba299839bc83bf6ce6819110bf118cd932c9240f52342cbaef5214733ddf"
+    },
+    {
+      "path": "public/assets/skill_chronomancer_skill1.png",
+      "bytes": 367,
+      "sha256": "dc7eba299839bc83bf6ce6819110bf118cd932c9240f52342cbaef5214733ddf"
+    },
+    {
+      "path": "public/assets/skill_chronomancer_skill2.png",
+      "bytes": 390,
+      "sha256": "d2034e273b563b7739cb3388bc6717981d1c84627a579800363200c4e710720f"
+    },
+    {
+      "path": "public/assets/skill_chronomancer_ultimate.png",
+      "bytes": 406,
+      "sha256": "4719f532e26f8601109f8354b4cb3355e4bb90ddd7f4878e0f6f44565f4a47cc"
+    },
+    {
+      "path": "public/assets/skill_cryomancer_basic.png",
+      "bytes": 404,
+      "sha256": "0d6dbdee3fec52855f9cbcb968a925c7328589eae930ef8722cb78bcf5aebc45"
+    },
+    {
+      "path": "public/assets/skill_cryomancer_skill1.png",
+      "bytes": 404,
+      "sha256": "0d6dbdee3fec52855f9cbcb968a925c7328589eae930ef8722cb78bcf5aebc45"
+    },
+    {
+      "path": "public/assets/skill_cryomancer_skill2.png",
+      "bytes": 390,
+      "sha256": "39ca42d7650486cf79de14a7f1bc7b68be5b7c42a3dde2e24077bada9938c493"
+    },
+    {
+      "path": "public/assets/skill_cryomancer_ultimate.png",
+      "bytes": 444,
+      "sha256": "0b1af800a5ab2656f98065ed2d2e12255ab9397789c0961dbbcc24617dfcb44e"
+    },
+    {
+      "path": "public/assets/skill_dragonknight_basic.png",
+      "bytes": 376,
+      "sha256": "f17f414abe54f785691cde20a66cee93368509dc86d25cc6c44ce9185034d9a2"
+    },
+    {
+      "path": "public/assets/skill_dragonknight_skill1.png",
+      "bytes": 376,
+      "sha256": "f17f414abe54f785691cde20a66cee93368509dc86d25cc6c44ce9185034d9a2"
+    },
+    {
+      "path": "public/assets/skill_dragonknight_skill2.png",
+      "bytes": 393,
+      "sha256": "a4b5426b8f211ac1090025aaf50130913b213e1ec2c131a146091919286f3b1d"
+    },
+    {
+      "path": "public/assets/skill_dragonknight_ultimate.png",
+      "bytes": 419,
+      "sha256": "bb9c3111793861574b79a98d3b35e07e7ce91c1b69ab6772e6afa3f95cfa7963"
+    },
+    {
+      "path": "public/assets/skill_druid_basic.png",
+      "bytes": 352,
+      "sha256": "d536461673ea243db35e665504354ba347ce937d9805ae3fd63a9c25e30814c3"
+    },
+    {
+      "path": "public/assets/skill_druid_skill1.png",
+      "bytes": 352,
+      "sha256": "d536461673ea243db35e665504354ba347ce937d9805ae3fd63a9c25e30814c3"
+    },
+    {
+      "path": "public/assets/skill_druid_skill2.png",
+      "bytes": 393,
+      "sha256": "4a9309b363103ad68493cefbbdf3543cbcfafab7066c7e60de4adeaabd4ae754"
+    },
+    {
+      "path": "public/assets/skill_druid_ultimate.png",
+      "bytes": 382,
+      "sha256": "31454c641c40124b315ed29d70656c665f52ca6c3724ba759d0af1fb875a4e79"
+    },
+    {
+      "path": "public/assets/skill_eclipse_reaper_basic.png",
+      "bytes": 365,
+      "sha256": "b3c48c04ad61a96c4c340884529f4bc95b30b5e9ad8653db8a485c1ce124debc"
+    },
+    {
+      "path": "public/assets/skill_eclipse_reaper_skill1.png",
+      "bytes": 365,
+      "sha256": "b3c48c04ad61a96c4c340884529f4bc95b30b5e9ad8653db8a485c1ce124debc"
+    },
+    {
+      "path": "public/assets/skill_eclipse_reaper_skill2.png",
+      "bytes": 392,
+      "sha256": "1c1a506ba2045129f26c27f6481492f3715eaa353b3f966b3552afbbf43a33e8"
+    },
+    {
+      "path": "public/assets/skill_eclipse_reaper_ultimate.png",
+      "bytes": 403,
+      "sha256": "7f27f6d00d90465bb0f38c2b09f3df02f49811e2f5073726a11034d566ca18d4"
+    },
+    {
+      "path": "public/assets/skill_engineer_basic.png",
+      "bytes": 381,
+      "sha256": "31d800c03b219b05c2b2e80b15ea8986faf65dbebeba80323f868bc0f7bcccf5"
+    },
+    {
+      "path": "public/assets/skill_engineer_skill1.png",
+      "bytes": 381,
+      "sha256": "31d800c03b219b05c2b2e80b15ea8986faf65dbebeba80323f868bc0f7bcccf5"
+    },
+    {
+      "path": "public/assets/skill_engineer_skill2.png",
+      "bytes": 389,
+      "sha256": "f13af82b7d5fabe11c2a98b079166533aa8fc6bc2ae2870387c6dae5d3351f19"
+    },
+    {
+      "path": "public/assets/skill_engineer_ultimate.png",
+      "bytes": 421,
+      "sha256": "5314f03ce88602bc0cda4e663de446eb08d1f186199b9a0a529f019da3b9aad4"
+    },
+    {
+      "path": "public/assets/skill_guardian_basic.png",
+      "bytes": 336,
+      "sha256": "10844bb8531f0af92188e9b328243cb96b65d487f69b1ba2baa913d6f0387f26"
+    },
+    {
+      "path": "public/assets/skill_guardian_skill1.png",
+      "bytes": 336,
+      "sha256": "10844bb8531f0af92188e9b328243cb96b65d487f69b1ba2baa913d6f0387f26"
+    },
+    {
+      "path": "public/assets/skill_guardian_skill2.png",
+      "bytes": 388,
+      "sha256": "9749715eebfa19c175518b9ae5556249e5e62e63409f2a5402474ab4b0c10fad"
+    },
+    {
+      "path": "public/assets/skill_guardian_ultimate.png",
+      "bytes": 380,
+      "sha256": "e3aabe0b18c37d488b9f6e1538cee6f6d1c3381f439d9c4127e44207f8b97b8c"
+    },
+    {
+      "path": "public/assets/skill_herbalist_basic.png",
+      "bytes": 352,
+      "sha256": "e07b7ce4679d14adcee1783cd3d5e6c89f131a0d510cfe0eff7233881837cf93"
+    },
+    {
+      "path": "public/assets/skill_herbalist_skill1.png",
+      "bytes": 352,
+      "sha256": "e07b7ce4679d14adcee1783cd3d5e6c89f131a0d510cfe0eff7233881837cf93"
+    },
+    {
+      "path": "public/assets/skill_herbalist_skill2.png",
+      "bytes": 394,
+      "sha256": "9876238ed94afeb74d4bd6e1e194857f2f69da6b73c5af848818e0952452c874"
+    },
+    {
+      "path": "public/assets/skill_herbalist_ultimate.png",
+      "bytes": 383,
+      "sha256": "b0032e2ac3b7cd30450e4fcb5a5c16f63fb6488f7f4c83bde47d6ae11173e8e0"
+    },
+    {
+      "path": "public/assets/skill_lancer_basic.png",
+      "bytes": 336,
+      "sha256": "10844bb8531f0af92188e9b328243cb96b65d487f69b1ba2baa913d6f0387f26"
+    },
+    {
+      "path": "public/assets/skill_lancer_skill1.png",
+      "bytes": 336,
+      "sha256": "10844bb8531f0af92188e9b328243cb96b65d487f69b1ba2baa913d6f0387f26"
+    },
+    {
+      "path": "public/assets/skill_lancer_skill2.png",
+      "bytes": 388,
+      "sha256": "9749715eebfa19c175518b9ae5556249e5e62e63409f2a5402474ab4b0c10fad"
+    },
+    {
+      "path": "public/assets/skill_lancer_ultimate.png",
+      "bytes": 380,
+      "sha256": "e3aabe0b18c37d488b9f6e1538cee6f6d1c3381f439d9c4127e44207f8b97b8c"
+    },
+    {
+      "path": "public/assets/skill_mage_basic.png",
+      "bytes": 338,
+      "sha256": "4e89ffa3dda76b6ab00eb11557c43ac3c85d04ae546e78392eca8de986147a14"
+    },
+    {
+      "path": "public/assets/skill_mage_skill1.png",
+      "bytes": 338,
+      "sha256": "4e89ffa3dda76b6ab00eb11557c43ac3c85d04ae546e78392eca8de986147a14"
+    },
+    {
+      "path": "public/assets/skill_mage_skill2.png",
+      "bytes": 391,
+      "sha256": "ebbe938807220fb1a04f3dcbf4a915b3be55d3f513efb8ebf801d2c8bb47c8f7"
+    },
+    {
+      "path": "public/assets/skill_mage_ultimate.png",
+      "bytes": 381,
+      "sha256": "7b73b707f564e0a4b97c275c53e4f785ec445aeaeea3f3e49df92ae2f48e6aea"
+    },
+    {
+      "path": "public/assets/skill_miner_basic.png",
+      "bytes": 354,
+      "sha256": "a95b18d944bb684918e338bc6c59429a5184dcf497eb10e30d0795781441f29d"
+    },
+    {
+      "path": "public/assets/skill_miner_skill1.png",
+      "bytes": 354,
+      "sha256": "a95b18d944bb684918e338bc6c59429a5184dcf497eb10e30d0795781441f29d"
+    },
+    {
+      "path": "public/assets/skill_miner_skill2.png",
+      "bytes": 393,
+      "sha256": "5e1ecee7633e6e3b482a856efcc9ac4b5bf8d8ba348bfbbc7b67d5f68b3a7125"
+    },
+    {
+      "path": "public/assets/skill_miner_ultimate.png",
+      "bytes": 385,
+      "sha256": "5fb185a4f2a1f598402be86df672a1b8fcfc36fbeba41bd918f7cbf0be7e3436"
+    },
+    {
+      "path": "public/assets/skill_monk_basic.png",
+      "bytes": 333,
+      "sha256": "789ec2fa0baa739c6ca959e520b8710d83e616d92b640ca2a88115bdc71e7c11"
+    },
+    {
+      "path": "public/assets/skill_monk_skill1.png",
+      "bytes": 333,
+      "sha256": "789ec2fa0baa739c6ca959e520b8710d83e616d92b640ca2a88115bdc71e7c11"
+    },
+    {
+      "path": "public/assets/skill_monk_skill2.png",
+      "bytes": 388,
+      "sha256": "7273135f8c9b93de1625f21089e1d8d4c9c8f2a89d15df8c17dd702990eff013"
+    },
+    {
+      "path": "public/assets/skill_monk_ultimate.png",
+      "bytes": 378,
+      "sha256": "576fe8cfe5819d1017332b3cd01b730949fc696a1d8b95db38cdaf9103ee6121"
+    },
+    {
+      "path": "public/assets/skill_nameless_king_basic.png",
+      "bytes": 333,
+      "sha256": "789ec2fa0baa739c6ca959e520b8710d83e616d92b640ca2a88115bdc71e7c11"
+    },
+    {
+      "path": "public/assets/skill_nameless_king_skill1.png",
+      "bytes": 333,
+      "sha256": "789ec2fa0baa739c6ca959e520b8710d83e616d92b640ca2a88115bdc71e7c11"
+    },
+    {
+      "path": "public/assets/skill_nameless_king_skill2.png",
+      "bytes": 388,
+      "sha256": "7273135f8c9b93de1625f21089e1d8d4c9c8f2a89d15df8c17dd702990eff013"
+    },
+    {
+      "path": "public/assets/skill_nameless_king_ultimate.png",
+      "bytes": 378,
+      "sha256": "576fe8cfe5819d1017332b3cd01b730949fc696a1d8b95db38cdaf9103ee6121"
+    },
+    {
+      "path": "public/assets/skill_necromancer_basic.png",
+      "bytes": 374,
+      "sha256": "4dd003f2ce8553a60fe46ec2836313635e010e34c7959bc664f704bc3f3bd63d"
+    },
+    {
+      "path": "public/assets/skill_necromancer_skill1.png",
+      "bytes": 374,
+      "sha256": "4dd003f2ce8553a60fe46ec2836313635e010e34c7959bc664f704bc3f3bd63d"
+    },
+    {
+      "path": "public/assets/skill_necromancer_skill2.png",
+      "bytes": 392,
+      "sha256": "10f2733605856cd4db44c779025a427adb39b2e511807e6dc62d2bd15745b06e"
+    },
+    {
+      "path": "public/assets/skill_necromancer_ultimate.png",
+      "bytes": 413,
+      "sha256": "b01d56910e6d0acab669b0163d9649e0aa968359e5f0a6cf1f7b829b2baaecea"
+    },
+    {
+      "path": "public/assets/skill_novice_basic.png",
+      "bytes": 336,
+      "sha256": "10844bb8531f0af92188e9b328243cb96b65d487f69b1ba2baa913d6f0387f26"
+    },
+    {
+      "path": "public/assets/skill_novice_skill1.png",
+      "bytes": 336,
+      "sha256": "10844bb8531f0af92188e9b328243cb96b65d487f69b1ba2baa913d6f0387f26"
+    },
+    {
+      "path": "public/assets/skill_novice_skill2.png",
+      "bytes": 388,
+      "sha256": "9749715eebfa19c175518b9ae5556249e5e62e63409f2a5402474ab4b0c10fad"
+    },
+    {
+      "path": "public/assets/skill_novice_ultimate.png",
+      "bytes": 380,
+      "sha256": "e3aabe0b18c37d488b9f6e1538cee6f6d1c3381f439d9c4127e44207f8b97b8c"
+    },
+    {
+      "path": "public/assets/skill_paladin_basic.png",
+      "bytes": 333,
+      "sha256": "789ec2fa0baa739c6ca959e520b8710d83e616d92b640ca2a88115bdc71e7c11"
+    },
+    {
+      "path": "public/assets/skill_paladin_skill1.png",
+      "bytes": 333,
+      "sha256": "789ec2fa0baa739c6ca959e520b8710d83e616d92b640ca2a88115bdc71e7c11"
+    },
+    {
+      "path": "public/assets/skill_paladin_skill2.png",
+      "bytes": 388,
+      "sha256": "7273135f8c9b93de1625f21089e1d8d4c9c8f2a89d15df8c17dd702990eff013"
+    },
+    {
+      "path": "public/assets/skill_paladin_ultimate.png",
+      "bytes": 378,
+      "sha256": "576fe8cfe5819d1017332b3cd01b730949fc696a1d8b95db38cdaf9103ee6121"
+    },
+    {
+      "path": "public/assets/skill_phoenix_heir_basic.png",
+      "bytes": 376,
+      "sha256": "f17f414abe54f785691cde20a66cee93368509dc86d25cc6c44ce9185034d9a2"
+    },
+    {
+      "path": "public/assets/skill_phoenix_heir_skill1.png",
+      "bytes": 376,
+      "sha256": "f17f414abe54f785691cde20a66cee93368509dc86d25cc6c44ce9185034d9a2"
+    },
+    {
+      "path": "public/assets/skill_phoenix_heir_skill2.png",
+      "bytes": 393,
+      "sha256": "a4b5426b8f211ac1090025aaf50130913b213e1ec2c131a146091919286f3b1d"
+    },
+    {
+      "path": "public/assets/skill_phoenix_heir_ultimate.png",
+      "bytes": 419,
+      "sha256": "bb9c3111793861574b79a98d3b35e07e7ce91c1b69ab6772e6afa3f95cfa7963"
+    },
+    {
+      "path": "public/assets/skill_priest_basic.png",
+      "bytes": 333,
+      "sha256": "789ec2fa0baa739c6ca959e520b8710d83e616d92b640ca2a88115bdc71e7c11"
+    },
+    {
+      "path": "public/assets/skill_priest_skill1.png",
+      "bytes": 333,
+      "sha256": "789ec2fa0baa739c6ca959e520b8710d83e616d92b640ca2a88115bdc71e7c11"
+    },
+    {
+      "path": "public/assets/skill_priest_skill2.png",
+      "bytes": 388,
+      "sha256": "7273135f8c9b93de1625f21089e1d8d4c9c8f2a89d15df8c17dd702990eff013"
+    },
+    {
+      "path": "public/assets/skill_priest_ultimate.png",
+      "bytes": 378,
+      "sha256": "576fe8cfe5819d1017332b3cd01b730949fc696a1d8b95db38cdaf9103ee6121"
+    },
+    {
+      "path": "public/assets/skill_pyromancer_basic.png",
+      "bytes": 376,
+      "sha256": "f17f414abe54f785691cde20a66cee93368509dc86d25cc6c44ce9185034d9a2"
+    },
+    {
+      "path": "public/assets/skill_pyromancer_skill1.png",
+      "bytes": 376,
+      "sha256": "f17f414abe54f785691cde20a66cee93368509dc86d25cc6c44ce9185034d9a2"
+    },
+    {
+      "path": "public/assets/skill_pyromancer_skill2.png",
+      "bytes": 393,
+      "sha256": "a4b5426b8f211ac1090025aaf50130913b213e1ec2c131a146091919286f3b1d"
+    },
+    {
+      "path": "public/assets/skill_pyromancer_ultimate.png",
+      "bytes": 419,
+      "sha256": "bb9c3111793861574b79a98d3b35e07e7ce91c1b69ab6772e6afa3f95cfa7963"
+    },
+    {
+      "path": "public/assets/skill_ranger_basic.png",
+      "bytes": 332,
+      "sha256": "c26cd977b56ece97c05e0955c78e01243a23a195272523bdfe38b8f8854793cf"
+    },
+    {
+      "path": "public/assets/skill_ranger_skill1.png",
+      "bytes": 332,
+      "sha256": "c26cd977b56ece97c05e0955c78e01243a23a195272523bdfe38b8f8854793cf"
+    },
+    {
+      "path": "public/assets/skill_ranger_skill2.png",
+      "bytes": 387,
+      "sha256": "a978deda999418b9fe15380e6e314c3a22508fe2cfb0041ac45b6d27952e9bb1"
+    },
+    {
+      "path": "public/assets/skill_ranger_ultimate.png",
+      "bytes": 376,
+      "sha256": "38339030c969f7fbe2a0ee32189da429ad1ad8397e2a817f7f060a7907d844f4"
+    },
+    {
+      "path": "public/assets/skill_rogue_basic.png",
+      "bytes": 365,
+      "sha256": "b3c48c04ad61a96c4c340884529f4bc95b30b5e9ad8653db8a485c1ce124debc"
+    },
+    {
+      "path": "public/assets/skill_rogue_skill1.png",
+      "bytes": 365,
+      "sha256": "b3c48c04ad61a96c4c340884529f4bc95b30b5e9ad8653db8a485c1ce124debc"
+    },
+    {
+      "path": "public/assets/skill_rogue_skill2.png",
+      "bytes": 392,
+      "sha256": "1c1a506ba2045129f26c27f6481492f3715eaa353b3f966b3552afbbf43a33e8"
+    },
+    {
+      "path": "public/assets/skill_rogue_ultimate.png",
+      "bytes": 403,
+      "sha256": "7f27f6d00d90465bb0f38c2b09f3df02f49811e2f5073726a11034d566ca18d4"
+    },
+    {
+      "path": "public/assets/skill_rune_knight_basic.png",
+      "bytes": 340,
+      "sha256": "e718b316a37bf64646eb38937300229d288fbb804095a5cbc0be9bf99fe8bbe4"
+    },
+    {
+      "path": "public/assets/skill_rune_knight_skill1.png",
+      "bytes": 340,
+      "sha256": "e718b316a37bf64646eb38937300229d288fbb804095a5cbc0be9bf99fe8bbe4"
+    },
+    {
+      "path": "public/assets/skill_rune_knight_skill2.png",
+      "bytes": 392,
+      "sha256": "f183ef752a513f636dcca296ea95682c2210ebc61f5719008bd74b4e89a91c6a"
+    },
+    {
+      "path": "public/assets/skill_rune_knight_ultimate.png",
+      "bytes": 380,
+      "sha256": "14ff6d094dc7c470856e4030d106d91e4b7eee6d1f57432ccdd5968e2d181772"
+    },
+    {
+      "path": "public/assets/skill_sentinel_basic.png",
+      "bytes": 336,
+      "sha256": "10844bb8531f0af92188e9b328243cb96b65d487f69b1ba2baa913d6f0387f26"
+    },
+    {
+      "path": "public/assets/skill_sentinel_skill1.png",
+      "bytes": 336,
+      "sha256": "10844bb8531f0af92188e9b328243cb96b65d487f69b1ba2baa913d6f0387f26"
+    },
+    {
+      "path": "public/assets/skill_sentinel_skill2.png",
+      "bytes": 388,
+      "sha256": "9749715eebfa19c175518b9ae5556249e5e62e63409f2a5402474ab4b0c10fad"
+    },
+    {
+      "path": "public/assets/skill_sentinel_ultimate.png",
+      "bytes": 380,
+      "sha256": "e3aabe0b18c37d488b9f6e1538cee6f6d1c3381f439d9c4127e44207f8b97b8c"
+    },
+    {
+      "path": "public/assets/skill_shadowdancer_basic.png",
+      "bytes": 365,
+      "sha256": "b3c48c04ad61a96c4c340884529f4bc95b30b5e9ad8653db8a485c1ce124debc"
+    },
+    {
+      "path": "public/assets/skill_shadowdancer_skill1.png",
+      "bytes": 365,
+      "sha256": "b3c48c04ad61a96c4c340884529f4bc95b30b5e9ad8653db8a485c1ce124debc"
+    },
+    {
+      "path": "public/assets/skill_shadowdancer_skill2.png",
+      "bytes": 392,
+      "sha256": "1c1a506ba2045129f26c27f6481492f3715eaa353b3f966b3552afbbf43a33e8"
+    },
+    {
+      "path": "public/assets/skill_shadowdancer_ultimate.png",
+      "bytes": 403,
+      "sha256": "7f27f6d00d90465bb0f38c2b09f3df02f49811e2f5073726a11034d566ca18d4"
+    },
+    {
+      "path": "public/assets/skill_sniper_basic.png",
+      "bytes": 332,
+      "sha256": "c26cd977b56ece97c05e0955c78e01243a23a195272523bdfe38b8f8854793cf"
+    },
+    {
+      "path": "public/assets/skill_sniper_skill1.png",
+      "bytes": 332,
+      "sha256": "c26cd977b56ece97c05e0955c78e01243a23a195272523bdfe38b8f8854793cf"
+    },
+    {
+      "path": "public/assets/skill_sniper_skill2.png",
+      "bytes": 387,
+      "sha256": "a978deda999418b9fe15380e6e314c3a22508fe2cfb0041ac45b6d27952e9bb1"
+    },
+    {
+      "path": "public/assets/skill_sniper_ultimate.png",
+      "bytes": 376,
+      "sha256": "38339030c969f7fbe2a0ee32189da429ad1ad8397e2a817f7f060a7907d844f4"
+    },
+    {
+      "path": "public/assets/skill_spellblade_basic.png",
+      "bytes": 340,
+      "sha256": "e718b316a37bf64646eb38937300229d288fbb804095a5cbc0be9bf99fe8bbe4"
+    },
+    {
+      "path": "public/assets/skill_spellblade_skill1.png",
+      "bytes": 340,
+      "sha256": "e718b316a37bf64646eb38937300229d288fbb804095a5cbc0be9bf99fe8bbe4"
+    },
+    {
+      "path": "public/assets/skill_spellblade_skill2.png",
+      "bytes": 392,
+      "sha256": "f183ef752a513f636dcca296ea95682c2210ebc61f5719008bd74b4e89a91c6a"
+    },
+    {
+      "path": "public/assets/skill_spellblade_ultimate.png",
+      "bytes": 380,
+      "sha256": "14ff6d094dc7c470856e4030d106d91e4b7eee6d1f57432ccdd5968e2d181772"
+    },
+    {
+      "path": "public/assets/skill_spiritwalker_basic.png",
+      "bytes": 352,
+      "sha256": "e07b7ce4679d14adcee1783cd3d5e6c89f131a0d510cfe0eff7233881837cf93"
+    },
+    {
+      "path": "public/assets/skill_spiritwalker_skill1.png",
+      "bytes": 352,
+      "sha256": "e07b7ce4679d14adcee1783cd3d5e6c89f131a0d510cfe0eff7233881837cf93"
+    },
+    {
+      "path": "public/assets/skill_spiritwalker_skill2.png",
+      "bytes": 394,
+      "sha256": "9876238ed94afeb74d4bd6e1e194857f2f69da6b73c5af848818e0952452c874"
+    },
+    {
+      "path": "public/assets/skill_spiritwalker_ultimate.png",
+      "bytes": 383,
+      "sha256": "b0032e2ac3b7cd30450e4fcb5a5c16f63fb6488f7f4c83bde47d6ae11173e8e0"
+    },
+    {
+      "path": "public/assets/skill_stargazer_basic.png",
+      "bytes": 338,
+      "sha256": "4e89ffa3dda76b6ab00eb11557c43ac3c85d04ae546e78392eca8de986147a14"
+    },
+    {
+      "path": "public/assets/skill_stargazer_skill1.png",
+      "bytes": 338,
+      "sha256": "4e89ffa3dda76b6ab00eb11557c43ac3c85d04ae546e78392eca8de986147a14"
+    },
+    {
+      "path": "public/assets/skill_stargazer_skill2.png",
+      "bytes": 391,
+      "sha256": "ebbe938807220fb1a04f3dcbf4a915b3be55d3f513efb8ebf801d2c8bb47c8f7"
+    },
+    {
+      "path": "public/assets/skill_stargazer_ultimate.png",
+      "bytes": 381,
+      "sha256": "7b73b707f564e0a4b97c275c53e4f785ec445aeaeea3f3e49df92ae2f48e6aea"
+    },
+    {
+      "path": "public/assets/skill_starweaver_basic.png",
+      "bytes": 338,
+      "sha256": "4e89ffa3dda76b6ab00eb11557c43ac3c85d04ae546e78392eca8de986147a14"
+    },
+    {
+      "path": "public/assets/skill_starweaver_skill1.png",
+      "bytes": 338,
+      "sha256": "4e89ffa3dda76b6ab00eb11557c43ac3c85d04ae546e78392eca8de986147a14"
+    },
+    {
+      "path": "public/assets/skill_starweaver_skill2.png",
+      "bytes": 391,
+      "sha256": "ebbe938807220fb1a04f3dcbf4a915b3be55d3f513efb8ebf801d2c8bb47c8f7"
+    },
+    {
+      "path": "public/assets/skill_starweaver_ultimate.png",
+      "bytes": 381,
+      "sha256": "7b73b707f564e0a4b97c275c53e4f785ec445aeaeea3f3e49df92ae2f48e6aea"
+    },
+    {
+      "path": "public/assets/skill_stormcaller_basic.png",
+      "bytes": 383,
+      "sha256": "69a236a62233d894b0a2044c082b35799d477e55dca85b70ea794dd08793932c"
+    },
+    {
+      "path": "public/assets/skill_stormcaller_skill1.png",
+      "bytes": 383,
+      "sha256": "69a236a62233d894b0a2044c082b35799d477e55dca85b70ea794dd08793932c"
+    },
+    {
+      "path": "public/assets/skill_stormcaller_skill2.png",
+      "bytes": 392,
+      "sha256": "864f8e3c5af432dcdfcc09354e3589f9c8b32a28a9c3ee55e9f78427f67ca42a"
+    },
+    {
+      "path": "public/assets/skill_stormcaller_ultimate.png",
+      "bytes": 421,
+      "sha256": "d367555b4f136ae7e061d15d9903357024679020e5954b270bf66b99086aaec9"
+    },
+    {
+      "path": "public/assets/skill_tide_oracle_basic.png",
+      "bytes": 402,
+      "sha256": "d83163827735d044eb93d3624cba91f23336a06f7e9c11a5b00e68985a1230d7"
+    },
+    {
+      "path": "public/assets/skill_tide_oracle_skill1.png",
+      "bytes": 402,
+      "sha256": "d83163827735d044eb93d3624cba91f23336a06f7e9c11a5b00e68985a1230d7"
+    },
+    {
+      "path": "public/assets/skill_tide_oracle_skill2.png",
+      "bytes": 395,
+      "sha256": "ffb7915f56f5293549ef46c3c511bcde06a28f9f71dc03cdbf00b3a775dc83b6"
+    },
+    {
+      "path": "public/assets/skill_tide_oracle_ultimate.png",
+      "bytes": 442,
+      "sha256": "aced524ab03ef43641a6b24a9f03b318347bf5d48dfa73fa49d9f094a087df14"
+    },
+    {
+      "path": "public/assets/skill_voidwalker_basic.png",
+      "bytes": 374,
+      "sha256": "4dd003f2ce8553a60fe46ec2836313635e010e34c7959bc664f704bc3f3bd63d"
+    },
+    {
+      "path": "public/assets/skill_voidwalker_skill1.png",
+      "bytes": 374,
+      "sha256": "4dd003f2ce8553a60fe46ec2836313635e010e34c7959bc664f704bc3f3bd63d"
+    },
+    {
+      "path": "public/assets/skill_voidwalker_skill2.png",
+      "bytes": 392,
+      "sha256": "10f2733605856cd4db44c779025a427adb39b2e511807e6dc62d2bd15745b06e"
+    },
+    {
+      "path": "public/assets/skill_voidwalker_ultimate.png",
+      "bytes": 413,
+      "sha256": "b01d56910e6d0acab669b0163d9649e0aa968359e5f0a6cf1f7b829b2baaecea"
+    },
+    {
+      "path": "public/assets/skill_warlord_basic.png",
+      "bytes": 333,
+      "sha256": "789ec2fa0baa739c6ca959e520b8710d83e616d92b640ca2a88115bdc71e7c11"
+    },
+    {
+      "path": "public/assets/skill_warlord_skill1.png",
+      "bytes": 333,
+      "sha256": "789ec2fa0baa739c6ca959e520b8710d83e616d92b640ca2a88115bdc71e7c11"
+    },
+    {
+      "path": "public/assets/skill_warlord_skill2.png",
+      "bytes": 388,
+      "sha256": "7273135f8c9b93de1625f21089e1d8d4c9c8f2a89d15df8c17dd702990eff013"
+    },
+    {
+      "path": "public/assets/skill_warlord_ultimate.png",
+      "bytes": 378,
+      "sha256": "576fe8cfe5819d1017332b3cd01b730949fc696a1d8b95db38cdaf9103ee6121"
     },
     {
       "path": "public/assets/smith_s_0.png",
@@ -361,24 +1277,69 @@
       "sha256": "90d99fb709214547a44669f26dd41416dfc66e2282b8349c5139fd526d29731b"
     },
     {
+      "path": "public/assets/sniper_s_0.png",
+      "bytes": 1033,
+      "sha256": "6441b0c996df9e93eca56f7feeaab787ff22c0ee4b4d5de8735f585c3ba7127f"
+    },
+    {
+      "path": "public/assets/spellblade_s_0.png",
+      "bytes": 940,
+      "sha256": "ccdcb86c82212f96d2c6c8105f6c1cb6647d4894c0b0da66ae5aa1ec4fbb358b"
+    },
+    {
+      "path": "public/assets/spiritwalker_s_0.png",
+      "bytes": 1113,
+      "sha256": "12263c60a5430c8c2d787a8b2c117f896ce60bc86dd007d48ed2dfc3a3801630"
+    },
+    {
+      "path": "public/assets/stargazer_s_0.png",
+      "bytes": 1044,
+      "sha256": "d94db040ddfc1474c249ca93617937ea5367d92e1d6872cd0592460e6ce06454"
+    },
+    {
+      "path": "public/assets/starweaver_s_0.png",
+      "bytes": 1030,
+      "sha256": "2141ea95168598d0e126c32dc30682778ea9918749c214170c6a21fec7627c7e"
+    },
+    {
+      "path": "public/assets/stormcaller_s_0.png",
+      "bytes": 1066,
+      "sha256": "d4a5dfaf3253851629f3ba69e7cff2d89f98dd483904ae361689d21c7093f9b6"
+    },
+    {
+      "path": "public/assets/tide_oracle_s_0.png",
+      "bytes": 1082,
+      "sha256": "c59f3ae00a1da9c5018a1c7c36d51ef3cbfc0e6de9b2fa1547d8ef30c7364455"
+    },
+    {
       "path": "public/assets/title.png",
       "bytes": 15034,
       "sha256": "9e1e18a08d0f28fb629d92963a93967445adba1d750de7badd6d02cad2d4db23"
     },
     {
+      "path": "public/assets/voidwalker_s_0.png",
+      "bytes": 1100,
+      "sha256": "795ff4660ff54ac89dcd1a8d4088d581eae522ae402804764e19f9987652b8f7"
+    },
+    {
+      "path": "public/assets/warlord_s_0.png",
+      "bytes": 1028,
+      "sha256": "e43e5e59d2c2e41a30066f8edb5999c35e5ee4ab1cd9fa5d5c20c4dfd6b49483"
+    },
+    {
       "path": "public/index.html",
-      "bytes": 7678,
-      "sha256": "5a42fbde33bd181b49f8c0009e0134e3c16f42bf16490e6a01abe7ab8b42899f"
+      "bytes": 8453,
+      "sha256": "24e520b0655796afdef80219b039b562258d72081b9a6076ffd291c215836052"
     },
     {
       "path": "public/style.css",
-      "bytes": 35074,
-      "sha256": "f9b1cb2066d1207c020b0320a9bb0ec7998d31b2a5946d671b5af7965e34e762"
+      "bytes": 42345,
+      "sha256": "7bafe8c18ea19c2e59929e8d492a88a12906ad6b9b97fde0f015ffde876a186a"
     },
     {
       "path": "render.yaml",
-      "bytes": 688,
-      "sha256": "ae7607db062a3da12380f5dc3ee95534742d560e7ef127c5e0f4a5d06fb05f86"
+      "bytes": 689,
+      "sha256": "5aea086d689042e4799674fe4515e53015c036c32418a90bfd0ad2a75dac19b2"
     },
     {
       "path": "scripts/build.mjs",
@@ -392,18 +1353,28 @@
     },
     {
       "path": "server/game.js",
-      "bytes": 31541,
-      "sha256": "824efa009fce7457d6be0d04d6f19d53e751fbb58caa71c1bc064236bb4e6ffa"
+      "bytes": 39247,
+      "sha256": "efa24a5b4da88b1d1160f755c50c06652165beb904262235fd3e1cb338b192c3"
     },
     {
       "path": "server/index.js",
-      "bytes": 14748,
-      "sha256": "34423b5f4bc72f0dfca33d6356622022f61b10e9badd27065cc6a81b5a6494f2"
+      "bytes": 14841,
+      "sha256": "3b665de3bb117c236c3bfb67f50d3e97c1b207e3c81e67ecd6ca4397ca712e6e"
+    },
+    {
+      "path": "server/progression.js",
+      "bytes": 12996,
+      "sha256": "49d97234d2d49216ac95b2b7e8afd4f6655fe50de051aae884199494d6cb7f70"
+    },
+    {
+      "path": "server/rpg.js",
+      "bytes": 5791,
+      "sha256": "158fbe20c854586a90e8a0a52234f8df5e856f41cdc275ba6fb37fa80bb9c5dd"
     },
     {
       "path": "server/store.js",
-      "bytes": 4559,
-      "sha256": "19f838203ef1f1c7b3ad7acc6f30c9760de490e85384e5a1c41ae8f7d45f9172"
+      "bytes": 6284,
+      "sha256": "4486937008efe7764a146b8f3e7f940bdc4ab90270e2bbe52f72f190b8a4733f"
     },
     {
       "path": "server/wire.js",
@@ -411,14 +1382,39 @@
       "sha256": "2104bf80db1e144c2254016ba50cc240d0f10a5110060745e1d5ee791a930831"
     },
     {
+      "path": "server/world-events.js",
+      "bytes": 5263,
+      "sha256": "3eae0951379f9e389ab80a0d42b68cf7d5820d016162e5097d09654f4917c758"
+    },
+    {
       "path": "shared/content.js",
-      "bytes": 20192,
-      "sha256": "8c9bdcaf63bb9582338adaedfabd2d51a2b43823615d0d7d3dcf54cf56150e16"
+      "bytes": 21418,
+      "sha256": "ae0beff54e3a35c1bfbfca97881bec4a073745c7b63c5e5a0ab911bcbb89d3ee"
+    },
+    {
+      "path": "shared/expansion.js",
+      "bytes": 23830,
+      "sha256": "f27fa44dfb1b181500632af65e4c93d8bab5a7ddba0839c868e0349dfe971cc6"
+    },
+    {
+      "path": "shared/frontier-world.js",
+      "bytes": 3652,
+      "sha256": "cd4466af038056c6caeed83f5c125c2e02e3dae04038ce6a2c51b8bbbfdc4739"
+    },
+    {
+      "path": "shared/rpg.js",
+      "bytes": 2965,
+      "sha256": "f4151c3f6a206e0abb39f436f30f0416a0f7ec7d940f673c4434c85b32c7a68a"
+    },
+    {
+      "path": "shared/visuals.js",
+      "bytes": 5472,
+      "sha256": "a744861222aac5c02e694a93320ed101e3bf463000d977d28fe3324caad67e7d"
     },
     {
       "path": "shared/world.js",
-      "bytes": 8861,
-      "sha256": "d75367b8c3827f96ec0e33bef7b1f7863de2d17d5e0fc474e63d379a494f7c54"
+      "bytes": 10510,
+      "sha256": "4e33a51d327f5f8a199802d495dfb1199a606c0755a56fd74245db9f6a3371cb"
     },
     {
       "path": "start-local.sh",
@@ -426,19 +1422,34 @@
       "sha256": "6c21ead0372760b2dd7507d43d658562c327b13a57f635eeab0702a5af524851"
     },
     {
+      "path": "supabase/migration_v2.sql",
+      "bytes": 1895,
+      "sha256": "040dac4935e59e701a898f6dda87b62b63db89da5a307eb681b6cacc7187c761"
+    },
+    {
       "path": "supabase/setup.sql",
-      "bytes": 1419,
-      "sha256": "c63c621ad7f83e922057f4aa69455d0b82b298cbbb49eb60809ebdd6d28480b8"
+      "bytes": 3781,
+      "sha256": "c6320c2cfb00e6b8bee055473339be33e5854789aa79dc17987fcc5a453d1bb4"
     },
     {
       "path": "tests/browser.py",
-      "bytes": 9689,
-      "sha256": "52c106a3047f97c73bd0d95aeec502b99b5f60877f92223ba0fd1262269f696a"
+      "bytes": 9646,
+      "sha256": "b02145dc8db58c0b02bb0d4b99d4cc3e152e4895d712745bd3c92b6adf51bbd9"
+    },
+    {
+      "path": "tests/build_offline_bundle.py",
+      "bytes": 2564,
+      "sha256": "3bb9782782027d10978f592fef22545d7cf32b22089521234ba36b5228f84948"
+    },
+    {
+      "path": "tests/expansion.test.js",
+      "bytes": 12377,
+      "sha256": "b84953dc7d8d8ff547807eaeee017e39051aa33ebdf1b3f6ff07e45072c920d4"
     },
     {
       "path": "tests/game.test.js",
-      "bytes": 11965,
-      "sha256": "ff452de4cd0790c0a6c4d5ae5237d76a8a3f4731fdaa5dae0db0faa7639cb472"
+      "bytes": 12097,
+      "sha256": "d878a62d3c77e9a793b7bb25ecb8db080783ae54d8efda8cab663253c3b5d5a6"
     },
     {
       "path": "tests/load.mjs",
@@ -451,9 +1462,24 @@
       "sha256": "3e32a05aa8240a293c0012805fe99081c09a358197b776f06847807ddd453441"
     },
     {
+      "path": "tests/offline_renderer.py",
+      "bytes": 9034,
+      "sha256": "f7659170d46a7608273cf96683505ee57d3e21e2e57f92ef8d35f7aa28a53f4a"
+    },
+    {
+      "path": "tests/offline_ui.py",
+      "bytes": 7228,
+      "sha256": "16be3cdfe37a55bb3e34c71ea0712279d5d60d415324fa9380b4c45d83cadb3a"
+    },
+    {
       "path": "tests/store.test.js",
       "bytes": 3563,
       "sha256": "e8c167a61adc416240bab669afb3811daa4f539a894b6934fc5ec0c7b821ebcf"
+    },
+    {
+      "path": "tests/visual-fixtures.mjs",
+      "bytes": 1748,
+      "sha256": "f025bbed0d8fd775d3a6c2e49f8f8f67728772f62a602cdcf8766309fc66ca02"
     },
     {
       "path": "tests/visual_world.py",
@@ -461,9 +1487,19 @@
       "sha256": "d2b245fd9f0fbb38d9e17dc0788d5c1f50b8527d270767f98b5f6dc126b365a5"
     },
     {
+      "path": "tools/expand_art.py",
+      "bytes": 8381,
+      "sha256": "3d18b15414e6f3c2ee146b979416b91a35841aaf2b0d840492bfc2f756578343"
+    },
+    {
       "path": "tools/generate_art.py",
       "bytes": 34307,
       "sha256": "ab589f8c0b490cc9a11939e9d005cbacc26b168a46559fbfaea5ef06643da1fc"
+    },
+    {
+      "path": "tools/modular_art.py",
+      "bytes": 9560,
+      "sha256": "68bef43b471f613336445de0b267141a40cb99ff9ebea9ea8e7386fcc2b13400"
     }
   ]
 }
