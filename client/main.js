@@ -1,3 +1,6 @@
+import {rpgPanel,enhancementRows} from './rpg-ui.js';
+import {freePoints,ATTRIBUTE_KEYS,resetPrice,spentPoints,enhancementBonus} from '../shared/rpg.js';
+import { expansionPanel, timeLeft } from './expansion-ui.js';
 import { Auth, Network } from './net.js';
 import { Renderer } from './render.js';
 import { Sound } from './audio.js';
@@ -12,16 +15,18 @@ const show=(id,on=true)=>$(id).classList.toggle('hidden',!on);
 const setText=(id,s)=>{if($(id)?.textContent!==String(s))$(id).textContent=s;};
 const money=n=>Math.round(n||0).toLocaleString('ko-KR');
 const renderer=new Renderer($('world')),sound=new Sound();
-let config,auth,net,profile=null,state=null,selectedClass='guardian',inGame=false,modal=null,modalTab='all',selectedItem=null;
+let config,auth,net,profile=null,state=null,selectedClass='novice',inGame=false,modal=null,modalTab='all',selectedItem=null;
 let keys=new Set(),joystick={x:0,y:0},attackHeld=false,autoAttack=false,lastInputAt=0,lastAttackAt=0,lastHUD=0,lastMini=0;
 let pendingInteract=null,lastInteractAt=0,lastErrorAt=0,wasOnline=false,lastProfileSignature='',lastModalSignature='';
-let busy=new Set(),settings={sfx:true,music:false,effects:true,zoom:1},mutedPlayers=new Set();
+let busy=new Set(),settings={sfx:true,music:false,effects:true,zoom:1,lowPower:false,shake:false},mutedPlayers=new Set();
+let statDraft={},lastPortraitKey='';
+let jobBookData=null,eventList=[],lastSentInput={x:0,y:0},inputSeq=0;
 let accountMode='login',lastFocused=null,firstConnection=true,uiRefreshNeeded=false,lastStateAt=0;
 try{settings={...settings,...JSON.parse(localStorage.getItem('starfall.settings')||'{}')};}catch{}
 try{mutedPlayers=new Set(JSON.parse(localStorage.getItem('starfall.muted')||'[]'));}catch{}
 function applySettings(){
   sound.sfx=settings.sfx? .28:0;sound.music=settings.music? .6:0;
-  renderer.showEffects=settings.effects;renderer.zoomSetting=Number(settings.zoom)||1;renderer.resize();
+  renderer.showEffects=settings.effects;renderer.lowPower=!!settings.lowPower;renderer.shakeEnabled=!!settings.shake;renderer.zoomSetting=Number(settings.zoom)||1;renderer.resize();
   localStorage.setItem('starfall.settings',JSON.stringify(settings));
 }
 applySettings();
@@ -39,25 +44,29 @@ async function action(data,{silent=false}={}){
   busy.add(key);
   const result=await net.action(data);busy.delete(key);
   if(result?.error&&!result.quiet&&!silent&&performance.now()-lastErrorAt>900){notice(result.error,'warn');lastErrorAt=performance.now();}
-  if(result?.message)notice(result.message,'success');
+  if(result?.message)notice(result.message,result.tone||'success');
   if(result?.ok)uiRefreshNeeded=true;
   return result||{ok:false};
 }
 function resetControls(){
   keys.clear();joystick={x:0,y:0};attackHeld=false;
-  renderer.lastInput={x:0,y:0};resetKnob();
-  net?.emit('input',{x:0,y:0},false);
+  renderer.lastInput={x:0,y:0};renderer.stopMotion();resetKnob();
+  sendInput({x:0,y:0,stop:true});
 }
 function profileChanged(p){
+  const previousClass=profile?.classId;
   profile=p;renderer.profile=p;
-  const sig=JSON.stringify([p.inventory,p.equipment,p.enhancements,p.quests,p.completed,p.level,p.gold,p.titles]);
+  const sig=JSON.stringify([p.inventory,p.equipment,p.enhancements,p.quests,p.completed,p.level,p.gold,p.titles,p.classId,p.discovery,p.daily,p.attributes,p.enhancePity,p.deathWeakUntil,p.soul]);
+  if(previousClass&&previousClass!==p.classId)renderAbilities();
+  const portraitKey=JSON.stringify([p.equipment,p.enhancements]);
+  if(portraitKey!==lastPortraitKey){lastPortraitKey=portraitKey;$('portrait').src=renderer.avatarURL(p);}
   if(sig!==lastProfileSignature){lastProfileSignature=sig;uiRefreshNeeded=true;renderTracker();}
 }
 function beginGame(p,local){
   const first=!inGame;
   profileChanged(p);inGame=true;show('landing',false);show('creator',false);show('game-ui');
   show('dev-ribbon',local);show('connection-overlay',false);renderAbilities();
-  $('portrait').src=imgHero(p.classId);
+  $('portrait').src=renderer.avatarURL(p);
   sound.zone=p.zone;renderer.start();
   if(first){
     zoneToast(p.zone);
@@ -88,7 +97,7 @@ async function connectGame(){
     }
     net?.disconnect();net=new Network(provider);
     net.on('connect',()=>{
-      wasOnline=true;show('connection-overlay',false);
+      inputSeq=0;renderer.motion.history=[];wasOnline=true;show('connection-overlay',false);
       if(inGame){notice('서버 연결이 복구되었습니다.','success');resetControls();}
     });
     net.on('connect_error',e=>{
@@ -105,6 +114,7 @@ async function connectGame(){
       lastStateAt=performance.now();
       if(!inGame)return;
       const changed=state?.zone&&state.zone!==s.zone;
+      if(s.events)eventList=s.events;
       state=s;if(s.profile)profileChanged(s.profile);
       renderer.setState(s);if(changed)zoneToast(s.zone);
       if(changed){pendingInteract=null;closeModal();resetControls();}
@@ -120,7 +130,14 @@ async function connectGame(){
       if(e.type==='impact'&&e.boss)sound.play('boss');
     });
     net.on('loot',loot);
-    net.on('dialog',e=>{const npc=NPCS.find(n=>n.id===e.npc);if(npc)openPanel(npc.kind==='quest'?'npcQuest':npc.kind==='shop'?'shop':npc.kind==='craft'?'craft':'healer');});
+    net.on('deathSummary',e=>{statDraft={};openPanel('deathSummary',e);});
+    net.on('enhanceResult',e=>{sound.play(e.success?'level':'hurt');});
+    net.on('jobBook',book=>{jobBookData=book;if(modal==='jobs')refreshPanel();});
+    net.on('jobUnlocked',()=>{if(modal==='jobs')action({type:'jobs'});sound.play('level');});
+    net.on('jobChanged',()=>{action({type:'jobs'});sound.play('level');});
+    net.on('relicRead',data=>openPanel('relic',data));
+    net.on('worldNotice',data=>{addChat({channel:'system',text:data.message});notice(data.message,'info',8500);});
+    net.on('dialog',e=>{const npc=NPCS.find(n=>n.id===e.npc);if(npc)openPanel(npc.kind==='quest'?'npcQuest':npc.kind==='shop'?'shop':npc.kind==='craft'?'craft':npc.kind==='jobs'?'jobs':'healer');});
     net.on('chat',msg=>{if(!mutedPlayers.has(msg.playerId))addChat(msg);});
     net.on('system',e=>addChat({channel:'system',text:e.message}));
     net.on('saved',e=>{setText('save-state',e.local?'개발 저장 완료':'서버 저장 완료');$('save-state').style.color='#a6c49a';});
@@ -152,13 +169,8 @@ async function connectGame(){
   }
 }
 function renderClasses(){
-  $('class-list').innerHTML=Object.entries(CLASSES).map(([id,c])=>`
-    <button class="class-card ${id===selectedClass?'selected':''}" data-class="${id}">
-      <img src="${imgHero(id)}" alt="${esc(c.name)}"><h3>${esc(c.name)}</h3>
-      <div class="class-motto">${esc(c.motto)}</div><p>${esc(c.desc)}</p>
-      <div class="class-stat"><span>전투 거리</span><span>${id==='guardian'?'근접':'원거리'}</span></div>
-      <div class="class-stat"><span>체력 / 마나</span><span>${c.hp} / ${c.mp}</span></div>
-    </button>`).join('');
+  selectedClass='novice';
+  $('class-list').innerHTML=`<div class="novice-intro"><img src="${imgHero('novice')}" alt="무직 모험가"><div><span class="badge">아직 정해지지 않은 36개의 가능성</span><h3>길 잃은 모험가</h3><p>처음에는 직업을 고르지 않습니다.<br>직접 싸우고, 채집하고, 유물을 발견하며 나만의 길을 찾으세요.</p><small>일반 9 · 희귀 12 · 영웅 9 · 히든 6<br>레벨 2부터 첫 직업을 해금할 수 있습니다.</small></div></div>`;
 }
 $('class-list').addEventListener('click',e=>{const b=e.target.closest('[data-class]');if(b){selectedClass=b.dataset.class;renderClasses();sound.play('click');}});
 $('create-character').addEventListener('click',async()=>{
@@ -188,12 +200,12 @@ function renderAbilities(){
   if(!profile)return;
   const c=CLASSES[profile.classId],all=[...c.skills,{id:'dash',name:'별걸음',key:'SHIFT',icon:'boot',unlock:1},{id:'potion',name:'체력',key:'1',icon:'potion',unlock:1},{id:'mana',name:'마나',key:'2',icon:'mana',unlock:1}];
   $('abilities').innerHTML=all.map(s=>`<button class="ability ${s.id==='basic'?'basic':''}" data-skill="${s.id}" title="${esc(s.desc||s.name)}">
-    <span class="key">${s.key}</span>${icon(s.icon)}<span class="skill-name">${esc(s.name)}</span><span class="count"></span><span class="cd-shade"></span><span class="cd-number"></span></button>`).join('');
+    <span class="key">${s.key}</span>${c.skills.some(v=>v.id===s.id)?`<img src="/assets/skill_${profile.classId}_${s.id}.png" alt="">`:icon(s.icon)}<span class="skill-name">${esc(s.name)}</span><span class="count"></span><span class="cd-shade"></span><span class="cd-number"></span></button>`).join('');
 }
 $('abilities').addEventListener('click',e=>{const b=e.target.closest('[data-skill]');if(b)cast(b.dataset.skill);});
 function cast(id){
   if(modal||!profile||!net?.connected)return;
-  if(id==='dash')action({type:'dash'});
+  if(id==='dash'){if((state?.self.cooldowns.dash||0)<=Date.now()+renderer.clock)renderer.predictDash();action({type:'dash'}).then(r=>{if(!r.ok)renderer.motion.dashEnd=0;});}
   else if(['potion','mana'].includes(id))action({type:'use',id});
   else action({type:'attack',skill:id});
 }
@@ -242,8 +254,9 @@ $('chat-input').addEventListener('focus',resetControls);
 function openPanel(name,data){
   if(name!=='auth'&&!profile&&name!=='setup'&&name!=='password')return;
   resetControls();sound.play('click');lastFocused=document.activeElement;
-  modal=name;modalTab=name==='craft'?'recipes':'all';selectedItem=null;
-  window._modalData=data;show('modal');renderPanel();
+  modal=name;modalTab=name==='craft'?'recipes':name==='jobs'?'common':'all';selectedItem=null;
+  if(name==='stats')statDraft={};
+  window._modalData=data;show('modal');renderPanel();if(name==='jobs')action({type:'jobs'});
   $('modal-close').focus();
 }
 function closeModal(){
@@ -288,19 +301,22 @@ function questCards(forNpc=false){
 function renderPanel(){
   const p=profile,c=p&&CLASSES[p.classId],data=window._modalData;
   let title='',eyebrow='STARFALL ONLINE',html='';
-  if(modal==='inventory'){
+  const rpg=profile&&rpgPanel(modal,{profile,draft:statDraft,data,now:Date.now()+renderer.clock});
+  const extra=rpg||(profile&&expansionPanel(modal,{profile,tab:modalTab,book:jobBookData,events:eventList,now:Date.now()+renderer.clock,data}));
+  if(extra){({title,eyebrow,html}=extra);}
+  else if(modal==='inventory'){
     title='가방과 장비';eyebrow=`EQUIPMENT & INVENTORY · ${money(p.gold)} G`;
     const entries=Object.entries(p.inventory).filter(([id,n])=>n>0&&ITEMS[id]&&(modalTab==='all'||ITEMS[id].type===modalTab));
     if(!selectedItem||!entries.some(([id])=>id===selectedItem))selectedItem=entries[0]?.[0];
     const selected=ITEMS[selectedItem],s=p.stats;
-    html=`<div class="inventory-layout"><aside class="equip-column"><div class="equip-portrait"><img src="${imgHero(p.classId)}" alt=""></div>
+    html=`<div class="inventory-layout"><aside class="equip-column"><div class="equip-portrait"><img src="${renderer.avatarURL(p)}" alt="현재 장비 외형"></div>
       ${[['weapon','무기'],['armor','방어구'],['charm','장신구']].map(([slot,name])=>{const id=p.equipment[slot],i=ITEMS[id];return `<button class="equip-slot" data-act="selectItem" data-id="${id||''}">${icon(i?.icon||'charm')}<span><small>${name}</small>${esc(i?.name||'미장착')}${p.enhancements[id]?' +'+p.enhancements[id]:''}</span></button>`;}).join('')}
-      <div class="stat-grid"><span>직업</span><b>${c.name}</b><span>공격력</span><b>${s.atk}</b><span>방어력</span><b>${s.def}</b><span>치명타</span><b>${s.crit}%</b><span>최대 체력</span><b>${s.maxHp}</b><span>최대 마나</span><b>${s.maxMp}</b></div></aside>
+      <div class="stat-grid"><span>직업</span><b>${c.name}</b><span>공격력</span><b>${s.atk}</b><span>방어력</span><b>${s.def}</b><span>치명타</span><b>${s.crit}%</b><span>최대 체력</span><b>${s.maxHp}</b><span>최대 마나</span><b>${s.maxMp}</b></div><button class="btn small primary" data-act="openStats">능력치 배분 · ${freePoints(p)} P</button></aside>
       <div><div class="tabs">${[['all','전체'],['gear','장비'],['consumable','소모품'],['material','재료']].map(([id,name])=>`<button class="tab ${modalTab===id?'active':''}" data-act="tab" data-id="${id}">${name}</button>`).join('')}</div>
       <div class="bag-grid">${entries.map(([id,n])=>{const i=ITEMS[id];return `<button class="item-cell ${selectedItem===id?'selected':''}" style="border-color:${RARITIES[i.rarity].color}66" data-act="selectItem" data-id="${id}" title="${esc(i.name)}">${icon(i.icon)}<span class="count">${n}</span>${Object.values(p.equipment).includes(id)?'<span class="equipped">장착</span>':''}</button>`;}).join('')}</div>
       <div class="item-details">${selected?`<h3 style="color:${RARITIES[selected.rarity].color}">${esc(selected.name)}${p.enhancements[selectedItem]?' +'+p.enhancements[selectedItem]:''}</h3>
-      <p>${RARITIES[selected.rarity].name} ${selected.class?' · '+CLASSES[selected.class].name+' 전용':''}${selected.level?' · 필요 레벨 '+selected.level:''}</p><p>${esc(selected.desc||'모험 속에서 얻은 소중한 장비입니다.')}</p>
-      <div class="item-stats">${gearStats(selected)}${p.enhancements[selectedItem]?` · 강화 보너스 ${selected.slot==='weapon'?'공격력 +'+p.enhancements[selectedItem]*3:'방어력 +'+p.enhancements[selectedItem]}`:''}</div>
+      <p>${RARITIES[selected.rarity].name} ${selected.class?' · '+({guardian:'검 계열',ranger:'활 계열',mage:'마법 계열'})[selected.class]:''}${selected.level?' · 필요 레벨 '+selected.level:''}</p><p>${esc(selected.desc||'모험 속에서 얻은 소중한 장비입니다.')}</p>
+      <div class="item-stats">${gearStats(selected)}${p.enhancements[selectedItem]?` · 강화 보너스 ${gearStats(enhancementBonus(selected.slot,p.enhancements[selectedItem]))}`:''}</div>
       ${selected.type==='gear'?`<button class="btn primary" data-act="equip" data-id="${selectedItem}">${Object.values(p.equipment).includes(selectedItem)?'장착 중':'장착하기'}</button>`:selected.type==='consumable'?`<button class="btn primary" data-act="use" data-id="${selectedItem}">사용하기</button>`:'<span class="small muted">마을의 대장장이에게 제작 재료로 사용할 수 있습니다.</span>'}`:'<p class="muted">이 분류의 아이템이 없습니다.</p>'}</div></div></div>`;
   }else if(modal==='npcQuest'){
     title='별지기 리아';eyebrow='THE KEEPER OF LITTLE LIGHTS';
@@ -322,19 +338,15 @@ function renderPanel(){
     title='브란의 별빛 공방';eyebrow=`CRAFT & REFINE · ${money(p.gold)} G`;
     html=npcIntro('bran')+`<div class="tabs"><button class="tab ${modalTab!=='enhance'?'active':''}" data-act="tab" data-id="recipes">장비 · 물약 제작</button><button class="tab ${modalTab==='enhance'?'active':''}" data-act="tab" data-id="enhance">장비 강화</button></div>`;
     if(modalTab==='enhance'){
-      html+=`<div class="info-box">강화는 실패하거나 장비가 사라지지 않습니다. 최대 +3이며 무기는 단계마다 공격력 +3, 나머지 장비는 방어력 +1을 얻습니다. 같은 이름의 장비는 강화 단계를 공유합니다.</div>`;
-      html+=Object.entries(p.inventory).filter(([id,n])=>n>0&&ITEMS[id]?.type==='gear').map(([id])=>{
-        const i=ITEMS[id],lv=p.enhancements[id]||0,cost=60*(lv+1),ore=lv+2;
-        return `<div class="recipe">${icon(i.icon)}<div class="recipe-body"><h3 style="color:${RARITIES[i.rarity].color}">${esc(i.name)} +${lv}</h3><p>${lv>=3?'최대 강화':`다음 강화: ${cost} G · 달철 광석 ${p.inventory.ore||0}/${ore}`}</p></div><button class="btn small primary" data-act="enhance" data-id="${id}" ${lv>=3||p.gold<cost||(p.inventory.ore||0)<ore?'disabled':''}>강화</button></div>`;
-      }).join('');
+      html+=enhancementRows(p,icon);
     }else html+=recipeRows();
   }else if(modal==='healer'){
     title='에린의 쉼터';eyebrow='A LIGHT TO COME HOME TO';
     html=npcIntro('erin')+`<div class="story-complete"><div class="star">✦</div><h3>다시, 길을 떠날 준비가 됐어요.</h3><p>체력과 마나가 모두 회복되었습니다.<br>마을에서도 천천히 회복할 수 있어요.</p><button class="btn primary" data-act="close">모험 계속하기</button></div>`;
   }else if(modal==='map'){
     title='별이 떨어진 세계';eyebrow='THE WORLD OF STARFALL';
-    html=`<div class="map-frame"><canvas id="large-map" width="650" height="360"></canvas><div class="map-legend"><span>● 나</span><span style="color:#cfb9ee">● 지역의 문</span><span style="color:#e9c99f">● NPC</span><span style="color:#dd9c98">● 보스</span></div></div><div class="region-cards">${Object.entries(ZONES).map(([id,z])=>`<div class="region-card ${p.zone===id?'active':''}"><h4>${esc(z.name)}</h4><small>${id==='town'?'안전 지대':`Lv.${z.minLevel}+`}${p.zone===id?' · 현재 위치':''}</small></div>`).join('')}</div>
-      <div class="info-box" style="margin-top:17px">마을 북쪽 → 속삭이는 숲 → 달잠 유적 → 재의 성채 순서로 이어집니다. 지역의 문 근처에서 F를 눌러 이동하세요. 보스의 보상은 전투에 기여한 각 플레이어에게 지급됩니다.</div><button class="btn" data-act="return">마을로 귀환 <kbd>H</kbd></button>`;
+    html=`<div class="map-frame"><canvas id="large-map" width="650" height="360"></canvas><div class="map-legend"><span>● 나</span><span style="color:#cfb9ee">● 지역의 문</span><span style="color:#e9c99f">● NPC</span><span style="color:#dd9c98">● 보스</span></div></div><div class="region-cards">${Object.entries(ZONES).map(([id,z])=>`<div class="region-card ${p.zone===id?'active':''}"><h4>${esc(z.name)}</h4><small>${id==='town'?'안전 지대':`Lv.${z.minLevel}+`}${p.zone===id?' · 현재 위치':p.discovery.visited.includes(id)?' · 발견':' · 미탐험'}</small>${p.zone==='town'&&id!=='town'&&p.discovery.visited.includes(id)?`<button class="btn small" data-act="travel" data-id="${id}">이동</button>`:''}</div>`).join('')}</div>
+      <div class="info-box" style="margin-top:17px">12개 지역이 갈림길로 이어집니다. 마을 ↔ 초원 ↔ 해안 ↔ 사막 ↔ 하늘섬 ↔ 천문대 / 숲 ↔ 습지 ↔ 유적 ↔ 성채 ↔ 설원 ↔ 심연 ↔ 천문대. 지역의 문 근처에서 F를 눌러 이동하세요. 보스의 보상은 전투에 기여한 각 플레이어에게 지급됩니다.</div><button class="btn" data-act="return">마을로 귀환 <kbd>H</kbd></button>`;
   }else if(modal==='party'){
     title='함께 걷는 모험가';eyebrow='PARTY & COMMUNITY';
     const party=state?.party;
@@ -357,11 +369,13 @@ function renderPanel(){
       <div class="settings-row"><label for="setting-sfx">효과음<small>공격·획득·레벨 상승</small></label><input id="setting-sfx" type="checkbox" ${settings.sfx?'checked':''}></div>
       <div class="settings-row"><label for="setting-music">배경 음악<small>게임 내에서 합성하는 잔잔한 멜로디</small></label><input id="setting-music" type="checkbox" ${settings.music?'checked':''}></div>
       <div class="settings-row"><label for="setting-effects">화면 효과<small>주변 입자·조명·화면 흔들림</small></label><input id="setting-effects" type="checkbox" ${settings.effects?'checked':''}></div>
+      <div class="settings-row"><label for="setting-lowPower">가벼운 화면 모드<small>고해상도 렌더링과 주변 입자를 줄입니다.</small></label><input id="setting-lowPower" type="checkbox" ${settings.lowPower?'checked':''}></div>
+      <div class="settings-row"><label for="setting-shake">타격 시 화면 흔들림<small>부드러운 이동을 위해 기본값은 꺼짐입니다.</small></label><input id="setting-shake" type="checkbox" ${settings.shake?'checked':''}></div>
       <div class="settings-row"><label for="setting-zoom">화면 배율<small>모바일에서는 작은 배율을 권장합니다.</small></label><input id="setting-zoom" type="range" min=".75" max="1.3" step=".05" value="${settings.zoom}"></div>
       <div class="settings-row"><label>자동 기본 공격<small>가까운 적에게 기본 공격을 반복합니다. 이동은 직접 조작합니다.</small></label><button class="btn small" data-act="auto">${autoAttack?'끄기':'켜기'}</button></div>
       <div class="settings-row"><label>칭호<small>다른 모험가에게 표시되는 이름</small></label><select id="title-select">${p.titles.map(t=>`<option ${t===p.title?'selected':''}>${esc(t)}</option>`).join('')}</select></div>
       <div class="settings-actions"><button class="btn small primary" data-act="save">지금 저장</button><button class="btn small" data-act="guide">조작 도움말</button><button class="btn small" data-act="account">계정 연결</button><button class="btn small" data-act="copyLink">주소 복사</button><button class="btn small danger" data-act="logout">나가기</button></div>
-      <p class="small muted" style="margin:20px 0 0">v1.0.0 · ${config.devGuest?'로컬 개발 저장소':'Supabase 영구 저장'} · ${money(p.kills)}마리 처치 · 보스 ${p.bossKills}회<br>저장은 30초마다, 주요 거래 후와 접속 종료 시 시도합니다.</p>`;
+      <p class="small muted" style="margin:20px 0 0">v2.0.0 · ${config.devGuest?'로컬 개발 저장소':'Supabase 영구 저장'} · ${money(p.kills)}마리 처치 · 보스 ${p.bossKills}회<br>저장은 30초마다, 주요 거래 후와 접속 종료 시 시도합니다.</p>`;
   }else if(modal==='guide'){
     title='첫 모험을 위한 작은 안내';eyebrow='HOW TO FIND YOUR WAY';
     html=`<div class="info-box">마을 중앙의 <b>리아</b>에게 다가가 <b>F</b>로 첫 의뢰를 받으세요. 마을의 북쪽 문에서 다시 F를 누르면 숲으로 이동합니다. 적을 클릭해 선택하고 공격할 수 있으며, 선택하지 않으면 사거리 안의 가까운 적을 노립니다.</div>
@@ -430,7 +444,7 @@ function attachForms(){
     try{await auth.setPassword($('new-password').value);closeModal();notice('비밀번호를 저장했습니다.','success');await connectGame();}
     catch(e){if($('auth-status'))$('auth-status').textContent=e.message;}finally{b.disabled=false;}
   });
-  for(const key of ['sfx','music','effects'])$('setting-'+key)?.addEventListener('change',e=>{settings[key]=e.target.checked;sound.start();applySettings();});
+  for(const key of ['sfx','music','effects','lowPower','shake'])$('setting-'+key)?.addEventListener('change',e=>{settings[key]=e.target.checked;sound.start();applySettings();});
   $('setting-zoom')?.addEventListener('input',e=>{settings.zoom=Number(e.target.value);applySettings();});
   $('title-select')?.addEventListener('change',e=>action({type:'title',title:e.target.value}));
 }
@@ -442,6 +456,27 @@ document.addEventListener('click',async e=>{
   if(type==='close'){closeModal();return;}
   if(type==='reload'){location.reload();return;}
   if(type==='authMode'){accountMode=id;renderPanel();return;}
+  if(type==='openJobs'){openPanel('jobs');return;}
+  if(type==='openStats'){openPanel('stats');return;}
+  if(type==='statPlus'||type==='statMinus'){
+    if(!ATTRIBUTE_KEYS.includes(id))return;
+    const used=Object.values(statDraft).reduce((a,b)=>a+b,0),n=statDraft[id]||0;
+    if(type==='statPlus'&&used<freePoints(profile)&&(profile.attributes[id]||0)+n<100)statDraft[id]=n+1;
+    if(type==='statMinus'&&n>0)statDraft[id]=n-1;
+    renderPanel();return;
+  }
+  if(type==='cancelStats'){statDraft={};renderPanel();return;}
+  if(type==='applyStats'){
+    b.disabled=true;const r=await action({type:'allocateStats',points:{...statDraft}});
+    if(r.ok)statDraft={};renderPanel();return;
+  }
+  if(type==='resetStats'){
+    const price=resetPrice(profile);
+    if(!spentPoints(profile)){notice('배분한 능력치가 없습니다.');return;}
+    if(await confirmDialog('능력치를 초기화할까요?',price===0?'첫 초기화는 무료입니다. 배분한 포인트가 모두 반환됩니다.':`500 G를 소비하고 배분한 포인트를 모두 돌려받습니다.`)){
+      const r=await action({type:'resetStats'});if(r.ok)statDraft={};renderPanel();
+    }return;
+  }
   if(type==='guide'||type==='account'){openPanel(type);return;}
   if(type==='copyLink'){
     try{await navigator.clipboard.writeText(location.origin);notice('게임 주소를 복사했습니다.','success');}catch{notice(location.origin,'info',8000);}return;
@@ -466,13 +501,13 @@ document.addEventListener('click',async e=>{
   if(type==='acceptQuest')request={type:'quest',mode:'accept',id};
   else if(type==='claimQuest')request={type:'quest',mode:'claim',id};
   else if(type==='buy5')request={type:'buy',id,count:5};
-  else if(['equip','use','buy','sell','craft','enhance','partyInvite'].includes(type))request={type,id};
+  else if(['equip','use','buy','sell','craft','enhance','partyInvite','changeJob','dailyClaim','achievement','worldJoin','travel'].includes(type))request={type,id};
   else if(['partyAccept','partyLeave','return'].includes(type))request={type};
   if(request){
     b.disabled=true;const result=await action(request);if(b.isConnected)b.disabled=false;
     if(result.ok){
       if(type==='partyAccept'){b.closest('.notice')?.remove();notice('파티에 합류했습니다.','success');}
-      if(type==='return')closeModal();
+      if(['return','travel','worldJoin'].includes(type))closeModal();
       uiRefreshNeeded=true;
     }
   }
@@ -512,7 +547,7 @@ document.addEventListener('keydown',e=>{
   if(k==='1')cast('potion');if(k==='2')cast('mana');
   if(k==='h')action({type:'return'});
   if(k==='t'){autoAttack=!autoAttack;notice(autoAttack?'자동 기본 공격 켜짐':'자동 기본 공격 꺼짐');}
-  if(['i','j','m','p'].includes(k))openPanel({i:'inventory',j:'journal',m:'map',p:'party'}[k]);
+  if(['i','j','m','p','c','b','n','u'].includes(k))openPanel({i:'inventory',j:'journal',m:'map',p:'party',c:'jobs',b:'events',n:'chronicle',u:'stats'}[k]);
   if(k==='enter'){$('chat').classList.remove('collapsed');$('chat-input').focus();}
   if(k==='tab'){
     const mobs=(state?.mobs||[]).filter(m=>dist(m,state.self)<650).sort((a,b)=>dist(a,state.self)-dist(b,state.self));
@@ -540,7 +575,7 @@ function moveJoystick(e){
 }
 $('joystick').addEventListener('pointermove',moveJoystick);
 for(const event of ['pointerup','pointercancel','lostpointercapture'])$('joystick').addEventListener(event,e=>{
-  if(joyPointer===e.pointerId){joyPointer=null;joystick={x:0,y:0};resetKnob();net?.emit('input',{x:0,y:0},false);}
+  if(joyPointer===e.pointerId){joyPointer=null;joystick={x:0,y:0};resetKnob();sendInput({x:0,y:0});}
 });
 $('touch-attack').addEventListener('pointerdown',e=>{e.preventDefault();attackHeld=true;$('touch-attack').setPointerCapture(e.pointerId);cast('basic');});
 for(const event of ['pointerup','pointercancel','lostpointercapture'])$('touch-attack').addEventListener(event,()=>attackHeld=false);
@@ -555,19 +590,22 @@ $('world').addEventListener('pointerdown',e=>{
   const point=renderer.screenToWorld(e.clientX,e.clientY);
   const mobs=state.mobs.filter(m=>dist(m,point)<(MONSTERS[m.type].boss?60:34)).sort((a,b)=>dist(a,point)-dist(b,point));
   if(mobs.length){action({type:'target',id:mobs[0].id});cast('basic');return;}
-  const interactables=[...renderer.map.npcs,...renderer.map.portals,...state.nodes.filter(x=>x.ready),...renderer.map.chests.filter(x=>!profile.opened.includes(x.id))];
+  const interactables=[...(state.soul?[state.soul]:[]),...renderer.map.npcs,...renderer.map.portals,...(renderer.map.relics||[]),...state.nodes.filter(x=>x.ready),...renderer.map.chests.filter(x=>!profile.opened.includes(x.id))];
   const target=interactables.filter(x=>dist(point,x)<40).sort((a,b)=>dist(a,point)-dist(b,point))[0];
   if(target&&dist(state.self,target)<95){action({type:'interact',id:target.id});return;}
   if(target)pendingInteract={...target};
   else pendingInteract=null;
   renderer.pointerMark={...point,at:performance.now()};
-  action({type:'move',x:point.x,y:point.y});
+  renderer.clickMove(point);action({type:'move',x:point.x,y:point.y}).then(r=>{if(!r.ok)renderer.stopMotion();});
 });
+function sendInput(v){
+  lastSentInput={x:v.x,y:v.y};net?.emit('input',{...v,seq:++inputSeq},false);
+}
 renderer.onFrame=(dt,t)=>{
   if(!state||!profile)return;
   const v=inputDirection();renderer.lastInput=v;
-  if(t-lastInputAt>80){
-    lastInputAt=t;net?.emit('input',v,false);
+  if(t-lastInputAt>50||Math.abs(v.x-lastSentInput.x)+Math.abs(v.y-lastSentInput.y)>.01){
+    lastInputAt=t;sendInput(v);
   }
   const attacking=(keys.has(' ')||keys.has('z')||attackHeld||autoAttack)&&!modal&&net?.connected&&state.self.hp>0;
   if(attacking&&t-lastAttackAt>180&&(state.self.cooldowns.basic||0)<Date.now()+renderer.clock+20){lastAttackAt=t;action({type:'attack',skill:'basic'},{silent:true});}
@@ -591,6 +629,12 @@ function updateHUD(){
   $('gold').lastChild?.nodeType===3?$('gold').lastChild.textContent=' '+money(p.gold):$('gold').innerHTML=icon('coin')+' '+money(p.gold);
   setText('zone-name',z.name);setText('zone-subtitle',z.subtitle);
   setText('zone-hint',state.zone==='town'?'SAFE HAVEN · 안전 지대':`SHARED WORLD · 권장 레벨 ${z.minLevel}+`);
+  setText('stat-points',freePoints(p)>0?`능력치 +${freePoints(p)}`:'능력치');
+  if($('stat-alert'))$('stat-alert').classList.toggle('has-points',freePoints(p)>0);
+  if($('soul-status')){
+    const remain=(p.deathWeakUntil||0)-now;
+    $('soul-status').textContent=remain>0?`쇠약 ${Math.ceil(remain/1000)}초 · 공격 −10% / 이동 −8%`:p.soul&&p.soul.expires>now?`영혼 회수 · ${ZONES[p.soul.zone].name} · ${timeLeft(p.soul.expires-now)}`:'';
+  }
   setText('online-count',`${config.devGuest?'개발':'온라인'} ${state.online} · 지역 ${state.zoneOnline}`);
   for(const b of $('abilities').children){
     const id=b.dataset.skill,skill=c.skills.find(k=>k.id===id),remaining=Math.max(0,(s.cooldowns[id]||0)-now),cooldown=skill?.cd||(['potion','mana'].includes(id)?5000:4000),locked=skill&&p.level<skill.unlock;
@@ -608,13 +652,19 @@ function updateHUD(){
   show('target-info',!!target&&!MONSTERS[target.type].boss);
   if(target)setText('target-info',`${MONSTERS[target.type].name} · Lv.${MONSTERS[target.type].level} · ${Math.round(target.hp)} HP`);
   const interactables=[
+    ...(state.soul?[{...state.soul,label:'내 영혼 흔적 · 손실 회수'}]:[]),
     ...renderer.map.npcs.map(x=>({...x,label:x.name+' · '+x.role})),
     ...renderer.map.portals.map(x=>({...x,label:x.name+' 이동'})),
+    ...(renderer.map.relics||[]).map(x=>({...x,label:x.name+' · 문장 읽기'})),
     ...state.nodes.filter(x=>x.ready).map(x=>({...x,label:ITEMS[x.type].name+' 채집'})),
     ...renderer.map.chests.filter(x=>!p.opened.includes(x.id)).map(x=>({...x,label:'보물 상자 열기'}))
   ].filter(x=>dist(s,x)<95).sort((a,b)=>dist(s,a)-dist(s,b));
   show('interact-hint',!!interactables.length&&!modal&&s.hp>0);
   if(interactables.length)$('interact-hint').querySelector('span').textContent=interactables[0].label;
+  for(const element of document.querySelectorAll('[data-countdown]'))element.textContent=element.dataset.countdownMode+' '+timeLeft(Number(element.dataset.countdown)-now);
+  const activeEvent=eventList.find(e=>e.status==='active'),nextEvent=eventList.filter(e=>e.start>now).sort((a,b)=>a.start-b.start)[0];
+  const event=activeEvent||nextEvent;
+  if($('world-status')){$('world-status').textContent=event?`${activeEvent?'출현 중':'다음 월드 보스'} · ${event.name.split(' · ')[0]} · ${timeLeft((activeEvent?event.end:event.start)-now)}  [B]`:'월드 보스 시간표 [B]';}
   const party=state.party;
   const partySig=party?JSON.stringify(party.members.map(m=>[m.name,m.hp,m.maxHp,m.online])):'';
   if($('party-mini').dataset.sig!==partySig){
@@ -625,7 +675,10 @@ function updateHUD(){
 setInterval(async()=>{
   if(net?.connected){
     const t=performance.now();const response=await net.emit('pingCheck',{});
-    if(response?.t)setText('latency',Math.round(performance.now()-t)+' ms');
+    if(response?.t){
+      const rtt=performance.now()-t;renderer.motion.rtt=Math.min(1000,rtt);
+      renderer.clock=response.t-Date.now()+rtt/2;setText('latency',Math.round(rtt)+' ms');
+    }
   }
 },5000);
 setInterval(async()=>{
@@ -635,7 +688,7 @@ setInterval(async()=>{
     if(net?.connected)await net.emit('refreshAuth',session.access_token);
   }catch(e){notice(e.message,'warn');}
 },60000);
-window.addEventListener('beforeunload',()=>{net?.emit('input',{x:0,y:0},false);});
+window.addEventListener('beforeunload',()=>{sendInput({x:0,y:0});});
 async function bootstrap(){
   try{
     const [cfg]=await Promise.all([fetch('/api/config').then(r=>{if(!r.ok)throw new Error('서버에 연결하지 못했습니다.');return r.json();}),renderer.load()]);
