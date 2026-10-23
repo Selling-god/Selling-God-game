@@ -21,14 +21,14 @@
       <p class="landing-desc">숲을 탐험하고, 잊힌 수호자를 만나세요.<br>당신의 다음 모험은 작은 마을의 불빛에서 시작됩니다.</p>
       <div class="landing-actions"><button id="start" class="btn primary large" disabled>모험 시작 <span>↗</span></button><button id="login-open" class="btn glass">계정 로그인</button></div>
       <p id="start-note" class="small muted">게임 리소스를 준비하고 있습니다.</p>
-      <div class="feature-tags"><span>실시간 공유 세계</span><span>3가지 직업</span><span>협동 보스 전투</span></div>
+      <div class="feature-tags"><span>실시간 공유 세계</span><span>발견하는 36개 직업</span><span>12개 지역 · 정시 월드 보스</span></div>
     </main>
-    <div class="landing-bottom"><span>CHAPTER I <b>마지막 별의 약속</b></span><span>PC · MOBILE <b>v1.0.0</b></span></div>
+    <div class="landing-bottom"><span>CHAPTER II <b>이름 없는 길들</b></span><span>PC · MOBILE <b>v2.0.0</b></span></div>
   </section>
   <section id="creator" class="overlay hidden">
     <div class="creation-window">
       <div class="eyebrow">YOUR STORY BEGINS HERE</div>
-      <h2>어떤 빛으로 기억될까요?</h2><p class="muted">이 세계에서 함께할 직업을 선택해 주세요. 계정당 하나의 캐릭터가 저장됩니다.</p>
+      <h2>어떤 빛으로 기억될까요?</h2><p class="muted">직업은 모험 속에서 발견합니다. 먼저 이 세계에서 불릴 이름을 알려주세요.</p>
       <div id="class-list" class="class-list"></div>
       <div class="creation-bottom"><label>모험가의 이름<input id="character-name" maxlength="14" placeholder="한글·영문·숫자 2~14자" autocomplete="off"></label><button id="create-character" class="btn primary">별여울로 떠나기 ↗</button></div>
       <p id="create-error" class="error-text"></p>
@@ -47,7 +47,7 @@
     <div class="zone-heading"><span id="zone-subtitle"></span><h2 id="zone-name"></h2><span id="zone-hint"></span></div>
     <button id="minimap-wrap" class="minimap panel" aria-label="지도 열기"><canvas id="minimap" width="172" height="112"></canvas><div><span id="online-count"></span><span id="latency">— ms</span></div></button>
     <div id="boss-hud" class="boss-hud hidden"><div><span id="boss-name"></span><span id="boss-hp"></span></div><div class="boss-meter"><div id="boss-fill"></div></div><small>바닥의 경고를 피하고, 틈을 노리세요</small></div>
-    <div id="party-mini" class="party-mini"></div>
+    <div id="soul-status" aria-live="polite"></div><div id="party-mini" class="party-mini"></div>
     <aside id="quest-tracker" class="quest-tracker panel"><button id="tracker-toggle" class="tracker-head"><span>모험의 기록</span><span>−</span></button><div id="tracked-quests"></div><button id="journal-open" class="text-button">의뢰 일지 보기 <span>J</span></button></aside>
     <div id="target-info" class="target-info hidden"></div>
     <div id="zone-toast" class="zone-toast hidden"></div>
@@ -55,7 +55,12 @@
     <div id="loot-feed" class="loot-feed"></div>
     <button id="interact-hint" class="interact-hint hidden"><kbd>F</kbd> <span></span></button>
     <div id="abilities" class="abilities"></div>
+    <button id="world-status" class="world-status" data-panel="events">월드 보스 시간표 [B]</button>
     <div class="hud-dock">
+      <button data-panel="jobs" title="전직 도감 (C)"><img src="/assets/icon_sword.png" alt=""><span>직업</span><kbd>C</kbd></button>
+      <button data-panel="events" title="월드 보스 (B)"><img src="/assets/icon_dragon.png" alt=""><span>보스</span><kbd>B</kbd></button>
+      <button data-panel="chronicle" title="탐험 수첩 (N)"><img src="/assets/icon_shard.png" alt=""><span>탐험</span><kbd>N</kbd></button>
+      <button id="stat-alert" data-panel="stats" title="능력치 (U)"><img src="/assets/icon_charm.png" alt=""><span id="stat-points">능력치</span><kbd>U</kbd></button>
       <button data-panel="inventory" title="가방 (I)"><img src="/assets/icon_bag.png" alt=""><span>가방</span><kbd>I</kbd></button>
       <button data-panel="journal" title="의뢰 (J)"><img src="/assets/icon_quest.png" alt=""><span>의뢰</span><kbd>J</kbd></button>
       <button data-panel="map" title="지도 (M)"><img src="/assets/icon_map.png" alt=""><span>지도</span><kbd>M</kbd></button>
