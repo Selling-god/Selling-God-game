@@ -1,5 +1,6 @@
 {
-  "version": "2.0.0",
+  "version": "3.0.0",
+  "scope": "Source delivery; excludes node_modules, dist, local secrets, transient QA bundles",
   "files": [
     {
       "path": ".env.example",
@@ -23,8 +24,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 1024,
-      "sha256": "f070a5882a73825dec895f1dbab08268fe08e17b1bb1a312886ee96d0c4c887c"
+      "bytes": 2152,
+      "sha256": "0939e9686755c2de1282a5c0635131ca74d4c368d091cec0adf29b3c4bf9cab7"
     },
     {
       "path": "LICENSE",
@@ -33,8 +34,8 @@
     },
     {
       "path": "README_KO.md",
-      "bytes": 21605,
-      "sha256": "2271a93b09dacf9c224f9366332ab090a3bcfd9142e2a0918d5b01d1f07b6062"
+      "bytes": 21876,
+      "sha256": "c8ddec3f0ee2c5b07154fff07582eec14ddcb98ecc601031e0ed467b59d4d3b6"
     },
     {
       "path": "SECURITY.md",
@@ -43,13 +44,18 @@
     },
     {
       "path": "START_HERE.html",
-      "bytes": 2779,
-      "sha256": "c60b8c40219426fd8b201e996a559f075a459bf528363958c4a245f8239772ba"
+      "bytes": 3553,
+      "sha256": "285b7f647d8762e41b2ffce0f1bd01a414d0468ef9ded186340d7eef65c16531"
     },
     {
       "path": "START_LOCAL.bat",
       "bytes": 558,
       "sha256": "c34dea73d33ca7364418fc52a31d2387522a5641f0a09525ac67bdd3668f4ea9"
+    },
+    {
+      "path": "client/adventure-ui.js",
+      "bytes": 14661,
+      "sha256": "758cfaad80620a0189f298283bdc45d8270ca11ec879303f9603b912049b56b0"
     },
     {
       "path": "client/audio.js",
@@ -63,18 +69,23 @@
     },
     {
       "path": "client/equipment.js",
-      "bytes": 4354,
-      "sha256": "cec2969ecdf2f73547d5724d144c021279f560c96cc64fc95785dbf074881d3b"
+      "bytes": 4452,
+      "sha256": "33455b16b66e712c3d6de000aabc258badc480c6dc9c715c34063f5e9dc59942"
     },
     {
       "path": "client/expansion-ui.js",
-      "bytes": 9466,
-      "sha256": "f1fd367e880a4c860c7a49bb4343795b91bc5ad0fce288c6d9bfc6d89dab8256"
+      "bytes": 9996,
+      "sha256": "57066f8a45e602339635e067f2a26e54af2b516ebf4cdf64987d8724db9da924"
+    },
+    {
+      "path": "client/ground-chunks.js",
+      "bytes": 1982,
+      "sha256": "9f943bc0987ad3c780a2a98cae724cf641c2032cb90a9f3b8623e6313dd88c08"
     },
     {
       "path": "client/main.js",
-      "bytes": 61993,
-      "sha256": "c158286889bd32df1856ddf8212df6694e3cd31d46631b6e1cfc91126cbe3a68"
+      "bytes": 63486,
+      "sha256": "cdd174c5655beafc9cfc40a6bcc2e1a61312c39b61c408eb51f89117f5ec100c"
     },
     {
       "path": "client/motion.js",
@@ -88,8 +99,8 @@
     },
     {
       "path": "client/render.js",
-      "bytes": 21741,
-      "sha256": "ad8010dead028928b296e9d003cdcc2c6bbd6d85616557047f06e074238b52a9"
+      "bytes": 23793,
+      "sha256": "ccf4a047c1d57691f59110fcdcca3f6ab9a65015b0327fcab999b1de97c6663f"
     },
     {
       "path": "client/rpg-ui.js",
@@ -98,21 +109,31 @@
     },
     {
       "path": "docs/ARCHITECTURE.md",
-      "bytes": 2761,
-      "sha256": "79324b92011f5f8a90abaa5e46e748024452e263874e54499fc069b96bd8a890"
+      "bytes": 5590,
+      "sha256": "95a7144df75054073ade88462592d8432b5b664a3ff4ee040966eb238e02a4fc"
     },
     {
       "path": "docs/CONTENT_GUIDE.md",
+      "bytes": 8359,
+      "sha256": "f333fec6a65d8e7994410f4784031be9ea6b451db146c6f5d93ba8294a52c414"
+    },
+    {
+      "path": "docs/CONTENT_GUIDE_V2_REFERENCE.md",
       "bytes": 8152,
       "sha256": "829c5efbc2c1f24c1cf5ea55af1d9fa53f6b5c8abe52675bb5b28dc179e1a31f"
     },
     {
       "path": "docs/SOURCES_AND_LICENSES.md",
-      "bytes": 4390,
-      "sha256": "5dcec8a271d94f733f5a0dec53d76cae7801362e571c33bb0ea683e2a4070f55"
+      "bytes": 5382,
+      "sha256": "71f0d87f1ea74e60cd500e332188b915cf17a3902c7b4339e7a91cc5d6d05e9b"
     },
     {
       "path": "docs/TEST_REPORT.md",
+      "bytes": 7172,
+      "sha256": "bc08dc4eba61589555b5f29f4a14841566d9656ebb255ef672a029389bf3bf3c"
+    },
+    {
+      "path": "docs/TEST_REPORT_V2.md",
       "bytes": 5619,
       "sha256": "1a1229dc637b071c01f0dd4f769d6b33e5e8c5106ae366ddd8a0c5c94758384f"
     },
@@ -120,6 +141,16 @@
       "path": "docs/UPDATE_V2_KO.md",
       "bytes": 6681,
       "sha256": "c741513673c7ff5c604d6fb980f944b4d41559c082a237cbcc719728e5bfa2f6"
+    },
+    {
+      "path": "docs/UPDATE_V3_KO.md",
+      "bytes": 6424,
+      "sha256": "1c3fac88729f05e9b043bb4875a86a732b3e44eb45ca982c20065762a2fc3335"
+    },
+    {
+      "path": "docs/V3_OPERATOR_STORY_REFERENCE.md",
+      "bytes": 69396,
+      "sha256": "c7d28ed2561b1d4b46942976f23ff14376e5c3ef04783504c381f72c878da47c"
     },
     {
       "path": "docs/screenshots/attributes_desktop.png",
@@ -172,9 +203,69 @@
       "sha256": "a2f535ae2fa6fca7cfd988a8080995ba1666e29386f19f8d45b7f8520f388756"
     },
     {
+      "path": "docs/screenshots/v3_01_vocation_story.png",
+      "bytes": 482152,
+      "sha256": "31b1415d6f8dea47419fb1d900c2f0eacfe3f69439a4e498177fc2ec5f1ff219"
+    },
+    {
+      "path": "docs/screenshots/v3_02_hidden_clue.png",
+      "bytes": 508857,
+      "sha256": "f069660fcb15ae9e6cd5bb9ac6efdd2089c4937da678bb3d2ae9636ce6f75965"
+    },
+    {
+      "path": "docs/screenshots/v3_03_continent_atlas.png",
+      "bytes": 514527,
+      "sha256": "88074c624b64d60df840bc37fedfd71ad0f06930c27cdb59b9d4516758f709ec"
+    },
+    {
+      "path": "docs/screenshots/v3_04_large_field.png",
+      "bytes": 725045,
+      "sha256": "c5e02154008e0cfb3bf1ea26e5c3874baa93da2450d250cff43ff787be7041f7"
+    },
+    {
+      "path": "docs/screenshots/v3_06_hidden_training.png",
+      "bytes": 492681,
+      "sha256": "35acef0ffe3d9144f721030aae99be54c87c93b76b7a0fdac1dadacca00dd8d1"
+    },
+    {
+      "path": "docs/screenshots/v3_07_story_mobile.png",
+      "bytes": 123795,
+      "sha256": "004a9806536aa9afe4d5d9876153027a3321e4e22ab7b20595b6afe5bb21a51f"
+    },
+    {
+      "path": "docs/screenshots/v3_08_atlas_mobile.png",
+      "bytes": 118368,
+      "sha256": "7717463b29169ebc1731d8de86f39853494ae9904210e78bad388ea20e0d7661"
+    },
+    {
       "path": "docs/screenshots/world_schedule.png",
       "bytes": 429621,
       "sha256": "bea585360bd5525f38ed91aacb89c458dae8d42ad5feef2afa0766aecd998d47"
+    },
+    {
+      "path": "docs/test-results/adventure-ui-v3.json",
+      "bytes": 1161,
+      "sha256": "3606d4fd1a48d2f328bfe3c0d9347236a3bc437e5a1abfe1b35dd223478011d3"
+    },
+    {
+      "path": "docs/test-results/build-v3.txt",
+      "bytes": 117,
+      "sha256": "a44859834f7341a6906863a2b31de77c4cd54bc819ecd68f7a05cccbc0c9d006"
+    },
+    {
+      "path": "docs/test-results/content-manifest-v3.json",
+      "bytes": 174699,
+      "sha256": "66527c956da9e30a70e073d71efb5102757d2ad7a2fcf960eae9931b3609bd17"
+    },
+    {
+      "path": "docs/test-results/legacy-ui-v3.json",
+      "bytes": 470,
+      "sha256": "e70b0f0648c00e9de433beef6a90dc2c5fb582ff107c1abe2b65324f032ed3c5"
+    },
+    {
+      "path": "docs/test-results/load-expedition-v3.txt",
+      "bytes": 645,
+      "sha256": "36f1121fd5ef3db67f1d6d5b5498215d055a02ea67548005491f91ce33b24e66"
     },
     {
       "path": "docs/test-results/load-smoke-v2.txt",
@@ -187,6 +278,11 @@
       "sha256": "9468d89c40d7aae4d4a77eb0a32afcdccd30f4479d832ce4322a5340be58fb6a"
     },
     {
+      "path": "docs/test-results/node-v3.txt",
+      "bytes": 18263,
+      "sha256": "0bd0ee88b0e25cdf9d5dc9608bb4eb278f52099a52980e964c40a1770c9f2f41"
+    },
+    {
       "path": "docs/test-results/offline-render-v2.json",
       "bytes": 366,
       "sha256": "a5c958cdfce933b470cb48c209ba97549e3f94c827595ef7a20706221c0764d6"
@@ -197,14 +293,19 @@
       "sha256": "e70b0f0648c00e9de433beef6a90dc2c5fb582ff107c1abe2b65324f032ed3c5"
     },
     {
+      "path": "docs/test-results/performance-v3.json",
+      "bytes": 2085,
+      "sha256": "ebb3479836e8ccd491ca3dfdf505a2e8ea109057aaf95a8e4b8b94c9c94165f2"
+    },
+    {
       "path": "package-lock.json",
       "bytes": 786,
-      "sha256": "e6db8f661177490296bd945d45ca1cce5b2dacb8d144fab7dbb5a77da715f5e2"
+      "sha256": "0370ea1dd840375c9f290409c91991a0ecc401255a8ab2fbcdc35ad32381e706"
     },
     {
       "path": "package.json",
       "bytes": 600,
-      "sha256": "df3edcf016deafb776a6d97c612c767751a4af9965f1653970d767f9aba71407"
+      "sha256": "352be881d5c6ceba55d691d9a0701f8457cd98f468a3b9e22ec768596e53a891"
     },
     {
       "path": "public/assets/alchemist_s_0.png",
@@ -213,8 +314,8 @@
     },
     {
       "path": "public/assets/atlas.json",
-      "bytes": 134588,
-      "sha256": "f9cb499c08de52d4f7282421f2b4fcc03b1a10dfe80a0db986bb7ae6acbbd2b5"
+      "bytes": 138082,
+      "sha256": "a15d10004b0ebdc75ee2c7e2252cad23cd52882f35ed0ac9938fd1ff6665c582"
     },
     {
       "path": "public/assets/atlas.png",
@@ -1328,13 +1429,13 @@
     },
     {
       "path": "public/index.html",
-      "bytes": 8453,
-      "sha256": "24e520b0655796afdef80219b039b562258d72081b9a6076ffd291c215836052"
+      "bytes": 8606,
+      "sha256": "fd05224e5a8528000e8ab1ae3707d5889e87bee52366c4cc551dd5a99582cc63"
     },
     {
       "path": "public/style.css",
-      "bytes": 42345,
-      "sha256": "7bafe8c18ea19c2e59929e8d492a88a12906ad6b9b97fde0f015ffde876a186a"
+      "bytes": 48462,
+      "sha256": "fcec1910462f27f91f8ce213f87fc730a6253387b38c50943860b916074a7e7d"
     },
     {
       "path": "render.yaml",
@@ -1352,19 +1453,29 @@
       "sha256": "fc61ebae06dda0c1d74ef2184f66d952cacfc7c06e4846a26a8cf4779e7ee807"
     },
     {
+      "path": "server/atlas.js",
+      "bytes": 11575,
+      "sha256": "f794b096a96c5fe2dd0abdbfd2bcd1cc58ddb4fb9d0fecf2de4b193b81ee8385"
+    },
+    {
       "path": "server/game.js",
-      "bytes": 39247,
-      "sha256": "efa24a5b4da88b1d1160f755c50c06652165beb904262235fd3e1cb338b192c3"
+      "bytes": 42311,
+      "sha256": "971a65f644d6da2fe2b489988b6f63c285eb2f6353674f56d2944da489f3d3e0"
     },
     {
       "path": "server/index.js",
-      "bytes": 14841,
-      "sha256": "3b665de3bb117c236c3bfb67f50d3e97c1b207e3c81e67ecd6ca4397ca712e6e"
+      "bytes": 15127,
+      "sha256": "993099009658426267d7d8a649ec3df3b426f39fe42750c8c53534f714fc0ae5"
+    },
+    {
+      "path": "server/lazy-worlds.js",
+      "bytes": 1545,
+      "sha256": "b4e980297cdb6f95a932d62a3d05e2c71ea2c31d67c30a857930c69abbc10ca4"
     },
     {
       "path": "server/progression.js",
-      "bytes": 12996,
-      "sha256": "49d97234d2d49216ac95b2b7e8afd4f6655fe50de051aae884199494d6cb7f70"
+      "bytes": 12155,
+      "sha256": "92a3c7d0e25b294bbc77289b48eceedd5e48e3b68fa013f9c180569b4807cd3f"
     },
     {
       "path": "server/rpg.js",
@@ -1375,6 +1486,16 @@
       "path": "server/store.js",
       "bytes": 6284,
       "sha256": "4486937008efe7764a146b8f3e7f940bdc4ab90270e2bbe52f72f190b8a4733f"
+    },
+    {
+      "path": "server/stories.js",
+      "bytes": 13380,
+      "sha256": "bff33c210c3e7713d16473cfd2b1e555662ecfc2bfabcca3fab8edc50e3803bb"
+    },
+    {
+      "path": "server/story-data.js",
+      "bytes": 47817,
+      "sha256": "cb72f8ac7e4bda4d6da21f83a60639e96843c3718b9622efb4ee5df0ec17dea3"
     },
     {
       "path": "server/wire.js",
@@ -1388,13 +1509,23 @@
     },
     {
       "path": "shared/content.js",
-      "bytes": 21418,
-      "sha256": "ae0beff54e3a35c1bfbfca97881bec4a073745c7b63c5e5a0ab911bcbb89d3ee"
+      "bytes": 21661,
+      "sha256": "da9ac410b8a066e0b9b9abd9312c259fbf9b450971adace994d2e826fa83d850"
     },
     {
       "path": "shared/expansion.js",
       "bytes": 23830,
       "sha256": "f27fa44dfb1b181500632af65e4c93d8bab5a7ddba0839c868e0349dfe971cc6"
+    },
+    {
+      "path": "shared/expedition-world.js",
+      "bytes": 4343,
+      "sha256": "844a740a1fe2146ec6f0414f53272e7f2bceb4e17287d11f0c93889dac96b422"
+    },
+    {
+      "path": "shared/expeditions.js",
+      "bytes": 13708,
+      "sha256": "f5b2374b522d898705f426bfa7d40c071f1c6f06d1249dfef5b12af4a4bdfc1e"
     },
     {
       "path": "shared/frontier-world.js",
@@ -1407,14 +1538,24 @@
       "sha256": "f4151c3f6a206e0abb39f436f30f0416a0f7ec7d940f673c4434c85b32c7a68a"
     },
     {
+      "path": "shared/spatial.js",
+      "bytes": 834,
+      "sha256": "110a2e622e9b3bd19515c584f6e37992d290e157f9c99bf40b077980d6255cc0"
+    },
+    {
       "path": "shared/visuals.js",
       "bytes": 5472,
       "sha256": "a744861222aac5c02e694a93320ed101e3bf463000d977d28fe3324caad67e7d"
     },
     {
+      "path": "shared/vocation-sites.js",
+      "bytes": 2517,
+      "sha256": "d5ffe6d413a37499dbe3a961c89513830ac7919a2b76b9350c362cd7fbe6bfaf"
+    },
+    {
       "path": "shared/world.js",
-      "bytes": 10510,
-      "sha256": "4e33a51d327f5f8a199802d495dfb1199a606c0755a56fd74245db9f6a3371cb"
+      "bytes": 13395,
+      "sha256": "575ea00fc06f966d992a5961c6ce568f6239e786d6467f96a6e6f003afbdd335"
     },
     {
       "path": "start-local.sh",
@@ -1432,44 +1573,64 @@
       "sha256": "c6320c2cfb00e6b8bee055473339be33e5854789aa79dc17987fcc5a453d1bb4"
     },
     {
+      "path": "supabase/verify_v3.sql",
+      "bytes": 489,
+      "sha256": "b48a1012a1a4ac9309b8fdc9afba8eb45441f7b2d5767aa38fa1bea0a67d6f1e"
+    },
+    {
+      "path": "tests/adventure.test.js",
+      "bytes": 20333,
+      "sha256": "163ab534db3f86f66741eb220a2f7ea1d5d9489075776cdbd4da7361ead364ba"
+    },
+    {
+      "path": "tests/adventure_ui.py",
+      "bytes": 12303,
+      "sha256": "7cd1e399da83cfc4684e4ccae25545241c8992d0101ba41d545daf089f549f32"
+    },
+    {
       "path": "tests/browser.py",
       "bytes": 9646,
       "sha256": "b02145dc8db58c0b02bb0d4b99d4cc3e152e4895d712745bd3c92b6adf51bbd9"
     },
     {
       "path": "tests/build_offline_bundle.py",
-      "bytes": 2564,
-      "sha256": "3bb9782782027d10978f592fef22545d7cf32b22089521234ba36b5228f84948"
+      "bytes": 2798,
+      "sha256": "601b3148b4683c797d7621e2fa6b263718d873ea8e2cdcdab688e1f6c8790191"
     },
     {
       "path": "tests/expansion.test.js",
-      "bytes": 12377,
-      "sha256": "b84953dc7d8d8ff547807eaeee017e39051aa33ebdf1b3f6ff07e45072c920d4"
+      "bytes": 12729,
+      "sha256": "ab4d575753c57a8823e80288ca2108b243136226d69d4702c48cbc51ec579967"
     },
     {
       "path": "tests/game.test.js",
-      "bytes": 12097,
-      "sha256": "d878a62d3c77e9a793b7bb25ecb8db080783ae54d8efda8cab663253c3b5d5a6"
+      "bytes": 12271,
+      "sha256": "4143fe84c41bb8db11c6e2a314323e72312acb6d0c548ab37ecf8aa42c21b6fa"
     },
     {
       "path": "tests/load.mjs",
-      "bytes": 3845,
-      "sha256": "1f08e4930985b2fce64be2ccadbf6706003b04f1309d555ab949ebb9072d4d12"
+      "bytes": 4152,
+      "sha256": "518a7d0e79c10d1a5dc7e60de4fa4ddca4e87538d2d0de3c52b61359d8f75a8d"
     },
     {
       "path": "tests/network.test.js",
-      "bytes": 8013,
-      "sha256": "3e32a05aa8240a293c0012805fe99081c09a358197b776f06847807ddd453441"
+      "bytes": 10536,
+      "sha256": "f49ca631b9a9f86d1863876d1a6380fa6b3678e969e58f22ae31934cf25862bf"
     },
     {
       "path": "tests/offline_renderer.py",
-      "bytes": 9034,
-      "sha256": "f7659170d46a7608273cf96683505ee57d3e21e2e57f92ef8d35f7aa28a53f4a"
+      "bytes": 9057,
+      "sha256": "0103b8044aab3928e1648bddb4827334623742aa3c89eace217128274a224c80"
     },
     {
       "path": "tests/offline_ui.py",
       "bytes": 7228,
       "sha256": "16be3cdfe37a55bb3e34c71ea0712279d5d60d415324fa9380b4c45d83cadb3a"
+    },
+    {
+      "path": "tests/performance-v3.mjs",
+      "bytes": 3201,
+      "sha256": "eb9e59408f5b393071d4b46be8f88641d41ac3c95c9664fadcfe8a814f7b34a5"
     },
     {
       "path": "tests/store.test.js",
@@ -1485,6 +1646,11 @@
       "path": "tests/visual_world.py",
       "bytes": 3503,
       "sha256": "d2b245fd9f0fbb38d9e17dc0788d5c1f50b8527d270767f98b5f6dc126b365a5"
+    },
+    {
+      "path": "tools/atlas_aliases.py",
+      "bytes": 585,
+      "sha256": "8833b84a22f3172bdb70d24d3bda61b41dc4649fc8c6fd12e02b2326a2b407fe"
     },
     {
       "path": "tools/expand_art.py",

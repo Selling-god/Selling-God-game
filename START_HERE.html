@@ -1,12 +1,21 @@
-<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Starfall Online 2.0 시작 안내</title>
-<style>body{margin:0;background:#10252d;color:#dce7df;font:16px/1.9 system-ui,'Malgun Gothic',sans-serif}main{max-width:900px;margin:50px auto;padding:30px}h1{font-size:38px;color:#e4cf99}h2{margin-top:36px;color:#bdd6cb}a{color:#c5b7ec}article{background:#19323a;padding:26px;border:1px solid #536b65;border-radius:14px;margin:22px 0}code,pre{background:#0c1b24;padding:8px;border-radius:4px}pre{white-space:pre-wrap}img{width:100%;border-radius:10px}b{color:#ebd199}</style>
-<main><small>STARFALL ONLINE · THE PATHS UPDATE</small><h1>잔별의 숲 2.0</h1><p>36개의 발견하는 직업 · 12지역 · 정시 보스 · 장비 외형 · 스탯과 강화</p>
-<article><h2>이미 1.0을 배포했다면</h2><p><b>SQL을 먼저 실행하고, 게임 코드를 나중에 반영하세요.</b></p><p>1. 저장·접속 종료·기존 저장 백업<br>2. 같은 Supabase SQL Editor에서 <code>supabase/migration_v2.sql</code> 실행<br>3. 같은 GitHub 저장소에 이번 폴더 내용물 덮어쓰기<br>4. Render의 기존 키 유지, <code>SNAPSHOT_HZ=10</code>으로 변경 후 재배포<br>5. Ctrl+F5, 기존 캐릭터 확인, U에서 포인트 배분</p><a href="docs/UPDATE_V2_KO.md">업데이트 상세 안내</a></article>
-<article><h2>처음 설치한다면</h2><p>Supabase 새 프로젝트 → <code>supabase/setup.sql</code> → Anonymous Sign-Ins → GitHub 업로드 → Render <b>Web Service</b>로 배포. 상세 설정과 비밀키 주의사항은 README를 읽으세요.</p><pre>Build: npm ci &amp;&amp; npm run build
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>잔별의 숲 3.0 적용 안내</title>
+<style>body{margin:0;background:#10252d;color:#dce7df;font:16px/1.9 system-ui,'Malgun Gothic',sans-serif}main{max-width:960px;margin:40px auto;padding:30px}h1{font-size:40px;color:#e4cf99}h2{margin-top:30px;color:#bdd6cb}a{color:#c5b7ec}article{background:#19323a;padding:26px;border:1px solid #536b65;border-radius:14px;margin:22px 0}code,pre{background:#0c1b24;padding:8px;border-radius:4px}pre{white-space:pre-wrap}img{width:100%;border-radius:10px}b{color:#ebd199}.small{font-size:13px;color:#b5c7be}</style>
+<main><small>STARFALL ONLINE · THE UNWRITTEN ATLAS</small><h1>아득한 길의 서약</h1><p>3.0 · 36개 전직 이야기 · 240개 장 · 84지역 · 야영지와 기억의 시련</p>
+<article><h2>이미 2.0이 실행 중이라면</h2><p><b>새 SQL 없이 업데이트합니다. 기존 계정·장비·직업은 유지합니다.</b></p>
+<p>1. 게임 저장·접속 종료·기존 데이터 백업<br>2. 압축을 푼 폴더의 내용물을 같은 GitHub 저장소에 반영<br>3. 기존 Render Web Service 재배포. Supabase 키는 그대로<br>4. /health에서 3.0.0 확인, Ctrl+F5<br>5. V로 전승을 열고 마을 남쪽 스승에게 F로 대화</p>
+<a href="docs/UPDATE_V3_KO.md">2.0 → 3.0 상세 적용 안내</a>
+<p class="small">아직 1.0이면 supabase/migration_v2.sql을 먼저 실행하세요. 정상적인2.0에는 재실행할 필요가 없습니다.</p></article>
+<article><h2>처음 설치한다면</h2><p>README_KO.md의 안내대로 Supabase 설정 → GitHub 업로드 → Render <b>Web Service</b> 배포.</p>
+<pre>Build: npm ci &amp;&amp; npm run build
 Start: npm start
 Health: /health
-Node: 22</pre><a href="README_KO.md">한국어 전체 설치 안내</a></article>
-<article><h2>내 PC에서 먼저 해보기</h2><p>Node.js 22.12 이상 22계열 설치 후 Windows는 <code>START_LOCAL.bat</code> 실행. 브라우저에서 <code>http://localhost:3000</code>에 접속합니다.</p><p>이 HTML은 안내 페이지입니다. 더블클릭만으로 온라인 게임 서버가 실행되는 것은 아닙니다.</p></article>
-<h2>추가한 외형과 효과</h2><img src="docs/screenshots/equipment_and_spells.png" alt="실제 렌더러 기반 장비와 스킬 효과 미리보기"><p>오프라인 렌더 테스트 이미지. 실제 사용자 서버에 이미 적용된 화면은 아닙니다.</p>
-<p><a href="docs/CONTENT_GUIDE.md">플레이 가이드</a> · <a href="docs/TEST_REPORT.md">검증 범위와 제한</a> · <a href="SECURITY.md">운영 보안</a></p>
-<p>작은 그룹용 단일 서버 게임입니다. 대규모 MMO/무제한 무료 운영/실제 클라우드 배포 검증을 보장하지 않습니다.</p></main></html>
+Node: 22
+SNAPSHOT_HZ=10</pre><a href="README_KO.md">한국어 전체 설치 안내</a></article>
+<h2>스승을 만나고, 자신의 이야기를 완성하세요</h2><img src="docs/screenshots/v3_01_vocation_story.png" alt="실제 전승 UI 렌더 검사 화면">
+<p class="small">실제 모듈을 사용한 오프라인 테스트 캡처입니다. 사용자 서버에 자동 적용된 화면이 아닙니다.</p>
+<article><h2>처음 가 볼 곳</h2><p>별여울 마을 남쪽에서 일반 직업을 시작하세요. C는 직업, V는 전승, M은 지도입니다. 기존 초원·해안 등의 남동쪽 원정 관문에서 넓은 권역으로 들어갑니다. 야영지의 귀환석은 직접 방문해야 열립니다.</p>
+<p>히든 직업은 순서대로 단서를 찾아야 하며, 이름을 알아낸 후에도 긴 수련을 거칩니다. 허공 공격은 수련으로 세지 않습니다.</p></article>
+<h2>대륙 지도</h2><img src="docs/screenshots/v3_03_continent_atlas.png" alt="원정 대륙 지도 UI 테스트">
+<article><h2>내 컴퓨터에서 먼저 실행</h2><p>Node.js22.12이상22계열 설치 후 Windows는 START_LOCAL.bat. 브라우저에서 http://localhost:3000에 접속합니다.</p><p>이 HTML은 안내이며 더블클릭만으로 온라인 서버가 실행되지는 않습니다.</p></article>
+<p><a href="docs/CONTENT_GUIDE.md">플레이 안내</a> · <a href="docs/TEST_REPORT.md">실제 검증 범위와 제한</a> · <a href="SECURITY.md">운영 보안</a></p>
+<p class="small">소규모 단일 서버 게임입니다. 지도는 연결된 지역 방식이며 지형·아트·규칙 일부를 공유합니다. 대규모 MMO·무제한 무료 운영·모든 환경에서 무지연을 보장하지 않습니다.</p></main></html>
