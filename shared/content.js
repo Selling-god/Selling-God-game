@@ -1,6 +1,9 @@
-export const VERSION = '1.0.0';
+import { cleanAttributes, enhancementBonus } from './rpg.js';
+import { installBossGear } from './visuals.js';
+import { installExpansion } from './expansion.js';
+export const VERSION = '2.0.0';
 export const TILE = 32;
-export const MAX_LEVEL = 15;
+export const MAX_LEVEL = 30;
 export const CLASSES = {
   guardian: {
     name: '서약기사', short: '기사', color: '#e9bd7a', sprite: 'guardian',
@@ -83,7 +86,7 @@ export const ITEMS = {
   moon_charm: { name: '달의 눈물 목걸이', type: 'gear', slot: 'charm', icon: 'charm', rarity: 'epic', hp: 40, mp: 30, crit: 6, level: 7, sell: 260 },
   dawn_charm: { name: '마지막 별의 약속', type: 'gear', slot: 'charm', icon: 'charm', rarity: 'legendary', hp: 65, atk: 10, crit: 8, level: 11, sell: 500 }
 };
-export const weaponFor = (tier, cls) => `${tier}_${cls === 'guardian' ? 'sword' : cls === 'ranger' ? 'bow' : 'staff'}`;
+export const weaponFor = (tier, cls) => `${tier}_${(CLASSES[cls]?.family||cls) === 'guardian' ? 'sword' : (CLASSES[cls]?.family||cls) === 'ranger' ? 'bow' : 'staff'}`;
 export const RECIPES = [
   { id: 'brew', name: '붉은 이슬 물약 × 3', output: 'potion', count: 3, gold: 8, cost: { herb: 2, gel: 1 }, level: 1 },
   { id: 'blue', name: '푸른 이슬 물약 × 3', output: 'mana', count: 3, gold: 8, cost: { herb: 2 }, level: 1 },
@@ -134,16 +137,30 @@ export const NPCS = [
 export const SHOP = ['potion','mana','leather','charm'];
 export const xpRequired = (level) => Math.round(55 + level * 35 + level * level * 5);
 export const objectiveLabel = (o) => o.kind === 'kill' ? (o.target === 'any' ? '몬스터 처치' : `${MONSTERS[o.target]?.name || o.target} 처치`) : `${ITEMS[o.target]?.name || o.target} 채집`;
-export const getStats = (p) => {
+export const getStats = (p, now=Date.now()) => {
   const c=CLASSES[p.classId] || CLASSES.guardian;
   const s={maxHp:c.hp+(p.level-1)*18,maxMp:c.mp+(p.level-1)*6,atk:c.atk+(p.level-1)*3,def:c.def+(p.level-1),crit:5,speed:c.speed,range:c.range};
   for(const id of Object.values(p.equipment||{})) {
     const i=ITEMS[id]; if(!i)continue;
     s.maxHp+=i.hp||0; s.maxMp+=i.mp||0; s.atk+=i.atk||0; s.def+=i.def||0; s.crit+=i.crit||0;
     const n=p.enhancements?.[id]||0;
-    if(i.slot==='weapon')s.atk+=n*3;
-    else s.def+=n;
+    const bonus=enhancementBonus(i.slot,n);s.atk+=bonus.atk||0;s.def+=bonus.def||0;s.maxHp+=bonus.hp||0;s.maxMp+=bonus.mp||0;
   }
-  s.crit=Math.min(s.crit,45);
+  const passive=c.passive||{};
+  s.atk+=passive.atk||0;s.def+=passive.def||0;s.maxHp+=passive.hp||0;s.crit+=passive.crit||0;s.speed+=passive.speed||0;
+  const mastery=Math.min(10,Math.floor((p.discovery?.mastery?.[p.classId]||0)/25));
+  s.atk+=Math.floor(mastery/3);s.maxHp+=mastery*2;
+  const a=cleanAttributes(p.attributes,p.level),family=c.family||p.classId;
+  s.atk+=a.str*(family==='guardian'?1.8:.55)+a.dex*(family==='ranger'?1.7:.5)+a.int*(family==='mage'?1.8:.45);
+  s.maxHp+=a.vit*12;s.def+=a.vit*.4;s.maxMp+=a.int*4;
+  s.speed+=a.dex*.3;s.crit+=a.dex*.08+a.luk*.22;s.manaRegen=3+(passive.manaRegen||0)+a.int*.03;
+  s.weakened=(p.deathWeakUntil||0)>now;
+  if(s.weakened){s.atk*=.9;s.speed*=.92;}
+  s.crit=Math.min(s.crit,45);s.speed=Math.min(s.speed,225);
+  for(const key of ['maxHp','maxMp','atk','def'])s[key]=Math.round(s[key]);
   return s;
 };
+
+installExpansion({CLASSES,ITEMS,MONSTERS,ZONES,NPCS,QUESTS,RECIPES,SHOP});
+
+installBossGear({ITEMS,RECIPES,MONSTERS});

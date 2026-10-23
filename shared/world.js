@@ -1,3 +1,5 @@
+import { FRONTIER, RELICS } from './expansion.js';
+import { buildFrontier } from './frontier-world.js';
 import { TILE, ZONES, NPCS } from './content.js';
 
 export function seeded(seed) {
@@ -24,10 +26,30 @@ export const BOSS_SPAWNS = {
   citadel:{x:28*TILE+16,y:13*TILE+16,type:'eclipse_dragon'}
 };
 
+// Branching roads, not a single linear corridor.
+for(const z of FRONTIER)PORTALS[z.id]=[];
+const edges=[
+ ['town','meadow'],['forest','meadow'],['forest','swamp'],['meadow','coast'],
+ ['coast','desert'],['desert','sky'],['swamp','ruins'],['citadel','frost'],
+ ['frost','abyss'],['sky','observatory'],['abyss','observatory']
+];
+for(const [a,b]of edges){
+ const aIndex=PORTALS[a].length,bIndex=PORTALS[b].length;
+ const cell=(id,i)=>{
+  const z=ZONES[id];
+  return i%3===0?[4,Math.floor(z.height*.58)]:i%3===1?[z.width-5,Math.floor(z.height*.68)]:[Math.floor(z.width*.5),4];
+ };
+ const [ax,ay]=cell(a,aIndex),[bx,by]=cell(b,bIndex);
+ PORTALS[a].push({id:`${a}_${b}`,x:ax*TILE+16,y:ay*TILE+16,to:b,tx:bx*TILE+16,ty:by*TILE+16,name:ZONES[b].name,level:ZONES[b].minLevel});
+ PORTALS[b].push({id:`${b}_${a}`,x:bx*TILE+16,y:by*TILE+16,to:a,tx:ax*TILE+16,ty:ay*TILE+16,name:ZONES[a].name,level:ZONES[a].minLevel});
+}
+for(const z of FRONTIER)BOSS_SPAWNS[z.id]={x:42*TILE+16,y:12*TILE+16,type:z.boss};
+
 const cache=new Map();
 export function createMap(id) {
   if(cache.has(id))return cache.get(id);
   const z=ZONES[id]; if(!z)throw new Error('Unknown zone');
+  if(z.seed){const map=buildFrontier(id,z,PORTALS[id],NPCS.filter(n=>n.zone===id));cache.set(id,map);return map;}
   const {width:w,height:h}=z, seed={town:73,forest:928,ruins:1049,citadel:5408}[id], rand=seeded(seed);
   const tiles=new Uint8Array(w*h), blocked=new Uint8Array(w*h), props=[], resources=[], chests=[];
   const center=id==='town'?24:id==='forest'?30:28;
@@ -106,6 +128,13 @@ export function createMap(id) {
     }
     const chestCells=id==='forest'?[[9,31],[53,9],[39,25]]:id==='ruins'?[[9,32],[50,30],[15,7]]:[[8,32],[48,10],[42,35]];
     chestCells.forEach(([x,y],i)=>{clearAt(x*TILE+16,y*TILE+16,0);chests.push({id:`${id}_chest_${i}`,x:x*TILE+16,y:y*TILE+16});});
+  }
+  map.relics=RELICS.filter(r=>r.zone===id).map(r=>({...r}));
+  // Old worlds remain recognizable, with safe trails to added exits and relics.
+  for(const target of [...PORTALS[id].slice(id==='forest'||id==='ruins'?2:1),...map.relics]){
+    const ty=Math.floor(target.y/TILE),tx=Math.floor(target.x/TILE);
+    for(let x=Math.min(tx,center);x<=Math.max(tx,center);x++)clearAt(x*TILE+16,ty*TILE+16,1);
+    clearAt(target.x,target.y,1);
   }
   cache.set(id,map);
   return map;
