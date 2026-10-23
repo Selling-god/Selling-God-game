@@ -46,7 +46,7 @@ async def main():
         await phone.goto(BASE);await phone.wait_for_function("!document.getElementById('start').disabled")
         await snap(phone,'06_mobile_landing.png')
         await phone.click('#start');await phone.wait_for_selector('#creator:not(.hidden)')
-        await phone.click('[data-class="ranger"]');await phone.fill('#character-name','바람결'+suffix)
+        await phone.fill('#character-name','바람결'+suffix)
         await snap(phone,'07_mobile_classes.png')
         await phone.click('#create-character');await phone.wait_for_selector('#game-ui:not(.hidden)')
         await phone.wait_for_timeout(4200)

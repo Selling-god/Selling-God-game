@@ -17,8 +17,8 @@ function encounter(g,p,type='slime'){
 }
 function kill(g,p,type){const m=encounter(g,p,type);m.contributors.set(p.id,g.now);g.killMob(p.zone,m);return m;}
 
-test('all three classes start with valid equipment and full vital statistics',()=>{
-  for(const cls of Object.keys(CLASSES)){const p=newCharacter(randomUUID(),'Test',cls),s=getStats(p);assert.equal(p.hp,s.maxHp);assert.equal(p.mp,s.maxMp);assert.equal(ITEMS[p.equipment.weapon].class,cls);}
+test('all professions have valid family equipment and full vital statistics',()=>{
+  for(const cls of Object.keys(CLASSES)){const p=newCharacter(randomUUID(),'Test',cls),s=getStats(p);assert.equal(p.hp,s.maxHp);assert.equal(p.mp,s.maxMp);assert.equal(ITEMS[p.equipment.weapon].class,CLASSES[cls].family||cls);}
 });
 test('save serialization excludes tokens, movement input, party and action-cache runtime state',()=>{
   const {p}=setup();p.access_token='secret';p.actions.set('abc',{ok:true});const s=serialize(p);
@@ -30,7 +30,7 @@ test('persisted dead or invalid-zone characters recover at safe coordinates',()=
   const p=hydrate(s);assert.equal(p.zone,'town');assert.ok(p.hp>0);assert.equal(isBlocked(createMap('town'),p.x,p.y),false);
   s.zone='bad';s.x=NaN;s.y=Infinity;assert.ok(Number.isFinite(hydrate(s).x));
 });
-test('four maps have reachable portals, NPCs, boss arenas, resources and chests',()=>{
+test('all twelve maps have reachable portals, NPCs, boss arenas, resources and chests',()=>{
   for(const [id,z]of Object.entries(ZONES)){
     const map=createMap(id),from={x:z.spawn[0]*32+16,y:z.spawn[1]*32+16};
     assert.equal(isBlocked(map,from.x,from.y),false);
@@ -109,12 +109,12 @@ test('inventory rejects remote purchases, invalid quantities, foreign or unowned
   p.inventory.oak_bow=1;assert.equal(g.action(p,{type:'equip',id:'oak_bow'}).ok,false);
   assert.equal(g.action(p,{type:'sell',id:p.equipment.weapon,count:1}).ok,false);
 });
-test('crafting and guaranteed enhancement consume exact materials and stop at +3',()=>{
+test('crafting and the first three guaranteed enhancement levels consume materials',()=>{
   const {g,p}=setup();near(p,'craft');p.gold=5000;p.level=15;for(const id of Object.keys(ITEMS))if(ITEMS[id].type==='material')p.inventory[id]=50;
   assert.equal(g.action(p,{type:'craft',id:'moon_weapon'}).ok,true);assert.equal(p.inventory.moon_sword,1);assert.equal(p.inventory.wood,46);assert.equal(p.inventory.ore,47);
   assert.equal(g.action(p,{type:'equip',id:'moon_sword'}).ok,true);const atk=getStats(p).atk;
   for(let i=1;i<=3;i++){assert.equal(g.action(p,{type:'enhance',id:'moon_sword'}).ok,true);assert.equal(p.enhancements.moon_sword,i);}
-  assert.equal(getStats(p).atk,atk+9);assert.equal(g.action(p,{type:'enhance',id:'moon_sword'}).ok,false);
+  assert.equal(getStats(p).atk,atk+9);assert.equal(g.action(p,{type:'enhance',id:'moon_sword'}).ok,true);assert.equal(p.enhancements.moon_sword,4);
 });
 test('consumables do not waste items at full HP and enforce cooldowns',()=>{
   const {g,p}=setup();assert.equal(g.action(p,{type:'use',id:'potion'}).ok,false);assert.equal(p.inventory.potion,8);
@@ -130,7 +130,7 @@ test('party is capped at four, members cannot invite, nearby party shares kill c
   m.contributors.set(p.id,g.now);g.killMob(p.zone,m);assert.ok(friends.slice(0,3).every(b=>b.kills===1));assert.equal(friends[3].kills,0);
   g.leaveParty(p);assert.equal(g.parties.values().next().value.leader,friends[0].id);
 });
-test('death returns to town without loss and invulnerable dash prevents damage',()=>{
+test('beginner death returns to town without loss and invulnerable dash prevents damage',()=>{
   const {g,p}=setup();encounter(g,p);g.damagePlayer(p,9999);assert.equal(p.hp,0);
   const gold=p.gold;g.tick(.05,g.now+4000);assert.equal(p.zone,'town');assert.equal(p.gold,gold);assert.ok(p.hp>0);
   p.invulnerableUntil=0;g.action(p,{type:'dash'});const hp=p.hp;g.damagePlayer(p,99);assert.equal(p.hp,hp);
@@ -156,7 +156,7 @@ test('private inventory is not present in remote-player snapshots',()=>{
   const {g,p}=setup(),b=g.addPlayer(newCharacter(randomUUID(),'Second','mage'));const s=g.snapshot(p,true);
   assert.ok(s.profile.inventory);assert.equal(s.players[0].id,b.id);assert.equal(s.players[0].inventory,undefined);
 });
-test('full eight-chapter progression grants the ending, legendary class weapon and title',()=>{
+test('story and frontier quests grant the ending, legendary class weapon and title',()=>{
   for(const cls of Object.keys(CLASSES)){
     const {g,p,events}=setup(cls);
     for(const q of QUESTS.filter(x=>!x.repeatable)){
@@ -165,9 +165,9 @@ test('full eight-chapter progression grants the ending, legendary class weapon a
       q.objectives.forEach(o=>g.progress(p,o.kind,o.target,o.count));
       assert.equal(g.action(p,{type:'quest',id:q.id,mode:'claim'}).ok,true,q.id);
     }
-    assert.equal(p.completed.length,8);assert.ok(p.titles.includes('새벽을 되찾은 자'));
+    assert.equal(p.completed.length,QUESTS.filter(q=>!q.repeatable).length);assert.ok(p.titles.includes('새벽을 되찾은 자'));
     assert.ok(events.some(e=>e.event==='questComplete'&&e.data.final));
-    assert.ok(Object.entries(p.inventory).some(([id,n])=>n>0&&ITEMS[id].rarity==='legendary'&&ITEMS[id].class===cls));
+    assert.ok(Object.entries(p.inventory).some(([id,n])=>n>0&&ITEMS[id].rarity==='legendary'&&ITEMS[id].class===(CLASSES[cls].family||cls)));
     g.giveXP(p,1000000);assert.equal(p.level,MAX_LEVEL);
   }
 });
