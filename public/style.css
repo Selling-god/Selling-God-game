@@ -48,4 +48,69 @@
 
 /* Confirm dialogs must sit above panels, not behind the stat editor. */
 #confirm{z-index:80;pointer-events:auto}
-@media(max-height:540px) and (pointer:coarse){.hud-dock{grid-template-columns:repeat(9,30px)}}
+@media(max-height:540px) and (pointer:coarse){.hud-dock{grid-template-columns:repeat(5,30px)}}
+@media(min-width:1301px){.hud-dock{bottom:114px;max-width:510px;flex-wrap:wrap;justify-content:flex-end}}
+
+/* Chapter III: readable vocation stories and a region atlas, also at 390px. */
+.story-layout{display:grid;grid-template-columns:180px minmax(0,1fr);gap:28px;align-items:start}
+.story-aside{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:18px;border:1px solid #526465;border-radius:12px;background:#17292c}
+.story-aside>img{height:105px;max-width:100%;object-fit:contain;image-rendering:pixelated;align-self:center}
+.story-aside h3,.story-aside p{margin:0;overflow-wrap:anywhere}
+.story-paper{min-width:0;padding:6px 0 22px}
+.story-paper h2{font-size:26px;line-height:1.4;margin:10px 0 18px}
+.story-prose{white-space:pre-line;line-height:1.95;font-size:15px;color:#d8ddd3;word-break:keep-all;overflow-wrap:anywhere}
+.story-chapter{margin-top:25px;border-top:1px solid #536262;padding-top:24px}
+.chapter-number{font-size:11px;letter-spacing:.16em;color:#c7ae79}
+.story-chapter h3{font-size:20px;line-height:1.5;margin:10px 0 16px}
+.story-steps{display:flex;flex-wrap:wrap;gap:5px}
+.story-steps i{font-size:11px;font-style:normal;border:1px solid #506564;padding:4px 7px;color:#9caea8}
+.story-steps i.done{background:#325447;color:#d3e2ce}.story-steps i.current{border-color:#e0bd85;color:#f2d299}
+.story-objectives{background:#122428;border:1px solid #40595b;padding:17px;border-radius:9px;margin:22px 0}
+.story-objectives>.objective,.story-objectives>div{margin-bottom:8px}
+.story-objectives .objective{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;line-height:1.7}
+.story-objectives .objective span{min-width:0;flex:1;overflow-wrap:anywhere}
+.story-objectives .objective b{flex-shrink:0;white-space:nowrap;color:#dfd5b6}
+.story-meter{height:5px;background:#263b3d;border-radius:4px;overflow:hidden;margin:9px 0 14px}
+.story-meter i{display:block;height:100%;background:#c8b783;max-width:100%}
+.story-actions,.atlas-completion{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}
+.story-actions .btn{flex:1;min-width:100px}
+.story-history{border-top:1px solid #405154;margin-top:25px;padding-top:20px;line-height:1.85}
+.story-history summary{cursor:pointer;color:#d7bd8a}.story-history section{padding:15px 0;border-bottom:1px solid #344c4e}
+.story-history p{color:#bacbc5;font-size:14px}
+.story-sealed,.story-empty{padding:35px 20px;text-align:center;line-height:1.9;color:#bacbc5}
+.story-sealed>span{display:block;font-size:70px;color:#b9a2d4;font-family:serif}
+.story-journal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}
+.story-requirements{margin:15px 0}.story-track{border-left:2px solid #d7bc84;padding-left:12px!important;margin:0 0 14px}
+.story-track .small{margin-top:8px}.story-track .btn{margin-top:10px}
+.story-track .objective span{flex:1;min-width:0;overflow-wrap:anywhere}.story-track .objective b{flex-shrink:0;font-size:11px}
+.atlas-overview{display:flex;justify-content:space-between;gap:20px;padding-bottom:18px}
+.atlas-overview h3{font-size:24px;margin:8px 0}.atlas-overview p{color:#b3c7bf;line-height:1.6}
+.atlas-stat{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:90px;border-left:1px solid #49625d;padding-left:20px}
+.atlas-stat strong{font-size:38px;color:#dfc38c}.atlas-stat span{font-size:11px;color:#afc6bb}
+.atlas-tabs{flex-wrap:nowrap!important;overflow-x:auto;padding-bottom:10px;max-width:100%}
+.atlas-tabs .tab{flex-shrink:0}.atlas-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:22px}
+.atlas-layout>section{min-width:0}.atlas-layout canvas{width:100%;max-width:100%;height:auto;border:1px solid #48605b;border-radius:7px}
+.atlas-sector-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.atlas-core-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.atlas-sector{padding:12px 9px;background:#15272c;border:1px solid #3c5050;border-radius:7px;min-width:0;position:relative}
+.atlas-sector.seen{background:#203832}.atlas-sector.here{border-color:#d5bc88;box-shadow:0 0 0 1px #ad976c}
+.atlas-sector h4{font-size:12px;line-height:1.6;margin:8px 0;word-break:keep-all;overflow-wrap:anywhere}
+.atlas-sector small{display:block;color:#afbcac;font-size:10px;margin-top:7px}.atlas-sector p{font-size:11px;color:#92aba3}
+.atlas-sector .badge{font-size:9px;padding:3px 6px}.atlas-sector .btn{font-size:10px;width:100%;padding:7px}
+.atlas-completion{padding:16px;background:#1e3231;border:1px solid #49605a;border-radius:9px}
+.atlas-completion h4,.atlas-completion p{margin:0;width:100%;line-height:1.7}.atlas-completion p{font-size:12px}
+.field-dialog{border-left:3px solid #cab47b;padding:5px 20px 15px;margin-bottom:20px}
+.field-dialog h3{font-size:23px;line-height:1.5}.secret-signal{border:1px solid #8c76a4;background:#2b263c;padding:20px;line-height:1.8;margin:15px 0}
+.trial-rules{padding:20px;border:1px solid #815b65;border-radius:9px;line-height:1.9;margin-bottom:18px}
+#quest-tracker{max-height:48vh;overflow-y:auto}
+@media(max-width:1000px){.atlas-layout{grid-template-columns:1fr}.atlas-layout canvas{max-height:330px;object-fit:contain}.story-layout{grid-template-columns:145px minmax(0,1fr);gap:18px}}
+@media(max-width:650px){
+ .story-layout{grid-template-columns:1fr}.story-aside{display:grid;grid-template-columns:65px minmax(0,1fr);gap:8px;padding:12px}
+ .story-aside>img{grid-row:span 3;height:80px}.story-aside .story-steps,.story-aside>.btn,.story-aside>p.small{grid-column:1/-1}
+ .story-paper h2{font-size:22px}.story-prose{font-size:14px;line-height:1.9}.story-journal-grid{grid-template-columns:1fr}
+ .atlas-overview h3{font-size:20px}.atlas-stat{min-width:50px;padding-left:10px}.atlas-stat strong{font-size:29px}
+ .atlas-sector-grid{gap:6px}.atlas-sector{padding:9px 6px}.atlas-sector h4{font-size:11px}
+ .atlas-layout canvas{max-height:250px}.story-objectives{padding:13px}.objective{gap:10px}
+ .story-objectives .objective span{min-width:0;overflow-wrap:anywhere}.story-objectives .objective b{white-space:nowrap}
+ #quest-tracker{max-height:27vh}
+}
