@@ -1,0 +1,33 @@
+{
+  "passed": [
+    "desktop character creation and Canvas world",
+    "NPC interaction and quest acceptance",
+    "inventory / journal / map / party panels",
+    "mobile portrait layout, no horizontal overflow",
+    "two independent browser sessions, party invite and join",
+    "cross-client chat and HTML escaping",
+    "native touch joystick pointer capture and release",
+    "mobile landscape layout",
+    "network reconnect without offline simulation",
+    "manual save, reload and retained character / quest",
+    "auth REST mock: anonymous/login/serialized refresh/email/password/recovery/logout"
+  ],
+  "javascript_errors": [],
+  "auth_mock": {
+    "calls": 7,
+    "refreshes": 1,
+    "loggedOut": true,
+    "hasLink": true
+  },
+  "screenshots": [
+    "01_landing.png",
+    "02_classes.png",
+    "03_town_desktop.png",
+    "04_quest_dialog.png",
+    "05_inventory.png",
+    "06_mobile_landing.png",
+    "07_mobile_classes.png",
+    "08_mobile_portrait.png",
+    "09_mobile_landscape.png"
+  ]
+}

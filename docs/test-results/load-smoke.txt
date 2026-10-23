@@ -1,0 +1,19 @@
+
+> starfall-online@1.0.0 test:load
+> node tests/load.mjs
+
+{
+  "compressedWireBytes": 1252959,
+  "approximateWireMiBPerPlayerHour": 29.9,
+  "negotiatedCompression": true,
+  "clients": 24,
+  "seconds": 6,
+  "allConnected": true,
+  "errors": [],
+  "minimumStateUpdates": 36,
+  "maximumStateUpdates": 36,
+  "totalPayloadBytes": 5721355,
+  "averageKiBPerSecondPerClient": 38.8,
+  "approximateMiBPerPlayerHour": 136.4,
+  "notes": "Local Linux Node smoke test. Wire estimate excludes TLS/TCP overhead and initial page assets; not a free Render capacity, uptime, bandwidth or latency guarantee."
+}
