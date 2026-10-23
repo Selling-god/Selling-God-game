@@ -73,7 +73,7 @@ async def main():
     const p={...profile,equipment:{...profile.equipment,[slot]:id},enhancements:{[id]:10}};
     for(const dir of ['s','n','e','w'])for(let f=0;f<4;f++)r.gear.draw(r,p,600,400,dir,f,1,400);gear++;
    }
-   return {maps:12,spellDescriptors:spells,gearItems:gear,directionalGearDraws:gear*16,elapsedMs:Math.round(performance.now()-before)};
+   return {maps:Object.keys(ZONES).length,spellDescriptors:spells,gearItems:gear,directionalGearDraws:gear*16,elapsedMs:Math.round(performance.now()-before)};
   }""")
   results.append(result)
   await page.evaluate("()=>{scene('meadow');document.getElementById('modal').classList.add('hidden');}")
@@ -106,7 +106,7 @@ async def main():
   await page.set_content('<style>body{margin:0;background:#10232c;color:#e7d3a6;font:18px sans-serif} canvas{display:block;image-rendering:pixelated}</style><canvas id="gallery" width="1200" height="650"></canvas>')
   await page.evaluate("""()=>{
    const cv=document.getElementById('gallery'),c=cv.getContext('2d');c.imageSmoothingEnabled=false;
-   c.fillStyle='#112832';c.fillRect(0,0,1200,650);c.fillStyle='#e1cfac';c.font='24px sans-serif';c.fillText('STARFALL ONLINE 2.0 · EQUIPMENT & SPELLS',35,42);
+   c.fillStyle='#112832';c.fillRect(0,0,1200,650);c.fillStyle='#e1cfac';c.font='24px sans-serif';c.fillText('STARFALL ONLINE 3.0 · EQUIPMENT & SPELLS',35,42);
    const er=r.gear,renderer={...r,ctx:c,atlas:r.atlas,meta:r.meta};
    const sets=[['Novice','iron_sword','tunic',0],['Moon','moon_sword','leather',0],['Tempest','boss_tempest_staff','boss_tempest_armor',4],['Tide','boss_leviathan_bow','boss_leviathan_armor',7],['Glacier','boss_glacier_sword','boss_glacier_armor',10],['Eclipse','boss_eclipse_staff','boss_eclipse_armor',10]];
    sets.forEach(([label,w,a,lv],i)=>{const p={equipment:{weapon:w,armor:a,charm:'charm'},enhancements:{[w]:lv,[a]:lv},classId:'novice'};c.save();c.translate(105+i*195,240);c.scale(2,2);er.draw(renderer,p,0,0,'s',0,1,500);c.restore();c.fillStyle='#e6d1a7';c.font='16px sans-serif';c.fillText(label+' +'+lv,50+i*195,278);});

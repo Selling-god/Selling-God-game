@@ -32,7 +32,13 @@ def bundle(entries,integrated=False):
      renderer,openPanel,profileChanged,closeModal,
      inject(p,s,n){net=n;state=s;lastStateAt=performance.now();beginGame(p,true);renderer.setState(s);},
      refresh(p,s){state=s;lastStateAt=performance.now();profileChanged(p);renderer.setState(s);},
-     death(d){openPanel('deathSummary',d);},config:()=>config
+     death(d){openPanel('deathSummary',d);},
+     receive(event,data){
+      if(event==='storyView')openPanel('story',data);
+      if(event==='atlasScene')openPanel('atlasScene',data);
+      if(event==='jobBook'){jobBookData=data;if(modal==='jobs')refreshPanel();}
+     },
+     config:()=>config
     };bootstrap();""")
    src=src.replace("const renderer=new Renderer($('world')),sound=new Sound();","""Renderer.prototype.load=async function(){this.atlas=await new Promise(resolve=>{const im=new Image();im.onload=()=>resolve(im);im.src=art['atlas.png'];});this.meta=atlasMeta;};
      const renderer=new Renderer($('world')),sound=new Sound();""")

@@ -12,7 +12,10 @@ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'starfall-load-'));
 const clients=[],ids=Array.from({length:24},()=>randomUUID()),port=3104;
 for(let i=0;i<24;i++){
   const p=newCharacter(ids[i],'Load'+i,['guardian','ranger','mage'][i%3]);
-  p.zone=['forest','ruins','citadel'][i%3];p.level=15;p.x=(p.zone==='forest'?30:28)*32+16;p.y=33*32+16;
+  p.zone=process.env.LOAD_EXPEDITION==='true'?['meadow_reach_0','coast_reach_3','frost_reach_4'][i%3]:['forest','ruins','citadel'][i%3];
+  p.level=30;
+  p.x=process.env.LOAD_EXPEDITION==='true'?1800:(p.zone==='forest'?30:28)*32+16;
+  p.y=process.env.LOAD_EXPEDITION==='true'?1450:33*32+16;
   p.hp=getStats(p).maxHp;p.mp=getStats(p).maxMp;
   await fs.writeFile(path.join(dir,p.id+'.json'),JSON.stringify(p));
 }
@@ -39,7 +42,7 @@ try{
   await sleep(6000);clearInterval(timer);
   const seconds=(performance.now()-start)/1000,bytes=clients.reduce((n,c)=>n+c.bytes,0);
   const wireBytes=clients.reduce((n,c)=>n+(c.ws._socket.bytesRead-c.wireStart),0);
-  const report={compressedWireBytes:wireBytes,approximateWireMiBPerPlayerHour:Number((wireBytes/seconds/24*3600/1048576).toFixed(1)),negotiatedCompression:clients.every(c=>c.ws.extensions.includes('permessage-deflate')),clients:24,seconds:Number(seconds.toFixed(2)),allConnected:clients.every(c=>c.ws.readyState===WebSocket.OPEN),errors:clients.flatMap(c=>c.errors),minimumStateUpdates:Math.min(...clients.map(c=>c.states)),maximumStateUpdates:Math.max(...clients.map(c=>c.states)),totalPayloadBytes:bytes,averageKiBPerSecondPerClient:Number((bytes/seconds/24/1024).toFixed(2)),approximateMiBPerPlayerHour:Number((bytes/seconds/24*3600/1048576).toFixed(1)),notes:'Local Linux Node smoke test. Wire estimate excludes TLS/TCP overhead and initial page assets; not a free Render capacity, uptime, bandwidth or latency guarantee.'};
+  const report={scenario:process.env.LOAD_EXPEDITION==='true'?'24 sockets / three new large fields':'24 sockets / three original fields',compressedWireBytes:wireBytes,approximateWireMiBPerPlayerHour:Number((wireBytes/seconds/24*3600/1048576).toFixed(1)),negotiatedCompression:clients.every(c=>c.ws.extensions.includes('permessage-deflate')),clients:24,seconds:Number(seconds.toFixed(2)),allConnected:clients.every(c=>c.ws.readyState===WebSocket.OPEN),errors:clients.flatMap(c=>c.errors),minimumStateUpdates:Math.min(...clients.map(c=>c.states)),maximumStateUpdates:Math.max(...clients.map(c=>c.states)),totalPayloadBytes:bytes,averageKiBPerSecondPerClient:Number((bytes/seconds/24/1024).toFixed(2)),approximateMiBPerPlayerHour:Number((bytes/seconds/24*3600/1048576).toFixed(1)),notes:'Local Linux Node smoke test. Wire estimate excludes TLS/TCP overhead and initial page assets; not a free Render capacity, uptime, bandwidth or latency guarantee.'};
   console.log(JSON.stringify(report,null,2));if(!report.allConnected||report.errors.length)process.exitCode=1;
 }finally{
   clients.forEach(c=>c.ws.close());child.kill('SIGTERM');await Promise.race([new Promise(r=>child.once('exit',r)),sleep(6000)]);

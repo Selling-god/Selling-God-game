@@ -1,3 +1,6 @@
+import {readSecret} from '../server/stories.js';
+import {SECRET_PATHS} from '../server/story-data.js';
+import {LANDMARKS} from '../shared/expeditions.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -80,11 +83,17 @@ test('all ten enhancement levels work and +10 is final; invalid/remote requests 
  p.zone='forest';assert.equal(g.action(p,{type:'enhance',id:'tunic'}).ok,false);
  assert.equal(enhancementSpec(9,8).rate,1);
 });
-test('hidden identities remain sealed until a real relic sequence begins',()=>{
- const {g,p}=setup(30);let book=jobBook(p);assert.ok(book.filter(j=>j.tier==='hidden').every(j=>!j.discovered&&!j.requirements.length));
+test('hidden identities require the complete new sequence; legacy relic records remain intact',()=>{
+ const {g,p}=setup(30);let book=jobBook(p);
+ assert.ok(book.filter(j=>j.tier==='hidden').every(j=>!j.discovered&&!j.requirements.length));
  const r=RELICS.find(r=>r.id===SEQUENCES.voidwalker[0]);readRelic(g,p,r);
- book=jobBook(p);assert.equal(book.find(j=>j.id==='voidwalker').discovered,true);
- const n=p.discovery.relics.length;readRelic(g,p,r);assert.equal(p.discovery.relics.length,n);assert.equal(p.discovery.sequences.voidwalker,1);
+ assert.equal(jobBook(p).find(j=>j.id==='voidwalker').discovered,false);
+ const n=p.discovery.relics.length;readRelic(g,p,r);
+ assert.equal(p.discovery.relics.length,n);assert.equal(p.discovery.sequences.voidwalker,1);
+ for(const [i,id]of SECRET_PATHS.voidwalker.entries()){
+  readSecret(g,p,LANDMARKS.find(x=>x.id===id));
+  assert.equal(jobBook(p).find(j=>j.id==='voidwalker').discovered,i===2);
+ }
 });
 test('job changes require unlock, town and cooldown; weapon family changes without generating duplicate starters',()=>{
  const {g,p}=setup(12);assert.equal(g.action(p,{type:'changeJob',id:'mage'}).ok,false);p.discovery.jobs.push('mage','ranger');

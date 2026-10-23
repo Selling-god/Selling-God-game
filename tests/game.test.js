@@ -149,7 +149,10 @@ test('every boss generates telegraphed patterns before damage and respawns',()=>
     }
     assert.ok(wasHit);p.hp=getStats(p).maxHp;
     m.contributors.set(p.id,g.now);g.killMob(zone,m);assert.equal(m.alive,false);
-    p.active=false;g.tick(.05,g.now+121000);assert.equal(m.alive,true);p.active=true;
+    p.active=false;g.tick(.05,g.now+121000);
+    // Empty regions sleep. The first returning player resumes a due respawn.
+    p.active=true;const resumed=g.worlds.get(zone);g.tick(.05,g.now+50);
+    assert.equal(resumed.mobs.find(x=>x.id===m.id).alive,true);
   }
 });
 test('private inventory is not present in remote-player snapshots',()=>{

@@ -104,3 +104,41 @@ test('production refuses local guest authentication and cross-origin sockets',{t
     assert.equal(status,403);
   }finally{clients.forEach(x=>{try{x.close();}catch{}});await app.stop();}
 });
+
+test('v3 real WebSocket: mentor story, rejected remote claims, persisted journal and atlas',{timeout:20000},async()=>{
+  const app=await startServer(3106),clients=[];
+  try{
+    const id=randomUUID(),p=newCharacter(id,'StoryWire','novice');
+    Object.assign(p,{level:10,zone:'town',x:8*32+16,y:31*32+16});
+    // Seed the mentor location and previous exploration only in the local test store.
+    p.atlas={version:1,waypoints:['meadow_reach_0'],pages:['meadow_reach_0_tablet'],
+      fog:{meadow_reach_0:[0,1]},contracts:{},reputation:{},trialClaims:{},surveyClaims:[]};
+    await fs.writeFile(path.join(app.dir,id+'.json'),JSON.stringify(p));
+    const a=new Client(3106,id);clients.push(a);await a.wait('welcome');
+    const health=await (await fetch('http://127.0.0.1:3106/health')).json();
+    assert.equal(health.version,'3.0.0');
+    assert.equal((await a.action({type:'interact',id:'mentor_guardian'})).ok,true);
+    const detail=await a.wait('storyView',d=>d.id==='guardian');
+    assert.equal(detail.total,4);
+    const nonce=randomUUID();
+    assert.equal((await a.action({type:'storyAccept',id:'guardian',nonce})).ok,true);
+    assert.equal((await a.action({type:'storyAccept',id:'guardian',nonce})).ok,true);
+    assert.equal((await a.action({type:'storyClaim',id:'guardian',chapter:0})).ok,false);
+    assert.equal((await a.action({type:'storyAccept',id:'voidwalker'})).ok,false);
+    assert.equal((await a.action({type:'waypoint',id:'abyss_reach_8'})).ok,false);
+    assert.equal((await a.action({type:'storyPause',id:'guardian'})).ok,true);
+    assert.equal((await a.request('save',{})).ok,true);
+    const disk=JSON.parse(await fs.readFile(path.join(app.dir,id+'.json'),'utf8'));
+    assert.equal(disk.journey.quests.guardian.chapter,0);
+    assert.equal(disk.journey.quests.guardian.active,false);
+    assert.deepEqual(disk.atlas.fog.meadow_reach_0,[0,1]);
+    a.close();await sleep(120);
+    const b=new Client(3106,id);clients.push(b);const welcome=await b.wait('welcome');
+    assert.equal(welcome.profile.journey.quests.guardian.active,false);
+    assert.ok(welcome.profile.atlas.waypoints.includes('meadow_reach_0'));
+    // Only current-region fog goes to the client, full exploration remains in storage.
+    assert.equal(welcome.profile.atlas.fog.meadow_reach_0,undefined);
+    assert.equal((await b.action({type:'storyResume',id:'guardian'})).ok,true);
+    assert.equal((await b.action({type:'storyTrack',id:'guardian'})).ok,true);
+  }finally{clients.forEach(x=>x.close());await app.stop();}
+});
