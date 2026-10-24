@@ -2,49 +2,100 @@
   "date": "2026-10-24",
   "runtime": "v24.19.0",
   "domain_tests": {
-    "tests": 189,
-    "pass": 189,
+    "tests": 227,
+    "pass": 227,
     "fail": 0,
-    "skipped": 0,
-    "includes": [
-      "regions",
-      "growth",
-      "keyboard model",
-      "transport and camera",
-      "solo challenges",
-      "world bosses",
-      "party dungeons",
-      "secret realms",
-      "pixel rendering"
-    ]
-  },
-  "existing_real_network_and_store_tests": {
-    "tests": 7,
-    "pass": 7,
-    "fail": 0,
+    "cancelled": 0,
     "skipped": 0
   },
-  "new_real_raid_network_tests": {
-    "tests": 2,
-    "pass": 2,
-    "fail": 0,
-    "skipped": 0,
-    "source": "tests/raid-network.test.js",
-    "verified": [
-      "two WebSocket clients and individual ready/cancel",
-      "leader-only entry",
-      "same run and boss snapshots",
-      "validated motion",
-      "disconnect pause and reconnect resume",
-      "party exit",
-      "disk saves and cold server restarts",
-      "realm weapon purification and enhancement persistence"
+  "real_network_store_tests": {
+    "suite": "Actual WebSocket, REST adapter and persistence regression verification",
+    "project": "/workspace/scratch/70f467ac2707/game_review/Selling-God-game-main",
+    "source": "Recorded output of the completed Node test run; this report does not claim a new run.",
+    "command": "NODE_OPTIONS=--import=file:///workspace/scratch/70f467ac2707/terrain_qa/loopback-tests.mjs node --test --test-isolation=none tests/network.test.js tests/store.test.js tests/raid-network.test.js",
+    "runtime": "Node.js v24.19.0",
+    "method": {
+      "transport": "Actual server child processes and actual WebSocket clients over loopback; store REST adapter uses a local mock HTTP server.",
+      "binding": "All HTTP listeners restricted by the temporary loopback-tests.mjs preload to 127.0.0.1.",
+      "permissions": "Initial sandbox run encountered listen EPERM. The successful recorded run used require_escalated for local loopback listeners.",
+      "data": "Temporary local test stores; remote Supabase configuration blank in spawned game servers; no deployment or source upload.",
+      "rerun": false
+    },
+    "totals": {
+      "tests": 9,
+      "passed": 9,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "durationMs": 14839.755299
+    },
+    "results": [
+      {
+        "file": "tests/network.test.js",
+        "name": "real WebSocket: two players, party, movement, chat, idempotency, saving and reconnect",
+        "status": "passed",
+        "durationMs": 1647.074689
+      },
+      {
+        "file": "tests/network.test.js",
+        "name": "real WebSocket: two contributors see identical monster health and both receive loot",
+        "status": "passed",
+        "durationMs": 1215.11787
+      },
+      {
+        "file": "tests/network.test.js",
+        "name": "production refuses local guest authentication and cross-origin sockets",
+        "status": "passed",
+        "durationMs": 273.683601
+      },
+      {
+        "file": "tests/network.test.js",
+        "name": "v3 real WebSocket: mentor story, rejected remote claims, persisted journal and atlas",
+        "status": "passed",
+        "durationMs": 378.408865
+      },
+      {
+        "file": "tests/raid-network.test.js",
+        "name": "real WS raid: individual ready/cancel, leader start, live input, reconnect grace, party exit and cold-load persistence",
+        "status": "passed",
+        "durationMs": 5539.004621
+      },
+      {
+        "file": "tests/raid-network.test.js",
+        "name": "real WS realm: altar tuning, unlocked re-entry and cold-load weapon/progression round trip",
+        "status": "passed",
+        "durationMs": 700.985872
+      },
+      {
+        "file": "tests/store.test.js",
+        "name": "local persistence serializes concurrent writes and returns the last revision",
+        "status": "passed",
+        "durationMs": 14.392635
+      },
+      {
+        "file": "tests/store.test.js",
+        "name": "Supabase REST adapter authenticates server-side, upserts, loads and limits public leaderboard fields",
+        "status": "passed",
+        "durationMs": 21.672943
+      },
+      {
+        "file": "tests/store.test.js",
+        "name": "a rejected save does not poison the next per-user save queue",
+        "status": "passed",
+        "durationMs": 0.592716
+      }
+    ],
+    "scopeNotes": [
+      "The WS dungeon test exercises the concord_forge party_dungeon instance, readiness, live movement, disconnect grace, movement after reconnect, exit, and cold-load persistence.",
+      "This recorded WS suite does not directly simulate reconnecting during a boss transformation cut. The separate dungeon identity tests cover transformation safety and resumed action clocks; the client/server input unblock path was reviewed separately.",
+      "The initial EPERM-blocked sandbox attempt was an environment failure and is not counted as an application test failure in the successful completed run above."
     ]
   },
   "dom_integration": {
     "keybinding_qa": {
-      "passed": 20,
-      "failed": 0,
+      "pass": 20,
+      "fail": 0,
       "checks": [
         "settings opens complete keybinding editor",
         "physical key capture, persistence and hotbar update",
@@ -69,8 +120,8 @@
       ]
     },
     "adventure_qa": {
-      "passed": 12,
-      "failed": 0,
+      "pass": 12,
+      "fail": 0,
       "checks": [
         "exploration menu opens all five challenges with authoritative tier locks",
         "start button enters a real private tower and shows its stage timer",
@@ -87,8 +138,8 @@
       ]
     },
     "raid_qa": {
-      "passed": 14,
-      "failed": 0,
+      "pass": 14,
+      "fail": 0,
       "checks": [
         "all sixteen province tabs expose nine real sectors without a high-level catchall or secret-map leak",
         "the exploration notebook exposes solo challenges, party dungeons and the hidden-world journal through existing dock buttons",
@@ -107,135 +158,1085 @@
       ]
     }
   },
-  "native_canvas": {
-    "rendered_skill_combinations": 444,
-    "rendered_utility_combinations": 24,
-    "settings": [
-      "normal",
-      "low power",
-      "effects disabled"
-    ],
-    "checked": [
-      "ring center and safe quarter transparent",
-      "warning and impact visibility",
-      "critical queue survives 400 damage-number events",
-      "server casts reach the renderer"
+  "terrain": {
+    "public_fields": 163,
+    "secret_maps": 6,
+    "party_dungeon_maps": 3,
+    "regional_layout_families": 22,
+    "verified": [
+      "all walkable cells connected",
+      "stable required coordinates",
+      "resource/chest IDs retained",
+      "actual monster and trial spawns safe",
+      "old save relocation",
+      "wall LOS and path detours"
     ]
   },
-  "coordinated_two_player_bots": {
-    "method": "Two real Game players, guardian and mage, at each dungeon's minimum level. Actual party invite/accept, individual readiness and leader entry. After entry, only validated movement inputs, target selection, cooldown-limited attacks and nearby interaction actions were used. No coordinate placement, forced kills or synthetic damage during these gameplay checks. Level-appropriate non-boss field gear, no enhancements, allocated attributes and twelve finite HP/MP potions per player. Seeded non-constant randomness exercises varied memory sequences and normal critical attacks.",
-    "cases": [
+  "native_canvas": {
+    "preview_batches": {
+      "catalogCreatures": 48,
+      "attackPosePanels": 48,
+      "geometryMaps": 9,
+      "actualRendererScenes": 7,
+      "phaseCuts": 3
+    },
+    "covered": [
+      "48 creature identities",
+      "preparation/strike/recovery poses",
+      "three phase bodies of 3 dungeon and 4 world bosses",
+      "actual Renderer scenes",
+      "moving projectile and persistent hazard visibility with effects off",
+      "bounded sprite cache",
+      "prior pixel skill and boss FX suite"
+    ]
+  },
+  "two_player_input_bots": {
+    "method": "Actual Game.setInput, collision-aware path movement, skills and validated interactions; minimum entry levels and unenhanced regional equipment; no direct phase completion shortcuts",
+    "basic": [
       {
         "dungeon": "concord_forge",
         "level": 35,
-        "members": 2,
+        "party": [
+          {
+            "class": "guardian",
+            "gear": {
+              "weapon": "end_sunscar_sword",
+              "armor": "end_sunscar_armor",
+              "charm": "end_sunscar_charm"
+            },
+            "stats": {
+              "maxHp": 1897,
+              "maxMp": 449,
+              "atk": 441,
+              "def": 105,
+              "crit": 18.04,
+              "speed": 158.9,
+              "range": 85,
+              "manaRegen": 3,
+              "weakened": false
+            },
+            "hp": 1897,
+            "hpPotionsUsed": 0,
+            "mpPotionsUsed": 0
+          },
+          {
+            "class": "mage",
+            "gear": {
+              "weapon": "end_sunscar_staff",
+              "armor": "end_sunscar_armor",
+              "charm": "end_sunscar_charm"
+            },
+            "stats": {
+              "maxHp": 1842,
+              "maxMp": 851,
+              "atk": 452,
+              "def": 102,
+              "crit": 18.04,
+              "speed": 163.9,
+              "range": 250,
+              "manaRegen": 7.64,
+              "weakened": false
+            },
+            "hp": 1842,
+            "hpPotionsUsed": 0,
+            "mpPotionsUsed": 0
+          }
+        ],
+        "positions": [
+          {
+            "x": 623.9999591763211,
+            "y": 431.5181883739775
+          },
+          {
+            "x": 937.366308306746,
+            "y": 477.50521018005753
+          }
+        ],
         "state": "complete",
-        "elapsed_ms": 40800,
-        "boss_hp": 38584,
-        "mandatory_hp_stages_completed": 3,
-        "mechanic_failures": 0,
-        "mechanics": "Both players simultaneously held their assigned sun/moon plates for two seconds in each stage, then independently aligned their authorized pillars. Stage two changes role assignments and stage three changes the plate arrangement.",
-        "interactions": {
-          "pillar_0": 6,
-          "pillar_1": 6
+        "elapsedMs": 41400,
+        "stage": 3,
+        "strikes": 0,
+        "actions": {
+          "pillar_1": 6,
+          "pillar_0": 6
         },
-        "gear": [
-          "end_sunscar_sword",
-          "end_sunscar_staff",
-          "end_sunscar_armor",
-          "end_sunscar_charm"
+        "seenActions": [
+          "1:forge_leap",
+          "2:forge_slam",
+          "2:forge_leap",
+          "3:forge_vent"
         ],
-        "hp_potions_used": [
-          0,
-          0
+        "failures": [],
+        "phaseTimes": [
+          {
+            "phase": "1:preparing",
+            "second": -4
+          },
+          {
+            "phase": "1:balance",
+            "second": 0,
+            "bossHp": 38584
+          },
+          {
+            "phase": "1:pillars",
+            "second": 4.1,
+            "bossHp": 38584
+          },
+          {
+            "phase": "1:vulnerable",
+            "second": 5.2,
+            "bossHp": 35369
+          },
+          {
+            "phase": "2:transformation",
+            "second": 10.8,
+            "bossHp": 27008
+          },
+          {
+            "phase": "2:balance",
+            "second": 13,
+            "bossHp": 27008
+          },
+          {
+            "phase": "2:pillars",
+            "second": 16,
+            "bossHp": 27008
+          },
+          {
+            "phase": "2:vulnerable",
+            "second": 19.4,
+            "bossHp": 25724
+          },
+          {
+            "phase": "3:transformation",
+            "second": 27.1,
+            "bossHp": 13504
+          },
+          {
+            "phase": "3:balance",
+            "second": 29.3,
+            "bossHp": 13504
+          },
+          {
+            "phase": "3:pillars",
+            "second": 33.3,
+            "bossHp": 13504
+          },
+          {
+            "phase": "3:vulnerable",
+            "second": 36.5,
+            "bossHp": 10851
+          }
         ],
-        "mp_potions_used": [
-          0,
-          0
+        "ticks": 454,
+        "results": [
+          {
+            "dungeon": "concord_forge",
+            "won": true,
+            "reason": "세 번의 협동 관문을 통과해 수호자의 계약을 완수했습니다.",
+            "elapsed": 41400,
+            "attempt": 1,
+            "tokens": 8,
+            "gold": 840,
+            "xp": 3035,
+            "item": "concord_pendant",
+            "at": 1792811505400
+          },
+          {
+            "dungeon": "concord_forge",
+            "won": true,
+            "reason": "세 번의 협동 관문을 통과해 수호자의 계약을 완수했습니다.",
+            "elapsed": 41400,
+            "attempt": 1,
+            "tokens": 8,
+            "gold": 840,
+            "xp": 3035,
+            "item": "concord_pendant",
+            "at": 1792811505400
+          }
         ]
       },
       {
         "dungeon": "memory_archive",
         "level": 80,
-        "members": 2,
+        "party": [
+          {
+            "class": "guardian",
+            "gear": {
+              "weapon": "end_wildroot_sword",
+              "armor": "end_wildroot_armor",
+              "charm": "end_wildroot_charm"
+            },
+            "stats": {
+              "maxHp": 3702,
+              "maxMp": 824,
+              "atk": 922,
+              "def": 208,
+              "crit": 19.48,
+              "speed": 164.3,
+              "range": 85,
+              "manaRegen": 3,
+              "weakened": false
+            },
+            "hp": 3702,
+            "hpPotionsUsed": 0,
+            "mpPotionsUsed": 0
+          },
+          {
+            "class": "mage",
+            "gear": {
+              "weapon": "end_wildroot_staff",
+              "armor": "end_wildroot_armor",
+              "charm": "end_wildroot_charm"
+            },
+            "stats": {
+              "maxHp": 3647,
+              "maxMp": 1694,
+              "atk": 933,
+              "def": 205,
+              "crit": 19.48,
+              "speed": 169.3,
+              "range": 250,
+              "manaRegen": 11.149999999999999,
+              "weakened": false
+            },
+            "hp": 3647,
+            "hpPotionsUsed": 0,
+            "mpPotionsUsed": 0
+          }
+        ],
+        "positions": [
+          {
+            "x": 622.8479976780939,
+            "y": 881.1521022744107
+          },
+          {
+            "x": 721.3348638928513,
+            "y": 818.8609641129827
+          }
+        ],
         "state": "complete",
-        "elapsed_ms": 86200,
-        "boss_hp": 80704,
-        "mandatory_hp_stages_completed": 3,
-        "mechanic_failures": 0,
-        "mechanics": "Previewed sequences of three, four and five symbols were entered by alternating authorized players at actual devices. The bait player aligned the tracking beam through the prism while the other player held the separate anchor zone; roles and positions changed across stages.",
-        "interactions": {
+        "elapsedMs": 92000,
+        "stage": 3,
+        "strikes": 0,
+        "actions": {
+          "memory_3": 3,
+          "memory_1": 4,
           "memory_0": 3,
-          "memory_1": 3,
-          "memory_2": 2,
-          "memory_3": 4
+          "memory_2": 2
         },
-        "gear": [
-          "end_wildroot_sword",
-          "end_wildroot_staff",
-          "end_wildroot_armor",
-          "end_wildroot_charm"
+        "seenActions": [
+          "1:archive_ray",
+          "1:archive_pages",
+          "2:archive_pages",
+          "2:archive_ray",
+          "3:archive_rewrite",
+          "3:archive_ray"
         ],
-        "hp_potions_used": [
-          0,
-          0
+        "failures": [],
+        "phaseTimes": [
+          {
+            "phase": "1:preparing",
+            "second": -4
+          },
+          {
+            "phase": "1:memory_show",
+            "second": 0,
+            "bossHp": 80704
+          },
+          {
+            "phase": "1:memory_input",
+            "second": 7.5,
+            "bossHp": 80704
+          },
+          {
+            "phase": "1:memory_laser",
+            "second": 9.5,
+            "bossHp": 80704
+          },
+          {
+            "phase": "1:vulnerable",
+            "second": 19.9,
+            "bossHp": 80704
+          },
+          {
+            "phase": "2:transformation",
+            "second": 27.2,
+            "bossHp": 56492
+          },
+          {
+            "phase": "2:memory_show",
+            "second": 29.4,
+            "bossHp": 56492
+          },
+          {
+            "phase": "2:memory_input",
+            "second": 37.4,
+            "bossHp": 56492
+          },
+          {
+            "phase": "2:memory_laser",
+            "second": 40.4,
+            "bossHp": 56492
+          },
+          {
+            "phase": "2:vulnerable",
+            "second": 49.8,
+            "bossHp": 56492
+          },
+          {
+            "phase": "3:transformation",
+            "second": 60.2,
+            "bossHp": 28246
+          },
+          {
+            "phase": "3:memory_show",
+            "second": 62.4,
+            "bossHp": 28246
+          },
+          {
+            "phase": "3:memory_input",
+            "second": 70.9,
+            "bossHp": 28246
+          },
+          {
+            "phase": "3:memory_laser",
+            "second": 73.8,
+            "bossHp": 28246
+          },
+          {
+            "phase": "3:vulnerable",
+            "second": 82.2,
+            "bossHp": 28246
+          }
         ],
-        "mp_potions_used": [
-          0,
-          0
+        "ticks": 960,
+        "results": [
+          {
+            "dungeon": "memory_archive",
+            "won": true,
+            "reason": "세 번의 협동 관문을 통과해 수호자의 계약을 완수했습니다.",
+            "elapsed": 92000,
+            "attempt": 1,
+            "tokens": 8,
+            "gold": 1920,
+            "xp": 17112,
+            "item": "archive_pendant",
+            "at": 1792811556000
+          },
+          {
+            "dungeon": "memory_archive",
+            "won": true,
+            "reason": "세 번의 협동 관문을 통과해 수호자의 계약을 완수했습니다.",
+            "elapsed": 92000,
+            "attempt": 1,
+            "tokens": 8,
+            "gold": 1920,
+            "xp": 17112,
+            "item": "archive_pendant",
+            "at": 1792811556000
+          }
         ]
       },
       {
         "dungeon": "fallen_observatory",
         "level": 140,
-        "members": 2,
+        "party": [
+          {
+            "class": "guardian",
+            "gear": {
+              "weapon": "end_voidfront_sword",
+              "armor": "end_voidfront_armor",
+              "charm": "end_voidfront_charm"
+            },
+            "stats": {
+              "maxHp": 6347,
+              "maxMp": 1379,
+              "atk": 1630,
+              "def": 365,
+              "crit": 21.4,
+              "speed": 171.5,
+              "range": 85,
+              "manaRegen": 3,
+              "weakened": false
+            },
+            "hp": 6347,
+            "hpPotionsUsed": 0,
+            "mpPotionsUsed": 0
+          },
+          {
+            "class": "mage",
+            "gear": {
+              "weapon": "end_voidfront_staff",
+              "armor": "end_voidfront_armor",
+              "charm": "end_voidfront_charm"
+            },
+            "stats": {
+              "maxHp": 6292,
+              "maxMp": 2873,
+              "atk": 1641,
+              "def": 362,
+              "crit": 21.4,
+              "speed": 176.5,
+              "range": 250,
+              "manaRegen": 15.83,
+              "weakened": false
+            },
+            "hp": 6292,
+            "hpPotionsUsed": 0,
+            "mpPotionsUsed": 0
+          }
+        ],
+        "positions": [
+          {
+            "x": 367.4703623780229,
+            "y": 563.5333445455865
+          },
+          {
+            "x": 683.8847569161021,
+            "y": 568.3205027378959
+          }
+        ],
         "state": "complete",
-        "elapsed_ms": 54600,
-        "boss_hp": 136864,
-        "mandatory_hp_stages_completed": 3,
-        "mechanic_failures": 0,
-        "mechanics": "The marked player lured each meteor onto its outer seal and stepped away after lock; the other held the central refuge. Both players waited until each arrived at the assigned conduit, then activated within the required two-second window and maintained position. Linked players stayed more than 180 units apart during the final attack phase.",
-        "interactions": {
-          "conduit_0": 12,
+        "elapsedMs": 58700,
+        "stage": 3,
+        "strikes": 0,
+        "actions": {
+          "conduit_0": 9,
           "conduit_1": 9
         },
-        "gear": [
-          "end_voidfront_sword",
-          "end_voidfront_staff",
-          "end_voidfront_armor",
-          "end_voidfront_charm"
+        "seenActions": [
+          "1:observatory_pull",
+          "2:observatory_meteors",
+          "3:observatory_comet"
         ],
-        "hp_potions_used": [
-          0,
-          0
+        "failures": [],
+        "phaseTimes": [
+          {
+            "phase": "1:preparing",
+            "second": -4
+          },
+          {
+            "phase": "1:star_mark",
+            "second": 0,
+            "bossHp": 136864
+          },
+          {
+            "phase": "1:conduits",
+            "second": 9,
+            "bossHp": 136864
+          },
+          {
+            "phase": "1:vulnerable",
+            "second": 13.4,
+            "bossHp": 136864
+          },
+          {
+            "phase": "2:transformation",
+            "second": 20.5,
+            "bossHp": 95804
+          },
+          {
+            "phase": "2:star_mark",
+            "second": 22.7,
+            "bossHp": 95804
+          },
+          {
+            "phase": "2:conduits",
+            "second": 30.7,
+            "bossHp": 95804
+          },
+          {
+            "phase": "2:vulnerable",
+            "second": 34.6,
+            "bossHp": 95804
+          },
+          {
+            "phase": "3:transformation",
+            "second": 39.7,
+            "bossHp": 47902
+          },
+          {
+            "phase": "3:star_mark",
+            "second": 41.9,
+            "bossHp": 47902
+          },
+          {
+            "phase": "3:conduits",
+            "second": 48.9,
+            "bossHp": 47902
+          },
+          {
+            "phase": "3:vulnerable",
+            "second": 51,
+            "bossHp": 47902
+          }
         ],
-        "mp_potions_used": [
-          0,
-          0
+        "ticks": 627,
+        "results": [
+          {
+            "dungeon": "fallen_observatory",
+            "won": true,
+            "reason": "세 번의 협동 관문을 통과해 수호자의 계약을 완수했습니다.",
+            "elapsed": 58700,
+            "attempt": 1,
+            "tokens": 8,
+            "gold": 3360,
+            "xp": 61680,
+            "item": "starbound_pendant",
+            "at": 1792811522700
+          },
+          {
+            "dungeon": "fallen_observatory",
+            "won": true,
+            "reason": "세 번의 협동 관문을 통과해 수호자의 계약을 완수했습니다.",
+            "elapsed": 58700,
+            "attempt": 1,
+            "tokens": 8,
+            "gold": 3360,
+            "xp": 61680,
+            "item": "starbound_pendant",
+            "at": 1792811522700
+          }
         ]
       }
     ],
-    "cooperation_negative_check": {
-      "dungeon": "fallen_observatory",
-      "strategy": "Each bot activated its conduit immediately on arrival without waiting for its teammate.",
-      "result": "Three explained synchronization failures and a party wipe; no rewards. Switching to waiting until both players were in position before activating produced the successful completion above. No server timing relaxation was needed."
-    }
-  },
-  "visual_theme_check": {
-    "dungeon_and_realm_bosses": 6,
-    "regional_wardens": 72,
-    "passed": true
+    "extended_attack_exposure": [
+      {
+        "dungeon": "concord_forge",
+        "level": 35,
+        "party": [
+          {
+            "class": "guardian",
+            "gear": {
+              "weapon": "end_sunscar_sword",
+              "armor": "end_sunscar_armor",
+              "charm": "end_sunscar_charm"
+            },
+            "stats": {
+              "maxHp": 1897,
+              "maxMp": 449,
+              "atk": 441,
+              "def": 105,
+              "crit": 18.04,
+              "speed": 158.9,
+              "range": 85,
+              "manaRegen": 3,
+              "weakened": false
+            },
+            "hp": 1447,
+            "hpPotionsUsed": 0,
+            "mpPotionsUsed": 0
+          },
+          {
+            "class": "mage",
+            "gear": {
+              "weapon": "end_sunscar_staff",
+              "armor": "end_sunscar_armor",
+              "charm": "end_sunscar_charm"
+            },
+            "stats": {
+              "maxHp": 1842,
+              "maxMp": 851,
+              "atk": 452,
+              "def": 102,
+              "crit": 18.04,
+              "speed": 163.9,
+              "range": 250,
+              "manaRegen": 7.64,
+              "weakened": false
+            },
+            "hp": 1717,
+            "hpPotionsUsed": 0,
+            "mpPotionsUsed": 0
+          }
+        ],
+        "positions": [
+          {
+            "x": 268.73197321282066,
+            "y": 515.4717129432476
+          },
+          {
+            "x": 620.8645595603061,
+            "y": 431.0531729150204
+          }
+        ],
+        "state": "complete",
+        "elapsedMs": 78600,
+        "stage": 3,
+        "strikes": 0,
+        "actions": {
+          "pillar_1": 6,
+          "pillar_0": 6
+        },
+        "seenActions": [
+          "1:forge_leap",
+          "1:forge_heat",
+          "1:forge_slam",
+          "2:forge_slam",
+          "2:forge_leap",
+          "2:forge_heat",
+          "2:forge_vent",
+          "3:forge_vent",
+          "3:forge_leap",
+          "3:forge_heat"
+        ],
+        "failures": [],
+        "phaseTimes": [
+          {
+            "phase": "1:preparing",
+            "second": -4
+          },
+          {
+            "phase": "1:balance",
+            "second": 0,
+            "bossHp": 38584
+          },
+          {
+            "phase": "1:pillars",
+            "second": 4.1,
+            "bossHp": 38584
+          },
+          {
+            "phase": "1:vulnerable",
+            "second": 5.2,
+            "bossHp": 38584
+          },
+          {
+            "phase": "2:transformation",
+            "second": 21.4,
+            "bossHp": 27008
+          },
+          {
+            "phase": "2:balance",
+            "second": 23.6,
+            "bossHp": 27008
+          },
+          {
+            "phase": "2:pillars",
+            "second": 28.2,
+            "bossHp": 27008
+          },
+          {
+            "phase": "2:vulnerable",
+            "second": 33.4,
+            "bossHp": 27008
+          },
+          {
+            "phase": "3:transformation",
+            "second": 53.8,
+            "bossHp": 13504
+          },
+          {
+            "phase": "3:balance",
+            "second": 56,
+            "bossHp": 13504
+          },
+          {
+            "phase": "3:pillars",
+            "second": 59.9,
+            "bossHp": 13504
+          },
+          {
+            "phase": "3:vulnerable",
+            "second": 63.1,
+            "bossHp": 13504
+          }
+        ],
+        "ticks": 826,
+        "results": [
+          {
+            "dungeon": "concord_forge",
+            "won": true,
+            "reason": "세 번의 협동 관문을 통과해 수호자의 계약을 완수했습니다.",
+            "elapsed": 78600,
+            "attempt": 1,
+            "tokens": 8,
+            "gold": 840,
+            "xp": 3035,
+            "item": "concord_pendant",
+            "at": 1792811542600
+          },
+          {
+            "dungeon": "concord_forge",
+            "won": true,
+            "reason": "세 번의 협동 관문을 통과해 수호자의 계약을 완수했습니다.",
+            "elapsed": 78600,
+            "attempt": 1,
+            "tokens": 8,
+            "gold": 840,
+            "xp": 3035,
+            "item": "concord_pendant",
+            "at": 1792811542600
+          }
+        ]
+      },
+      {
+        "dungeon": "memory_archive",
+        "level": 80,
+        "party": [
+          {
+            "class": "guardian",
+            "gear": {
+              "weapon": "end_wildroot_sword",
+              "armor": "end_wildroot_armor",
+              "charm": "end_wildroot_charm"
+            },
+            "stats": {
+              "maxHp": 3702,
+              "maxMp": 824,
+              "atk": 922,
+              "def": 208,
+              "crit": 19.48,
+              "speed": 164.3,
+              "range": 85,
+              "manaRegen": 3,
+              "weakened": false
+            },
+            "hp": 2798,
+            "hpPotionsUsed": 0,
+            "mpPotionsUsed": 0
+          },
+          {
+            "class": "mage",
+            "gear": {
+              "weapon": "end_wildroot_staff",
+              "armor": "end_wildroot_armor",
+              "charm": "end_wildroot_charm"
+            },
+            "stats": {
+              "maxHp": 3647,
+              "maxMp": 1694,
+              "atk": 933,
+              "def": 205,
+              "crit": 19.48,
+              "speed": 169.3,
+              "range": 250,
+              "manaRegen": 11.149999999999999,
+              "weakened": false
+            },
+            "hp": 3173,
+            "hpPotionsUsed": 0,
+            "mpPotionsUsed": 0
+          }
+        ],
+        "positions": [
+          {
+            "x": 618.8071670857709,
+            "y": 885.0376655840794
+          },
+          {
+            "x": 784.0578713941552,
+            "y": 875.3211765801358
+          }
+        ],
+        "state": "complete",
+        "elapsedMs": 117300,
+        "stage": 3,
+        "strikes": 0,
+        "actions": {
+          "memory_3": 5,
+          "memory_1": 3,
+          "memory_0": 2,
+          "memory_2": 2
+        },
+        "seenActions": [
+          "1:archive_ray",
+          "1:archive_pages",
+          "1:archive_rewrite",
+          "2:archive_pages",
+          "2:archive_ray",
+          "2:archive_rewrite",
+          "3:archive_rewrite",
+          "3:archive_ray",
+          "3:archive_pages"
+        ],
+        "failures": [],
+        "phaseTimes": [
+          {
+            "phase": "1:preparing",
+            "second": -4
+          },
+          {
+            "phase": "1:memory_show",
+            "second": 0,
+            "bossHp": 80704
+          },
+          {
+            "phase": "1:memory_input",
+            "second": 7.5,
+            "bossHp": 80704
+          },
+          {
+            "phase": "1:memory_laser",
+            "second": 9.5,
+            "bossHp": 80704
+          },
+          {
+            "phase": "1:vulnerable",
+            "second": 19.9,
+            "bossHp": 80704
+          },
+          {
+            "phase": "2:transformation",
+            "second": 36.4,
+            "bossHp": 56492
+          },
+          {
+            "phase": "2:memory_show",
+            "second": 38.6,
+            "bossHp": 56492
+          },
+          {
+            "phase": "2:memory_input",
+            "second": 46.6,
+            "bossHp": 56492
+          },
+          {
+            "phase": "2:memory_laser",
+            "second": 48.6,
+            "bossHp": 56492
+          },
+          {
+            "phase": "2:vulnerable",
+            "second": 58,
+            "bossHp": 56492
+          },
+          {
+            "phase": "3:transformation",
+            "second": 76.8,
+            "bossHp": 28246
+          },
+          {
+            "phase": "3:memory_show",
+            "second": 79,
+            "bossHp": 28246
+          },
+          {
+            "phase": "3:memory_input",
+            "second": 87.5,
+            "bossHp": 28246
+          },
+          {
+            "phase": "3:memory_laser",
+            "second": 89.9,
+            "bossHp": 28246
+          },
+          {
+            "phase": "3:vulnerable",
+            "second": 98.3,
+            "bossHp": 28246
+          }
+        ],
+        "ticks": 1213,
+        "results": [
+          {
+            "dungeon": "memory_archive",
+            "won": true,
+            "reason": "세 번의 협동 관문을 통과해 수호자의 계약을 완수했습니다.",
+            "elapsed": 117300,
+            "attempt": 1,
+            "tokens": 8,
+            "gold": 1920,
+            "xp": 17112,
+            "item": "archive_pendant",
+            "at": 1792811581300
+          },
+          {
+            "dungeon": "memory_archive",
+            "won": true,
+            "reason": "세 번의 협동 관문을 통과해 수호자의 계약을 완수했습니다.",
+            "elapsed": 117300,
+            "attempt": 1,
+            "tokens": 8,
+            "gold": 1920,
+            "xp": 17112,
+            "item": "archive_pendant",
+            "at": 1792811581300
+          }
+        ]
+      },
+      {
+        "dungeon": "fallen_observatory",
+        "level": 140,
+        "party": [
+          {
+            "class": "guardian",
+            "gear": {
+              "weapon": "end_voidfront_sword",
+              "armor": "end_voidfront_armor",
+              "charm": "end_voidfront_charm"
+            },
+            "stats": {
+              "maxHp": 6347,
+              "maxMp": 1379,
+              "atk": 1630,
+              "def": 365,
+              "crit": 21.4,
+              "speed": 171.5,
+              "range": 85,
+              "manaRegen": 3,
+              "weakened": false
+            },
+            "hp": 5511,
+            "hpPotionsUsed": 0,
+            "mpPotionsUsed": 0
+          },
+          {
+            "class": "mage",
+            "gear": {
+              "weapon": "end_voidfront_staff",
+              "armor": "end_voidfront_armor",
+              "charm": "end_voidfront_charm"
+            },
+            "stats": {
+              "maxHp": 6292,
+              "maxMp": 2873,
+              "atk": 1641,
+              "def": 362,
+              "crit": 21.4,
+              "speed": 176.5,
+              "range": 250,
+              "manaRegen": 15.83,
+              "weakened": false
+            },
+            "hp": 6292,
+            "hpPotionsUsed": 0,
+            "mpPotionsUsed": 0
+          }
+        ],
+        "positions": [
+          {
+            "x": 494.3182530322917,
+            "y": 621.3503507537154
+          },
+          {
+            "x": 820.9214008906276,
+            "y": 617.3822497896354
+          }
+        ],
+        "state": "complete",
+        "elapsedMs": 98100,
+        "stage": 3,
+        "strikes": 0,
+        "actions": {
+          "conduit_0": 9,
+          "conduit_1": 9
+        },
+        "seenActions": [
+          "1:observatory_pull",
+          "1:observatory_meteors",
+          "1:observatory_comet",
+          "2:observatory_meteors",
+          "2:observatory_pull",
+          "2:observatory_comet",
+          "3:observatory_comet",
+          "3:observatory_pull",
+          "3:observatory_meteors"
+        ],
+        "failures": [],
+        "phaseTimes": [
+          {
+            "phase": "1:preparing",
+            "second": -4
+          },
+          {
+            "phase": "1:star_mark",
+            "second": 0,
+            "bossHp": 136864
+          },
+          {
+            "phase": "1:conduits",
+            "second": 9,
+            "bossHp": 136864
+          },
+          {
+            "phase": "1:vulnerable",
+            "second": 13.4,
+            "bossHp": 136864
+          },
+          {
+            "phase": "2:transformation",
+            "second": 29.9,
+            "bossHp": 95804
+          },
+          {
+            "phase": "2:star_mark",
+            "second": 32.1,
+            "bossHp": 95804
+          },
+          {
+            "phase": "2:conduits",
+            "second": 40.1,
+            "bossHp": 95804
+          },
+          {
+            "phase": "2:vulnerable",
+            "second": 44,
+            "bossHp": 95804
+          },
+          {
+            "phase": "3:transformation",
+            "second": 64.9,
+            "bossHp": 47902
+          },
+          {
+            "phase": "3:star_mark",
+            "second": 67.1,
+            "bossHp": 47902
+          },
+          {
+            "phase": "3:conduits",
+            "second": 74.1,
+            "bossHp": 47902
+          },
+          {
+            "phase": "3:vulnerable",
+            "second": 76.3,
+            "bossHp": 47902
+          }
+        ],
+        "ticks": 1021,
+        "results": [
+          {
+            "dungeon": "fallen_observatory",
+            "won": true,
+            "reason": "세 번의 협동 관문을 통과해 수호자의 계약을 완수했습니다.",
+            "elapsed": 98100,
+            "attempt": 1,
+            "tokens": 8,
+            "gold": 3360,
+            "xp": 61680,
+            "item": "starbound_pendant",
+            "at": 1792811562100
+          },
+          {
+            "dungeon": "fallen_observatory",
+            "won": true,
+            "reason": "세 번의 협동 관문을 통과해 수호자의 계약을 완수했습니다.",
+            "elapsed": 98100,
+            "attempt": 1,
+            "tokens": 8,
+            "gold": 3360,
+            "xp": 61680,
+            "item": "starbound_pendant",
+            "at": 1792811562100
+          }
+        ]
+      }
+    ]
   },
   "release_overlay": {
-    "all_source_hashes_match": true,
+    "all_current_source_hashes_match": true,
     "build": "Build ready: native ES modules, no bundler or external CDN.",
-    "startup": "Original archive + changed files: server/client imports and character startup verified."
+    "startup": "Original archive + cumulative changed code: build, startup, 3 dungeon maps, 48 regional identities and phase modules verified."
   },
   "limits": [
-    "UI tests use two DOM documents, not a real browser layout engine.",
-    "Pixel previews are actual effect-module native Canvas renders, not browser screenshots.",
-    "The coordinated bots verify completion feasibility and cooperation, not human difficulty.",
-    "No real-device full-game FPS or long-session human multiplayer playtest was performed.",
-    "No production deployment was performed."
+    "DOM tests run actual main.js with renderer/transport stubs, not a browser layout engine.",
+    "Rendered previews use the actual Canvas modules with native Canvas; they are not browser screenshots.",
+    "Automated coordinated completion verifies feasibility and does not predict human clear times or difficulty.",
+    "The real WS dungeon reconnection test covers the forge; reconnect during a transformation was reviewed but not separately exercised over WS.",
+    "No real-device full-game FPS, prolonged human multiplayer session or production deployment was performed.",
+    "Terrain is 2D collision with pixel height cues, not stacked 3D navigation or player jumping."
   ]
 }
