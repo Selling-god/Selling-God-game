@@ -8,6 +8,7 @@ import { buildChallengeMap } from './challenge-world.js';
 import { buildDungeonMap, decorateDungeonEntrance } from './dungeon-world.js';
 import { buildRealmMap, decorateRealmEntrance, REALM_BOSS_SPAWNS } from './realm-world.js';
 import { REALM_ZONES } from './realms.js';
+import {applyTerrainLayout,SURFACES} from './terrain-layouts.js';
 import { TILE, ZONES, NPCS } from './content.js';
 
 export function seeded(seed) {
@@ -85,6 +86,7 @@ export const mapCacheInfo=()=>({size:cache.size,limit:10});
 function remember(id,map){
  decorateDungeonEntrance(map,ZONES[id]);
  decorateRealmEntrance(map,ZONES[id]);
+ applyTerrainLayout(map,ZONES[id],{boss:BOSS_SPAWNS[id]});
  indexScenery(map);
  cache.delete(id);cache.set(id,map);
  while(cache.size>10)cache.delete(cache.keys().next().value);
@@ -243,7 +245,13 @@ export function moveEntity(map,p,dx,dy,r=10) {
 }
 export function lineOfSight(map,a,b) {
   const n=Math.ceil(dist(a,b)/12);
-  for(let i=1;i<n;i++)if(isBlocked(map,a.x+(b.x-a.x)*i/n,a.y+(b.y-a.y)*i/n,2))return false;
+  for(let i=1;i<n;i++){
+    const x=a.x+(b.x-a.x)*i/n,y=a.y+(b.y-a.y)*i/n;
+    if(map.terrain){
+      const tx=Math.floor(x/TILE),ty=Math.floor(y/TILE);
+      if(tx<0||ty<0||tx>=map.w||ty>=map.h||map.terrain.surface[ty*map.w+tx]===SURFACES.WALL)return false;
+    }else if(isBlocked(map,x,y,2))return false;
+  }
   return true;
 }
 export function findPath(map,from,to) {

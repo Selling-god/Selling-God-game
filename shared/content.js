@@ -6,6 +6,7 @@ import { installExpansion } from './expansion.js';
 import { CHALLENGE_ZONES } from './challenges.js';
 import { installDungeons } from './dungeons.js';
 import { installRealms } from './realms.js';
+import { installEncounterIdentities } from './encounters.js';
 export const VERSION = '3.0.0';
 export const TILE = 32;
 export const CLASSES = {
@@ -171,6 +172,7 @@ installExpeditions({ZONES,MONSTERS,ITEMS,RECIPES});
 Object.assign(ZONES,CHALLENGE_ZONES);
 installDungeons({ZONES,MONSTERS,ITEMS});
 installRealms({ZONES,MONSTERS,ITEMS});
+installEncounterIdentities({MONSTERS,ZONES,QUESTS});
 
 // Every region, including the original four, has a stable UI/save identifier.
 for(const [id,zone]of Object.entries(ZONES))zone.id=id;

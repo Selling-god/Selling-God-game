@@ -72,7 +72,7 @@ export function prepareRealms(p,{recover=false}={}){
  const back=old.returnPoint;
  p.realms={version:1,known:validList(old.known,ids),unlocked:validList(old.unlocked,ids),trials:validList(old.trials,ids),
   cleared:validList(old.cleared,ids),traces:validList(old.traces,REALMS.flatMap(r=>r.jobs)),weapons,
-  returnPoint:back&&typeof back.zone==='string'&&!Object.hasOwn(REALM_ZONES,back.zone)&&!['party_dungeon','challenge_arena'].includes(back.zone)&&Number.isFinite(back.x)&&Number.isFinite(back.y)
+  returnPoint:back&&typeof back.zone==='string'&&!Object.hasOwn(REALM_ZONES,back.zone)&&!['party_dungeon','party_archive','party_observatory','challenge_arena'].includes(back.zone)&&Number.isFinite(back.x)&&Number.isFinite(back.y)
    ?{zone:back.zone,x:back.x,y:back.y}:null};
  if(recover){
   p.realmEntry=null;p.realmTrial=null;p.realmNextAction=0;
