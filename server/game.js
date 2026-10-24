@@ -1,5 +1,5 @@
 import {prepareStories,storyAction,recordStory,storyTracker} from './stories.js';
-import {prepareAtlas,privateAtlas,revealTerrain,interactPoint,atlasAction,trialView,tickFieldTrial,cancelFieldTrial,fieldTrialKill,fieldTrialInteract,fieldTrialDamageAmount} from './atlas.js';
+import {prepareAtlas,privateAtlas,revealTerrain,interactPoint,atlasAction,trialView,tickFieldTrial,cancelFieldTrial,fieldTrialKill} from './atlas.js';
 import {LazyWorldMap} from './lazy-worlds.js';
 import {prepareRPG,rpgAction,onDeath,recoverSoul} from './rpg.js';
 import {bossVisual} from '../shared/visuals.js';
@@ -14,7 +14,6 @@ import {prepareChallenges} from '../shared/challenges.js';
 import {prepareDungeons} from '../shared/dungeons.js';
 import {prepareRealms} from '../shared/realms.js';
 import {combatExperience} from '../shared/rpg.js';
-import {prepareVanity, COSMETICS, COSMETIC_SLOTS, validPortrait} from '../shared/personalization.js';
 import {ACHIEVEMENTS} from '../shared/expansion.js';
 import { randomUUID } from 'node:crypto';
 import { CLASSES, ITEMS, MONSTERS, QUESTS, ZONES, NPCS, RECIPES, SHOP, TILE, MAX_LEVEL, xpRequired, getStats, weaponFor } from '../shared/content.js';
@@ -27,9 +26,9 @@ export function newCharacter(id,name,classId='novice'){
     hp:0,mp:0,inventory:{[c.weapon]:1,tunic:1,potion:8,mana:5},
     equipment:{weapon:c.weapon,armor:'tunic',charm:null},enhancements:{},
     quests:{},completed:[],opened:[],kills:0,bossKills:0,gathered:0,playSeconds:0,
-    title:'별빛을 따라온 자',titles:['별빛을 따라온 자'],vanity:null,revision:1,createdAt:Date.now()
+    title:'별빛을 따라온 자',titles:['별빛을 따라온 자'],revision:1,createdAt:Date.now()
   };
-  prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareChallenges(p);prepareDungeons(p);prepareRealms(p);prepareRPG(p);prepareVanity(p);const s=getStats(p);p.hp=s.maxHp;p.mp=s.maxMp;return p;
+  prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareChallenges(p);prepareDungeons(p);prepareRealms(p);prepareRPG(p);const s=getStats(p);p.hp=s.maxHp;p.mp=s.maxMp;return p;
 }
 export function hydrate(state){
   const p={...state};
@@ -38,7 +37,7 @@ export function hydrate(state){
   if(!CLASSES[p.classId])p.classId='novice';
   prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareChallenges(p,{recover:true});prepareDungeons(p,{recover:true});prepareRealms(p,{recover:true});
   p.titles=[...(p.titles||['별빛을 따라온 자'])];p.level=clamp(p.level||1,1,MAX_LEVEL);
-  prepareRPG(p);prepareVanity(p);
+  prepareRPG(p);
   if(!ZONES[p.zone])p.zone='town';
   if(!(p.hp>0)){p.zone='town';p.x=24*TILE+16;p.y=21*TILE+16;}
   const map=createMap(p.zone);
@@ -52,7 +51,7 @@ export function hydrate(state){
   return p;
 }
 export function serialize(p){
-  const keys=['id','name','classId','level','xp','gold','zone','x','y','hp','mp','inventory','equipment','enhancements','quests','completed','opened','kills','bossKills','gathered','playSeconds','title','titles','revision','createdAt','schemaVersion','discovery','journey','atlas','daily','attributes','statResets','enhancePity','deaths','deathWeakUntil','soul','lastDeath','challenges','dungeons','realms','vanity'];
+  const keys=['id','name','classId','level','xp','gold','zone','x','y','hp','mp','inventory','equipment','enhancements','quests','completed','opened','kills','bossKills','gathered','playSeconds','title','titles','revision','createdAt','schemaVersion','discovery','journey','atlas','daily','attributes','statResets','enhancePity','deaths','deathWeakUntil','soul','lastDeath','challenges','dungeons','realms'];
   return structuredClone(Object.fromEntries(keys.map(k=>[k,p[k]])));
 }
 export class Game {
@@ -104,7 +103,7 @@ export class Game {
       encounterState:null,encounterPhase:1,encounterTransition:null,encounterPose:null,encounterSummon:null};
   }
   addPlayer(state){
-    const p=hydrate(state);p.arrivedAt=this.now;this.players.set(p.id,p);evaluateJobs(this,p,false);return p;
+    const p=hydrate(state);this.players.set(p.id,p);evaluateJobs(this,p,false);return p;
   }
   mark(p){p.revision=(p.revision||0)+1;p.dirty=true;}
   toast(p,message,tone='info'){this.send(p.id,'notice',{message,tone});}
@@ -121,13 +120,13 @@ export class Game {
   }
   stats(p){return getStats(p,this.now);}
   canSeeEntity(p,entity){return this.challenges.allows(p,entity)&&this.dungeons.allows(p,entity);}
-  canDamage(p,m){return this.encounters.canDamage(m)&&this.challenges.canDamage(p,m)&&this.dungeons.canDamage(p,m)&&this.realms.canDamage(p,m)&&!m.trialShield;}
+  canDamage(p,m){return this.encounters.canDamage(m)&&this.challenges.canDamage(p,m)&&this.dungeons.canDamage(p,m)&&this.realms.canDamage(p,m);}
   sameInstance(a,b){return this.challenges.sameInstance(a,b)&&this.dungeons.sameInstance(a,b);}
   mobSpec(m){return m.dungeonRun?this.dungeons.mobSpec(m):this.challenges.mobSpec(m);}
   publicPlayer(p){
     const s=this.stats(p);
     return {id:p.id,name:p.name,classId:p.classId,level:p.level,x:Math.round(p.x*10)/10,y:Math.round(p.y*10)/10,dir:p.dir,vx:Math.round(p.vx||0),vy:Math.round(p.vy||0),
-      moving:p.moving,hp:Math.round(p.hp),maxHp:s.maxHp,title:p.title,vanity:{slots:{...p.vanity.slots},avatarPixels:p.vanity.avatarPixels},arrivedAt:p.arrivedAt||0,
+      moving:p.moving,hp:Math.round(p.hp),maxHp:s.maxHp,title:p.title,
       attacking:p.attackUntil>this.now,shield:p.shieldUntil>this.now,dashing:p.dashUntil>this.now,
       dead:p.hp<=0,weapon:p.equipment.weapon,equipment:{...p.equipment},gearEnhance:Object.fromEntries(Object.values(p.equipment).filter(Boolean).map(id=>[id,p.enhancements[id]||0])),weakened:s.weakened,partyId:p.partyId};
   }
@@ -146,7 +145,7 @@ export class Game {
         inputSeq:p.inputSeq||0,motionId:p.motionId||0,speed:this.stats(p).speed,
         speedUntil:p.speedUntil,dashUntil:p.dashUntil,dashVector:p.dashVector||{x:0,y:0},pathing:p.path.length>0},
       players:[...this.players.values()].filter(x=>x.active&&x.id!==p.id&&x.zone===p.zone&&this.sameInstance(p,x)&&dist(x,p)<near+200).map(x=>this.publicPlayer(x)),
-      mobs:w.mobs.filter(m=>m.alive&&this.canSeeEntity(p,m)&&dist(m,p)<near).map(m=>({id:m.id,type:m.type,name:m.name||MONSTERS[m.type].name,dungeonObjective:m.dungeonObjective,level:this.mobSpec(m).level,x:Math.round(m.x*10)/10,y:Math.round(m.y*10)/10,hp:m.hp,maxHp:m.maxHp,dir:m.dir,moving:m.moving,casting:m.castUntil>this.now,slow:m.slowUntil>this.now,phase:Math.max(0,(m.encounterPhase||1)-1),encounterPose:this.encounters.viewMob(m),encounterForm:m.encounterForm,dot:m.dots?.[0]?.kind,challengeShield:!!(m.challengeShield||m.dungeonShield||m.trialShield||m.encounterTransition?.ends>this.now),mechanicObjective:m.mechanicObjective})),
+      mobs:w.mobs.filter(m=>m.alive&&this.canSeeEntity(p,m)&&dist(m,p)<near).map(m=>({id:m.id,type:m.type,name:m.name||MONSTERS[m.type].name,dungeonObjective:m.dungeonObjective,level:this.mobSpec(m).level,x:Math.round(m.x*10)/10,y:Math.round(m.y*10)/10,hp:m.hp,maxHp:m.maxHp,dir:m.dir,moving:m.moving,casting:m.castUntil>this.now,slow:m.slowUntil>this.now,phase:Math.max(0,(m.encounterPhase||1)-1),encounterPose:this.encounters.viewMob(m),encounterForm:m.encounterForm,dot:m.dots?.[0]?.kind,challengeShield:!!(m.challengeShield||m.dungeonShield||m.encounterTransition?.ends>this.now),mechanicObjective:m.mechanicObjective})),
       nodes:w.nodes.filter(n=>dist(n,p)<near).map(n=>({...n,ready:n.readyAt<=this.now})),
       casts:w.casts.filter(c=>this.canSeeEntity(p,c)&&c.ends>this.now&&dist(c,p)<near+350).map(({damage,owner,challengeOwner,challengeRun,...c})=>c),
       bosses:w.mobs.filter(m=>this.canSeeEntity(p,m)&&MONSTERS[m.type].boss).map(m=>({id:m.id,type:m.type,hp:m.hp,maxHp:m.maxHp,alive:m.alive,respawnAt:m.respawnAt})),
@@ -261,8 +260,7 @@ export class Game {
     for(const m of victims){
       const crit=this.random()*100<this.stats(p).crit;
       const rawDamage=Math.max(1,Math.round((this.stats(p).atk*skill.power-this.mobSpec(m).def*.65*(1-(c.passive?.armorPierce||0)))*(0.92+this.random()*.16)*(crit?1.65:1)*bossDamageMultiplier(m)));
-      const baseDamage=m.dungeonRun?this.dungeons.damageAmount(m,rawDamage):this.encounters.damageAmount(m,rawDamage);
-      const damage=fieldTrialDamageAmount(w,m,baseDamage);
+      const damage=m.dungeonRun?this.dungeons.damageAmount(m,rawDamage):this.encounters.damageAmount(m,rawDamage);
       const actual=Math.min(m.hp,damage);
       m.hp=Math.max(0,m.hp-damage);m.contributors.set(p.id,this.now);m.damageLog.set(p.id,(m.damageLog.get(p.id)||0)+actual);m.target=p.id;
       const drain=(c.passive?.lifesteal||0)+(skill.lifesteal||0);
@@ -331,7 +329,7 @@ export class Game {
       this.mark(p);
     }
     this.fx(zone,{type:'death',id:m.id,monster:m.type,x:m.x,y:m.y,boss:!!spec.boss});
-    if(spec.worldBoss)this.broadcast(null,'worldNotice',{kind:'worldBoss',event:'defeated',id:m.worldEventId||m.type,message:`월드 보스 격파! ${spec.name}이(가) 쓰러졌습니다. 기여한 모험가에게 전리품이 지급되었습니다.`});
+    if(spec.boss)this.broadcast(null,'system',{message:`${spec.name}의 속박이 풀렸습니다. 참여한 모험가 모두에게 전리품이 지급되었습니다.`});
     m.contributors.clear();
   }
   damagePlayer(p,amount){
@@ -356,7 +354,7 @@ export class Game {
     this.dungeons.beforeTeleport(p,zone);
     this.realms.beforeTeleport(p,zone);
     this.challenges.beforeTeleport(p,zone);
-    p.zone=zone;p.x=arrival.x;p.y=arrival.y;p.arrivedAt=this.now;p.path=[];p.input={x:0,y:0};p.target=null;p.vx=0;p.vy=0;p.moving=false;
+    p.zone=zone;p.x=arrival.x;p.y=arrival.y;p.path=[];p.input={x:0,y:0};p.target=null;p.vx=0;p.vy=0;p.moving=false;
     p.dashUntil=0;p.dashVector={x:0,y:0};p.lastInput=0;p.motionId=(p.motionId||0)+1;
     recordProgress(this,p,'visit',zone);p.nextSurveyAt=0;revealTerrain(this,p);
     p.invulnerableUntil=this.now+2200;this.mark(p);
@@ -367,7 +365,6 @@ export class Game {
     const realm=this.realms.action(p,{type:'interact',id});if(realm)return realm;
     const dungeon=this.dungeons.action(p,{type:'interact',id});if(dungeon)return dungeon;
     const challenge=this.challenges.action(p,{type:'interact',id});if(challenge)return challenge;
-    const trial=fieldTrialInteract(this,p,id);if(trial)return trial;
     if(this.now-p.lastInteract<450)return {ok:false,quiet:true};
     const w=this.worlds.get(p.zone);
     let options=[
@@ -515,7 +512,6 @@ export class Game {
       this.mark(p);this.send(p.id,'loot',{gold:0,xp:0,items:[{id:out,count:r.count}],boss:true,name:'제작 완료'});
       return {ok:true};
     }
-    const vanityResult=this.vanityAction(p,a);if(vanityResult)return vanityResult;
     if(a.type==='title'){
       if(!p.titles.includes(a.title))return {ok:false,error:'아직 얻지 못한 칭호입니다.'};
       p.title=a.title;this.mark(p);return {ok:true};
@@ -545,59 +541,6 @@ export class Game {
       this.leaveParty(p);return {ok:true};
     }
     return {ok:false,error:'처리할 수 없는 요청입니다.'};
-  }
-  vanityAction(p,a){
-    const types=['cosmeticBuy','cosmeticEquip','studioTicketBuy','avatarApply','avatarClear','renameConfirmed'];
-    if(!types.includes(a.type))return null;
-    const inTown=p.zone==='town'&&this.now-p.lastCombat>=8000;
-    // Cosmetic-only transactions do not affect combat stats. The workshop shortcut
-    // works anywhere, unlike the physical NPC's normal item trade.
-    if(a.type==='studioTicketBuy'){
-      if(!['portrait_ticket','rename_ticket'].includes(a.id))return {ok:false,error:'공방 이용권만 구매할 수 있습니다.'};
-      const ticket=ITEMS[a.id],amount=p.inventory[a.id]||0;
-      if(amount>=99)return {ok:false,error:'이용권은 최대 99장까지 보관할 수 있습니다.'};
-      if(p.gold<ticket.buy)return {ok:false,error:`골드가 부족합니다. ${ticket.buy-p.gold} G를 더 모아주세요.`};
-      p.gold-=ticket.buy;this.addItem(p,a.id,1);this.mark(p);
-      return {ok:true,message:`${ticket.name}을 구매했습니다.`,gold:p.gold,inventory:{[a.id]:p.inventory[a.id]}};
-    }
-    if(a.type==='cosmeticBuy'){
-      if(typeof a.id!=='string'||!Object.hasOwn(COSMETICS,a.id))return {ok:false,error:'존재하지 않는 꾸미기 상품입니다.'};
-      const item=COSMETICS[a.id];
-      if(p.vanity.owned.includes(a.id))return {ok:false,error:'이미 보유한 아이템입니다.'};
-      if(p.gold<item.price)return {ok:false,error:`골드가 부족합니다. ${item.price-p.gold} G를 더 모아주세요.`};
-      p.gold-=item.price;p.vanity.owned.push(a.id);
-      // Successful purchases immediately show up on the player and in remote snapshots.
-      p.vanity.slots[item.slot]=a.id;this.mark(p);
-      return {ok:true,message:`${item.name} ${item.price?'구매':'무료 수령'} · 즉시 장착 완료!`,gold:p.gold,owned:item.id,slot:item.slot};
-    }
-    if(a.type==='cosmeticEquip'){
-      if(!COSMETIC_SLOTS.includes(a.slot))return {ok:false,error:'잘못된 장착 부위입니다.'};
-      if(a.id!==null&&a.id!==''&&(!Object.hasOwn(COSMETICS,a.id)||COSMETICS[a.id].slot!==a.slot||!p.vanity.owned.includes(a.id)))
-        return {ok:false,error:'해당 부위에 소유한 꾸미기 아이템만 장착할 수 있습니다.'};
-      p.vanity.slots[a.slot]=a.id||null;this.mark(p);return {ok:true,message:'외형을 변경했습니다.',slot:a.slot,equipped:a.id||null};
-    }
-    if(a.type==='avatarApply'){
-      if(!inTown)return {ok:false,error:'마을에서 전투를 마친 뒤 이미지 외형을 변경하세요.'};
-      if(!validPortrait(a.pixels))return {ok:false,error:'24×32 도트 이미지 데이터가 올바르지 않습니다.'};
-      if(!(p.inventory.portrait_ticket>0))return {ok:false,error:'초상화 변환권이 필요합니다. 모라의 상점에서 구매할 수 있습니다.'};
-      p.inventory.portrait_ticket--;p.vanity.avatarPixels=a.pixels;this.mark(p);
-      this.fx(p.zone,{type:'level',id:p.id,x:p.x,y:p.y});
-      return {ok:true,message:'도트 캐릭터 외형을 적용했습니다. 다른 플레이어에게도 보입니다.'};
-    }
-    if(a.type==='avatarClear'){
-      p.vanity.avatarPixels=null;this.mark(p);return {ok:true,message:'기본 직업 외형으로 되돌렸습니다. 사용한 변환권은 환급되지 않습니다.'};
-    }
-    if(a.type==='renameConfirmed'){
-      // Only the authenticated websocket handler may supply this authorization.
-      if(a.serverAuthorized!==true)return {ok:false,error:'서버 인증이 필요합니다.'};
-      const name=String(a.name||'').trim().normalize('NFC');
-      if(!/^[\p{L}\p{N} _-]{2,14}$/u.test(name))return {ok:false,error:'2~14글자의 닉네임을 사용하세요.'};
-      if(!inTown)return {ok:false,error:'마을에서 전투 종료 8초 후 변경하세요.'};
-      if(!(p.inventory.rename_ticket>0))return {ok:false,error:'닉네임 변경권이 없습니다.'};
-      if(name.toLocaleLowerCase('ko')===p.name.toLocaleLowerCase('ko'))return {ok:false,error:'현재와 같은 이름입니다.'};
-      p.inventory.rename_ticket--;p.name=name;this.mark(p);return {ok:true,message:`닉네임이 ${name}(으)로 변경되었습니다.`};
-    }
-    return null;
   }
   leaveParty(p){
     this.dungeons.beforePartyLeave(p);
@@ -689,7 +632,7 @@ export class Game {
           if(effect.left<=0||effect.next>now)continue;
           const owner=this.players.get(effect.by);effect.left--;effect.next=now+1000;
           if(!owner?.active||owner.zone!==zone||owner.hp<=0||!this.canSeeEntity(owner,m)||!this.canDamage(owner,m))continue;
-          const dealt=Math.min(m.hp,fieldTrialDamageAmount(w,m,this.encounters.damageAmount(m,Math.max(1,Math.round(effect.damage*bossDamageMultiplier(m))))));m.hp-=dealt;m.contributors.set(owner.id,now);m.damageLog.set(owner.id,(m.damageLog.get(owner.id)||0)+dealt);
+          const dealt=Math.min(m.hp,this.encounters.damageAmount(m,Math.max(1,Math.round(effect.damage*bossDamageMultiplier(m)))));m.hp-=dealt;m.contributors.set(owner.id,now);m.damageLog.set(owner.id,(m.damageLog.get(owner.id)||0)+dealt);
           this.fx(zone,{type:'hit',id:m.id,x:m.x,y:m.y-22,amount:dealt,kind:'monster',by:owner.id});
           if(m.hp<=0){this.killMob(zone,m);break;}
         }

@@ -69,7 +69,7 @@ const io=new WireServer(server,{
     cb(null,!origin||origin===allowed||(!production&&/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)));
   }
 });
-const sockets=new Map(),joining=new Set(),renamePending=new Set(),saveTimers=new Map();
+const sockets=new Map(),joining=new Set(),saveTimers=new Map();
 const game=new Game({
   eventStore:configured||devGuest?store:null,
   send:(id,event,data)=>sockets.get(id)?.emit(event,data),
@@ -123,7 +123,7 @@ io.on('connection',async(socket)=>{
   try{
     const existing=game.players.get(id);
     if(existing){
-      existing.active=true;existing.arrivedAt=Date.now();existing.input={x:0,y:0};existing.path=[];existing.inputSeq=0;existing.motionId=(existing.motionId||0)+1;
+      existing.active=true;existing.input={x:0,y:0};existing.path=[];existing.inputSeq=0;existing.motionId=(existing.motionId||0)+1;
       socket.emit('welcome',{existing:true,profile:game.privatePlayer(existing),local:devGuest});
       socket.emit('state',game.snapshot(existing,true));
     }else{
@@ -157,34 +157,19 @@ io.on('connection',async(socket)=>{
     const p=game.players.get(id);
     if(p?.active&&limit('input:'+id,40))game.setInput(p,data);
   });
-  socket.on('action',async(data,ack=()=>{})=>{
+  socket.on('action',(data,ack=()=>{})=>{
     const p=game.players.get(id);
     if(!p?.active)return ack({ok:false,quiet:true});
     if(!limit('action:'+id,24))return ack({ok:false,quiet:true});
     if(typeof data?.nonce!=='string'||data.nonce.length>64)return ack({ok:false,error:'요청 ID가 없습니다.'});
     if(p.actions.has(data.nonce))return ack(p.actions.get(data.nonce));
-    let reservedName=null;
     try{
-      if(data.type==='renameConfirmed')return ack({ok:false,error:'서버 전용 요청입니다.'});
-      let accepted=data;
-      if(data.type==='rename'){
-        const name=String(data.name||'').trim().normalize('NFC');
-        if(!/^[\p{L}\p{N} _-]{2,14}$/u.test(name))return ack({ok:false,error:'닉네임은 한글·영문·숫자 2~14자로 입력하세요.'});
-        if(!(p.inventory.rename_ticket>0))return ack({ok:false,error:'닉네임 변경권이 없습니다.'});
-        reservedName=name.toLocaleLowerCase('ko');
-        if(renamePending.has(reservedName))return ack({ok:false,error:'동일한 이름으로 변경하는 요청을 처리하는 중입니다.'});
-        renamePending.add(reservedName);
-        if([...game.players.values()].some(x=>x.id!==p.id&&x.name.toLocaleLowerCase('ko')===reservedName)||!await store.nameAvailable(name,p.id))
-          return ack({ok:false,error:'이미 다른 모험가가 사용 중인 이름입니다.'});
-        accepted={type:'renameConfirmed',name,serverAuthorized:true};
-      }
-      const result=game.action(p,accepted)||{ok:false,quiet:true};
+      const result=game.action(p,data)||{ok:false,quiet:true};
       p.actions.set(data.nonce,result);
       while(p.actions.size>256)p.actions.delete(p.actions.keys().next().value);
       ack(result);
-      if(result.ok&&['buy','sell','craft','enhance','quest','equip','title','rename','cosmeticBuy','cosmeticEquip','studioTicketBuy','avatarApply','avatarClear','changeJob','dailyClaim','achievement','interact','allocateStats','resetStats','recoverSoul','storyAccept','storyClaim','storyPause','storyResume','storyTrack','contractAccept','contractClaim','surveyClaim','waypoint'].includes(data.type))scheduleSave(p);
+      if(result.ok&&['buy','sell','craft','enhance','quest','equip','title','changeJob','dailyClaim','achievement','interact','allocateStats','resetStats','recoverSoul','storyAccept','storyClaim','storyPause','storyResume','storyTrack','contractAccept','contractClaim','surveyClaim','waypoint'].includes(data.type))scheduleSave(p);
     }catch(e){console.error('Action error:',e);ack({ok:false,error:'요청을 처리하지 못했습니다.'});}
-    finally{if(reservedName)renamePending.delete(reservedName);}
   });
   socket.on('chat',(data,ack=()=>{})=>{
     const p=game.players.get(id);

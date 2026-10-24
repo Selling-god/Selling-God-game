@@ -6,7 +6,7 @@ const QUADRANTS=[{x:-1,y:-1,name:'북서 ↖'},{x:1,y:-1,name:'북동 ↗'},{x:1
 const TITLES={tempest:'천둥 접지',leviathan:'세 겹의 해일',glacier:'빙벽의 핵',eclipse:'회전하는 월식'};
 const playersNear=(game,world,center)=>[...game.players.values()].filter(p=>p.active&&p.hp>0&&p.zone===world.id&&dist(p,center)<=620);
 const objectives=(world,boss)=>world.mobs.filter(m=>m.mechanicOwner===boss.id&&m.alive);
-const announce=(game,world,message)=>game.broadcast(world.id,'worldNotice',{kind:'bossMechanic',message});
+const announce=(game,world,message)=>game.broadcast(world.id,'worldNotice',{message});
 
 function removeObjectives(game,world,boss){
  const removed=new Set();

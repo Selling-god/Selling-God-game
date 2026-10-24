@@ -79,40 +79,9 @@ export function interactPoint(game,p,point){
  }
  game.mark(p);game.send(p.id,'atlasScene',atlasScene(game,p,point,signals));return {ok:true};
 }
-// The 144 expedition altars share 3 genuine cooperative stages. Progress, timers,
-// boss shields and damage caps live on the server; clients receive display markers.
-const TRIAL_SIGNS=['해','달','뿌리'];
-const TRIAL_COLORS=['#f1cb83','#bdacf2','#98d9a5'];
-function trialPads(w){
- const p=w.map.trialArena;
- return [{x:p.x-104,y:p.y-55},{x:p.x+104,y:p.y-55},{x:p.x,y:p.y+110}];
-}
-function trialSequence(zone,wave,gate=0){
- const seed=(zone.sector||0)+(zone.province?.length||0)+gate;
- if(wave===0)return [seed%3,(seed+2)%3];
- if(wave===1)return [seed%3,(seed+1)%3,(seed+2)%3];
- return [(seed+1)%3,(seed+2)%3];
-}
-function startTrialRitual(game,w,kind){
- const t=w.fieldTrial;if(!t)return;
- const seq=trialSequence(ZONES[w.id],t.wave,t.bossGate);
- const seconds=kind==='boss'?24:kind==='alignment'?31:27;
- t.ritual={kind,seq,step:0,expires:game.now+seconds*1000};
- t.phase='ritual';t.nextAt=0;
- const explanation=kind==='boss'?'보스의 성문을 잠근 두 빛':kind==='alignment'?'교차하는 세 별의 문':'쌍둥이 등불';
- t.hint=`${explanation} · ${seq.map(i=>TRIAL_SIGNS[i]).join(' → ')} 순서로 ${seconds}초 안에 직접 제단을 순회하세요. 틀리면 시간을 잃습니다.`;
- game.broadcast(w.id,'system',{message:`${ZONES[w.id].name} · ${t.hint}`});
-}
 export function trialView(w,now){
- const t=w.fieldTrial;if(!t)return null;
- const pads=trialPads(w);
- return {zone:w.id,wave:t.wave+1,total:3,ends:t.ends,
-  alive:w.mobs.filter(m=>m.trialKey===t.id&&m.alive).length,nextAt:t.nextAt,
-  remaining:Math.max(0,t.ends-now),phase:t.phase||'combat',hint:t.hint||'',
-  ritual:t.ritual?{kind:t.ritual.kind,step:t.ritual.step,total:t.ritual.seq.length,
-    expires:t.ritual.expires,order:t.ritual.seq.map(i=>TRIAL_SIGNS[i])}:null,
-  bossGate:t.bossGate,markers:t.ritual?pads.map((point,i)=>({...point,id:`trial_glyph_${i}`,label:TRIAL_SIGNS[i],color:TRIAL_COLORS[i],
-    kind:'trial_glyph',radius:44,active:t.ritual.seq[t.ritual.step]===i})):[]};
+ const t=w.fieldTrial;return t?{zone:w.id,wave:t.wave+1,total:3,ends:t.ends,
+  alive:w.mobs.filter(m=>m.trialKey===t.id&&m.alive).length,nextAt:t.nextAt,remaining:Math.max(0,t.ends-now)}:null;
 }
 export function cancelFieldTrial(game,w,message='기억의 시련이 닫혔습니다. 제단에서 다시 도전할 수 있습니다.'){
  const t=w.fieldTrial;if(!t)return;
@@ -128,101 +97,28 @@ function spawnWave(game,w){
   const type=t.wave===2?z.boss:types[i%types.length];
   const m=game.makeMob(`${t.id}_${t.wave}_${i}`,type,point.x+Math.cos(angle)*r,point.y+Math.sin(angle)*r);
   m.trialKey=t.id;m.hp=m.maxHp=Math.round(MONSTERS[type].hp*(t.wave===2?.70:.85)*(1+(people-1)*.45));
-  m.attackScale=.85;
-  if(t.wave===2){m.trialShield=true;t.bossId=m.id;t.bossGate=0;}
-  w.mobs.push(m);
+  m.attackScale=.85;w.mobs.push(m);
  }
- t.nextAt=0;t.phase='combat';t.hazardAt=game.now+5300;
- t.hint=t.wave===0?'첫 기억: 흩어진 적들을 막고, 봉인이 나타나면 두 등불을 작동하세요.':
-  t.wave===1?'두 번째 기억: 적의 사격을 피해 처리한 뒤 삼중 문양의 방향을 맞추세요.':
-  '마지막 기억: 파수꾼의 보호막을 3회 해제하세요. 체력 67%·33%에서 봉인이 재구성됩니다.';
- if(t.wave===2)startTrialRitual(game,w,'boss');
- game.broadcast(w.id,'system',{message:`지역 기억의 시련 ${t.wave+1}/3 · ${t.hint}`});
-}
-export function fieldTrialInteract(game,p,id){
- const w=game.worlds.get(p.zone),t=w.fieldTrial;
- if(!t?.ritual)return null;
- if(!p.active||p.hp<=0)return {ok:false,error:'생존한 상태로 봉인에 다가가세요.'};
- const point=w.map.trialArena;
- if(dist(p,point)>320)return {ok:false,error:'기억의 제단 인근에서만 봉인을 작동할 수 있습니다.'};
- const pads=trialPads(w),idx=pads.findIndex((pos,i)=>dist(p,pos)<75&&(!id||id===`trial_glyph_${i}`));
- if(idx<0)return {ok:false,error:'불이 켜진 문양 가까이서 상호작용하세요.'};
- if(game.now-(t.lastInteract||0)<450)return {ok:false,quiet:true};
- t.lastInteract=game.now;
- if(idx!==t.ritual.seq[t.ritual.step]){
-  t.ritual.step=0;t.ritual.expires-=5000;t.ends-=2000;
-  game.toast(p,'잘못된 문양입니다. 5초가 줄고 봉인이 초기화되었습니다.','warn');
-  return {ok:true,message:'잘못된 문양입니다. 서두르지 말고 새로 표시된 순서를 읽어보세요.'};
- }
- t.ritual.step++;t.contributions.set(p.id,(t.contributions.get(p.id)||0)+25);
- game.fx(p.zone,{type:'buff',...pads[idx],color:TRIAL_COLORS[idx]});
- const won=t.ritual.step===t.ritual.seq.length;
- if(!won){t.hint=`문양 ${t.ritual.step}/${t.ritual.seq.length} · 다음은 ${TRIAL_SIGNS[t.ritual.seq[t.ritual.step]]}!`;return {ok:true,message:t.hint};}
- const wasBoss=t.ritual.kind==='boss';t.ritual=null;
- if(wasBoss){
-  t.bossGate++;
-  const boss=w.mobs.find(m=>m.id===t.bossId&&m.alive);
-  if(boss){boss.trialShield=false;boss.stunUntil=game.now+1600;}
-  t.phase='combat';t.hint=`봉인 해제 ${t.bossGate}/3! 파수꾼을 공격하세요. 다음 체력 경계에서 다시 잠깁니다.`;
- }else{
-  t.ritualDone.add(t.wave);t.phase='rest';t.nextAt=game.now+2400;
-  t.hint='봉인 해독 성공! 다음 기억이 곧 시작됩니다.';
- }
- game.broadcast(w.id,'system',{message:t.hint});
- return {ok:true,message:t.hint};
-}
-/** Cap trial-boss damage at mandatory re-shield thresholds, including DoT. */
-export function fieldTrialDamageAmount(w,m,damage){
- const t=w.fieldTrial;
- if(!t||m.trialKey!==t.id||t.wave!==2)return damage;
- if(m.trialShield)return 0;
- const ratio=t.bossGate===1?.67:t.bossGate===2?.33:0;
- const floor=Math.ceil(m.maxHp*ratio);
- return Math.min(damage,Math.max(0,m.hp-floor));
+ t.nextAt=0;game.broadcast(w.id,'system',{message:`기억의 시련 ${t.wave+1}/3 · ${t.wave===2?'기억을 지키는 파수꾼':'흩어진 기억'}이 깨어났습니다.`});
 }
 export function fieldTrialKill(game,w,m){
  if(!w.fieldTrial||m.trialKey!==w.fieldTrial.id)return false;
  m.alive=false;m.hp=0;m.respawnAt=Infinity;
- for(const [id,damage]of m.damageLog)w.fieldTrial.contributions.set(id,(w.fieldTrial.contributions.get(id)||0)+damage);
+ for(const [id,damage]of m.damageLog){
+  w.fieldTrial.contributions.set(id,(w.fieldTrial.contributions.get(id)||0)+damage);
+ }
  for(const [id,healing]of m.supportLog)w.fieldTrial.contributions.set(id,(w.fieldTrial.contributions.get(id)||0)+healing*.5);
  game.fx(w.id,{type:'death',id:m.id,monster:m.type,x:m.x,y:m.y,boss:!!MONSTERS[m.type].boss});
  return true;
 }
-function spawnTrialAttack(game,w,t){
- const live=w.mobs.filter(m=>m.trialKey===t.id&&m.alive);
- const source=live[0];if(!source)return;
- const point=w.map.trialArena,variant=(ZONES[w.id].sector+t.wave)%3;
- const angle=(game.now/4500%8)*Math.PI/4;
- const cast={id:++game.castSeq,owner:source.id,starts:game.now,ends:game.now+1650,damage:18+ZONES[w.id].minLevel*1.9,
-  shape:variant===0?'beam':variant===1?'ring':'circle',boss:true,theme:ZONES[w.id].theme,
-  x:variant===2?point.x+(Math.sin(game.now/2300)*160):point.x,
-  y:variant===2?point.y+Math.cos(game.now/2300)*90:point.y,
-  radius:variant===1?235:variant===2?83:350,inner:variant===1?95:0,
-  angle,length:620,width:65,name:variant===0?'기억의 사선':variant===1?'갈라지는 순환 장막':'별빛 낙인'};
- w.casts.push(cast);t.hazardAt=game.now+7500;
-}
 export function tickFieldTrial(game,w){
  const t=w.fieldTrial;if(!t)return;
- if(game.now>=t.ends){cancelFieldTrial(game,w,'기억이 흐려졌습니다. 제한 시간 안에 세 봉인과 전투를 완수하지 못했습니다.');return;}
- const live=w.mobs.filter(m=>m.trialKey===t.id&&m.alive);
- if(t.ritual){
-  if(game.now>=t.ritual.expires){cancelFieldTrial(game,w,'봉인 장치의 제한 시간이 끝났습니다. 같은 위치의 제단에서 다시 시도하세요.');return;}
-  if(live.length&&game.now>=t.hazardAt)spawnTrialAttack(game,w,t);
-  return;
- }
- if(t.wave===2&&live.length){
-  const boss=live.find(m=>m.id===t.bossId);
-  if(boss&&!boss.trialShield&&((t.bossGate===1&&boss.hp<=Math.ceil(boss.maxHp*.67))||(t.bossGate===2&&boss.hp<=Math.ceil(boss.maxHp*.33)))){
-   boss.trialShield=true;startTrialRitual(game,w,'boss');return;
-  }
- }
- if(live.length){if(game.now>=t.hazardAt&&t.wave>=1)spawnTrialAttack(game,w,t);return;}
- if(t.wave<2){
-  if(!t.ritualDone.has(t.wave)){startTrialRitual(game,w,t.wave===0?'lantern':'alignment');return;}
-  if(t.nextAt&&game.now>=t.nextAt){t.wave++;w.mobs=w.mobs.filter(m=>m.trialKey!==t.id);spawnWave(game,w);}
-  return;
- }
- if(t.bossGate!==3){cancelFieldTrial(game,w,'파수꾼의 마지막 봉인을 제대로 해제하지 못했습니다.');return;}
+ if(game.now>=t.ends){cancelFieldTrial(game,w,'기억이 흐려졌습니다. 제한 시간 안에 시련을 마치지 못했습니다.');return;}
+ if(w.mobs.some(m=>m.trialKey===t.id&&m.alive))return;
+ if(!t.nextAt){t.nextAt=game.now+2200;return;}
+ if(t.nextAt>game.now)return;
+ w.mobs=w.mobs.filter(m=>m.trialKey!==t.id);
+ if(t.wave<2){t.wave++;spawnWave(game,w);return;}
  const day=atlasDay(game.now),z=ZONES[w.id],point=w.map.trialArena;
  for(const [id,contribution]of t.contributions){
   const p=game.players.get(id);
@@ -230,17 +126,17 @@ export function tickFieldTrial(game,w){
   recordStory(game,p,{kind:'trial',target:w.id});
   if(p.atlas.trialClaims[w.id]!==day){
    p.atlas.trialClaims[w.id]=day;p.atlas.reputation[z.province]=(p.atlas.reputation[z.province]||0)+2;
-   grantReward(game,p,z,'trial');game.toast(p,'3중 봉인과 파수꾼의 시험을 완료했습니다. 오늘의 보상과 길손의 증표를 받았습니다.','success');
-  }else game.toast(p,'수련 기록을 남겼습니다. 오늘의 물품 보상은 이미 받았습니다.','success');
+   grantReward(game,p,z,'trial');
+   game.toast(p,'세 번의 기억을 지켰습니다. 오늘의 시련 보상과 길손의 증표 3개를 받았습니다.','success');
+  }else game.toast(p,'시련 수련을 기록했습니다. 오늘 이 제단의 물품 보상은 이미 받았습니다.','success');
   game.mark(p);
  }
- cancelFieldTrial(game,w,'서로 다른 세 기억의 봉인이 풀렸습니다. 이 땅의 시련을 완료했습니다.');
+ cancelFieldTrial(game,w,'세 번의 기억이 하나의 길로 이어졌습니다. 시련을 마쳤습니다.');
 }
 export function atlasAction(game,p,a){
- if(!['waypoint','contractAccept','contractClaim','trialStart','trialInteract','surveyClaim'].includes(a.type))return null;
+ if(!['waypoint','contractAccept','contractClaim','trialStart','surveyClaim'].includes(a.type))return null;
  const z=ZONES[p.zone],w=game.worlds.get(p.zone),camp=w.map.camp;
  const atCamp=camp&&dist(p,camp)<=130;
- if(a.type==='trialInteract')return fieldTrialInteract(game,p,a.id)||{ok:false,error:'진행 중인 봉인 장치가 없습니다.'};
  const sync=point=>game.send(p.id,'atlasScene',atlasScene(game,p,point));
  if(a.type==='waypoint'){
   const dest=ZONES[a.id];
@@ -280,9 +176,8 @@ export function atlasAction(game,p,a){
   if(w.fieldTrial)return {ok:false,error:'이 제단에서는 이미 시련이 진행 중입니다. 함께 싸워 도울 수 있습니다.'};
   if((w.trialCooldown||0)>game.now)return {ok:false,error:'제단이 다시 깨어나는 중입니다.'};
   if(p.level<z.minLevel)return {ok:false,error:'지역의 필요 레벨을 확인하세요.'};
-  w.fieldTrial={id:'trial_'+w.id+'_'+game.now,wave:0,phase:'combat',ends:game.now+6*60000,nextAt:0,ritual:null,
-    ritualDone:new Set(),lastInteract:0,bossGate:0,bossId:null,hazardAt:game.now+5300,contributions:new Map()};
-  spawnWave(game,w);sync(point);return {ok:true,message:'6분 내 전투와 시간제한 봉인 해독을 병행하세요. 파수꾼의 보호막은 세 번 해제해야 합니다.'};
+  w.fieldTrial={id:'trial_'+w.id+'_'+game.now,wave:0,ends:game.now+6*60000,nextAt:0,contributions:new Map()};
+  spawnWave(game,w);sync(point);return {ok:true,message:'6분 안에 세 차례의 기억을 지키세요. 동료가 함께 싸울 수 있습니다.'};
  }
  return null;
 }

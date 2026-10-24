@@ -1,5 +1,4 @@
 import {randomUUID} from 'node:crypto';
-import {forgeQuote} from '../shared/forge.js';
 import {ITEMS,ZONES,xpRequired,getStats} from '../shared/content.js';
 import {ATTRIBUTE_KEYS,MAX_ATTRIBUTE,cleanAttributes,statBudget,spentPoints,resetPrice,enhancementSpec,deathLoss,DEATH_RULES} from '../shared/rpg.js';
 export function prepareRPG(p){
@@ -66,8 +65,7 @@ export function rpgAction(game,p,a){
   if(!game.nearNpc(p,'craft'))return {ok:false,error:'대장장이 브란 가까이에서 강화하세요.'};
   const item=ITEMS[a.id];
   if(!item||item.type!=='gear'||!(p.inventory[a.id]>0))return {ok:false,error:'보유한 장비를 선택하세요.'};
-  const lv=p.enhancements[a.id]||0,quote=forgeQuote(lv,p.enhancePity[a.id]||0,item.level,a.mode||'steady');
-  if(!quote)return {ok:false,error:'알 수 없는 제련 방식입니다.'};
+  const lv=p.enhancements[a.id]||0,quote=enhancementSpec(lv,p.enhancePity[a.id]||0,item.level);
   if(quote.max)return {ok:false,error:'최대 강화 +10에 도달한 장비입니다.'};
   if(p.gold<quote.gold||Object.entries(quote.cost).some(([id,n])=>(p.inventory[id]||0)<n))
    return {ok:false,error:'강화에 필요한 골드나 재료가 부족합니다.'};
@@ -75,7 +73,7 @@ export function rpgAction(game,p,a){
   const success=game.random()<quote.rate;
   if(success){p.enhancements[a.id]=lv+1;p.enhancePity[a.id]=0;}
   else p.enhancePity[a.id]=(p.enhancePity[a.id]||0)+1;
-  const result={id:a.id,name:item.name,success,mode:quote.mode,level:success?lv+1:lv,rate:quote.rate,nextRate:enhancementSpec(success?lv+1:lv,p.enhancePity[a.id]).rate};
+  const result={id:a.id,name:item.name,success,level:success?lv+1:lv,rate:quote.rate,nextRate:enhancementSpec(success?lv+1:lv,p.enhancePity[a.id]).rate};
   game.mark(p);game.send(p.id,'enhanceResult',result);
   game.fx(p.zone,{type:'forge',id:p.id,x:p.x,y:p.y,success,level:result.level});
   return {ok:true,...result,tone:success?'success':'warn',

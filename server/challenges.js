@@ -12,12 +12,6 @@ const RUNE_PADS = [
   { x: 384, y: 288 }, { x: 768, y: 288 }, { x: 384, y: 608 }, { x: 768, y: 608 }
 ];
 const SEALS = [{ x: 352, y: 448 }, { x: 800, y: 448 }];
-const TOWER_SWITCHES=[{x:386,y:448},{x:576,y:285},{x:766,y:448}];
-const TOWER_GATE_FLOORS=new Set([4,8,12,16,24,28]);
-const SURVIVAL_LIGHTS=[{x:426,y:526},{x:728,y:542},{x:578,y:302}];
-const SURVIVAL_CENTERS=[CENTER,{x:460,y:465},{x:685,y:425}];
-const RUNE_ANCHORS=[{x:454,y:448},{x:704,y:448}];
-const DEFENSE_TURRETS=[{x:422,y:554},{x:730,y:554}];
 const REFUGES = [{ x: 384, y: 448 }, { x: 768, y: 448 }, { x: 576, y: 272 }];
 const finite = (n, fallback = 0) => Number.isFinite(n) ? n : fallback;
 const failure = error => ({ ok: false, error });
@@ -85,16 +79,6 @@ export class ChallengeManager {
       if (!r) return failure('진행 중인 도전이 없습니다.');
       return this.interact(p, r, a.id);
     }
-    if (a.type === 'challengeBuild') {
-      if (!r || r.mode !== 'defense' || !['fight','rest'].includes(r.phase)) return failure('수정 수호전 도중에만 포탑을 설치할 수 있습니다.');
-      const idx=Number(a.id);if(!Number.isInteger(idx)||idx<0||idx>=DEFENSE_TURRETS.length)return failure('설치할 포탑 위치가 올바르지 않습니다.');
-      if(dist(p,DEFENSE_TURRETS[idx])>100)return failure('선택한 포탑 자리 가까이로 이동하세요.');
-      const level=r.turrets[idx];if(level>=3)return failure('이미 최고 단계의 포탑입니다.');
-      const cost=[4,6,9][level];if(r.charge<cost)return failure(`빛 ${cost}개를 모으면 포탑을 ${level?'강화':'건설'}할 수 있습니다.`);
-      r.charge-=cost;r.turrets[idx]++;r.turretNext=this.game.now+800;
-      this.fx(r,{type:'buff',...DEFENSE_TURRETS[idx],color:'#f1c785'});
-      return {ok:true,message:`${idx===0?'서쪽':'동쪽'} 포탑 Lv.${r.turrets[idx]} · 주기적으로 적을 공격합니다.`};
-    }
     if (a.type === 'challengeWard') {
       if (!r || r.mode !== 'defense') return failure('수정 수호전에서만 사용할 수 있습니다.');
       if (r.phase !== 'fight' || dist(p, CENTER) > 105) return failure('중앙 수정 가까이에서 보호막을 펼치세요.');
@@ -124,8 +108,7 @@ export class ChallengeManager {
       phase: 'preparing', nextAt: now + 3000, stage: mode === 'tower' ? checkpoint + 1 : 1, startFloor: checkpoint + 1,
       kills: 0, stageKills: 0, mobSeq: 0, pulse: 0, nextHazard: now + 7000, lastInteract: 0,
       baseline: Math.max(24, 22 + p.level * 3.4), baseHp: 120 + p.level * 18,
-      crystalHp: 1000, charge: 0, wardUntil: 0, wardReady: 0, turrets:[0,0], turretNext:now+1000,
-      mistakes: 0, runeStep: 0, towerGate:null, beaconsLit:0, beaconOpen:null, beaconStage:0, safeCenter:CENTER,
+      crystalHp: 1000, charge: 0, wardUntil: 0, wardReady: 0, mistakes: 0, runeStep: 0,
       hint: '잠시 뒤 시작합니다. 붉은 예고를 피하고 목표를 확인하세요.'
     };
     p.challenges.returnPoint = { zone: p.zone, x: p.x, y: p.y, hp: p.hp, mp: p.mp };
@@ -227,7 +210,6 @@ export class ChallengeManager {
   }
   beginStage(p, r) {
     r.phase = 'fight'; r.stageKills = 0; r.stageStarted = this.game.now; r.nextHazard = this.game.now + 6000;
-    r.towerGate=null;
     if (r.mode === 'tower') {
       r.stageEnds = this.game.now + 90000;
       if (r.stage % 5 === 0) {
@@ -242,9 +224,6 @@ export class ChallengeManager {
       const types = ['moss_guardian', 'moon_witch', 'eclipse_dragon'];
       const boss = this.spawn(r, types[r.stage - 1], CENTER.x, CENTER.y - 90, { boss: true, factor: 1.5 + r.stage * .3 });
       r.bossId = boss.id; r.secondSeal = false; r.channelUntil = 0; r.refuge = null;
-      r.refugeSolved=false;r.secondRefuge=false;
-      // Each encounter has an enforced opening mechanic; no brute-force skip.
-      if(r.stage>=2)boss.challengeShield=true;
       // A prepared character should still see each encounter's defining rule
       // before a normal opening rotation can defeat the boss.
       r.nextMechanic = this.game.now + (r.stage >= 2 ? 2500 : 7000);
@@ -264,59 +243,20 @@ export class ChallengeManager {
     this.tell(r, '좌우의 두 봉인을 해제해야 수호자에게 피해를 줄 수 있습니다.');
   }
   beginRuneRound(r) {
-    r.phase = 'memorize'; r.runeStep = 0; r.sequence = [];r.runeOrder=[];r.runeGuards=[];r.runeGuardsReady=false;
-    r.anchorStep=0;r.anchorUntil=0;
+    r.phase = 'memorize'; r.runeStep = 0; r.sequence = [];
     for (let i = 0; i < r.stage + 2; i++) {
       let value = Math.min(3, Math.max(0, Math.floor(this.game.random() * 4)));
       if (value === r.sequence.at(-1)) value = (value + 1) % 4;
       r.sequence.push(value);
     }
-    // Chamber II rotates the floor dial; chamber III reverses time *and*
-    // reflects left/right. Mere memorisation is insufficient after stage I.
-    r.runeShift=r.stage===2?1:0;
-    r.runeOrder=r.stage===2?r.sequence.map(n=>(n+r.runeShift)%4):r.stage===3?[...r.sequence].reverse().map(n=>n^1):[...r.sequence];
     r.peekUntil = this.game.now + 4200 + r.sequence.length * 500;
     r.nextHazard = r.peekUntil + 2500;
-    r.hint = r.stage===1?'1관문 · 문양을 기억하고 움직이는 광선을 피하며 발판을 작동하세요.':r.stage===2?'2관문 · 파수꾼 처치 후 기억한 문양의 번호를 +1 회전해서 입력하세요.':'3관문 · 파수꾼을 처치하고 좌·우 시간 닻을 9초 이내에 순서대로 켜세요. 그 후 문양을 역순+좌우 반전하여 누르세요.';
+    r.hint = `시험 ${r.stage}/3 · 문양 순서를 기억하세요. 곧 표시가 사라집니다.`;
     this.tell(r, `기억할 순서: ${r.sequence.map(n => RUNE_NAMES[n]).join(' → ')}`);
   }
   interact(p, r, id) {
     const now = this.game.now;
     if (now - r.lastInteract < 550) return { ok: false, quiet: true };
-    if(r.mode==='tower'&&r.phase==='gate'){
-      const idx=TOWER_SWITCHES.findIndex((point,i)=>dist(p,point)<=72&&(!id||id===`tower_${i}`));
-      if(idx<0)return failure('빛나는 탑의 관문 가까이로 이동하세요.');
-      r.lastInteract=now;
-      if(idx!==r.towerGate.order[r.towerGate.step]){
-        r.towerGate.step=0;r.towerGate.expires=Math.min(r.stageEnds,now+21000);
-        this.cast(r,{x:p.x,y:p.y,radius:72,damage:r.baseHp*.20,name:'회전 관문 역류'},900);
-        return {ok:true,message:'잘못된 장치입니다. 패턴이 초기화되고 역류가 시작됩니다.'};
-      }
-      r.towerGate.step++;this.fx(r,{type:'buff',...TOWER_SWITCHES[idx],color:'#e7ca8e'});
-      if(r.towerGate.step===3){r.towerGate.done=true;this.stageCleared(p,r);}
-      else r.hint=`탑의 관문 ${r.towerGate.step}/3 · ${r.towerGate.expires-now<9000?'서둘러 다음 발판으로 이동!':'다음 장치를 작동하세요.'}`;
-      return {ok:true};
-    }
-    if(r.mode==='survival'){
-      if(!r.beaconOpen)return failure('아직 점화할 황혼 불씨가 없습니다.');
-      const point=SURVIVAL_LIGHTS[r.beaconOpen.idx];
-      if(dist(p,point)>75||id&&id!==`beacon_${r.beaconOpen.idx}`)return failure('빛나는 황혼 불씨 가까이에서 작동하세요.');
-      r.lastInteract=now;r.beaconsLit++;r.beaconOpen=null;
-      this.fx(r,{type:'buff',...point,color:'#f5d18e'});
-      r.hint=`황혼 불씨 ${r.beaconsLit}/3 점화 · 생존과 사냥을 계속하세요.`;
-      return {ok:true,message:r.hint};
-    }
-    if(r.mode==='runes'&&r.stage===3&&r.phase==='input'&&r.anchorStep<2){
-      if(this.mobs(r).some(m=>m.challengeRole==='rune_guard'))return failure('파수꾼을 먼저 쓰러뜨려야 시간 닻을 작동할 수 있습니다.');
-      const idx=RUNE_ANCHORS.findIndex((point,i)=>dist(p,point)<=70&&(!id||id===`anchor_${i}`));
-      if(idx<0)return failure('좌·우 시간 닻 가까이에서 먼저 봉인을 풀어주세요.');
-      if(idx!==r.anchorStep)return failure('왼쪽 시간 닻부터 오른쪽 순서로 켜야 합니다.');
-      if(r.anchorStep===1&&now>r.anchorUntil){r.anchorStep=0;return failure('9초가 지나 시간 닻이 꺼졌습니다. 다시 왼쪽부터 시작하세요.');}
-      r.lastInteract=now;r.anchorStep++;r.anchorUntil=now+9000;
-      this.fx(r,{type:'buff',...RUNE_ANCHORS[idx],color:'#bcddf3'});
-      r.hint=r.anchorStep===2?'시간 닻 해제! 문양을 역순 + 좌우 반전으로 해독하세요.':'9초 안에 오른쪽 닻으로 이동해 작동하세요!';
-      return {ok:true,message:r.hint};
-    }
     if (r.mode === 'boss_rush' && r.stage === 1 && r.phase === 'fight') {
       const boss = this.mobs(r).find(m => m.id === r.bossId);
       if (!boss?.challengeShield) return failure('봉인이 이미 풀렸습니다. 수호자를 공격하세요.');
@@ -339,18 +279,16 @@ export class ChallengeManager {
       const index = RUNE_PADS.findIndex((pad, i) => dist(p, pad) <= 70 && (!id || id === `rune_${i}`));
       if (index < 0) return failure('문양 발판 가까이에서 상호작용하세요.');
       r.lastInteract = now;
-      if (this.mobs(r).some(m=>m.challengeRole==='rune_guard'))return failure('기억의 파수꾼을 모두 쓰러뜨려야 발판 봉인이 풀립니다.');
-      if(r.stage===3&&r.anchorStep<2)return failure('먼저 좌·우 시간 닻을 9초 안에 연속으로 작동하세요.');
-      if (r.runeOrder[r.runeStep] !== index) {
-        r.mistakes++; r.runeStep = 0;r.ends-=r.stage===3?3000:1200;
+      if (r.sequence[r.runeStep] !== index) {
+        r.mistakes++; r.runeStep = 0;
         if (r.mistakes >= 3) this.finish(p, r, false, '문양 순서를 세 번 틀려 기억의 시험이 종료되었습니다.');
-        else { r.hint = `오답! 다시 처음부터 · 실수 ${r.mistakes}/3 · 남은 시간 감소`; this.tell(r, r.hint); } 
+        else { r.hint = `순서가 틀렸습니다. 처음 문양부터 다시 입력하세요. 실수 ${r.mistakes}/3`; this.tell(r, r.hint); }
         return { ok: true };
       }
       r.runeStep++; this.fx(r, { type: 'buff', ...RUNE_PADS[index], color: RUNE_COLORS[index] });
       r.hint = `올바른 문양 ${r.runeStep}/${r.sequence.length} · 다음 발판으로 이동하세요.`;
-      if (r.runeStep === r.runeOrder.length) {
-        if (r.stage === 3) this.finish(p, r, true, '파수꾼을 뚫고 반전 문양을 해독했습니다.');
+      if (r.runeStep === r.sequence.length) {
+        if (r.stage === 3) this.finish(p, r, true, '세 기억의 순서를 모두 되찾았습니다.');
         else { r.stage++; r.phase = 'rest'; r.nextAt = now + 1800; this.clearCasts(r); r.hint = '기억을 되찾았습니다. 다음 시험을 준비하세요.'; }
       }
       return { ok: true };
@@ -377,13 +315,7 @@ export class ChallengeManager {
     return true;
   }
   stageCleared(p, r) {
-    if(r.finished || !['fight','gate'].includes(r.phase))return;
-    if(r.mode==='tower'&&TOWER_GATE_FLOORS.has(r.stage)&&!r.towerGate?.done){
-      r.phase='gate';r.towerGate={order:[r.stage%3,(r.stage+1)%3,(r.stage+2)%3],step:0,expires:Math.min(r.stageEnds,this.game.now+30000),done:false};
-      r.nextHazard=this.game.now+3800;
-      r.hint=`${r.stage}층 회전 관문 · 숫자 ${r.towerGate.order.map(n=>n+1).join(' → ')} 순서로 30초 안에 작동하세요. 바닥 전격 주의!`;
-      this.tell(r,r.hint);return;
-    }
+    if (r.finished || r.phase !== 'fight') return;
     this.clearCasts(r);
     const w = this.world(); w.mobs = w.mobs.filter(m => m.challengeRun !== r.id);
     if (r.mode === 'tower') {
@@ -420,17 +352,15 @@ export class ChallengeManager {
       if (p.zone !== CHALLENGE_ZONE || p.challengeRun !== r.id) { this.finish(p, r, false, '회랑을 떠나 도전이 종료되었습니다.', { teleport: false }); continue; }
       if (p.hp <= 0) { this.onDeath(p); continue; }
       if (now >= r.ends) {
-        const won = r.mode === 'survival' && r.kills >= 18 && r.beaconsLit === 3;
-        this.finish(p,r,won,won?'세 불씨를 지키고 18마리 이상 처치하며 황혼을 살아남았습니다.':r.mode==='survival'?'처치 수와 세 개의 불씨 점화 조건을 모두 채우지 못했습니다.':'제한 시간이 끝났습니다.');continue;
+        const won = r.mode === 'survival' && r.kills >= 18;
+        this.finish(p, r, won, won ? '황혼을 버텨내고 적 18마리 이상을 처치했습니다.' : r.mode === 'survival' ? '살아남았지만 필요한 적 18마리를 처치하지 못했습니다.' : '제한 시간이 끝났습니다.'); continue;
       }
       if ((r.phase === 'preparing' || r.phase === 'rest') && now >= r.nextAt) this.beginStage(p, r);
       if (r.phase === 'preparing' || r.phase === 'rest') continue;
       if (r.mode === 'tower' && now >= r.stageEnds) { this.finish(p, r, false, `${r.stage}층의 제한 시간 90초가 끝났습니다.`); continue; }
-      if (r.mode==='tower' && r.phase==='gate')this.tickTowerGate(p,r);
       if (r.mode === 'runes') this.tickRunes(r);
       else if (r.mode === 'survival') this.tickSurvival(r);
       else if (r.mode === 'boss_rush') this.tickBossRush(p, r);
-      else if (r.mode === 'defense') this.tickDefense(p,r);
       else if (r.mode === 'tower' && r.stage >= 3 && now >= r.nextHazard) {
         r.nextHazard = now + Math.max(4400, 10500 - r.stage * 170); r.pulse++;
         if (r.pulse % 2) this.cast(r, { x: p.x, y: p.y, radius: 88 + r.stage, name: '탑의 낙인' }, 1600);
@@ -446,94 +376,37 @@ export class ChallengeManager {
   }
   tickRunes(r) {
     const now = this.game.now;
-    if (r.phase === 'memorize' && now >= r.peekUntil) {
-      r.phase = 'input';
-      const count=r.stage===2?2:r.stage===3?3:0;
-      r.runeGuards=[];
-      for(let i=0;i<count;i++){
-        const pos=RUNE_PADS[(i+r.stage)%RUNE_PADS.length];
-        const guard=this.spawn(r,i%2?'skeleton':'wisp',pos.x+25,pos.y+30,{role:'rune_guard',factor:r.stage===3?1.8:1.15});
-        r.runeGuards.push(guard.id);
-      }
-      r.hint=count?`파수꾼 ${count}명을 처치하세요. ${r.stage===2?'그다음 문양 +1 회전':r.stage===3?'그다음 시간 닻 2개와 역순·좌우 반전':''}`:'기억한 순서대로 발판을 찾아가 상호작용하세요.';
-      if(count)this.tell(r,r.hint);
-    }
-    if(r.phase==='input'&&r.stage===3&&r.anchorStep===1&&now>r.anchorUntil){
-      r.anchorStep=0;r.hint='9초가 지나 왼쪽 시간 닻부터 다시 작동해야 합니다.';
-    }
+    if (r.phase === 'memorize' && now >= r.peekUntil) { r.phase = 'input'; r.hint = '기억한 순서대로 발판을 찾아가 상호작용하세요.'; }
     if (r.phase !== 'input' || now < r.nextHazard) return;
-    r.nextHazard = now + (r.stage===3?2700:r.stage===2?3500:4200); r.pulse++;
+    r.nextHazard = now + 4200; r.pulse++;
     const horizontal = r.pulse % 2 === 1;
     this.cast(r, { x: horizontal ? 80 : CENTER.x, y: horizontal ? CENTER.y : 80,
       shape: 'beam', angle: horizontal ? 0 : Math.PI / 2, length: horizontal ? 992 : 736, width: 70, radius: 1000,
       damage: r.baseHp * .22 + r.level * .7, effect: 'runeTrap', name: '기억을 가르는 빛 · 피격 시 시간 −4초' }, 1550);
   }
-  tickTowerGate(p,r){
-    const now=this.game.now;
-    if(now>r.towerGate.expires){this.finish(p,r,false,`${r.stage}층의 회전 관문을 제한 시간에 열지 못했습니다.`);return;}
-    if(now>=r.nextHazard){
-      r.nextHazard=now+4200;r.pulse++;
-      const point=TOWER_SWITCHES[(r.pulse+r.stage)%3];
-      this.cast(r,{...point,radius:100,damage:r.baseHp*.24,name:'회전 관문의 섬광'},1450);
-    }
-  }
-  tickDefense(p,r){
-    if(r.phase!=='fight'||this.game.now<r.turretNext)return;
-    r.turretNext=this.game.now+1500;
-    for(let i=0;i<r.turrets.length;i++){
-      const level=r.turrets[i];if(!level)continue;
-      const src=DEFENSE_TURRETS[i];
-      const target=this.mobs(r).filter(m=>dist(m,src)<=375).sort((a,b)=>dist(a,src)-dist(b,src))[0];
-      if(!target)continue;
-      const damage=Math.max(1,Math.round((r.baseline*.32+12)*level*r.scale));
-      target.hp-=damage;target.contributors.set(p.id,this.game.now);
-      target.damageLog.set(p.id,(target.damageLog.get(p.id)||0)+damage);
-      this.fx(r,{type:'hit',id:target.id,by:p.id,x:target.x,y:target.y-22,amount:damage,kind:'monster'});
-      this.fx(r,{type:'buff',...src,color:'#f0d2a0'});
-      if(target.hp<=0){this.mobKilled(target);if(r.finished)return;}
-    }
-  }
   tickSurvival(r) {
-    const now=this.game.now,elapsed=now-r.started-3000;
-    const sector=elapsed>=120000?2:elapsed>=60000?1:0;
-    r.safeCenter=SURVIVAL_CENTERS[sector];
-    r.safeRadius=sector===2?235:sector===1?325:420;
-    if(r.beaconOpen&&now>=r.beaconOpen.until){
-      const p=this.game.players.get(r.owner);
-      this.finish(p,r,false,`황혼 불씨 ${r.beaconOpen.idx+1}번의 점화 시간이 지났습니다. 전투와 이동 경로를 조절해 보세요.`);
-      return;
+    const now = this.game.now, elapsed = now - r.started - 3000;
+    r.safeRadius = elapsed >= 120000 ? 235 : elapsed >= 60000 ? 325 : 420;
+    if (now >= r.nextWave) {
+      r.nextWave = now + 18000; r.stage++;
+      const count = Math.min(3 + Math.floor(r.stage / 2), Math.max(0, 18 - this.mobs(r).length));
+      this.spawnRing(r, count, { factor: .72 + r.stage * .035 });
+      r.hint = `생존 공세 ${r.stage} · 처치 ${r.kills}/18 · 안전지대 반경 ${r.safeRadius}`;
     }
-    if(!r.beaconOpen&&r.beaconStage<3&&elapsed>=[45000,101000,147000][r.beaconStage]){
-      r.beaconOpen={idx:r.beaconStage,until:now+20000};r.beaconStage++;
-      r.hint=`황혼 불씨 ${r.beaconStage}/3 등장! 20초 안에 황금 불씨로 이동해 작동하세요.`;
-      this.tell(r,r.hint);
-    }
-    if(now>=r.nextWave){
-      r.nextWave=now+18000;r.stage++;
-      const count=Math.min(3+Math.floor(r.stage/2),Math.max(0,18-this.mobs(r).length));
-      this.spawnRing(r,count,{factor:.72+r.stage*.035});
-      if(!r.beaconOpen)r.hint=`공세 ${r.stage} · 처치 ${r.kills}/18 · 불씨 ${r.beaconsLit}/3 · 이동하는 안전지대에 주의`;
-    }
-    if(now>=r.nextHazard){
-      r.nextHazard=now+5000;
-      this.cast(r,{...r.safeCenter,shape:'ring',radius:1500,inner:r.safeRadius,name:'떠도는 황혼의 장막'},1900);
+    if (now >= r.nextHazard) {
+      r.nextHazard = now + 5000;
+      this.cast(r, { ...CENTER, shape: 'ring', radius: 1500, inner: r.safeRadius, name: '밀려드는 황혼' }, 1900);
     }
   }
   tickBossRush(p, r) {
     const now = this.game.now, boss = this.mobs(r).find(m => m.id === r.bossId); if (!boss) return;
     if (r.stage === 1 && !r.secondSeal && boss.hp <= boss.maxHp * .5) { r.secondSeal = true; this.sealBoss(r, boss); }
-    if(r.stage===2&&!r.secondRefuge&&boss.hp<=boss.maxHp*.5&&r.refugeSolved){
-      r.secondRefuge=true;r.refugeSolved=false;boss.challengeShield=true;
-      r.nextMechanic=Math.min(r.nextMechanic,now+2700);
-      r.hint='달의 수호자가 다시 보호막을 펼쳤습니다! 다음 보호진 파동을 견디세요.';
-    }
     if (r.stage === 2 && now >= r.nextMechanic) {
       r.nextMechanic = now + 14000; r.pulse++;
       const safe = { ...REFUGES[r.pulse % REFUGES.length], radius: 83 };
       r.refuge = { ...safe, until: now + 4200 };
       r.hint = '달의 대파동! 초록 보호진 안으로 들어가세요.';
-      this.cast(r, { ...CENTER, radius: 1500, safe: [safe],damage:r.baseHp*.48+r.level*.8,
-        effect:'refugeGate',name:'달의 대파동 · 파동을 보호진으로 반사하면 방어막 해제' },4200);
+      this.cast(r, { ...CENTER, radius: 1500, safe: [safe], damage: r.baseHp * .48 + r.level * .8, name: '달의 대파동 · 보호진으로' }, 4200);
       this.tell(r, r.hint);
     }
     if (r.stage === 2 && r.refuge?.until < now) r.refuge = null;
@@ -598,11 +471,6 @@ export class ChallengeManager {
     for (const cast of due) {
       if (r.finished) break;
       if (cast.owner !== r.id && !w.mobs.some(m => m.id === cast.owner && m.alive)) continue;
-      if(cast.effect==='refugeGate'&&cast.safe?.some(s=>dist(s,p)<=s.radius-8)&&p.hp>0){
-        const boss=this.mobs(r).find(m=>m.id===r.bossId);
-        if(boss?.challengeShield){boss.challengeShield=false;boss.stunUntil=now+2800;r.refugeSolved=true;
-          r.hint='달빛 반사 성공! 2.8초 동안 수호자를 공격할 수 있습니다.';this.tell(r,r.hint,'success');}
-      }
       if (castHits(cast, p) && p.hp > 0 && p.invulnerableUntil <= now) {
         if (cast.effect === 'runeTrap') { r.ends -= 4000; r.hint = '함정에 맞아 남은 시간이 4초 줄었습니다. 다음 빛을 피하세요.'; }
         g.damagePlayer(p, cast.damage);
@@ -615,25 +483,12 @@ export class ChallengeManager {
   view(p) {
     const r = this.runFor(p); if (!r || p.zone !== CHALLENGE_ZONE) return null;
     const now = this.game.now, markers = [];
-    if(r.mode==='tower'&&r.phase==='gate'&&r.towerGate){
-      TOWER_SWITCHES.forEach((pad,index)=>markers.push({...pad,id:`tower_${index}`,kind:'tower_gate',label:`관문 ${index+1}`,color:r.towerGate.order[r.towerGate.step]===index?'#f5d58d':'#8b9cac',radius:42,active:r.towerGate.order[r.towerGate.step]===index}));
-    }
-    if(r.mode==='runes'&&r.stage===3&&r.phase==='input'&&r.anchorStep<2){
-      RUNE_ANCHORS.forEach((pad,index)=>markers.push({...pad,id:`anchor_${index}`,kind:'anchor',label:`시간 닻 ${index+1}`,radius:34,color:r.anchorStep===index?'#afe7f8':'#6c8799',active:r.anchorStep===index}));
-    }
     if (r.mode === 'runes') RUNE_PADS.forEach((pad, index) => markers.push({ ...pad, id: `rune_${index}`, kind: 'rune', label: RUNE_NAMES[index], color: RUNE_COLORS[index], radius: 42,
       active: r.phase === 'memorize' && r.sequence?.[Math.floor((now - r.stageStarted) / 900) % r.sequence.length] === index }));
     if (r.mode === 'boss_rush' && r.stage === 1 && r.seals) SEALS.forEach((pad, index) => markers.push({ ...pad, id: `seal_${index}`, kind: 'seal', label: r.seals[index] ? '해제 완료' : `봉인 ${index + 1}`, color: r.seals[index] ? '#8ca5a2' : '#edc982', radius: 42, active: !r.seals[index] }));
     if (r.refuge && r.refuge.until >= now) markers.push({ ...r.refuge, id: 'refuge', kind: 'safe', label: '보호진', color: '#89e2b3' });
-    if(r.mode==='survival'){
-      markers.push({...r.safeCenter,id:'survival_safe',kind:'boundary',label:'이동하는 안전지대',color:'#8bdfbc',radius:r.safeRadius||420});
-      if(r.beaconOpen){const idx=r.beaconOpen.idx;markers.push({...SURVIVAL_LIGHTS[idx],id:`beacon_${idx}`,kind:'beacon',label:`불씨 ${idx+1} · ${Math.ceil((r.beaconOpen.until-now)/1000)}초`,color:'#f1d18c',radius:43,active:true});}
-      SURVIVAL_LIGHTS.slice(0,r.beaconsLit).forEach((pad,index)=>markers.push({...pad,id:`lit_${index}`,kind:'beacon',label:`점화 ${index+1}`,color:'#8bd8bd',radius:30}));
-    }
-    if (r.mode === 'defense'){
-      markers.push({ ...CENTER, id:'crystal',kind:'crystal',label:'새벽의 수정',color:'#a6e5ed',radius:45,hp:r.crystalHp,maxHp:1000,shield:r.wardUntil>now});
-      DEFENSE_TURRETS.forEach((point,i)=>markers.push({...point,id:`turret_${i}`,kind:'turret',label:`${i?'동':'서'} 포탑 Lv.${r.turrets[i]}`,color:r.turrets[i]?'#edca80':'#859da6',radius:38,active:!!r.turrets[i],level:r.turrets[i],cost:[4,6,9][r.turrets[i]]||0}));
-    }
+    if (r.mode === 'survival') markers.push({ ...CENTER, id: 'survival_safe', kind: 'boundary', label: '안전지대', color: '#8bdfbc', radius: r.safeRadius || 420 });
+    if (r.mode === 'defense') markers.push({ ...CENTER, id: 'crystal', kind: 'crystal', label: '새벽의 수정', color: '#a6e5ed', radius: 45, hp: r.crystalHp, maxHp: 1000, shield: r.wardUntil > now });
     return {
       id: r.id, mode: r.mode, name: CHALLENGE_BY_ID[r.mode].name, tier: r.tier, tierName: CHALLENGE_TIERS[r.tier].name,
       phase: r.phase, stage: r.stage, total: r.mode === 'tower' ? 30 : r.mode === 'defense' ? 5 : r.mode === 'survival' ? 10 : 3,
@@ -641,13 +496,7 @@ export class ChallengeManager {
       nextAt: r.nextAt, remaining: Math.max(0, (r.mode === 'tower' && r.phase === 'fight' ? r.stageEnds : r.ends) - now),
       kills: r.kills, alive: this.mobs(r).length, hint: r.hint, markers,
       crystalHp: r.mode === 'defense' ? r.crystalHp : null, charge: r.charge, wardUntil: r.wardUntil, wardReady: r.wardReady,
-      mistakes:r.mistakes,runeStep:r.runeStep,runeGoal:r.sequence?.length||0,runeReverse:r.mode==='runes'&&r.stage===3,
-      runeTransform:r.mode==='runes'?(r.stage===3?'역순 + 좌우 반전':r.stage===2?'번호 +1 회전':'원래 순서'):'',
-      anchorStep:r.anchorStep||0,anchorUntil:r.anchorUntil||0,
-      towerGate:r.towerGate?{step:r.towerGate.step,order:r.towerGate.order,expires:r.towerGate.expires}:null,
-      beaconsLit:r.beaconsLit||0,beaconOpen:r.beaconOpen?{...r.beaconOpen}:null,
-      turrets:r.mode==='defense'?[...r.turrets]:null,
-      runeGuards:this.mobs(r).filter(m=>m.challengeRole==='rune_guard').length,
+      mistakes: r.mistakes, runeStep: r.runeStep, runeGoal: r.sequence?.length || 0,
       sequence: r.mode === 'runes' && r.phase === 'memorize' ? r.sequence.map(n => RUNE_NAMES[n]) : null,
       peekUntil: r.peekUntil || 0, channelUntil: r.channelUntil || 0
     };
