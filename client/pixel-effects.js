@@ -171,7 +171,7 @@ export function drawPixelTelegraph(renderer,cast,t,layer='all'){
  if(layer!=='ground'&&cast.boss){
   const x=cast.shape==='beam'?cast.x+Math.cos(finite(cast.angle))*finite(cast.length,200)*.5:cast.x;
   const y=cast.shape==='beam'?cast.y+Math.sin(finite(cast.angle))*finite(cast.length,200)*.5:cast.y;
-  renderer.label?.(`${cast.name||'위험 공격'} · ${Math.max(0,(cast.ends-now)/1000).toFixed(1)}초`,x,y-12,'#ffe8b7',10);
+  renderer.label?.(`${cast.order?cast.order+' · ':''}${cast.active?'잔류 위험 · ':''}${cast.name||'위험 공격'} · ${Math.max(0,(cast.ends-now)/1000).toFixed(1)}초`,x,y-12,'#ffe8b7',10);
  }
 }
 

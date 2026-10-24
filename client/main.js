@@ -11,6 +11,8 @@ import { KEY_ACTIONS, createKeybindings, formatKey } from './keybindings.js';
 import { challengesPanel, challengeHUD } from './challenges-ui.js';
 import { dungeonsPanel, dungeonHUD } from './dungeons-ui.js';
 import { realmsPanel, realmHUD } from './realms-ui.js';
+import {encounterDescription} from './encounters-ui.js';
+import {creatureHitTest} from './creatures.js';
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -755,7 +757,7 @@ $('world').addEventListener('pointerdown',e=>{
   if(!inGame||modal||!state||!net?.connected||state.dungeon?.inputBlocked)return;
   if(e.button===2){cast('skill1');return;}
   const point=renderer.screenToWorld(e.clientX,e.clientY);
-  const mobs=state.mobs.filter(m=>dist(m,point)<(MONSTERS[m.type].boss?60:34)).sort((a,b)=>dist(a,point)-dist(b,point));
+  const mobs=state.mobs.filter(m=>creatureHitTest(MONSTERS[m.type],m,point)).sort((a,b)=>dist(a,point)-dist(b,point));
   if(mobs.length){action({type:'target',id:mobs[0].id});cast('basic');return;}
   const interactables=[...(state.challenge?.markers||[]).filter(m=>['rune','seal','crystal'].includes(m.kind)),...(state.dungeon?.markers||[]).filter(m=>['pillar','rune','conduit','revive'].includes(m.kind)),...(state.soul?[state.soul]:[]),...renderer.map.npcs,...renderer.map.portals,...(renderer.map.relics||[]),...(renderer.map.storyPoints||[]),...state.nodes.filter(x=>x.ready),...renderer.map.chests.filter(x=>!profile.opened.includes(x.id))];
   const target=interactables.filter(x=>dist(point,x)<40).sort((a,b)=>dist(a,point)-dist(b,point))[0];
@@ -789,6 +791,8 @@ renderer.onFrame=(dt,t)=>{
 function updateHUD(){
   if(!profile||!state)return;
   const p=profile,s=state.self,z=ZONES[state.zone],c=CLASSES[p.classId],now=Date.now()+renderer.clock;
+  const phaseCut=state.dungeon?.phaseTransition||state.encounter?.phaseTransition;
+  $('game-ui').classList.toggle('phase-transition-active',!!phaseCut&&phaseCut.starts<=now&&phaseCut.ends>now);
   $('game-ui').classList.toggle('challenge-active',!!state.challenge);
   if($('challenge-hud')){
     show('challenge-hud',!!state.challenge);
@@ -815,7 +819,8 @@ function updateHUD(){
   setText('hp-text',`${Math.max(0,s.hp)} / ${s.maxHp}`);setText('mp-text',`${Math.max(0,s.mp)} / ${s.maxMp}`);
   $('xp-fill').style.width=clamp(p.xp/xpRequired(p.level)*100,0,100)+'%';
   $('gold').lastChild?.nodeType===3?$('gold').lastChild.textContent=' '+money(p.gold):$('gold').innerHTML=icon('coin')+' '+money(p.gold);
-  setText('zone-name',z.name);setText('zone-subtitle',z.subtitle);
+  setText('zone-name',z.name);setText('zone-subtitle',renderer.map?.terrain?.name||z.subtitle);
+  $('zone-subtitle').title=renderer.map?.terrain?.instruction||z.subtitle;
   setText('zone-hint',z.dungeon?'PARTY DUNGEON · 함께 풀어내는 계약':z.secretRealm?'HIDDEN REALM · 경계 너머의 흔적':state.challenge?'PERSONAL CHALLENGE · 나의 기록에 도전':state.zone==='town'?'SAFE HAVEN · 안전 지대':`SHARED WORLD · 권장 레벨 ${z.minLevel}+`);
   setText('stat-points',freePoints(p)>0?`능력치 +${freePoints(p)}`:'능력치');
   if($('stat-alert'))$('stat-alert').classList.toggle('has-points',freePoints(p)>0);
@@ -836,13 +841,18 @@ function updateHUD(){
   if(!boss)boss=state.mobs.find(m=>MONSTERS[m.type].boss&&dist(m,s)<460);
   show('boss-hud',!!boss);
   if(boss){
-    setText('boss-name',boss.name||MONSTERS[boss.type].name);setText('boss-hp',`${Math.round(boss.hp)} / ${Math.round(boss.maxHp)}`);$('boss-fill').style.width=boss.hp/boss.maxHp*100+'%';
+    setText('boss-name',`${boss.name||MONSTERS[boss.type].name} · ${Math.min(3,(boss.phase||0)+1)}페이즈`);setText('boss-hp',`${Math.round(boss.hp)} / ${Math.round(boss.maxHp)}`);$('boss-fill').style.width=boss.hp/boss.maxHp*100+'%';
     const mechanic=state.bossMechanics?.find(m=>m.bossId===boss.id&&m.active);
-    setText('boss-tactic',state.dungeon?.hint|| (mechanic?`${mechanic.title} · ${mechanic.instruction}`:boss.challengeShield?'보호막 · 목표를 해결해 봉인을 해제하세요':'바닥의 경고를 피하고, 틈을 노리세요'));
+    const attack=state.dungeon?.action,info=encounterDescription(MONSTERS[boss.type]);
+    setText('boss-tactic',attack?`${attack.name} · ${attack.hint}`:state.dungeon?.hint|| (mechanic?`${mechanic.title} · ${mechanic.instruction}`:boss.challengeShield?'보호막 · 목표를 해결해 봉인을 해제하세요':info?.hint||'바닥의 경고를 피하고, 틈을 노리세요'));
   }
   const target=state.mobs.find(m=>m.id===s.target);
   show('target-info',!!target&&!MONSTERS[target.type].boss);
-  if(target)setText('target-info',`${target.mechanicObjective?'빙결 핵':target.name||MONSTERS[target.type].name} · Lv.${target.level||MONSTERS[target.type].level} · ${Math.round(target.hp)} HP`);
+  if(target){
+    const info=encounterDescription(MONSTERS[target.type]);
+    setText('target-info',`${target.mechanicObjective?'빙결 핵':target.name||MONSTERS[target.type].name} · Lv.${target.level||MONSTERS[target.type].level} · ${Math.round(target.hp)} HP${info?' · '+info.name:''}`);
+    $('target-info').title=info?.hint||'';
+  }
   const interactables=[
     ...(state.challenge?.markers||[]).filter(m=>['rune','seal','crystal'].includes(m.kind)).map(m=>({...m,label:m.label+' · '+keybindings.primaryLabel('interact')+' 작동'})),
     ...(state.dungeon?.markers||[]).filter(m=>['pillar','rune','conduit','revive'].includes(m.kind)).map(m=>({...m,label:m.label+' · '+keybindings.primaryLabel('interact')+' 작동'})),

@@ -4,6 +4,9 @@ import {drawChallengeOverlay} from './challenges-ui.js';
 import {drawBossMechanics,drawBossObjective} from './boss-mechanics-ui.js';
 import {drawDungeonOverlay} from './dungeons-ui.js';
 import {drawRealmOverlay} from './realms-ui.js';
+import {drawTerrainAmbient} from './terrain-render.js';
+import {drawCreature,creatureMetrics} from './creatures.js';
+import {drawEncounterOverlay,drawPhaseTransition} from './encounters-ui.js';
 import {nearbyScenery} from '../shared/spatial.js';
 import {EquipmentRenderer,drawBossGear} from './equipment.js';
 import {drawSkillEffect,effectLifetime} from './effects.js';
@@ -166,12 +169,13 @@ export class Renderer {
     c.translate(this.w/2+shakeX,this.h/2+shakeY);c.scale(this.zoom,this.zoom);c.translate(-this.camera.x,-this.camera.y);
     this.drawMapBackdrop(halfX,halfY);
     this.ground.draw(c,m,this.camera,halfX,halfY,this.atlas,this.meta,this.lowPower);
+    if(this.showEffects)drawTerrainAmbient(this,m,t);
     const visibleProps=nearbyScenery(m,this.camera.x-halfX-180,this.camera.y-halfY-180,this.camera.x+halfX+180,this.camera.y+halfY+180);
     for(const [id,expiry]of this.flash)if(expiry<t)this.flash.delete(id);
     const inView=(x,y,r=160)=>Math.abs(x-this.camera.x)<halfX+r&&Math.abs(y-this.camera.y)<halfY+r;
     // Water glints animate without repainting the tile map.
     c.fillStyle=m.id==='citadel'?'#d8956540':'#8ab7aa25';
-    for(let j=0;j<30;j++){
+    for(let j=0;j<(m.terrain?0:30);j++){
       const x=(j*173+Math.floor(t/1300)*7)%m.width,y=(j*117)%m.height;
       const tx=Math.floor(x/TILE),ty=Math.floor(y/TILE);
       if(m.tiles[ty*m.w+tx]===2&&inView(x,y))c.fillRect(x+Math.sin(t/1500+j)*5,y,6+j%5,1);
@@ -191,6 +195,7 @@ export class Renderer {
     drawDungeonOverlay(this,s,t,'ground');
     drawRealmOverlay(this,s.realm,t,'ground');
     drawBossMechanics(this,s.bossMechanics,t,'ground');
+    drawEncounterOverlay(this,s.encounter,t,'ground');
     for(const cast of s.casts)this.drawCast(cast,t,'ground');
     if(s.soul&&inView(s.soul.x,s.soul.y)){
       const soul=s.soul;
@@ -246,19 +251,22 @@ export class Renderer {
       const q=this.interp(mob,'m'+mob.id,dt),def=MONSTERS[mob.type];
       drawables.push({y:q.y,draw:()=>{
         if(drawBossObjective(this,mob,q,t))return;
-        this.shadow(q.x,q.y,def.boss?38:15);
+        this.shadow(q.x,q.y,def.creature?creatureMetrics(def).shadow:def.boss?38:15);
         if(p.target===mob.id){c.strokeStyle='#e7c786';c.lineWidth=1.5;c.beginPath();c.ellipse(q.x,q.y+2,def.boss?43:22,def.boss?17:9,0,0,Math.PI*2);c.stroke();}
         let humanoid=['skeleton','ash_knight'].includes(def.skin||mob.type);
         let key=humanoid?`${def.sprite}_s_${Math.floor(t/(mob.moving?160:450))%4}`:`${def.sprite}_${Math.floor(t/(mob.moving?150:350))%4}`;
-        this.sprite(key,q.x,q.y,def.boss?1:.8,this.flash.get(mob.id)>t?.55:1);
-        if(def.boss)drawBossGear(this,mob,def,q.x,q.y,t);
+        const articulated=drawCreature(this,mob,def,q.x,q.y,t,this.flash.get(mob.id)>t?.55:1);
+        if(!articulated)this.sprite(key,q.x,q.y,def.boss?1:.8,this.flash.get(mob.id)>t?.55:1);
+        if(def.boss&&!articulated)drawBossGear(this,mob,def,q.x,q.y,t);
         if(mob.dot&&this.showEffects){c.fillStyle=mob.dot==='burn'?'#ffae65':'#b6d480';c.fillRect(q.x-3,q.y-38+Math.sin(t/120)*4,5,7);}
-        const hh=def.boss?((def.skin||mob.type)==='eclipse_dragon'?129:110):58;
+        const hh=def.creature?creatureMetrics(def).height:def.boss?((def.skin||mob.type)==='eclipse_dragon'?129:110):58;
         if(def.boss||mob.hp<mob.maxHp||p.target===mob.id){
           const width=def.boss?76:32;
           c.fillStyle='#15212be6';c.fillRect(q.x-width/2-1,q.y-hh,width+2,5);
           c.fillStyle=def.boss?'#bc899d':'#ae7d79';c.fillRect(q.x-width/2,q.y-hh+1,width*mob.hp/mob.maxHp,3);
           this.label(`${mob.name||def.name}`,q.x,q.y-hh-9,def.boss?'#e4c399':'#d7d2bf',def.boss?10:8);
+          const pose=mob.encounterPose,now=Date.now()+this.clock;
+          if(pose&&pose.ends>now&&['windup','recover'].includes(pose.stage))this.label(pose.stage==='windup'?'◆ 공격 준비':'◇ 반격 기회',q.x,q.y-hh+15,pose.stage==='windup'?'#f6bf84':'#a6e3cd',8);
         }
       }});
     }
@@ -310,8 +318,10 @@ export class Renderer {
     drawBossMechanics(this,s.bossMechanics,t,'foreground');
     drawDungeonOverlay(this,s,t,'foreground');
     drawRealmOverlay(this,s.realm,t,'foreground');
+    drawEncounterOverlay(this,s.encounter,t,'foreground');
     c.restore();
     this.drawAtmosphere(t);
+    drawPhaseTransition(this,s,t);
     c.setTransform(1,0,0,1,0,0);
   }
   glow(x,y,r,color,alpha){
@@ -364,7 +374,7 @@ export class Renderer {
     if(!this.mapCache){
       const cv=document.createElement('canvas');cv.width=m.w;cv.height=m.h;const cc=cv.getContext('2d');
       for(let y=0;y<m.h;y++)for(let x=0;x<m.w;x++){
-        cc.fillStyle=m.tiles[y*m.w+x]===2?'#294950':m.blocked[y*m.w+x]?'#253a37':m.tiles[y*m.w+x]===1?'#7e8062':'#3d5a47';cc.fillRect(x,y,1,1);
+        cc.fillStyle=m.terrain?['#566b58','#a9a583','#29566b','#232735','#c6ac7d','#e2cba0','#b35b3d','#10182b','#a6c6d0'][m.terrain.surface[y*m.w+x]]:m.tiles[y*m.w+x]===2?'#294950':m.blocked[y*m.w+x]?'#253a37':m.tiles[y*m.w+x]===1?'#7e8062':'#3d5a47';cc.fillRect(x,y,1,1);
       }
       this.mapCache=cv;
     }

@@ -1,4 +1,5 @@
 import {CLASSES,ZONES,MONSTERS} from '../shared/content.js';
+import {encounterDescription} from './encounters-ui.js';
 import {JOB_TIERS,DAILY_TASKS,ACHIEVEMENTS,RELICS} from '../shared/expansion.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const stamp=t=>new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(t));
@@ -49,8 +50,8 @@ export function expansionPanel(name,{profile:p,tab,book,events=[],now=Date.now()
   }else if(tab==='bestiary'){
    html+=`<div class="info-box">직접 또는 파티와 처치한 몬스터의 기록이 쌓입니다. 지역 보스와 정시 월드 보스는 서로 다른 기록입니다.</div><div class="bestiary-grid">`;
    html+=Object.entries(MONSTERS).map(([id,m])=>{
-    const n=p.discovery.killTypes[id]||0;
-    return `<article class="card"><span class="badge">${m.worldBoss?'월드 보스':m.boss?'지역 보스':'몬스터'} · Lv.${m.level}</span><h3>${n?esc(m.name):'미발견'}</h3><p>${n?`${n}회 처치 · 체력 ${m.hp}`:'탐험과 전투를 통해 이름을 기록하세요.'}</p></article>`;
+    const n=p.discovery.killTypes[id]||0,info=encounterDescription(m),region=ZONES[m.ecology?.province];
+    return `<article class="card"><span class="badge">${m.worldBoss?'월드 보스':m.boss?'지역 보스':'몬스터'} · Lv.${m.level}</span><h3>${n?esc(m.name):'미발견'}</h3><p>${n?`${n}회 처치 · 체력 ${m.hp}${region?' · '+esc(region.name):''}`:'탐험과 전투를 통해 이름을 기록하세요.'}</p>${n&&info?`<p><strong>${esc(info.name)}</strong><br>${esc(info.hint)}</p>`:''}</article>`;
    }).join('')+'</div>';
   }else if(tab==='achievements'){
    html+=`<div class="card-list">${ACHIEVEMENTS.map(a=>{

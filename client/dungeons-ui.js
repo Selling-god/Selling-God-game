@@ -6,7 +6,7 @@ const number = n => Math.max(0, Math.round(Number(n) || 0)).toLocaleString('ko-K
 const time = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const keyFallback = (_id, fallback = '미지정') => fallback;
 const btn = (label, act, id = '', extra = '') => `<button type="button" class="btn small" data-act="${act}" data-id="${esc(id)}" ${extra}>${label}</button>`;
-const phases = { preparing: '전투 준비', balance: '문양 공명', pillars: '기둥 정렬', memory_show: '순서 기억', memory_input: '교대 입력', memory_laser: '광선 차단', star_mark: '낙성 유도', conduits: '동시 차단', vulnerable: '공격 기회', recover: '기믹 재정비', reform: '역할 재배정', rescue: '동료 구조' };
+const phases = { preparing: '전투 준비', transformation: '보스 변신', balance: '문양 공명', pillars: '기둥 정렬', memory_show: '순서 기억', memory_input: '교대 입력', memory_laser: '광선 차단', star_mark: '낙성 유도', conduits: '동시 차단', vulnerable: '공격 기회', recover: '기믹 재정비', reform: '역할 재배정', rescue: '동료 구조' };
 const arrows = ['↑', '→', '↓', '←'];
 
 export function dungeonsPanel({ profile: p, state, now = Date.now(), keyLabel = keyFallback }) {
@@ -25,7 +25,9 @@ export function dungeonsPanel({ profile: p, state, now = Date.now(), keyLabel = 
     const record = save.records?.[d.id], isLeader = party?.leader === p?.id, inRegion = p?.zone === d.entryZone, locked = (p?.level || 1) < d.level;
     return `<article class="card dungeon-card"><span class="eyebrow">DUNGEON 0${index + 1} · 2–4인 · Lv.${d.level}</span><h3>${esc(d.name)}</h3><p>${esc(d.subtitle)}</p>
       <div class="dungeon-boss-title"><strong>${esc(d.bossName)}</strong><span class="small">제한 ${d.minutes}분 · 체력 70% / 35%에서 다음 기믹 단계</span></div>
+      <p class="small"><strong>지형 공략</strong> · ${esc(d.layout)}</p><p class="small"><strong>보스 전투</strong> · ${esc(d.combat)}</p>
       <ol class="dungeon-rules">${d.mechanics.map(rule => `<li>${esc(rule)}</li>`).join('')}</ol>
+      <p class="small">${d.phases.map((phase, i) => `${i + 1}페이즈 ${esc(phase.title)}`).join(' → ')}</p>
       <p class="small">입구: <strong>${esc(ZONES[d.entryZone]?.name)}</strong>의 출발 지점 근처<br>첫 완주 성물: ${esc(ITEMS[d.reward]?.name)}</p>
       <p class="small muted">${record?.clears ? `${number(record.clears)}회 완주 · 최단 ${time(record.bestMs)} · 총 ${number(record.attempts)}회 시도` : `완주 기록 없음${record?.attempts ? ` · ${record.attempts}회 시도` : ''}`}</p>
       <div class="settings-actions">${btn(locked ? `Lv.${d.level} 필요` : !isLeader ? '파티장에게 준비 요청을 부탁하세요' : !inRegion ? '입구 지역에서 준비 요청' : '파티 준비 확인 요청', 'dungeonLobby', d.id, locked || !isLeader || !inRegion || active ? 'disabled' : '')}
@@ -59,6 +61,8 @@ export function dungeonHUD(c, now = Date.now(), { keyLabel = keyFallback } = {})
     <div class="settings-actions dungeon-controls">${btn(c.members.find(m => m.id === c.selfId)?.ready ? '동료의 준비를 기다리는 중' : '재도전 준비', 'dungeonRetry', '', `data-run-id="${esc(c.runId)}" data-ready="true" ${c.members.find(m => m.id === c.selfId)?.ready ? 'disabled' : ''}`)}${btn('파티 전원 입구로', 'dungeonExit')}</div>`;
   if (c.state === 'complete') return html + `<p class="dungeon-success">계약을 완수했습니다. 각자의 보상과 기록이 저장되었습니다.</p><p class="small">잠시 뒤 입구로 돌아갑니다. 도전 메뉴에서 보상을 확인할 수 있습니다.</p>${btn('입구로 돌아가기', 'dungeonExit')}`;
   html += `<div class="dungeon-phase"><strong>${esc(phases[c.phase] || c.phase)}</strong><span>${time(c.phaseEnds - now)}</span></div><p class="dungeon-hint">${esc(c.hint)}</p>`;
+  if (c.phaseTransition) html += `<p class="dungeon-urgent"><strong>${c.phaseTransition.phase}페이즈 · ${esc(c.phaseTransition.title)}</strong><br>${esc(c.phaseTransition.description)}</p>`;
+  if (c.action) html += `<div class="dungeon-urgent"><strong>${esc(c.action.name)}</strong> · ${c.action.stage === 'windup' ? '준비 동작' : c.action.stage === 'strike' ? '공격 진행' : '회복 중 · 공격 기회'}<p class="small">${esc(c.action.hint)}</p></div>`;
   if (c.myRole) html += `<p class="dungeon-my-role"><span>내 역할</span><strong style="color:${esc(c.myRole.color)}">${esc(c.myRole.label)}</strong></p>`;
   if (c.sequence) html += `<div class="dungeon-sequence" aria-label="기억할 문양 순서">${c.sequence.map((symbol, i) => `<span><small>${i + 1}</small>${esc(symbol)}</span>`).join('<i aria-hidden="true">→</i>')}</div>`;
   if (c.operator) html += `<p class="dungeon-my-role">지금은 <strong>${esc(c.operator.name)}</strong> 님 차례 · ${c.step}/${c.totalSteps}</p>`;

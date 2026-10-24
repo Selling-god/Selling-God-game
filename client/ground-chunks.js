@@ -1,5 +1,6 @@
 // Fixed-size LRU tiles. A 5,120 x 3,584 map never allocates a full-map RGBA canvas.
 import {TILE,ZONES} from '../shared/content.js';
+import {drawTerrainCell} from './terrain-render.js';
 export class GroundChunks {
  constructor(){this.cache=new Map();this.size=512;this.limit=36;this.created=0;}
  clear(){this.cache.clear();}
@@ -10,6 +11,7 @@ export class GroundChunks {
   const c=cv.getContext('2d');c.imageSmoothingEnabled=false;
   const startX=cx*size/TILE,startY=cy*size/TILE;
   for(let y=startY;y<Math.min(map.h,startY+size/TILE);y++)for(let x=startX;x<Math.min(map.w,startX+size/TILE);x++){
+   if(map.terrain){drawTerrainCell(c,map,x,y,(x-startX)*TILE,(y-startY)*TILE);continue;}
    const k=map.tiles[y*map.w+x],v=(x*17+y*31+x*y)%8;
    const tile=meta[`tile_${ZONES[map.id].theme}_${k}_${v}`]||meta[`tile_forest_${k}_${v}`];
    if(tile)c.drawImage(atlas,tile.x,tile.y,32,32,(x-startX)*TILE,(y-startY)*TILE,32,32);
