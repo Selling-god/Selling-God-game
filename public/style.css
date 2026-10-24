@@ -241,3 +241,35 @@
 .target-info{max-width:min(660px,calc(100vw - 40px));text-align:center;line-height:1.5}
 #boss-name{min-width:0;overflow-wrap:anywhere}#boss-hp{flex-shrink:0;margin-left:10px}
 .phase-transition-active .notices,.phase-transition-active .zone-toast,.phase-transition-active .loot-feed{opacity:0;pointer-events:none}
+
+/* Optional forge update — suspense stays visual only; server decides the result. */
+.forge-cinema{position:fixed;inset:0;z-index:110;display:grid;place-items:center;padding:18px;background:rgba(6,13,23,.83);backdrop-filter:blur(6px);pointer-events:all}
+.forge-scene{width:min(490px,100%);min-width:0;overflow:hidden;position:relative;text-align:center;padding:29px 25px 25px;border:1px solid #d9b97881;border-radius:19px;background:radial-gradient(ellipse at 50% 33%,#284052 0%,#11222e 53%,#0a1620 100%);box-shadow:0 0 0 1px #233440,0 14px 85px #0009,inset 0 0 50px #f6c56b0d;color:#ece7d9}
+.forge-scene::before{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(45deg,transparent 0 28px,#fff1 29px 30px);opacity:.18}
+.forge-eyebrow{font-size:10px;letter-spacing:.24em;color:#d9c391;margin:0 0 13px}.forge-scene h2{font-size:clamp(21px,4vw,30px);margin:0 0 10px;color:#efdebb}.forge-item{font-size:14px;color:#c1dae2;margin:3px 0 13px}
+.forge-crystal{width:144px;height:144px;display:grid;place-items:center;position:relative;margin:6px auto 9px;isolation:isolate}
+.forge-crystal span{font-family:Georgia,serif;font-size:85px;color:#ebd9ae;text-shadow:0 0 16px #e5be7baa,0 0 42px #d6a35f88;animation:forge-crystal-beat 1.15s ease-in-out infinite;transform-origin:center}
+.forge-crystal i,.forge-halo{position:absolute;inset:3px;border:2px dashed #bdaa75b2;border-radius:50%;animation:forge-spin 2.2s linear infinite;pointer-events:none}
+.forge-crystal i{inset:15px;border:1px solid #81b7c7a8;animation-duration:1.5s;animation-direction:reverse}
+.forge-levels{display:flex;align-items:center;justify-content:center;gap:17px;font-size:28px;font-weight:800;color:#b3b9b9;margin-bottom:13px}.forge-levels strong{color:#f3d991;font-size:36px}.forge-chevron{font-size:20px;color:#9caeae}
+.forge-percentage{display:flex;align-items:center;justify-content:center;gap:12px;font-size:13px;color:#b6c5c6}.forge-percentage b{font-size:25px;font-variant-numeric:tabular-nums;color:#ebc77c}
+.forge-message{font-size:15px;font-weight:650;line-height:1.7;margin:12px 0;color:#f1ead9;min-height:25px}.forge-footnote{display:block;color:#91aeb7;font-size:11px;line-height:1.7;margin-top:15px}
+.forge-meter{height:5px;background:#1d3441;border-radius:12px;margin:21px 12px 0;overflow:hidden}.forge-meter span{display:block;width:0;height:100%;background:linear-gradient(90deg,#7ab8d0,#f2d58c);animation:forge-progress 1.6s ease-in-out forwards}
+.forge-cinema.is-holding .forge-scene{animation:forge-scene-rumble .13s ease-in-out infinite alternate}
+.forge-cinema.forge-success .forge-scene{border-color:#fae2a0;box-shadow:0 0 85px #ddbd6470,inset 0 0 75px #f1d58a20}
+.forge-cinema.forge-success .forge-crystal span{color:#fff4bc;text-shadow:0 0 24px #ffd985,0 0 60px #ffc35d;animation:forge-victory .9s ease-in-out infinite alternate}
+.forge-cinema.forge-failure .forge-scene{border-color:#8e9aab;box-shadow:0 0 50px #647d9150}.forge-cinema.forge-failure .forge-crystal span{color:#9cb0bf;text-shadow:none;animation:none}.forge-cinema.forge-failure .forge-crystal i,.forge-cinema.forge-failure .forge-halo{animation:none;border-color:#6d879280}
+.forge-cinema.forge-success .forge-meter span{width:100%;animation:none;background:#f3d898}.forge-cinema.forge-failure .forge-meter span{width:100%;animation:none;background:#8aa2af}
+@keyframes forge-spin{to{transform:rotate(360deg)}}
+@keyframes forge-crystal-beat{50%{transform:scale(1.2);filter:brightness(1.2)}}
+@keyframes forge-progress{0%{width:0}74%{width:78%}100%{width:96%}}
+@keyframes forge-scene-rumble{to{transform:translateX(2px)}}
+@keyframes forge-victory{to{transform:scale(1.22) rotate(8deg)}}
+/* An earned title is a fleeting HUD announcement, never a chat message. */
+.title-award{position:fixed;left:50%;top:15%;transform:translateX(-50%);z-index:95;display:flex;align-items:center;gap:15px;max-width:min(92vw,440px);min-width:220px;padding:13px 22px;border-radius:13px;border:1px solid #aebcc3aa;background:linear-gradient(115deg,#162d38f5,#0b1b29f5);color:#d6e0e0;box-shadow:0 12px 35px #0017;pointer-events:none;animation:title-award-arrive .32s ease-out both}
+.title-award>span{font-size:30px;flex-shrink:0}.title-award>div{min-width:0;display:flex;flex-direction:column;gap:4px}.title-award small{font-size:10px;color:#a6bec7}.title-award b{font-size:15px;line-height:1.5;overflow-wrap:anywhere}.title-award.rarity-uncommon{color:#90e0b1;border-color:#6abd91}.title-award.rarity-rare{color:#96d5ff;border-color:#5eafe7}.title-award.rarity-epic{color:#dec2ff;border-color:#ac83df;box-shadow:0 0 25px #a274cf55}.title-award.rarity-legendary{color:#ffe3a7;border-color:#f2c271;box-shadow:0 0 38px #eebc625e,0 10px 35px #000b;animation:title-award-arrive .32s ease-out both,title-award-neon 1.4s ease-in-out .4s infinite alternate}
+.title-award-hide{opacity:0;transition:opacity .25s ease}
+@keyframes title-award-arrive{from{opacity:0;transform:translate(-50%,-25px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes title-award-neon{to{box-shadow:0 0 60px #f2d19c99,0 0 22px #f2d19c66,0 10px 35px #000a}}
+@media(max-width:700px){.forge-scene{padding:23px 16px}.forge-crystal{width:116px;height:116px}.forge-crystal span{font-size:67px}.title-award{top:20%;padding:12px 16px}.title-award b{font-size:13px}}
+@media(prefers-reduced-motion:reduce){.forge-cinema *, .title-award{animation:none!important;transition:none!important}.forge-meter span{width:80%}}
