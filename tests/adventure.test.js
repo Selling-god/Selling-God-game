@@ -238,22 +238,47 @@ test('regional daily contracts count only the accepted region and matching targe
  assert.equal(atlasDay(Date.parse('2026-10-23T14:59:59Z')),'2026-10-23');
  assert.equal(atlasDay(Date.parse('2026-10-23T15:00:00Z')),'2026-10-24');
 });
-test('three wave trial has 6/8/1 opponents, accepts direct contributors and daily rewards are bounded',()=>{
+function solveRegionTrial(g,p,w){
+ const t=w.fieldTrial;assert.ok(t?.ritual);
+ const pads=[{x:w.map.trialArena.x-104,y:w.map.trialArena.y-55},
+  {x:w.map.trialArena.x+104,y:w.map.trialArena.y-55},
+  {x:w.map.trialArena.x,y:w.map.trialArena.y+110}];
+ for(const glyph of [...t.ritual.seq]){
+   const marker=g.snapshot(p).fieldTrial.markers.find(m=>m.id===`trial_glyph_${glyph}`);
+   assert.ok(marker);p.x=pads[glyph].x;p.y=pads[glyph].y;g.now+=520;
+   assert.equal(g.action(p,{type:'trialInteract',id:marker.id}).ok,true);
+ }
+}
+function finishRegionTrial(g,p,w){
+ for(const expected of [6,8,1]){
+  const mobs=w.mobs.filter(m=>m.trialKey&&m.alive);assert.equal(mobs.length,expected);
+  if(expected===1){
+   for(const limit of [0.67,0.33]){
+    assert.equal(mobs[0].trialShield,true);
+    solveRegionTrial(g,p,w);
+    mobs[0].hp=Math.ceil(mobs[0].maxHp*limit);
+    g.tickFieldTrial(w);
+   }
+   solveRegionTrial(g,p,w);
+  }
+  for(const m of mobs){m.contributors.set(p.id,g.now);m.damageLog.set(p.id,100);g.killMob(w.id,m);}
+  g.tickFieldTrial(w);
+  if(expected!==1){solveRegionTrial(g,p,w);g.now+=2500;g.tickFieldTrial(w);}
+ }
+}
+test('regional trials combine combat, timed runes, and 3-phase shield breaks with daily rewards',()=>{
  const {g,p}=setup();const point=STORY_POINTS.get('meadow_reach_2_trial');at(g,p,point);
  p.journey.quests.berserker={chapter:5,progress:[0],active:true};p.journey.tracked='berserker';
  for(let repeat=0;repeat<2;repeat++){
   g.now+=11000;assert.equal(g.action(p,{type:'trialStart'}).ok,true);
   assert.equal(g.action(p,{type:'trialStart'}).ok,false);
   const w=g.worlds.get(p.zone);
-  for(const expected of [6,8,1]){
-   const mobs=w.mobs.filter(m=>m.trialKey&&m.alive);assert.equal(mobs.length,expected);
-   for(const m of mobs){m.contributors.set(p.id,g.now);m.damageLog.set(p.id,100);g.killMob(w.id,m);}
-   g.tickFieldTrial(w);g.now+=2300;g.tickFieldTrial(w);
-  }
+  finishRegionTrial(g,p,w);
   assert.equal(w.fieldTrial,null);assert.equal(p.inventory.wayfarer_seal,3);
  }
  assert.equal(p.journey.quests.berserker.progress[0],1);
 });
+
 test('empty or expired trials are cleaned up with no free loot and can be restarted',()=>{
  const {g,p}=setup(),point=STORY_POINTS.get('coast_reach_0_trial');at(g,p,point);
  g.action(p,{type:'trialStart'});const w=g.worlds.get(p.zone);g.now+=361000;g.tickFieldTrial(w);

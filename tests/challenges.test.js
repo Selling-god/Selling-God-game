@@ -29,6 +29,23 @@ function defeat(g, p, mob) {
   g.killMob(CHALLENGE_ZONE, mob);
 }
 function clearWave(g, p) { for (const mob of [...owned(g, p)]) defeat(g, p, mob); }
+function solveTowerGate(g,p){
+  const r=g.challenges.runFor(p);if(r?.phase!=='gate')return;
+  for(const index of [...r.towerGate.order]){
+    const pad=g.snapshot(p).challenge.markers.find(m=>m.id===`tower_${index}`);
+    p.x=pad.x;p.y=pad.y;g.now+=600;
+    assert.equal(g.action(p,{type:'challengeInteract',id:pad.id}).ok,true);
+  }
+}
+function survivalBeacon(g,p,r,timeSinceStart){
+  advance(g,Math.max(1,r.started+3000+timeSinceStart-g.now));
+  assert.ok(r.beaconOpen,'beacon must be pending');
+  const marker=g.snapshot(p).challenge.markers.find(m=>m.id===`beacon_${r.beaconOpen.idx}`);
+  p.x=marker.x;p.y=marker.y;g.now+=600;
+  assert.equal(g.action(p,{type:'challengeInteract',id:marker.id}).ok,true);
+  clearWave(g,p);
+}
+
 function completeRunes(g, p) {
   while (g.challenges.runFor(p)) {
     const r = g.challenges.runFor(p);
@@ -36,6 +53,13 @@ function completeRunes(g, p) {
     if (r.phase === 'memorize') advance(g, Math.max(1, r.peekUntil - g.now + 1));
     // Later chambers seal the glyphs behind combat, and the last reverses the order.
     for(const guardian of [...owned(g,p)].filter(m=>m.challengeRole==='rune_guard'))defeat(g,p,guardian);
+    if(r.stage===3&&r.anchorStep<2){
+      for(let index=0;index<2;index++){
+        const pad=g.snapshot(p).challenge.markers.find(m=>m.id===`anchor_${index}`);
+        p.x=pad.x;p.y=pad.y;g.now+=600;
+        assert.equal(g.action(p,{type:'challengeInteract',id:pad.id}).ok,true);
+      }
+    }
     const sequence = [...r.runeOrder];
     for (const index of sequence) {
       const pad = g.snapshot(p).challenge.markers.find(m => m.id === `rune_${index}`);
@@ -113,7 +137,7 @@ test('normal combat damage and owner damage-over-time kill arena enemies without
 test('tower checkpoints save only completed fifth floors and cannot be farmed by resuming', () => {
   const { g, p } = setup(); start(g, p, 'tower');
   for (let floor = 1; floor <= 5; floor++) {
-    assert.equal(g.challenges.runFor(p).stage, floor); clearWave(g, p);
+    assert.equal(g.challenges.runFor(p).stage, floor); clearWave(g, p);solveTowerGate(g,p);
     if (floor < 5) advance(g, 2401);
   }
   const key = challengeKey('tower', 0), record = p.challenges.records[key];
@@ -123,7 +147,7 @@ test('tower checkpoints save only completed fifth floors and cannot be farmed by
   assert.equal(p.challenges.tokens, 2);
   g.action(p, { type: 'challengeExit' }); advance(g, 6000);
   start(g, p, 'tower', 0, false);
-  for (let floor = 1; floor <= 5; floor++) { clearWave(g, p); if (floor < 5) advance(g, 2401); }
+  for (let floor = 1; floor <= 5; floor++) { clearWave(g, p);solveTowerGate(g,p); if (floor < 5) advance(g, 2401); }
   assert.equal(p.challenges.tokens, 2);
 });
 
@@ -131,7 +155,7 @@ test('all 30 tower floors really advance and the final boss grants one clear rec
   const { g, p } = setup(); start(g, p, 'tower');
   for (let floor = 1; floor <= 30; floor++) {
     assert.equal(g.challenges.runFor(p)?.stage, floor);
-    assert.ok(owned(g, p).length > 0); clearWave(g, p);
+    assert.ok(owned(g, p).length > 0); clearWave(g, p);solveTowerGate(g,p);
     if (floor < 30) advance(g, 2401);
   }
   assert.equal(p.zone, 'town'); assert.equal(g.challenges.runFor(p), null);
@@ -184,23 +208,47 @@ test('boss rush refuge prevents a real pulse and killing channel adds interrupts
   defeat(g, p, boss); assert.equal(p.challenges.lastResult.won, true); assert.equal(p.challenges.records['boss_rush:0'].clears, 1);
 });
 
-test('survival needs both the time objective and 18 authoritative kills; idle survival alone fails', () => {
-  const { g, p } = setup(); let r = start(g, p, 'survival');
-  p.x = 576; p.y = 448; advance(g, r.ends - g.now + 1);
-  assert.equal(p.challenges.lastResult.won, false); assert.equal(p.challenges.tokens, 0);
-  advance(g, 6000); r = start(g, p, 'survival'); p.x = 576; p.y = 448;
-  while (r.kills < 18) { clearWave(g, p); if (r.kills < 18) advance(g, r.nextWave - g.now + 1); }
-  assert.ok(g.challenges.runFor(p)); // Clearing the quota early does not end the survival timer.
-  advance(g, r.ends - g.now + 1);
-  assert.equal(p.challenges.lastResult.won, true); assert.ok(p.challenges.records['survival:0'].bestScore >= 18);
+test('survival requires 18 kills, three timed altar lights, and living to the deadline', () => {
+  const {g,p}=setup();let r=start(g,p,'survival');
+  advance(g,r.ends-g.now+1);
+  assert.equal(p.challenges.lastResult.won,false);
+  advance(g,6000);r=start(g,p,'survival');
+  // Moving across the arena under pressure is now mandatory, not just idling.
+  clearWave(g,p);
+  survivalBeacon(g,p,r,46000);
+  survivalBeacon(g,p,r,102000);
+  survivalBeacon(g,p,r,148000);
+  while(r.kills<18){
+    advance(g,r.nextWave-g.now+1);
+    clearWave(g,p);
+  }
+  assert.equal(r.beaconsLit,3);
+  advance(g,r.ends-g.now+1);
+  assert.equal(p.challenges.lastResult.won,true);
+  assert.ok(p.challenges.records['survival:0'].bestScore>=18);
 });
 
-test('survival hazard shrinks twice and enemy population stays bounded when enemies are not killed', () => {
-  const { g, p } = setup(); const r = start(g, p, 'survival'); p.x = 576; p.y = 448;
-  advance(g, 61000); assert.equal(g.snapshot(p).challenge.markers[0].radius, 325);
-  advance(g, 60000); assert.equal(g.snapshot(p).challenge.markers[0].radius, 235);
-  for (let i = 0; i < 10; i++) { r.nextWave = g.now; g.challenges.tick(.01); }
-  assert.ok(owned(g, p).length <= 18);
+test('moving survival safe zone shrinks and missed beacon fails immediately',()=>{
+  const {g,p}=setup();const r=start(g,p,'survival');
+  survivalBeacon(g,p,r,46000);
+  advance(g,15000);assert.equal(g.snapshot(p).challenge.markers[0].radius,325);
+  const first={...r.safeCenter};
+  advance(g,42000);assert.ok(r.beaconOpen);
+  survivalBeacon(g,p,r,102000);advance(g,19000);assert.notDeepEqual(r.safeCenter,first);
+  advance(g,27000);assert.ok(r.beaconOpen);advance(g,21000);assert.equal(p.challenges.lastResult.won,false);
+  assert.match(p.challenges.lastResult.reason,/불씨/);
+});
+
+test('defense turret builds require earned energy and proximity and actually destroy hostiles',()=>{
+  const {g,p}=setup();const r=start(g,p,'defense');
+  r.charge=4;assert.equal(g.action(p,{type:'challengeBuild',id:'0'}).ok,false);
+  p.x=422;p.y=554;
+  assert.equal(g.action(p,{type:'challengeBuild',id:'0'}).ok,true);
+  assert.equal(r.charge,0);assert.equal(r.turrets[0],1);
+  const target=owned(g,p)[0];target.x=455;target.y=554;
+  const hp=target.hp;r.turretNext=g.now-1;g.challenges.tick(.01);
+  assert.ok(target.hp<hp);
+  assert.equal(g.action(p,{type:'challengeBuild',id:'0'}).ok,false);
 });
 
 test('defense enemies damage the crystal, repairs spend earned energy, wards prevent damage, and five waves win', () => {

@@ -40,7 +40,7 @@ test('cosmetics are server-owned, bought with gold, equipped separately from gea
  assert.equal(g.publicPlayer(p).vanity.slots.aura,id);
  assert.equal(COSMETIC_SLOTS.length,5);
  const gear={...p.equipment};assert.deepEqual(p.equipment,gear);
- p.zone='forest';assert.equal(g.action(p,{type:'cosmeticBuy',id:Object.keys(COSMETICS).find(x=>x!==id)}).ok,false);
+ p.zone='forest';assert.equal(g.action(p,{type:'cosmeticBuy',id:Object.keys(COSMETICS).find(x=>x!==id)}).ok,true); // The independent workshop opens anywhere.
 });
 test('custom image requires consumable, stores only 24x32 indexed pixels and rejects invalid payload',()=>{
  const {g,p}=setup();
@@ -91,4 +91,44 @@ test('shop, forge and paginated honor views display safe actionable controls',()
  const view=expansionPanel('chronicle',{profile:p,tab:'achievements'});
  assert.match(view.html,/honorPage/);assert.match(view.html,/honorFilter/);
  assert.ok((view.html.match(/data-act="achievement"/g)||[]).length<=36);
+});
+
+
+test('every cosmetic body part has 100+ uniquely drawn form/motif layouts with starter gifts',()=>{
+  for(const slot of COSMETIC_SLOTS){
+    const catalogue=Object.values(COSMETICS).filter(x=>x.slot===slot);
+    assert.ok(catalogue.length>=120,`${slot} count`);
+    const distinct=new Set(catalogue.filter(x=>!x.design.legacy).map(x=>`${x.design.form}:${x.design.motif}`));
+    assert.equal(distinct.size,120,`${slot} geometries`);
+    assert.ok(catalogue.some(x=>x.price===0),`${slot} starter choice`);
+  }
+});
+test('first-time 100G character can claim free costume in the workshop and later buy from a field',()=>{
+ const g=new Game({random:()=>.46});const p=g.addPlayer(newCharacter('starter','Starter'));
+ assert.equal(p.gold,100);
+ const gift=Object.values(COSMETICS).find(x=>x.slot==='wings'&&x.price===0);
+ p.zone='forest';const result=g.action(p,{type:'cosmeticBuy',id:gift.id});
+ assert.equal(result.ok,true);assert.equal(p.gold,100);assert.equal(p.vanity.slots.wings,gift.id);
+ assert.ok(p.vanity.owned.includes(gift.id));
+ assert.equal(g.action(p,{type:'cosmeticBuy',id:gift.id}).ok,false);
+ assert.equal(g.action(p,{type:'cosmeticBuy',id:'constructor'}).ok,false);
+ const saved=hydrate(serialize(p));assert.equal(saved.vanity.slots.wings,gift.id);
+});
+test('studio ticket purchases debit precisely, enforce inventory and reject arbitrary products',()=>{
+ const {g,p}=setup();p.zone='forest';p.inventory.portrait_ticket=0;p.inventory.rename_ticket=0;
+ const amount=p.gold;
+ const first=g.action(p,{type:'studioTicketBuy',id:'portrait_ticket'});
+ assert.equal(first.ok,true);assert.equal(p.gold,amount-ITEMS.portrait_ticket.buy);
+ assert.equal(p.inventory.portrait_ticket,1);assert.equal(first.inventory.portrait_ticket,1);
+ assert.equal(g.action(p,{type:'studioTicketBuy',id:'ore'}).ok,false);
+ assert.equal(g.action(p,{type:'studioTicketBuy',id:'__proto__'}).ok,false);
+ p.gold=0;assert.match(g.action(p,{type:'studioTicketBuy',id:'rename_ticket'}).error,/골드/);
+ p.gold=10000;p.inventory.rename_ticket=99;
+ assert.equal(g.action(p,{type:'studioTicketBuy',id:'rename_ticket'}).ok,false);
+});
+test('village appearance NPC, independent shortcut and workshop ticket buttons are wired',()=>{
+ const lumi=NPCS.find(n=>n.kind==='atelier');assert.ok(lumi);assert.equal(lumi.zone,'town');
+ const {p}=setup();const view=vanityPanel(p,'entrance');
+ assert.match(view.html,/studioTicketBuy/);assert.match(view.html,/무료 받기/);
+ assert.match(view.html,/공방 이용권/);
 });

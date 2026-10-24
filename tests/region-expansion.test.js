@@ -160,18 +160,42 @@ test('high-region daily contracts use actual local kills and gathering, award lo
  assert.equal(g.action(p,{type:'craft',id:recipe.id}).ok,true);assert.equal(p.inventory[recipe.output],1);
 });
 
-test('new field trials run all three local-level waves and never repeat the daily XP or material reward',()=>{
+test('late-game altar requires distinct rune devices and phased boss shields before granting rewards',()=>{
  const {g,p}=setup(50),point=STORY_POINTS.get('deepsea_reach_0_trial'),z=ZONES[point.zone];
  for(let repeat=0;repeat<2;repeat++){
   at(g,p,point.zone,point);g.now+=11000;assert.equal(g.action(p,{type:'trialStart'}).ok,true);
   const w=g.worlds.get(p.zone);
   for(const expected of [6,8,1]){
    const mobs=w.mobs.filter(m=>m.trialKey&&m.alive);assert.equal(mobs.length,expected);
+   if(expected===1){
+    for(const cap of [0.67,0.33]){
+     assert.equal(mobs[0].trialShield,true);
+     for(const idx of [...w.fieldTrial.ritual.seq]){
+      const marker=g.snapshot(p).fieldTrial.markers.find(m=>m.id===`trial_glyph_${idx}`);
+      p.x=marker.x;p.y=marker.y;g.now+=520;
+      assert.equal(g.action(p,{type:'trialInteract',id:marker.id}).ok,true);
+     }
+     mobs[0].hp=Math.ceil(mobs[0].maxHp*cap);g.tickFieldTrial(w);
+    }
+    for(const idx of [...w.fieldTrial.ritual.seq]){
+     const marker=g.snapshot(p).fieldTrial.markers.find(m=>m.id===`trial_glyph_${idx}`);
+     p.x=marker.x;p.y=marker.y;g.now+=520;
+     assert.equal(g.action(p,{type:'trialInteract',id:marker.id}).ok,true);
+    }
+   }
    for(const m of mobs){
     assert.ok(MONSTERS[m.type].level>=z.minLevel&&MONSTERS[m.type].level<=z.maxLevel);
     m.contributors.set(p.id,g.now);m.damageLog.set(p.id,100);g.killMob(w.id,m);
    }
-   g.tickFieldTrial(w);g.now+=2300;g.tickFieldTrial(w);
+   g.tickFieldTrial(w);
+   if(expected!==1){
+    for(const idx of [...w.fieldTrial.ritual.seq]){
+     const marker=g.snapshot(p).fieldTrial.markers.find(m=>m.id===`trial_glyph_${idx}`);
+     p.x=marker.x;p.y=marker.y;g.now+=520;
+     assert.equal(g.action(p,{type:'trialInteract',id:marker.id}).ok,true);
+    }
+    g.now+=2500;g.tickFieldTrial(w);
+   }
   }
   assert.equal(w.fieldTrial,null);assert.equal(p.inventory[z.material],4);assert.equal(p.inventory.wayfarer_seal,3);
   assert.equal(p.xp,expeditionRewards(z,'trial').xp);
