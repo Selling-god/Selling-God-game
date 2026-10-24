@@ -1,111 +1,62 @@
 {
-  "base_zip": "Selling-God-game-main (1)(1).zip",
-  "changed_count": 21,
-  "files": [
+  "based_on": "starfall_trials_atelier_purchase_fix_update.zip",
+  "kind": "incremental-code-files-only",
+  "file_count": 11,
+  "changed": [
     {
-      "file": "client/adventure-ui.js",
-      "bytes": 16468,
-      "sha256": "a434e1e88ebe77a3e67709516c702e10a7f5315743ee7eb19bd9137b0b17a325"
+      "path": "client/cosmetic-art.js",
+      "bytes": 14204,
+      "sha256": "aba1c92611de0e9a6d81845af076293ec19e2848cedfd512ca646f57d1bce671"
     },
     {
-      "file": "client/challenges-ui.js",
-      "bytes": 12347,
-      "sha256": "da3bfb314b3cdea3888534c40e840ab5a2ef5278f2cb023b7499223d5d2cf0c9"
+      "path": "client/main.js",
+      "bytes": 85507,
+      "sha256": "93d921509124974e0540d9f734b2e8990d49ab1e4771b32a4748ece6a52de39e"
     },
     {
-      "file": "client/cosmetic-art.js",
-      "bytes": 13070,
-      "sha256": "cf13465789b35dc15013d0c6466144307fe70bafeb2eb951be4ccac30405c2ac"
+      "path": "client/render.js",
+      "bytes": 26527,
+      "sha256": "6f7b9c318f0c2a0ce5447379ae61bd86e1f77bc4d55a3efe0372b7ea6e4ff825"
     },
     {
-      "file": "client/field-trial-ui.js",
-      "bytes": 2110,
-      "sha256": "045124da28af13fc7cf962651f5f2cc93d5a53623f9430c95967ccfa6d47a361"
+      "path": "client/vanity-render.js",
+      "bytes": 2656,
+      "sha256": "0f8588ffcca98824cc307f8c4932323d6ea4a6dd7ff5be9a6f71172f56be0a03"
     },
     {
-      "file": "client/main.js",
-      "bytes": 84819,
-      "sha256": "03155f40efe65db38edc9397f0562607e3a3cc6e918acd7cb061d69229e9d65d"
+      "path": "server/boss-mechanics.js",
+      "bytes": 10512,
+      "sha256": "93f8defad6b1b2ee865306caf26f29cfa0d85b0236874c223d45bd6a66b5b655"
     },
     {
-      "file": "client/render.js",
-      "bytes": 26397,
-      "sha256": "e5f7e9246cc190bfeb802d5044525bb7de913af19a448c9b01d6e7f1b96379e6"
+      "path": "server/game.js",
+      "bytes": 52803,
+      "sha256": "1aafbea4a2ef1f5c76df04616b547d6356477f8d2ab878e9f03734f4932eb149"
     },
     {
-      "file": "client/vanity-render.js",
-      "bytes": 2523,
-      "sha256": "19b65f9f115f356559d5d3d98e2d07858b48ad203ecee55ec206727e5b61b55d"
+      "path": "server/world-events.js",
+      "bytes": 5823,
+      "sha256": "7e5dc0095b3230ed2926326dc8263fd45528038c0c74a20fce7806560d4d6ddc"
     },
     {
-      "file": "client/vanity-ui.js",
-      "bytes": 6977,
-      "sha256": "e3d9868b214b11e2c9ac305c6f01e05af42c17e2d3ec0835b50ac17a0f39f01e"
+      "path": "shared/content.js",
+      "bytes": 23233,
+      "sha256": "c51de5a79cc7c70c761ee1bf57e531210378c6a4e44faecbbaa6ce8b127293b8"
     },
     {
-      "file": "server/atlas.js",
-      "bytes": 18157,
-      "sha256": "6c35f114f5132786b08dafa3e9d9a6153a02e22d0d224f74141e29092b938ad0"
+      "path": "shared/personalization.js",
+      "bytes": 9445,
+      "sha256": "76b4598af605ddb589ca8f66708381bf46dd3c016f69d341e8049b398ed8deef"
     },
     {
-      "file": "server/challenges.js",
-      "bytes": 44894,
-      "sha256": "43fec0cc7e87e5f57cd0f0c1ecf92c6ae52c3d16d9fe367caf11813a79957cf1"
+      "path": "public/style.css",
+      "bytes": 76684,
+      "sha256": "9a34dbe672fe72a8ecc50af8d41c60c726e3a1d7bfb8fae7ba99eb3a6571f281"
     },
     {
-      "file": "server/game.js",
-      "bytes": 52720,
-      "sha256": "937650ff459536f121f3f7b06fa405f9cedb2070aaef3a7dad2cf6d821f032d0"
-    },
-    {
-      "file": "server/index.js",
-      "bytes": 16413,
-      "sha256": "443885a668e6cc0dc95cc1fd60ab384d03210d4a5361ee8cad011adcd6bcd577"
-    },
-    {
-      "file": "shared/challenges.js",
-      "bytes": 8363,
-      "sha256": "d9bb954aefd62f0e25ad085bc4d6c7e14e126fe49c79eba84134d77427190899"
-    },
-    {
-      "file": "shared/content.js",
-      "bytes": 23231,
-      "sha256": "d4e6b6874ccb37629998f33601fa06dcab31a2f88446d587d8c81614345cafca"
-    },
-    {
-      "file": "shared/personalization.js",
-      "bytes": 9066,
-      "sha256": "43f2f8067cf6bdfd21b6fcdc4915cb97fdf10337bea40cba3d35c9592e38e779"
-    },
-    {
-      "file": "public/index.html",
-      "bytes": 9282,
-      "sha256": "aaeae1078c3e6d2f304fc5e156f1860c84b7e73825cf5b9943649de459eb647f"
-    },
-    {
-      "file": "public/style.css",
-      "bytes": 75285,
-      "sha256": "68e9799546006f35d253d0b18a3d0760768b92a426e1daf1d9690068c41f52ef"
-    },
-    {
-      "file": "tests/adventure.test.js",
-      "bytes": 21231,
-      "sha256": "7203c7586ef1303f6d2348130e9c255caace57a8c25430ddd35dc47be9f913ef"
-    },
-    {
-      "file": "tests/challenges.test.js",
-      "bytes": 21672,
-      "sha256": "02bb7fe372b1440e2d6ce6085cf3d254f059793aecdf3a22bd6fb6390f2bc143"
-    },
-    {
-      "file": "tests/personalization.test.js",
-      "bytes": 8153,
-      "sha256": "0c705ee2d6918448280b94c773dad340903ccabdfbcd36609e4606fd90c46246"
-    },
-    {
-      "file": "tests/region-expansion.test.js",
-      "bytes": 16497,
-      "sha256": "ac200ba3c21967039d075e4f427e229f00a5c8374743b9e8693ca1973f1e7531"
+      "path": "tests/appearance-layout-announcements.test.js",
+      "bytes": 3245,
+      "sha256": "fa71af75f70e71ff8b85b0dc7c9a875a6889e218ff242c892d7b6820818c56d9"
     }
   ]
 }
