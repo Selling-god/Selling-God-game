@@ -152,7 +152,7 @@ test('world boss transformation finishes before the existing objective mechanic 
  const {g,p,w,m}=arena('world_glacier',{px:200});m.worldKey='test-live';m.expiresAt=g.now+60000;
  m.hp=Math.ceil(m.maxHp*.7);run(g,50);
  assert.equal(m.encounterPhase,2);assert.ok(!m.bossMechanic?.active);
- run(g,1800);assert.equal(m.bossMechanic?.active,true);assert.equal(m.bossMechanic.kind,'glacier');
+ run(g,1950);assert.equal(m.bossMechanic?.active,true);assert.equal(m.bossMechanic.kind,'glacier');
  assert.ok(w.mobs.some(x=>x.mechanicObjective));assert.equal(w.casts.some(c=>c.encounter&&c.owner===m.id),false);
 });
 

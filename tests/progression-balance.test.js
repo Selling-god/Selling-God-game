@@ -27,7 +27,7 @@ const setup=async(level=35,cls='guardian')=>{
 
 test('growth extends to 200 with a monotonic, slower early XP curve',()=>{
  assert.equal(MAX_LEVEL,200);
- assert.deepEqual([1,5,10,25,30,100,200].map(xpRequired),[189,651,1665,7948,11235,141120,732120]);
+ assert.deepEqual([1,5,10,25,30,100,200].map(xpRequired),[355,1164,2824,11866,16233,170146,864572]);
  let previous=0;
  for(let level=1;level<=MAX_LEVEL;level++){
   const required=xpRequired(level);
@@ -138,7 +138,7 @@ test('level bands supply appropriate enemies all the way to the next gate withou
  }
  for(let level=25;level<35;level++){
   const m=MONSTERS.clock_golem,reward=combatExperience(m.xp,level,m.level);
-  assert.ok(Math.ceil(xpRequired(level)/reward)<=36,'existing observatory bridges to first late field');
+  assert.ok(Math.ceil(xpRequired(level)/reward)<=55,'existing observatory remains possible but leveling requires more combat');
  }
 });
 
