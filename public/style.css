@@ -114,3 +114,87 @@
  .story-objectives .objective span{min-width:0;overflow-wrap:anywhere}.story-objectives .objective b{white-space:nowrap}
  #quest-tracker{max-height:27vh}
 }
+
+/* User-defined keyboard controls. */
+.keybind-intro p{font-size:13px;line-height:1.8;margin-bottom:12px}
+.keybind-status{position:sticky;top:0;z-index:2;padding:12px 14px;margin:16px 0;border:1px solid var(--line);border-radius:8px;background:#182f36;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+.keybind-status.listening{border-color:var(--gold);color:#ecd6a6}
+.keybind-status.warn{border-color:#ca9581;color:#f0baa7}
+.keybind-status.success{border-color:#88ad87;color:#c5ddb5}
+.keybind-group{margin-top:24px}
+.keybind-group h3{font-size:14px;color:var(--gold);margin-bottom:12px}
+.keybind-head,.keybind-row{display:grid;grid-template-columns:minmax(0,1.45fr) repeat(2,minmax(0,1fr));align-items:center;gap:12px}
+.keybind-head{font-size:10px;color:var(--muted);padding:0 10px 9px}
+.keybind-row{padding:10px;border-top:1px solid var(--line)}
+.keybind-name{font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.keybind-slot{display:flex;gap:4px;min-width:0}
+.keybind-key{flex:1;min-width:0;padding:9px 5px;background:#10262d;border:1px solid #8ea5a550;border-radius:6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.keybind-key:hover{border-color:var(--gold);background:#304640}
+.keybind-key.listening{border-color:var(--gold);background:#52604a;color:#fff0ce}
+.keybind-clear{flex:0 0 26px;border-radius:5px;background:#31434a;color:#bdc6ba;font-size:18px}
+.keybind-clear:disabled{opacity:.25}
+.keybind-footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:22px;padding-top:18px}
+.ability .key{max-width:calc(100% - 8px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:600px){
+  .keybind-head,.keybind-row{grid-template-columns:minmax(0,1.2fr) repeat(2,minmax(0,1fr));gap:6px;padding-left:0;padding-right:0}
+  .keybind-name,.keybind-key{font-size:10px}
+  .keybind-key{padding:10px 3px}
+  .keybind-clear{flex-basis:22px}
+}
+
+/* Desktop action bars share one bottom edge; compact screens wrap only the menu. */
+@media(min-width:701px) and (pointer:fine){
+  #game-ui{--hud-bottom:22px}
+  .abilities{bottom:var(--hud-bottom)}
+  .hud-dock{top:auto;bottom:var(--hud-bottom);left:auto;right:20px;transform:none;max-width:none;
+    display:flex;flex-wrap:nowrap;gap:5px;padding:10px 13px 8px;
+    background:linear-gradient(180deg,#1e3139ef,#11252eea);border:1px solid #9cac9140;border-radius:12px;box-shadow:var(--shadow)}
+  .hud-dock button{width:44px;min-width:0;height:66px;justify-content:center;padding:6px 2px;gap:5px}
+  .hud-dock span{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .world-status{bottom:119px;max-width:min(440px,48vw)}
+  .interact-hint{bottom:165px;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis}
+  .loot-feed{bottom:120px}
+}
+@media(min-width:701px) and (max-width:1599px) and (pointer:fine){
+  .hud-dock{display:grid;grid-template-columns:repeat(5,44px);padding:8px;gap:5px}
+  .hud-dock button{width:44px;height:54px}
+  .loot-feed{bottom:164px}
+}
+@media(min-width:701px) and (max-width:1200px) and (pointer:fine){
+  .hud-dock{right:14px;grid-template-columns:repeat(5,40px)}
+  .hud-dock button{width:40px}
+  .hud-dock span{font-size:8px}
+}
+@media(min-width:701px) and (max-width:950px) and (pointer:fine){
+  .abilities{left:12px;right:auto;transform:none}
+  .chat{bottom:215px;max-width:213px}
+  .world-status{left:12px;transform:none;max-width:360px}
+  .interact-hint{left:12px;transform:none;max-width:370px}
+}
+
+/* Adventure expansion: live objectives remain beside the play area. */
+.challenge-entry{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:20px;margin-bottom:20px;border:1px solid #a8c8bc50;border-radius:10px;background:linear-gradient(115deg,#314741,#1b2d3c)}
+.challenge-entry h3{font-size:21px;margin:8px 0}.challenge-entry b{font-size:14px}.challenge-entry p{font-size:12px;color:#bfcec0;line-height:1.8;margin:7px 0 0}.challenge-entry>.btn{flex-shrink:0}
+.challenge-intro p,.challenge-rewards p{line-height:1.85}.challenge-wallet{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:15px;padding-top:12px;border-top:1px solid #abc0a933}.challenge-wallet strong{font-size:22px;color:#eed69d}
+.challenge-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}
+.challenge-card{min-width:0}.challenge-card-head{display:flex;align-items:center;gap:13px}.challenge-card-head h3{margin-top:9px}.challenge-symbol{display:grid;place-items:center;flex:0 0 45px;height:53px;font-size:31px;color:#d8c9a4;border:1px solid #abb99c42;border-radius:9px;background:#1b3038}
+.challenge-rules{margin:15px 0;font-size:12px;line-height:1.85}.challenge-rules summary{cursor:pointer;color:#d6d8b5;padding:7px 0}.challenge-rules ol{padding-left:22px;margin:8px 0 0;color:#b7c8bc}.challenge-rules li{padding-bottom:7px}
+.challenge-tiers{border-top:1px solid var(--line);margin-top:15px}.challenge-tier{padding:13px 0;border-bottom:1px solid var(--line)}.challenge-tier:last-child{border-bottom:0;padding-bottom:0}.challenge-tier strong{font-size:12px}.challenge-tier p{margin:5px 0}.challenge-tier .settings-actions{margin:8px 0 0;gap:6px}.challenge-tier .btn{font-size:11px;padding:8px 11px}
+.challenge-shop{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.challenge-shop h4{margin-bottom:9px}.challenge-result{margin-top:18px}.challenge-result.cleared{border-color:#92c4a577;background:#203c39}
+.challenge-hud{position:absolute;right:20px;top:182px;width:272px;padding:14px;background:#14272def;max-height:calc(100vh - 370px);overflow-y:auto;pointer-events:auto}
+.challenge-active #quest-tracker,.challenge-active .world-status{display:none}
+.challenge-hud-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.challenge-hud-heading h3{font-size:13px;line-height:1.5;margin:5px 0 10px}.challenge-hud-heading .small{font-size:9px}.challenge-timer{font-size:11px;white-space:nowrap;color:#efd59c}
+.challenge-hud-summary{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:#c9dfcc}.challenge-hint{font-size:11px;line-height:1.85;color:#c3cdc0;padding:10px 0;margin:8px 0;border-top:1px solid #a3b29830;border-bottom:1px solid #a3b29830}
+.challenge-controls{gap:6px;margin:10px 0 0}.challenge-controls .btn{font-size:10px;padding:8px 10px}.challenge-controls [data-act="challengeExit"]{color:#e8c4b3;background:#573a3a55}
+.challenge-sequence{display:flex;align-items:center;justify-content:center;gap:7px;margin:12px 0}.challenge-sequence>span{display:grid;place-items:center;border:1px solid #c2bd9a55;border-radius:5px;background:#253e43;min-width:28px;padding:5px;font-size:14px}.challenge-sequence small{font-size:8px;color:#a5bfae}.challenge-sequence i{font-size:10px;color:#c1c3ac;font-style:normal}
+.challenge-urgent{padding:8px;background:#633f4655;border:1px solid #c78a8655;border-radius:5px;color:#f1bfb0;font-size:11px;line-height:1.7}.challenge-crystal-status .objective{font-size:10px}
+#boss-tactic{max-width:100%;line-height:1.6}
+@media(max-width:1000px){.challenge-hud{right:12px;top:164px;width:225px;padding:11px}.challenge-hud-heading{flex-wrap:wrap;gap:0}.challenge-timer{margin-bottom:9px}}
+@media(max-width:700px){
+  .challenge-entry{align-items:flex-start;flex-direction:column;padding:15px;gap:12px}.challenge-entry h3{font-size:18px}
+  .challenge-grid,.challenge-shop{grid-template-columns:1fr}.challenge-grid{gap:12px}.challenge-symbol{flex-basis:38px;font-size:25px;height:46px}
+  .challenge-hud{left:12px;right:auto;top:163px;width:191px;max-height:27vh;padding:10px}.challenge-hud-heading h3{font-size:11px;margin-bottom:7px}.challenge-hint{font-size:10px;padding:7px 0}.challenge-hud-summary{font-size:9px}.challenge-controls .btn{font-size:9px;padding:7px 8px}
+  .challenge-sequence{gap:3px}.challenge-sequence>span{min-width:22px;padding:3px;font-size:11px}.challenge-sequence i{font-size:8px}
+}
+@media(max-height:540px){.challenge-hud{left:10px;right:auto;top:112px;width:190px;max-height:calc(100vh - 245px);padding:9px}.challenge-hud-heading h3{font-size:11px}.challenge-hint{font-size:10px}}
+/* End adventure expansion styles. */
