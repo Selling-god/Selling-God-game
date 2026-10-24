@@ -357,7 +357,7 @@ export class Renderer {
     const c=this.ctx;
     for(const e of this.damage){
       const a=(t-e.born)/1000;c.globalAlpha=Math.min(1,(1-a)*2);
-      this.label((e.crit?'✦ ':'')+e.amount,e.x+e.offset,e.y-a*38,e.kind==='player'?'#f0aba3':e.crit?'#f4d38e':'#f5f0dd',e.crit?16:12);
+      this.label((e.crit?'✦ ':'')+e.amount,e.x+e.offset,e.y-a*38,e.kind==='player'?'#f0aba3':e.kind==='evade'?'#a7e5ee':e.crit?'#f4d38e':'#f5f0dd',e.crit?16:12);
       c.globalAlpha=1;
     }
   }
