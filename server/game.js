@@ -1,5 +1,5 @@
 import {prepareStories,storyAction,recordStory,storyTracker} from './stories.js';
-import {prepareAtlas,privateAtlas,revealTerrain,interactPoint,atlasAction,trialView,tickFieldTrial,cancelFieldTrial,fieldTrialKill} from './atlas.js';
+import {prepareAtlas,privateAtlas,revealTerrain,interactPoint,atlasAction,trialView,tickFieldTrial,cancelFieldTrial,fieldTrialKill,fieldTrialInteract,fieldTrialDamageAmount} from './atlas.js';
 import {LazyWorldMap} from './lazy-worlds.js';
 import {prepareRPG,rpgAction,onDeath,recoverSoul} from './rpg.js';
 import {bossVisual} from '../shared/visuals.js';
@@ -121,7 +121,7 @@ export class Game {
   }
   stats(p){return getStats(p,this.now);}
   canSeeEntity(p,entity){return this.challenges.allows(p,entity)&&this.dungeons.allows(p,entity);}
-  canDamage(p,m){return this.encounters.canDamage(m)&&this.challenges.canDamage(p,m)&&this.dungeons.canDamage(p,m)&&this.realms.canDamage(p,m);}
+  canDamage(p,m){return this.encounters.canDamage(m)&&this.challenges.canDamage(p,m)&&this.dungeons.canDamage(p,m)&&this.realms.canDamage(p,m)&&!m.trialShield;}
   sameInstance(a,b){return this.challenges.sameInstance(a,b)&&this.dungeons.sameInstance(a,b);}
   mobSpec(m){return m.dungeonRun?this.dungeons.mobSpec(m):this.challenges.mobSpec(m);}
   publicPlayer(p){
@@ -146,7 +146,7 @@ export class Game {
         inputSeq:p.inputSeq||0,motionId:p.motionId||0,speed:this.stats(p).speed,
         speedUntil:p.speedUntil,dashUntil:p.dashUntil,dashVector:p.dashVector||{x:0,y:0},pathing:p.path.length>0},
       players:[...this.players.values()].filter(x=>x.active&&x.id!==p.id&&x.zone===p.zone&&this.sameInstance(p,x)&&dist(x,p)<near+200).map(x=>this.publicPlayer(x)),
-      mobs:w.mobs.filter(m=>m.alive&&this.canSeeEntity(p,m)&&dist(m,p)<near).map(m=>({id:m.id,type:m.type,name:m.name||MONSTERS[m.type].name,dungeonObjective:m.dungeonObjective,level:this.mobSpec(m).level,x:Math.round(m.x*10)/10,y:Math.round(m.y*10)/10,hp:m.hp,maxHp:m.maxHp,dir:m.dir,moving:m.moving,casting:m.castUntil>this.now,slow:m.slowUntil>this.now,phase:Math.max(0,(m.encounterPhase||1)-1),encounterPose:this.encounters.viewMob(m),encounterForm:m.encounterForm,dot:m.dots?.[0]?.kind,challengeShield:!!(m.challengeShield||m.dungeonShield||m.encounterTransition?.ends>this.now),mechanicObjective:m.mechanicObjective})),
+      mobs:w.mobs.filter(m=>m.alive&&this.canSeeEntity(p,m)&&dist(m,p)<near).map(m=>({id:m.id,type:m.type,name:m.name||MONSTERS[m.type].name,dungeonObjective:m.dungeonObjective,level:this.mobSpec(m).level,x:Math.round(m.x*10)/10,y:Math.round(m.y*10)/10,hp:m.hp,maxHp:m.maxHp,dir:m.dir,moving:m.moving,casting:m.castUntil>this.now,slow:m.slowUntil>this.now,phase:Math.max(0,(m.encounterPhase||1)-1),encounterPose:this.encounters.viewMob(m),encounterForm:m.encounterForm,dot:m.dots?.[0]?.kind,challengeShield:!!(m.challengeShield||m.dungeonShield||m.trialShield||m.encounterTransition?.ends>this.now),mechanicObjective:m.mechanicObjective})),
       nodes:w.nodes.filter(n=>dist(n,p)<near).map(n=>({...n,ready:n.readyAt<=this.now})),
       casts:w.casts.filter(c=>this.canSeeEntity(p,c)&&c.ends>this.now&&dist(c,p)<near+350).map(({damage,owner,challengeOwner,challengeRun,...c})=>c),
       bosses:w.mobs.filter(m=>this.canSeeEntity(p,m)&&MONSTERS[m.type].boss).map(m=>({id:m.id,type:m.type,hp:m.hp,maxHp:m.maxHp,alive:m.alive,respawnAt:m.respawnAt})),
@@ -261,7 +261,8 @@ export class Game {
     for(const m of victims){
       const crit=this.random()*100<this.stats(p).crit;
       const rawDamage=Math.max(1,Math.round((this.stats(p).atk*skill.power-this.mobSpec(m).def*.65*(1-(c.passive?.armorPierce||0)))*(0.92+this.random()*.16)*(crit?1.65:1)*bossDamageMultiplier(m)));
-      const damage=m.dungeonRun?this.dungeons.damageAmount(m,rawDamage):this.encounters.damageAmount(m,rawDamage);
+      const baseDamage=m.dungeonRun?this.dungeons.damageAmount(m,rawDamage):this.encounters.damageAmount(m,rawDamage);
+      const damage=fieldTrialDamageAmount(w,m,baseDamage);
       const actual=Math.min(m.hp,damage);
       m.hp=Math.max(0,m.hp-damage);m.contributors.set(p.id,this.now);m.damageLog.set(p.id,(m.damageLog.get(p.id)||0)+actual);m.target=p.id;
       const drain=(c.passive?.lifesteal||0)+(skill.lifesteal||0);
@@ -366,6 +367,7 @@ export class Game {
     const realm=this.realms.action(p,{type:'interact',id});if(realm)return realm;
     const dungeon=this.dungeons.action(p,{type:'interact',id});if(dungeon)return dungeon;
     const challenge=this.challenges.action(p,{type:'interact',id});if(challenge)return challenge;
+    const trial=fieldTrialInteract(this,p,id);if(trial)return trial;
     if(this.now-p.lastInteract<450)return {ok:false,quiet:true};
     const w=this.worlds.get(p.zone);
     let options=[
@@ -545,23 +547,34 @@ export class Game {
     return {ok:false,error:'처리할 수 없는 요청입니다.'};
   }
   vanityAction(p,a){
-    const types=['cosmeticBuy','cosmeticEquip','avatarApply','avatarClear','renameConfirmed'];
+    const types=['cosmeticBuy','cosmeticEquip','studioTicketBuy','avatarApply','avatarClear','renameConfirmed'];
     if(!types.includes(a.type))return null;
     const inTown=p.zone==='town'&&this.now-p.lastCombat>=8000;
+    // Cosmetic-only transactions do not affect combat stats. The workshop shortcut
+    // works anywhere, unlike the physical NPC's normal item trade.
+    if(a.type==='studioTicketBuy'){
+      if(!['portrait_ticket','rename_ticket'].includes(a.id))return {ok:false,error:'공방 이용권만 구매할 수 있습니다.'};
+      const ticket=ITEMS[a.id],amount=p.inventory[a.id]||0;
+      if(amount>=99)return {ok:false,error:'이용권은 최대 99장까지 보관할 수 있습니다.'};
+      if(p.gold<ticket.buy)return {ok:false,error:`골드가 부족합니다. ${ticket.buy-p.gold} G를 더 모아주세요.`};
+      p.gold-=ticket.buy;this.addItem(p,a.id,1);this.mark(p);
+      return {ok:true,message:`${ticket.name}을 구매했습니다.`,gold:p.gold,inventory:{[a.id]:p.inventory[a.id]}};
+    }
     if(a.type==='cosmeticBuy'){
+      if(typeof a.id!=='string'||!Object.hasOwn(COSMETICS,a.id))return {ok:false,error:'존재하지 않는 꾸미기 상품입니다.'};
       const item=COSMETICS[a.id];
-      if(!item)return {ok:false,error:'존재하지 않는 꾸미기 상품입니다.'};
-      if(!inTown)return {ok:false,error:'마을의 안전한 장소에서만 꾸미기 아이템을 구매할 수 있습니다.'};
       if(p.vanity.owned.includes(a.id))return {ok:false,error:'이미 보유한 아이템입니다.'};
-      if(p.gold<item.price)return {ok:false,error:'골드가 부족합니다.'};
-      p.gold-=item.price;p.vanity.owned.push(a.id);this.mark(p);
-      return {ok:true,message:`${item.name}을 구매했습니다. 외형 작업실에서 장착해 보세요.`};
+      if(p.gold<item.price)return {ok:false,error:`골드가 부족합니다. ${item.price-p.gold} G를 더 모아주세요.`};
+      p.gold-=item.price;p.vanity.owned.push(a.id);
+      // Successful purchases immediately show up on the player and in remote snapshots.
+      p.vanity.slots[item.slot]=a.id;this.mark(p);
+      return {ok:true,message:`${item.name} ${item.price?'구매':'무료 수령'} · 즉시 장착 완료!`,gold:p.gold,owned:item.id,slot:item.slot};
     }
     if(a.type==='cosmeticEquip'){
       if(!COSMETIC_SLOTS.includes(a.slot))return {ok:false,error:'잘못된 장착 부위입니다.'};
-      if(a.id!==null&&a.id!==''&&(!COSMETICS[a.id]||COSMETICS[a.id].slot!==a.slot||!p.vanity.owned.includes(a.id)))
+      if(a.id!==null&&a.id!==''&&(!Object.hasOwn(COSMETICS,a.id)||COSMETICS[a.id].slot!==a.slot||!p.vanity.owned.includes(a.id)))
         return {ok:false,error:'해당 부위에 소유한 꾸미기 아이템만 장착할 수 있습니다.'};
-      p.vanity.slots[a.slot]=a.id||null;this.mark(p);return {ok:true,message:'외형을 변경했습니다.'};
+      p.vanity.slots[a.slot]=a.id||null;this.mark(p);return {ok:true,message:'외형을 변경했습니다.',slot:a.slot,equipped:a.id||null};
     }
     if(a.type==='avatarApply'){
       if(!inTown)return {ok:false,error:'마을에서 전투를 마친 뒤 이미지 외형을 변경하세요.'};
@@ -676,7 +689,7 @@ export class Game {
           if(effect.left<=0||effect.next>now)continue;
           const owner=this.players.get(effect.by);effect.left--;effect.next=now+1000;
           if(!owner?.active||owner.zone!==zone||owner.hp<=0||!this.canSeeEntity(owner,m)||!this.canDamage(owner,m))continue;
-          const dealt=Math.min(m.hp,this.encounters.damageAmount(m,Math.max(1,Math.round(effect.damage*bossDamageMultiplier(m)))));m.hp-=dealt;m.contributors.set(owner.id,now);m.damageLog.set(owner.id,(m.damageLog.get(owner.id)||0)+dealt);
+          const dealt=Math.min(m.hp,fieldTrialDamageAmount(w,m,this.encounters.damageAmount(m,Math.max(1,Math.round(effect.damage*bossDamageMultiplier(m))))));m.hp-=dealt;m.contributors.set(owner.id,now);m.damageLog.set(owner.id,(m.damageLog.get(owner.id)||0)+dealt);
           this.fx(zone,{type:'hit',id:m.id,x:m.x,y:m.y-22,amount:dealt,kind:'monster',by:owner.id});
           if(m.hp<=0){this.killMob(zone,m);break;}
         }

@@ -182,7 +182,7 @@ io.on('connection',async(socket)=>{
       p.actions.set(data.nonce,result);
       while(p.actions.size>256)p.actions.delete(p.actions.keys().next().value);
       ack(result);
-      if(result.ok&&['buy','sell','craft','enhance','quest','equip','title','rename','cosmeticBuy','cosmeticEquip','avatarApply','avatarClear','changeJob','dailyClaim','achievement','interact','allocateStats','resetStats','recoverSoul','storyAccept','storyClaim','storyPause','storyResume','storyTrack','contractAccept','contractClaim','surveyClaim','waypoint'].includes(data.type))scheduleSave(p);
+      if(result.ok&&['buy','sell','craft','enhance','quest','equip','title','rename','cosmeticBuy','cosmeticEquip','studioTicketBuy','avatarApply','avatarClear','changeJob','dailyClaim','achievement','interact','allocateStats','resetStats','recoverSoul','storyAccept','storyClaim','storyPause','storyResume','storyTrack','contractAccept','contractClaim','surveyClaim','waypoint'].includes(data.type))scheduleSave(p);
     }catch(e){console.error('Action error:',e);ack({ok:false,error:'요청을 처리하지 못했습니다.'});}
     finally{if(reservedName)renamePending.delete(reservedName);}
   });
