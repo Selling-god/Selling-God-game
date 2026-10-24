@@ -9,6 +9,8 @@ import { CLASSES, ITEMS, RARITIES, MONSTERS, QUESTS, ZONES, NPCS, RECIPES, SHOP,
 import { dist, clamp } from '../shared/world.js';
 import { KEY_ACTIONS, createKeybindings, formatKey } from './keybindings.js';
 import { challengesPanel, challengeHUD } from './challenges-ui.js';
+import { dungeonsPanel, dungeonHUD } from './dungeons-ui.js';
+import { realmsPanel, realmHUD } from './realms-ui.js';
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -105,7 +107,7 @@ function resetControls(){
 function profileChanged(p){
   const previousClass=profile?.classId;
   profile=p;renderer.profile=p;
-  const sig=JSON.stringify([p.inventory,p.equipment,p.enhancements,p.quests,p.completed,p.level,p.gold,p.titles,p.classId,p.discovery,p.journey,p.atlas,p.storyTracker,p.daily,p.challenges,p.attributes,p.enhancePity,p.deathWeakUntil,p.soul]);
+  const sig=JSON.stringify([p.inventory,p.equipment,p.enhancements,p.quests,p.completed,p.level,p.gold,p.titles,p.classId,p.discovery,p.journey,p.atlas,p.storyTracker,p.daily,p.challenges,p.dungeons,p.realms,p.attributes,p.enhancePity,p.deathWeakUntil,p.soul]);
   if(previousClass&&previousClass!==p.classId)renderAbilities();
   const portraitKey=JSON.stringify([p.equipment,p.enhancements]);
   if(portraitKey!==lastPortraitKey){lastPortraitKey=portraitKey;$('portrait').src=renderer.avatarURL(p);}
@@ -165,6 +167,7 @@ async function connectGame(){
       const changed=state?.zone&&state.zone!==s.zone;
       if(s.events)eventList=s.events;
       state=s;if(s.profile)profileChanged(s.profile);
+      if(modal==='dungeons'||modal==='realms')uiRefreshNeeded=true;
       renderer.setState(s);if(changed)zoneToast(s.zone);
       if(changed){pendingInteract=null;closeModal();resetControls();}
     });
@@ -190,6 +193,12 @@ async function connectGame(){
       else openPanel('story',data);
     });
     net.on('atlasScene',data=>openPanel('atlasScene',data));
+    net.on('dungeonInfo',data=>openPanel('dungeons',data));
+    net.on('dungeonResult',()=>{uiRefreshNeeded=true;sound.play('level');});
+    net.on('realmScene',data=>{
+      if(data.refreshOnly){if(modal==='realms'){window._modalData=data;uiRefreshNeeded=true;}return;}
+      openPanel('realms',data);
+    });
     net.on('worldNotice',data=>{addChat({channel:'system',text:data.message});notice(data.message,'info',8500);});
     net.on('dialog',e=>{const npc=NPCS.find(n=>n.id===e.npc);if(npc)openPanel(npc.kind==='quest'?'npcQuest':npc.kind==='shop'?'shop':npc.kind==='craft'?'craft':npc.kind==='jobs'?'jobs':'healer');});
     net.on('chat',msg=>{if(!mutedPlayers.has(msg.playerId))addChat(msg);});
@@ -259,7 +268,7 @@ function renderAbilities(){
 }
 $('abilities').addEventListener('click',e=>{const b=e.target.closest('[data-skill]');if(b)cast(b.dataset.skill);});
 function cast(id){
-  if(modal||!profile||!net?.connected)return;
+  if(modal||!profile||!net?.connected||state?.dungeon?.inputBlocked)return;
   if(id==='dash'){if((state?.self.cooldowns.dash||0)<=Date.now()+renderer.clock)renderer.predictDash();action({type:'dash'}).then(r=>{if(!r.ok)renderer.motion.dashEnd=0;});}
   else if(['potion','mana'].includes(id))action({type:'use',id});
   else action({type:'attack',skill:id});
@@ -326,10 +335,8 @@ function refreshPanel(){
   const scroll=$('modal-content').scrollTop;
   renderPanel();$('modal-content').scrollTop=scroll;
 }
-const gearStats=i=>[
-  i.atk?`공격력 +${i.atk}`:'',i.def?`방어력 +${i.def}`:'',
-  i.hp?`체력 +${i.hp}`:'',i.mp?`마나 +${i.mp}`:'',i.crit?`치명타 +${i.crit}%`:''
-].filter(Boolean).join(' · ');
+const gearStats=i=>[['atk','공격력'],['def','방어력'],['hp','체력'],['mp','마나'],['crit','치명타']]
+  .filter(([key])=>i[key]).map(([key,label])=>`${label} ${i[key]>0?'+':''}${i[key]}${key==='crit'?'%':''}`).join(' · ');
 const npcIntro=id=>{const n=NPCS.find(x=>x.id===id);return `<div class="npc-intro"><img src="/assets/${n.sprite}_s_0.png" alt="${esc(n.name)}"><p>“${esc(n.dialog)}”</p></div>`;};
 function recipeRows(){
   return RECIPES.map(r=>{
@@ -362,7 +369,9 @@ function renderPanel(){
   const rpg=profile&&rpgPanel(modal,{profile,draft:statDraft,data,now:Date.now()+renderer.clock});
   const keyLabel=id=>keybindings.label(id);
   const adventure=profile&&adventurePanel(modal,{profile,tab:modalTab,data,state,now:Date.now()+renderer.clock,keyLabel});
-  const extra=(profile&&modal==='challenges'&&challengesPanel({profile,state,now:Date.now()+renderer.clock,keyLabel}))||adventure||rpg||(profile&&expansionPanel(modal,{profile,tab:modalTab,book:jobBookData,events:eventList,now:Date.now()+renderer.clock,data,keyLabel}));
+  const extra=(profile&&modal==='dungeons'&&dungeonsPanel({profile,state,now:Date.now()+renderer.clock,keyLabel}))
+    ||(profile&&modal==='realms'&&realmsPanel({profile,state,now:Date.now()+renderer.clock,keyLabel,tab:modalTab,data}))
+    ||(profile&&modal==='challenges'&&challengesPanel({profile,state,now:Date.now()+renderer.clock,keyLabel}))||adventure||rpg||(profile&&expansionPanel(modal,{profile,tab:modalTab,book:jobBookData,events:eventList,now:Date.now()+renderer.clock,data,keyLabel}));
   if(extra){({title,eyebrow,html}=extra);}
   else if(modal==='inventory'){
     title='가방과 장비';eyebrow=`EQUIPMENT & INVENTORY · ${money(p.gold)} G`;
@@ -416,6 +425,7 @@ function renderPanel(){
       queueMicrotask(loadRanks);
     }else{
       html+=`<div class="info-box">최대 4명이 파티를 맺을 수 있습니다. 같은 지역에서 가까이 있는 파티원은 처치 기록과 보상을 공유합니다. 보스는 파티가 아니어도 직접 전투에 기여하면 보상을 받습니다. 파티는 서버 재시작 시 해제됩니다.</div>`;
+      html+='<div class="dungeon-entry"><div><b>함께 풀어야 열리는 세 개의 던전</b><p>2~4인 협동 · 역할 배정 · 실패 후 재도전 · 고유 보상</p></div><button class="btn small primary" data-act="openDungeons">파티 던전</button></div>';
       if(party){
         html+=`<h3>우리 파티 · ${party.members.length}/4</h3>`+party.members.map(m=>`<div class="member-row"><img src="${imgHero(m.classId)}" alt=""><div class="grow"><b>${esc(m.name)} ${party.leader===m.id?'♔':''}</b><small>Lv.${m.level} ${CLASSES[m.classId].name} · ${ZONES[m.zone].name} ${m.online?'':'· 접속 종료'}</small></div><span class="badge">${m.hp}/${m.maxHp}</span></div>`).join('')+`<button class="btn small" data-act="partyLeave">파티 나가기</button><h3 style="margin-top:24px">주변 모험가</h3>`;
       }else html+='<h3>주변 모험가</h3>';
@@ -468,7 +478,16 @@ function renderPanel(){
     title='게임 서버 연결이 필요합니다';eyebrow='DEPLOYMENT CHECK';
     html='<div class="info-box">이 페이지는 열렸지만 온라인 계정 저장소가 연결되지 않았습니다. Render 환경변수에 SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY를 설정하고 Supabase SQL Editor에서 supabase/setup.sql을 실행해 주세요.<br><br>서비스는 Static Site가 아닌 <b>Node Web Service</b>로 배포해야 합니다. 자세한 안내는 ZIP의 README_KO.md에 있습니다.</div>';
   }
-  $('modal-title').textContent=title;$('modal-eyebrow').textContent=eyebrow;$('modal-content').innerHTML=html;
+  $('modal-title').textContent=title;$('modal-eyebrow').textContent=eyebrow;
+  if(modal==='dungeons'||modal==='realms'){
+    const signature=modal+':'+html;
+    if(lastModalSignature===signature)return;
+    const focused=$('modal-content').contains(document.activeElement)?{...document.activeElement.dataset}:null;
+    const expanded=[...$('modal-content').querySelectorAll('details')].map(d=>d.open);
+    $('modal-content').innerHTML=html;lastModalSignature=signature;
+    $('modal-content').querySelectorAll('details').forEach((d,i)=>{if(expanded[i]!==undefined)d.open=expanded[i];});
+    if(focused?.act)[...$('modal-content').querySelectorAll('[data-act]')].find(b=>b.dataset.act===focused.act&&b.dataset.id===focused.id)?.focus({preventScroll:true});
+  }else{$('modal-content').innerHTML=html;lastModalSignature='';}
   if(modal==='map')requestAnimationFrame(()=>{$('large-map')&&renderer.minimap($('large-map'),true);});
   attachForms();
 }
@@ -543,7 +562,27 @@ document.addEventListener('click',async e=>{
   if(type==='openJobs'){openPanel('jobs');return;}
   if(type==='openStories'){openPanel('stories');return;}
   if(type==='openAtlas'){openPanel('map');return;}
+  if(type==='openParty'){openPanel('party');return;}
   if(type==='openChallenges'){openPanel('challenges');return;}
+  if(type==='openDungeons'){openPanel('dungeons');return;}
+  if(type==='openRealms'){openPanel('realms',{id});return;}
+  if(['dungeonLobby','dungeonReady','dungeonStart','dungeonRetry','dungeonExit','dungeonInteract','dungeonCancel','dungeonExchange'].includes(type)){
+    b.disabled=true;
+    const payload={type,id};
+    if(b.dataset.lobbyId)payload.lobbyId=b.dataset.lobbyId;
+    if(b.dataset.runId)payload.runId=b.dataset.runId;
+    if(type==='dungeonReady'||type==='dungeonRetry')payload.ready=b.dataset.ready!=='false';
+    const result=await action(payload);
+    if(b.isConnected)b.disabled=false;
+    if(result.ok&&['dungeonStart','dungeonExit','dungeonRetry'].includes(type))closeModal();
+    uiRefreshNeeded=true;return;
+  }
+  if(['realmBook','realmEnter','realmDevice','realmClaim','realmTune','realmExit'].includes(type)){
+    b.disabled=true;const result=await action({type,id,...(type==='realmTune'?{stable:b.dataset.stable==='true'}:{})});
+    if(b.isConnected)b.disabled=false;
+    if(result.ok&&['realmEnter','realmExit'].includes(type))closeModal();
+    uiRefreshNeeded=true;return;
+  }
   if(type==='challengeStart'){
     b.disabled=true;
     const result=await action({type,id,tier:Number(b.dataset.tier||0),checkpoint:['true','1'].includes(b.dataset.checkpoint)});
@@ -626,7 +665,7 @@ async function confirmDialog(title,text){
   });
 }
 function inputDirection(){
-  if(modal||editable()||document.hidden||!net?.connected||!inGame)return {x:0,y:0};
+  if(modal||editable()||document.hidden||!net?.connected||!inGame||state?.dungeon?.inputBlocked)return {x:0,y:0};
   if(Math.hypot(joystick.x,joystick.y)>.05)return joystick;
   const x=(keybindings.isHeld('moveRight',keys)?1:0)-(keybindings.isHeld('moveLeft',keys)?1:0);
   const y=(keybindings.isHeld('moveDown',keys)?1:0)-(keybindings.isHeld('moveUp',keys)?1:0);
@@ -713,12 +752,12 @@ $('touch-potion').addEventListener('click',()=>cast('potion'));
 $('touch-mana').addEventListener('click',()=>cast('mana'));
 $('world').addEventListener('contextmenu',e=>e.preventDefault());
 $('world').addEventListener('pointerdown',e=>{
-  if(!inGame||modal||!state||!net?.connected)return;
+  if(!inGame||modal||!state||!net?.connected||state.dungeon?.inputBlocked)return;
   if(e.button===2){cast('skill1');return;}
   const point=renderer.screenToWorld(e.clientX,e.clientY);
   const mobs=state.mobs.filter(m=>dist(m,point)<(MONSTERS[m.type].boss?60:34)).sort((a,b)=>dist(a,point)-dist(b,point));
   if(mobs.length){action({type:'target',id:mobs[0].id});cast('basic');return;}
-  const interactables=[...(state.challenge?.markers||[]).filter(m=>['rune','seal','crystal'].includes(m.kind)),...(state.soul?[state.soul]:[]),...renderer.map.npcs,...renderer.map.portals,...(renderer.map.relics||[]),...(renderer.map.storyPoints||[]),...state.nodes.filter(x=>x.ready),...renderer.map.chests.filter(x=>!profile.opened.includes(x.id))];
+  const interactables=[...(state.challenge?.markers||[]).filter(m=>['rune','seal','crystal'].includes(m.kind)),...(state.dungeon?.markers||[]).filter(m=>['pillar','rune','conduit','revive'].includes(m.kind)),...(state.soul?[state.soul]:[]),...renderer.map.npcs,...renderer.map.portals,...(renderer.map.relics||[]),...(renderer.map.storyPoints||[]),...state.nodes.filter(x=>x.ready),...renderer.map.chests.filter(x=>!profile.opened.includes(x.id))];
   const target=interactables.filter(x=>dist(point,x)<40).sort((a,b)=>dist(a,point)-dist(b,point))[0];
   if(target&&dist(state.self,target)<95){action({type:'interact',id:target.id});return;}
   if(target)pendingInteract={...target};
@@ -735,7 +774,7 @@ renderer.onFrame=(dt,t)=>{
   if(t-lastInputAt>50||Math.abs(v.x-lastSentInput.x)+Math.abs(v.y-lastSentInput.y)>.01){
     lastInputAt=t;sendInput(v);
   }
-  const attacking=(keybindings.isHeld('basic',keys)||attackHeld||autoAttack)&&!modal&&!editable()&&!document.hidden&&net?.connected&&state.self.hp>0;
+  const attacking=(keybindings.isHeld('basic',keys)||attackHeld||autoAttack)&&!modal&&!editable()&&!document.hidden&&net?.connected&&state.self.hp>0&&!state.dungeon?.inputBlocked;
   if(attacking&&t-lastAttackAt>180&&(state.self.cooldowns.basic||0)<Date.now()+renderer.clock+20){lastAttackAt=t;action({type:'attack',skill:'basic'},{silent:true});}
   if(pendingInteract&&dist(state.self,pendingInteract)<88&&t-lastInteractAt>900){
     lastInteractAt=t;const target=pendingInteract;pendingInteract=null;action({type:'interact',id:target.id});
@@ -760,13 +799,24 @@ function updateHUD(){
       if(focused)$('challenge-hud').querySelector(`[data-act="${focused}"]`)?.focus({preventScroll:true});
     }
   }
+  $('game-ui').classList.toggle('dungeon-active',!!state.dungeon);
+  $('game-ui').classList.toggle('realm-active',!!state.realm);
+  for(const [id,view,render] of [['dungeon-hud',state.dungeon,dungeonHUD],['realm-hud',state.realm,realmHUD]]){
+    const element=$(id);if(!element)continue;
+    show(id,!!view);const html=view?render(view,now,{keyLabel:id=>keybindings.label(id)}):'';
+    if(element.innerHTML!==html){
+      const focused=element.contains(document.activeElement)?{...document.activeElement.dataset}:null;
+      element.innerHTML=html;
+      if(focused?.act)[...element.querySelectorAll('[data-act]')].find(b=>b.dataset.act===focused.act&&b.dataset.id===focused.id)?.focus({preventScroll:true});
+    }
+  }
   setText('player-name',p.name);setText('player-class',c.short);setText('player-level',p.level);
   $('hp-fill').style.width=clamp(s.hp/s.maxHp*100,0,100)+'%';$('mp-fill').style.width=clamp(s.mp/s.maxMp*100,0,100)+'%';
   setText('hp-text',`${Math.max(0,s.hp)} / ${s.maxHp}`);setText('mp-text',`${Math.max(0,s.mp)} / ${s.maxMp}`);
   $('xp-fill').style.width=clamp(p.xp/xpRequired(p.level)*100,0,100)+'%';
   $('gold').lastChild?.nodeType===3?$('gold').lastChild.textContent=' '+money(p.gold):$('gold').innerHTML=icon('coin')+' '+money(p.gold);
   setText('zone-name',z.name);setText('zone-subtitle',z.subtitle);
-  setText('zone-hint',state.challenge?'PERSONAL CHALLENGE · 나의 기록에 도전':state.zone==='town'?'SAFE HAVEN · 안전 지대':`SHARED WORLD · 권장 레벨 ${z.minLevel}+`);
+  setText('zone-hint',z.dungeon?'PARTY DUNGEON · 함께 풀어내는 계약':z.secretRealm?'HIDDEN REALM · 경계 너머의 흔적':state.challenge?'PERSONAL CHALLENGE · 나의 기록에 도전':state.zone==='town'?'SAFE HAVEN · 안전 지대':`SHARED WORLD · 권장 레벨 ${z.minLevel}+`);
   setText('stat-points',freePoints(p)>0?`능력치 +${freePoints(p)}`:'능력치');
   if($('stat-alert'))$('stat-alert').classList.toggle('has-points',freePoints(p)>0);
   if($('soul-status')){
@@ -776,7 +826,7 @@ function updateHUD(){
   setText('online-count',`${config.devGuest?'개발':'온라인'} ${state.online} · 지역 ${state.zoneOnline}`);
   for(const b of $('abilities').children){
     const id=b.dataset.skill,skill=c.skills.find(k=>k.id===id),remaining=Math.max(0,(s.cooldowns[id]||0)-now),cooldown=skill?.cd||(['potion','mana'].includes(id)?5000:4000),locked=skill&&p.level<skill.unlock;
-    b.disabled=locked;
+    b.disabled=locked||!!state.dungeon?.inputBlocked;
     b.querySelector('.cd-shade').style.height=locked?'100%':clamp(remaining/cooldown*100,0,100)+'%';
     b.querySelector('.cd-number').textContent=locked?'Lv.'+skill.unlock:remaining>0?(remaining/1000).toFixed(remaining<1000?1:0):'';
     b.querySelector('.count').textContent=['potion','mana'].includes(id)?p.inventory[id]||0:'';
@@ -786,15 +836,16 @@ function updateHUD(){
   if(!boss)boss=state.mobs.find(m=>MONSTERS[m.type].boss&&dist(m,s)<460);
   show('boss-hud',!!boss);
   if(boss){
-    setText('boss-name',MONSTERS[boss.type].name);setText('boss-hp',`${Math.round(boss.hp)} / ${Math.round(boss.maxHp)}`);$('boss-fill').style.width=boss.hp/boss.maxHp*100+'%';
+    setText('boss-name',boss.name||MONSTERS[boss.type].name);setText('boss-hp',`${Math.round(boss.hp)} / ${Math.round(boss.maxHp)}`);$('boss-fill').style.width=boss.hp/boss.maxHp*100+'%';
     const mechanic=state.bossMechanics?.find(m=>m.bossId===boss.id&&m.active);
-    setText('boss-tactic',mechanic?`${mechanic.title} · ${mechanic.instruction}`:boss.challengeShield?'보호막 · 목표를 해결해 봉인을 해제하세요':'바닥의 경고를 피하고, 틈을 노리세요');
+    setText('boss-tactic',state.dungeon?.hint|| (mechanic?`${mechanic.title} · ${mechanic.instruction}`:boss.challengeShield?'보호막 · 목표를 해결해 봉인을 해제하세요':'바닥의 경고를 피하고, 틈을 노리세요'));
   }
   const target=state.mobs.find(m=>m.id===s.target);
   show('target-info',!!target&&!MONSTERS[target.type].boss);
-  if(target)setText('target-info',`${target.mechanicObjective?'빙결 핵':MONSTERS[target.type].name} · Lv.${target.level||MONSTERS[target.type].level} · ${Math.round(target.hp)} HP`);
+  if(target)setText('target-info',`${target.mechanicObjective?'빙결 핵':target.name||MONSTERS[target.type].name} · Lv.${target.level||MONSTERS[target.type].level} · ${Math.round(target.hp)} HP`);
   const interactables=[
     ...(state.challenge?.markers||[]).filter(m=>['rune','seal','crystal'].includes(m.kind)).map(m=>({...m,label:m.label+' · '+keybindings.primaryLabel('interact')+' 작동'})),
+    ...(state.dungeon?.markers||[]).filter(m=>['pillar','rune','conduit','revive'].includes(m.kind)).map(m=>({...m,label:m.label+' · '+keybindings.primaryLabel('interact')+' 작동'})),
     ...(state.soul?[{...state.soul,label:'내 영혼 흔적 · 손실 회수'}]:[]),
     ...renderer.map.npcs.map(x=>({...x,label:x.name+' · '+x.role})),
     ...renderer.map.portals.map(x=>({...x,label:x.name+' 이동'})),

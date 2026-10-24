@@ -2,6 +2,8 @@ import {CLASSES,ZONES,MONSTERS} from '../shared/content.js';
 import {JOB_TIERS,DAILY_TASKS,ACHIEVEMENTS,RELICS} from '../shared/expansion.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const stamp=t=>new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(t));
+const dungeonEntry='<div class="dungeon-entry"><div><b>동료와 풀어내는 세 가지 보스의 계약</b><p>2~4인 협동 던전 · 역할과 순서를 기억하고, 실패를 다음 공략의 단서로</p></div><button class="btn small primary" data-act="openDungeons">파티 던전</button></div>';
+const realmEntry='<div class="realm-entry"><div><b>지도에 드러나지 않는 경계 너머</b><p>천국 · 지옥 · 반전 세계의 입구를 찾고, 직업의 흔적과 고유 무기를 발견하세요.</p></div><button class="btn small primary" data-act="openRealms">경계의 수첩</button></div>';
 export function timeLeft(ms){const sec=Math.max(0,Math.ceil(ms/1000));return `${Math.floor(sec/60)}분 ${String(sec%60).padStart(2,'0')}초`;}
 export function expansionPanel(name,{profile:p,tab,book,events=[],now=Date.now(),data,keyLabel=(_id,fallback='미지정')=>fallback}){
  if(name==='jobs'){
@@ -9,7 +11,7 @@ export function expansionPanel(name,{profile:p,tab,book,events=[],now=Date.now()
   const list=(book||[]).filter(j=>selected==='all'||selected==='owned'&&j.owned||selected===j.tier);
   const html=`<div class="exp-intro"><img src="/assets/${esc(p.classId)}_s_0.png" alt=""><div><span class="eyebrow">YOUR PATH IS YOURS</span><h3>${esc(CLASSES[p.classId].name)}</h3><p>36개의 길 · 발견 ${p.discovery.jobs.filter(id=>id!=='novice').length}/36 · 전직은 마을에서 무료<br>현재 직업 숙련 ${p.discovery.mastery[p.classId]||0} · 사냥·채집·의뢰로 축적</p></div></div>
    <div class="info-box">모든 직업에는 스승과 전직 이야기가 있습니다. 일반 4장·희귀 6장·영웅 8장·히든 10장을 마치면 열립니다. 히든 직업은 새 원정 지역의 문장을 순서대로 읽어야 이름이 드러납니다. 전직해도 레벨과 장비, 각 직업 숙련은 유지됩니다. <button class="btn small" data-act="changeJob" data-id="novice" ${p.classId==='novice'?'disabled':''}>무직으로 돌아가기</button></div>
-   <div class="tabs exp-tabs">${[['common','일반 9'],['rare','희귀 12'],['epic','영웅 9'],['hidden','히든 6'],['owned','해금한 직업'],['all','전체']].map(([id,label])=>`<button class="tab ${selected===id?'active':''}" data-act="tab" data-id="${id}">${label}</button>`).join('')}</div>
+   ${selected==='hidden'?realmEntry:''}<div class="tabs exp-tabs">${[['common','일반 9'],['rare','희귀 12'],['epic','영웅 9'],['hidden','히든 6'],['owned','해금한 직업'],['all','전체']].map(([id,label])=>`<button class="tab ${selected===id?'active':''}" data-act="tab" data-id="${id}">${label}</button>`).join('')}</div>
    ${!book?'<p>길의 기록을 읽는 중…</p>':!list.length?'<div class="info-box">아직 이 분류의 직업을 얻지 못했습니다. 일반 직업부터 확인해 보세요.</div>':''}
    <div class="job-grid">${list.map(j=>{
     const c=CLASSES[j.id],tier=JOB_TIERS[j.tier],current=p.classId===j.id;
@@ -26,6 +28,7 @@ export function expansionPanel(name,{profile:p,tab,book,events=[],now=Date.now()
  if(name==='events'){
   return {title:'정시 월드 보스',eyebrow:'WORLD BOSSES · KOREA STANDARD TIME',html:`
    <div class="challenge-entry"><div><b>출현을 기다리는 동안, 나만의 기록에 도전하세요</b><p>30층 탑 · 룬 퍼즐 · 생존전 · 보스 연전 · 수정 수호전</p></div><button class="btn small primary" data-act="openChallenges">도전의 전당</button></div>
+   ${dungeonEntry}
    <div class="info-box">한국 시간 매시 <b>00 · 15 · 30 · 45분</b>에 서로 다른 보스가 나타나며, 최대 10분 동안 머뭅니다. 참여 후 직접 공격하거나 전투 중인 파티원을 치유하세요. 같은 회차 보상은 계정당 한 번입니다. 서버가 잠들었다가 출현 시간 안에 깨어나면 남은 시간만 열립니다.</div>
    <div class="event-grid">${events.map(e=>{
     const active=e.status==='active',status={active:'전투 진행 중',defeated:'처치 완료',expired:'종료',preparing:'소환 준비 중',unavailable:'저장소 설정 필요',upcoming:'다음 출현'}[e.status]||'대기';
@@ -36,9 +39,9 @@ export function expansionPanel(name,{profile:p,tab,book,events=[],now=Date.now()
    }).join('')}</div>`};
  }
  if(name==='chronicle'){
-  let html=`<div class="challenge-entry"><div><span class="eyebrow">FIVE NEW CHALLENGES</span><h3>도전의 전당</h3><p>탑을 오르고, 기억을 시험하고, 밀려오는 적을 막으세요.<br>다섯 가지 도전 · 최고 기록 · 첫 클리어 보상 · 증표 교환</p></div><button class="btn primary" data-act="openChallenges">도전 선택하기</button></div><div class="tabs exp-tabs">${[['all','일일 의뢰'],['exploration','유물과 단서'],['bestiary','몬스터 도감'],['achievements','업적']].map(([id,label])=>`<button class="tab ${tab===id?'active':''}" data-act="tab" data-id="${id}">${label}</button>`).join('')}</div>`;
+  let html=`<div class="challenge-entry"><div><span class="eyebrow">FIVE NEW CHALLENGES</span><h3>도전의 전당</h3><p>탑을 오르고, 기억을 시험하고, 밀려오는 적을 막으세요.<br>다섯 가지 도전 · 최고 기록 · 첫 클리어 보상 · 증표 교환</p></div><button class="btn primary" data-act="openChallenges">도전 선택하기</button></div>${dungeonEntry}${realmEntry}<div class="tabs exp-tabs">${[['all','일일 의뢰'],['exploration','유물과 단서'],['bestiary','몬스터 도감'],['achievements','업적']].map(([id,label])=>`<button class="tab ${tab===id?'active':''}" data-act="tab" data-id="${id}">${label}</button>`).join('')}</div>`;
   if(tab==='exploration'){
-   html+=`<div class="info-box">지역 ${p.discovery.visited.filter(id=>ZONES[id]&&!ZONES[id].challenge).length}/${Object.values(ZONES).filter(z=>!z.challenge).length} · 유물 ${p.discovery.relics.length}/20 · 일부 문장은 순서대로 읽어야 이어집니다. 이미 읽은 유물에도 ${esc(keyLabel('interact','F'))}로 다시 말을 걸 수 있습니다.</div>`;
+   html+=`<div class="info-box">일반 지역 ${p.discovery.visited.filter(id=>ZONES[id]&&!ZONES[id].challenge&&!ZONES[id].dungeon&&!ZONES[id].secretRealm).length}/${Object.values(ZONES).filter(z=>!z.challenge&&!z.dungeon&&!z.secretRealm).length} · 유물 ${p.discovery.relics.length}/20 · 일부 문장은 순서대로 읽어야 이어집니다. 이미 읽은 유물에도 ${esc(keyLabel('interact','F'))}로 다시 말을 걸 수 있습니다.</div>`;
    html+=`<div class="card-list">${RELICS.map(r=>{
     const known=p.discovery.relics.includes(r.id),visited=p.discovery.visited.includes(r.zone);
     return `<article class="card relic-card"><div class="card-head"><h3>${known?esc(r.name):visited?'해독하지 않은 유물':'알 수 없는 기록'}</h3><span class="badge ${known?'good':''}">${known?'발견':'미발견'}</span></div><p>${visited?esc(ZONES[r.zone].name):'아직 방문하지 않은 땅'}${known?' · '+esc(r.text):''}</p></article>`;

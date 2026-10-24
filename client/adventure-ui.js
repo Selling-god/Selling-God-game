@@ -1,11 +1,14 @@
 import {CLASSES,ZONES,ITEMS,MONSTERS} from '../shared/content.js';
-import {PROVINCES,EXPEDITION_ZONES,atlasTotals} from '../shared/expeditions.js';
+import {PROVINCES,EXPEDITION_ZONES,atlasTotals,expeditionRewards} from '../shared/expeditions.js';
 import {timeLeft} from './expansion-ui.js';
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const tiers={common:'일반',rare:'희귀',epic:'영웅',hidden:'히든'};
 const btn=(label,act,id='',extra='')=>`<button class="btn small" data-act="${act}" data-id="${esc(id)}" ${extra}>${label}</button>`;
 const progress=(value,goal)=>`<div class="story-meter"><i style="width:${Math.min(100,value/Math.max(1,goal)*100)}%"></i></div>`;
+const rewardText=r=>[r.gold&&`${r.gold.toLocaleString('ko-KR')} G`,r.xp&&`${r.xp.toLocaleString('ko-KR')} EXP`,
+ r.seals&&`길손의 증표 ${r.seals}개`,r.material&&`${esc(ITEMS[r.material]?.name)} ${r.materials}개`].filter(Boolean).join(' · ');
+const provinceRange=r=>`Lv.${r.level}~${r.maxLevel??Math.min(30,r.level+3)}`;
 export function storyTrackHTML(p){
  const s=p.storyTracker;if(!s)return '';
  return `<div class="quest-track story-track"><h4>◆ ${esc(s.name)} · ${s.chapter}/${s.total}장 ${s.active?'':'[잠시 멈춤]'}</h4><div class="small">${esc(s.title)}</div>
@@ -65,23 +68,25 @@ export function adventurePanel(name,{profile:p,tab,data,state,now=Date.now(),key
    ${done.length?`<h3>맺은 서약 ${done.length}/36</h3><div class="story-journal-grid">${done.map(id=>`<article class="card"><span class="badge good">완료</span><h3>${esc(CLASSES[id].name)}</h3>${btn('서약 다시 읽기','storyView',id)}</article>`).join('')}</div>`:''}`};
  }
  if(name==='map'){
-  const totals=atlasTotals(ZONES),r=PROVINCES.find(r=>r.id===tab),current=ZONES[p.zone],chosen=r||PROVINCES.find(r=>r.id===current.province)||null;
-  const high=tab==='endgame',showCore=tab==='core'||high||!chosen;
-  const list=showCore?Object.values(ZONES).filter(z=>!z.expedition&&!z.challenge&&(high?z.endgame:!z.endgame)):EXPEDITION_ZONES.filter(z=>z.province===chosen.id);
+  const totals=atlasTotals(ZONES),current=ZONES[p.zone],chosen=PROVINCES.find(r=>r.id===tab)||null,showCore=!chosen;
+  const list=showCore?Object.values(ZONES).filter(z=>!z.expedition&&!z.challenge&&!z.dungeon&&!z.secretRealm)
+   .sort((a,b)=>a.minLevel-b.minLevel||Number(b.id==='town')-Number(a.id==='town')||a.name.localeCompare(b.name,'ko')):
+   EXPEDITION_ZONES.filter(z=>z.province===chosen.id);
   const region=p.atlas?.provinces?.[chosen?.id]||{camps:0,pages:0,rep:0};
-  return {title:'아득한 길의 대륙 지도',eyebrow:`${totals.regions} REGIONS · ${p.discovery.visited.filter(id=>ZONES[id]&&!ZONES[id].challenge).length} DISCOVERED`,html:`
-   <div class="atlas-overview"><div><span class="eyebrow">THE UNWRITTEN ATLAS</span><h3>${high?'천문대 너머, 새벽의 끝까지':showCore?'별여울에서 시작된 길':esc(chosen.name)}</h3><p>${high?'Lv.35부터 Lv.180까지 여덟 관문이 열립니다. 천문대에서 태양흔 고원으로 이어지는 길을 찾으세요.':showCore?'중심 지역에서 각 권역의 원정 관문을 찾아보세요.':esc(chosen.motto)}</p><p class="small">${totals.regions}지역 · 원정 72구역 · 고레벨 필드 8곳 · 야영지 ${p.atlas.waypoints.length}/72 · 기록 ${p.atlas.totalPages||0}/144</p></div><div class="atlas-stat"><strong>${p.atlas.waypoints.length}</strong><span>깨어난 귀환석</span></div></div>
-   <div class="tabs atlas-tabs">${[['core','중심 세계'],['endgame','고레벨 지역 · 35~200'],...PROVINCES.map(r=>[r.id,r.name])].map(([id,label])=>`<button class="tab ${(high?id==='endgame':showCore?id==='core':chosen.id===id)?'active':''}" data-act="tab" data-id="${id}">${label}</button>`).join('')}</div>
+  return {title:'아득한 길의 대륙 지도',eyebrow:`${totals.regions} REGIONS · ${p.discovery.visited.filter(id=>ZONES[id]&&!ZONES[id].challenge&&!ZONES[id].dungeon&&!ZONES[id].secretRealm).length} DISCOVERED`,html:`
+   <div class="atlas-overview"><div><span class="eyebrow">THE UNWRITTEN ATLAS</span><h3>${showCore?'별여울에서 새벽의 끝까지':esc(chosen.name)+' · '+provinceRange(chosen)}</h3><p>${showCore?'모든 거점을 필요 레벨 순서로 모았습니다. 이름 있는 권역을 고르면 그 땅의 아홉 원정 지역과 연결된 길을 볼 수 있습니다.':esc(chosen.motto)}</p><p class="small">${totals.regions}지역 · ${totals.provinces}개 권역 · 원정 ${totals.expeditions}구역 · 야영지 ${p.atlas.waypoints.length}/${totals.expeditions} · 기록 ${p.atlas.totalPages||0}/${totals.pages}</p></div><div class="atlas-stat"><strong>${p.atlas.waypoints.length}</strong><span>깨어난 귀환석</span></div></div>
+   <div class="tabs atlas-tabs atlas-province-tabs"><button class="tab ${showCore?'active':''}" data-act="tab" data-id="core"><span>전체 거점</span><small>레벨 순서</small></button>${[...PROVINCES].sort((a,b)=>a.level-b.level).map(r=>`<button class="tab ${chosen?.id===r.id?'active':''}" data-act="tab" data-id="${r.id}"><span>${esc(r.name)}</span><small>${provinceRange(r)}</small></button>`).join('')}</div>
    <div class="atlas-layout"><section><h3>${esc(current.name)} · 현재 지역</h3><canvas id="large-map" width="650" height="430"></canvas><p class="small muted">밝은 곳은 탐사한 땅 · 초록: 야영지 · 분홍: 시련 · 금빛: 기록/스승<br>지도는 이동 경로를 보여 주며 클릭으로 순간이동하지 않습니다. 직접 깨운 귀환석만 사용할 수 있습니다.</p>
-    ${btn('별여울 마을로 귀환','return')} ${btn('도전의 전당','openChallenges')}
+    <div class="settings-actions">${btn('별여울 마을로 귀환','return')} ${btn('도전의 전당','openChallenges')} ${btn('파티 던전','openDungeons')}</div>
     ${state?.fieldTrial?`<div class="info-box">기억의 시련 ${state.fieldTrial.wave}/3 · 남은 적 ${state.fieldTrial.alive} · ${timeLeft(state.fieldTrial.ends-now)}</div>`:''}
    </section><section>
    ${!showCore?`<div class="info-box">야영지 ${region.camps}/9 · 기록 ${region.pages}/18 · 이 권역의 명성 ${region.rep}<br>구역은 가로·세로 이웃과 연결됩니다. 중심 지역 「${esc(ZONES[chosen.id].name)}」 남동쪽 관문에서 첫 구역으로 갑니다.</div>`:''}
    <div class="${showCore?'atlas-core-grid':'atlas-sector-grid'}">${list.map(z=>{
     const seen=p.discovery.visited.includes(z.id),attuned=p.atlas.waypoints.includes(z.id),here=p.zone===z.id;
-    return `<article class="atlas-sector ${here?'here':''} ${seen?'seen':''}"><span class="badge">${here?'현재 위치':attuned?'귀환석 활성':seen?'탐사 중':'미답지'}</span><small>${showCore?'':String(z.sector+1).padStart(2,'0')+' · '}Lv.${z.minLevel}+</small><h4>${seen||showCore?esc(z.name):'지도에 남은 빈칸'}</h4><p>${z.width} × ${z.height}칸</p>${!here&&(showCore&&seen||attuned)?btn('귀환석 이동',z.expedition?'waypoint':'travel',z.id):'<span class="small muted">'+(here?'이곳의 이야기를 찾아보세요':'직접 방문해서 길을 여세요')+'</span>'}</article>`;
+    const province=showCore&&PROVINCES.find(r=>r.id===z.id);
+    return `<article class="atlas-sector ${here?'here':''} ${seen?'seen':''}" data-zone="${z.id}"><span class="badge">${here?'현재 위치':attuned?'귀환석 활성':seen?'탐사 중':'미답지'}</span><small>${showCore?'':String(z.sector+1).padStart(2,'0')+' · '}Lv.${z.minLevel}+</small><h4>${esc(z.name)}</h4><p>${z.width} × ${z.height}칸${z.expedition&&z.endgame?` · 적 Lv.${z.minLevel}~${z.maxLevel}`:''}</p>${province?btn('권역 9곳 보기','tab',province.id):''}${!here&&(showCore&&seen||attuned)?btn('귀환석 이동',z.expedition?'waypoint':'travel',z.id):'<span class="small muted">'+(here?'이곳의 이야기를 찾아보세요':'직접 방문해서 길을 여세요')+'</span>'}</article>`;
    }).join('')}</div>
-   ${!showCore?`<div class="atlas-completion"><h4>${esc(chosen.name)} 완주 기록</h4><p>야영지 9곳 + 기록 18장 · 1,200 G · 1,800 EXP · 증표 12개 · 칭호</p>${btn(region.claimed?'보상 수령 완료':'탐사 기록 제출','surveyClaim',chosen.id,region.claimed||region.camps<9||region.pages<18?'disabled':'')}</div>`:''}
+   ${!showCore?`<div class="atlas-completion"><h4>${esc(chosen.name)} 완주 기록</h4><p>야영지 9곳 + 기록 18장 · ${rewardText(expeditionRewards(chosen,'survey'))} · 칭호</p>${btn(region.claimed?'보상 수령 완료':'탐사 기록 제출','surveyClaim',chosen.id,region.claimed||region.camps<9||region.pages<18?'disabled':'')}</div>`:''}
    </section></div>`};
  }
  if(name==='atlasScene'&&data){
@@ -91,12 +96,12 @@ export function adventurePanel(name,{profile:p,tab,data,state,now=Date.now(),key
   for(const signal of d.signals||[])html+=`<div class="secret-signal"><b>✦ 숨겨진 문장 ${signal.step}/${signal.total}</b><p>${esc(signal.text)}</p></div>`;
   if(d.kind==='camp'){
    html+=`<div class="info-box">귀환석이 활성화되었습니다. ${esc(keyLabel('map','M'))} 지도에서 이미 깨운 다른 야영지로 이동할 수 있습니다. 야영지 의뢰는 한국 시간 자정에 초기화되며, 수락 이후 이 지역에서 한 행동만 셉니다.</div>`;
-   if(!contract)html+=`<article class="card"><h3>길을 지키는 순찰</h3><p>이 구역의 몬스터 12마리를 처치하고 지정된 재료를 5번 채집해 주세요.</p><div class="reward-line">${80+z.minLevel*12} G · ${120+z.minLevel*18} EXP · 길손의 증표 2개 · 명성 +1</div>${btn('오늘의 야영지 의뢰 받기','contractAccept')}</article>`;
-   else html+=`<article class="card"><h3>길을 지키는 순찰</h3><div class="objective"><span>${esc(MONSTERS[contract.monster].name)} 처치</span><b>${contract.kills}/${contract.killGoal}</b></div><div class="objective"><span>${esc(ITEMS[contract.resource].name)} 채집</span><b>${contract.gathered}/${contract.gatherGoal}</b></div>${btn(contract.claimed?'오늘의 보고 완료':'야영지에 보고','contractClaim','',contract.claimed||contract.kills<contract.killGoal||contract.gathered<contract.gatherGoal?'disabled':'')}</article>`;
+   if(!contract)html+=`<article class="card"><h3>길을 지키는 순찰</h3><p>이 구역의 몬스터 12마리를 처치하고 지정된 재료를 5번 채집해 주세요.</p><div class="reward-line">${rewardText(expeditionRewards(z,'contract'))} · 명성 +1</div>${btn('오늘의 야영지 의뢰 받기','contractAccept')}</article>`;
+   else html+=`<article class="card"><h3>길을 지키는 순찰</h3><div class="objective"><span>${esc(MONSTERS[contract.monster].name)} 처치</span><b>${contract.kills}/${contract.killGoal}</b></div><div class="objective"><span>${esc(ITEMS[contract.resource].name)} 채집</span><b>${contract.gathered}/${contract.gatherGoal}</b></div><div class="reward-line">${rewardText(expeditionRewards(z,'contract'))} · 명성 +1</div>${btn(contract.claimed?'오늘의 보고 완료':'야영지에 보고','contractClaim','',contract.claimed||contract.kills<contract.killGoal||contract.gathered<contract.gatherGoal?'disabled':'')}</article>`;
    html+=`<div class="settings-actions">${btn('귀환석 지도 열기','openAtlas')}${btn('별여울로 이동','waypoint','town')}</div>`;
   }else if(d.kind==='trial'){
    const trial=state?.zone===d.zone?state.fieldTrial:d.trial;
-   html+=`<div class="trial-rules"><h3>세 번의 기억</h3><p>첫 기억 6마리 → 두 번째 기억 8마리 → 마지막 파수꾼<br>제한 시간 6분 · 동료와 함께 도전 · 죽거나 지역을 떠나지 않고 직접 전투에 기여해야 완료됩니다.</p><p>이 제단의 물품 보상은 하루 한 번입니다. 재도전으로 직업 수련은 계속할 수 있습니다.</p></div>`;
+   html+=`<div class="trial-rules"><h3>세 번의 기억</h3><p>첫 기억 6마리 → 두 번째 기억 8마리 → 마지막 파수꾼<br>제한 시간 6분 · 동료와 함께 도전 · 죽거나 지역을 떠나지 않고 직접 전투에 기여해야 완료됩니다.</p><p>${rewardText(expeditionRewards(z,'trial'))} · 명성 +2</p><p>이 제단의 물품 보상은 하루 한 번입니다. 재도전으로 직업 수련은 계속할 수 있습니다.</p></div>`;
    html+=trial?`<div class="info-box">진행 ${trial.wave}/3 · 남은 적 ${trial.alive} · 남은 시간 ${timeLeft(trial.ends-now)}</div>`:`${btn(a.trialClaims[d.zone]===day?'수련을 위해 다시 도전':'기억의 시련 시작','trialStart')}`;
   }else html+=`<p class="small muted">처음 읽은 기록은 탐험 수첩에 남고 경험치와 길손의 증표를 줍니다. 이미 읽은 기록도 현재 이야기의 목표라면 다시 읽을 수 있습니다.</p>`;
   return {title:d.name,eyebrow:'A STORY WAITING AT THE EDGE',html:html+`<div class="settings-actions">${btn('계속 탐험','close')}${btn('내 전직 이야기','openStories')}</div>`};

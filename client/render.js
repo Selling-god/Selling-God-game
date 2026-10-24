@@ -2,10 +2,12 @@ import {GroundChunks} from './ground-chunks.js';
 import {followCamera} from '../shared/camera.js';
 import {drawChallengeOverlay} from './challenges-ui.js';
 import {drawBossMechanics,drawBossObjective} from './boss-mechanics-ui.js';
+import {drawDungeonOverlay} from './dungeons-ui.js';
+import {drawRealmOverlay} from './realms-ui.js';
 import {nearbyScenery} from '../shared/spatial.js';
 import {EquipmentRenderer,drawBossGear} from './equipment.js';
-import {drawSkillEffect} from './effects.js';
-import {THEMES} from '../shared/visuals.js';
+import {drawSkillEffect,effectLifetime} from './effects.js';
+import {drawPixelTelegraph,clearPixelFX} from './pixel-effects.js';
 import { LocalMotion, SnapshotTrack } from './motion.js';
 import { createMap, moveEntity, clamp, dist, seeded } from '../shared/world.js';
 import { TILE, ZONES, MONSTERS, CLASSES, NPCS } from '../shared/content.js';
@@ -15,7 +17,7 @@ export class Renderer {
   constructor(canvas){
     this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.w=0;this.h=0;
     this.atlas=null;this.meta=null;this.gear=new EquipmentRenderer();this.map=null;this.backgrounds=new Map();this.ground=new GroundChunks();this.state=null;this.profile=null;
-    this.local=null;this.positions=new Map();this.effects=[];this.damage=[];this.flash=new Map();
+    this.local=null;this.positions=new Map();this.effects=[];this.criticalEffects=[];this.damage=[];this.flash=new Map();this.fxSequence=0;this.seenImpacts=new Map();
     this.camera={x:0,y:0};this.zoom=1.65;this.zoomSetting=1;this.shake=0;this.showEffects=true;
     this.last=performance.now();this.clock=0;this.motion=new LocalMotion();this.snapshotPeriod=100;this.lastSnapshotTime=0;this.lowPower=false;this.shakeEnabled=false;this.lastInput={x:0,y:0};
     this.skyParticles=Array.from({length:55},(_,i)=>({x:(i*137.19)%1,y:(i*73.31)%1,s:.4+(i%7)*.13}));
@@ -38,7 +40,7 @@ export class Renderer {
     this.camera=followCamera(this.camera,this.map,target,{width:this.w,height:this.h,zoom:this.zoom},0,{snap:true});
   }
   setZone(id){
-    this.map=createMap(id);this.positions.clear();this.effects=[];this.damage=[];this.mapCache=null;
+    this.map=createMap(id);this.positions.clear();this.effects=[];this.criticalEffects=[];this.damage=[];this.seenImpacts.clear();clearPixelFX(this);this.mapCache=null;
     if(this.state?.self)this.resetCamera();
     this.ground.clear();this.flash.clear();
   }
@@ -82,11 +84,26 @@ export class Renderer {
     return track?.sample(Date.now()+this.clock-clamp(this.snapshotPeriod*1.35,100,290))||entity;
   }
   addEffect(e){
-    const now=performance.now();this.effects.push({...e,born:now});if(this.effects.length>160)this.effects.splice(0,this.effects.length-160);
+    if(!e||!Number.isFinite(e.x)||!Number.isFinite(e.y))return;
+    const now=performance.now();
+    // Hit numbers have their own queue: a party's burst must never evict a boss impact.
     if(e.type==='hit'){
-      this.damage.push({...e,born:now,offset:(Math.random()-.5)*24});if(this.damage.length>100)this.damage.shift();this.flash.set(e.id,now+110);
+      this.damage.push({...e,born:now,offset:(Math.random()-.5)*24});
+      const limit=this.lowPower?60:100;if(this.damage.length>limit)this.damage.splice(0,this.damage.length-limit);
+      this.flash.set(e.id,now+110);
       if(e.kind==='player'&&e.id===this.state?.self.id&&this.showEffects&&this.shakeEnabled)this.shake=4;
+      return;
     }
+    if(e.type==='impact'&&e.castId!==undefined){
+      for(const [id,at]of this.seenImpacts)if(now-at>3000)this.seenImpacts.delete(id);
+      if(this.seenImpacts.has(e.castId))return;
+      this.seenImpacts.set(e.castId,now);
+      while(this.seenImpacts.size>160)this.seenImpacts.delete(this.seenImpacts.keys().next().value);
+    }
+    const effect={...e,born:now,_pixelId:++this.fxSequence};
+    const important=(e.type==='impact'&&e.boss)||e.essential;
+    const queue=important?this.criticalEffects:this.effects,limit=important?80:this.lowPower?40:96;
+    queue.push(effect);if(queue.length>limit)queue.splice(0,queue.length-limit);
     if(e.type==='impact'&&e.boss&&this.showEffects&&this.shakeEnabled)this.shake=5;
     if(e.type==='level'&&this.shakeEnabled)this.shake=2;
   }
@@ -171,8 +188,10 @@ export class Renderer {
       this.label(portal.level>1?`Lv.${portal.level}+ · F 이동`:'F 이동',portal.x,portal.y-54,'#bbc5b8',8);
     }
     drawChallengeOverlay(this,s.challenge,t);
-    drawBossMechanics(this,s.bossMechanics,t);
-    for(const cast of s.casts)this.drawCast(cast,t);
+    drawDungeonOverlay(this,s,t,'ground');
+    drawRealmOverlay(this,s.realm,t,'ground');
+    drawBossMechanics(this,s.bossMechanics,t,'ground');
+    for(const cast of s.casts)this.drawCast(cast,t,'ground');
     if(s.soul&&inView(s.soul.x,s.soul.y)){
       const soul=s.soul;
       this.glow(soul.x,soul.y-20,48,'#a2dfec',.16);
@@ -239,7 +258,7 @@ export class Renderer {
           const width=def.boss?76:32;
           c.fillStyle='#15212be6';c.fillRect(q.x-width/2-1,q.y-hh,width+2,5);
           c.fillStyle=def.boss?'#bc899d':'#ae7d79';c.fillRect(q.x-width/2,q.y-hh+1,width*mob.hp/mob.maxHp,3);
-          this.label(`${def.name}`,q.x,q.y-hh-9,def.boss?'#e4c399':'#d7d2bf',def.boss?10:8);
+          this.label(`${mob.name||def.name}`,q.x,q.y-hh-9,def.boss?'#e4c399':'#d7d2bf',def.boss?10:8);
         }
       }});
     }
@@ -286,6 +305,11 @@ export class Renderer {
       }
     }
     this.drawEffects(t);
+    // Gameplay boundaries stay above foliage, actors and cosmetic skill bursts.
+    for(const cast of s.casts)this.drawCast(cast,t,'foreground');
+    drawBossMechanics(this,s.bossMechanics,t,'foreground');
+    drawDungeonOverlay(this,s,t,'foreground');
+    drawRealmOverlay(this,s.realm,t,'foreground');
     c.restore();
     this.drawAtmosphere(t);
     c.setTransform(1,0,0,1,0,0);
@@ -295,59 +319,21 @@ export class Renderer {
     const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color);g.addColorStop(1,'transparent');
     c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2);c.restore();
   }
-  drawCast(cast,t){
-    const c=this.ctx,now=Date.now()+this.clock,progress=clamp((now-cast.starts)/(cast.ends-cast.starts),0,1);
-    const color=cast.theme?THEMES[cast.theme]?.primary||'#dc927b':cast.boss?'#dc927b':'#d1ac7a';
-    c.save();c.fillStyle=cast.theme?color+'35':cast.boss?'#b2565b30':'#aa754e23';c.strokeStyle=color;c.lineWidth=cast.boss?2:1;
-    if(cast.shape==='beam'){
-      c.translate(cast.x,cast.y);c.rotate(cast.angle);c.fillRect(0,-cast.width/2,cast.length,cast.width);c.strokeRect(0,-cast.width/2,cast.length,cast.width);
-      c.fillStyle='#e0a07a40';c.fillRect(0,-cast.width/2,cast.length*progress,cast.width);
-    }else{
-      c.beginPath();c.arc(cast.x,cast.y,cast.radius,0,Math.PI*2);
-      if(cast.shape==='ring')c.arc(cast.x,cast.y,cast.inner,0,Math.PI*2,true);
-      c.fill('evenodd');c.stroke();
-      c.setLineDash([4,6]);c.beginPath();c.arc(cast.x,cast.y,Math.max(cast.inner||4,cast.radius*progress),0,Math.PI*2);c.stroke();c.setLineDash([]);
-    }
-    c.restore();
-    if(cast.boss)this.label(cast.name,cast.x,cast.y-12,'#f5d2b1',9);
+  drawCast(cast,t,layer='all'){
+    drawPixelTelegraph(this,cast,t,layer);
   }
   drawEffects(t){
-    const c=this.ctx;
-    this.effects=this.effects.filter(e=>t-e.born<1300);
-    for(const e of this.effects){
-      const a=(t-e.born)/1000;
-      if(drawSkillEffect(this,e,t))continue;
-      if(e.type==='attack'){
-        const alpha=Math.max(0,1-a/.42);if(alpha<=0)continue;
-        c.save();c.globalAlpha=alpha;c.strokeStyle=e.color;c.lineWidth=e.skill==='basic'?2:4;
-        if(e.classId==='guardian'){
-          const ang=Math.atan2(e.ty-e.y,e.tx-e.x);c.beginPath();c.arc(e.x,e.y-15,e.skill==='basic'?48:80,ang-1.1+a*3,ang+.9+a*3);c.stroke();
-          c.strokeStyle='#f1e5b9';c.lineWidth=1;c.beginPath();c.arc(e.x,e.y-15,53,ang-.6+a*3,ang+.5+a*3);c.stroke();
-        }else{
-          const f=Math.min(1,a/.2),xx=e.x+(e.tx-e.x)*f,yy=e.y-22+(e.ty-e.y)*f;
-          c.beginPath();c.moveTo(xx-(e.tx-e.x)*.08,yy-(e.ty-e.y)*.08);c.lineTo(xx,yy);c.stroke();
-          if(e.classId==='mage'){c.fillStyle='#e2d7f2';c.beginPath();c.arc(xx,yy,e.skill==='basic'?3:6,0,Math.PI*2);c.fill();}
-        }
-        if(e.radius&&a>.08){c.globalAlpha=alpha*.55;c.beginPath();c.ellipse(e.classId==='guardian'?e.x:e.tx,e.classId==='guardian'?e.y:e.ty,e.radius*a*2.2,e.radius*a*1.5,0,0,Math.PI*2);c.stroke();}
-        c.restore();
-      }else if(e.type==='buff'||e.type==='level'||e.type==='gather'){
-        const alpha=Math.max(0,1-a/1);if(!alpha)continue;c.save();c.globalAlpha=alpha;c.strokeStyle=e.color||'#e6c78e';c.lineWidth=2;
-        c.beginPath();c.ellipse(e.x,e.y,20+a*45,7+a*18,0,0,Math.PI*2);c.stroke();
-        for(let i=0;i<8;i++){const ang=i*Math.PI/4,xx=e.x+Math.cos(ang)*25,yy=e.y-10-Math.sin(ang)*10-a*50;c.fillStyle=e.color||'#e6c78e';c.fillRect(xx,yy,2,4);}
-        c.restore();
-      }else if(e.type==='impact'&&a<.5){
-        c.save();c.globalAlpha=(1-a/.5)*.35;c.fillStyle=e.theme?THEMES[e.theme]?.primary||'#ce907e':e.boss?'#ce907e':'#d1b185';
-        if(e.shape==='beam'){
-          c.translate(e.x,e.y);c.rotate(e.angle);c.fillRect(0,-e.width/2,e.length,e.width);
-        }else{c.beginPath();c.arc(e.x,e.y,e.radius,0,Math.PI*2);if(e.shape==='ring')c.arc(e.x,e.y,e.inner,0,Math.PI*2,true);c.fill('evenodd');}
-        c.restore();
-      }else if(e.type==='death'&&a<.65){
-        for(let i=0;i<6;i++){const ang=i*Math.PI/3;c.fillStyle=e.boss?'#c9b6e099':'#d5c7a377';c.fillRect(e.x+Math.cos(ang)*a*55,e.y-15+Math.sin(ang)*a*30-a*25,3,3);}
-      }else if(e.type==='dash'&&a<.25){
-        c.strokeStyle='#cce1d16b';c.beginPath();c.ellipse(e.x,e.y,22+a*50,8+a*15,0,0,Math.PI*2);c.stroke();
-      }
-    }
+    this.effects=this.effects.filter(e=>t-e.born<=effectLifetime(e));
+    this.criticalEffects=this.criticalEffects.filter(e=>t-e.born<=effectLifetime(e));
+    const budget=this.lowPower?10:20,self=this.state?.self.id;
+    const own=this.effects.filter(e=>e.id===self).slice(-budget);
+    const others=this.effects.filter(e=>e.id!==self);
+    const available=Math.max(0,budget-own.length),visible=available?others.slice(-available):[];
+    for(const e of [...visible,...own])drawSkillEffect(this,e,t);
+    for(const e of this.criticalEffects)drawSkillEffect(this,e,t);
+    this.effectDrawStats={cosmetic:visible.length+own.length,critical:this.criticalEffects.length};
     this.damage=this.damage.filter(e=>t-e.born<1000);
+    const c=this.ctx;
     for(const e of this.damage){
       const a=(t-e.born)/1000;c.globalAlpha=Math.min(1,(1-a)*2);
       this.label((e.crit?'✦ ':'')+e.amount,e.x+e.offset,e.y-a*38,e.kind==='player'?'#f0aba3':e.crit?'#f4d38e':'#f5f0dd',e.crit?16:12);
