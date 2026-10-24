@@ -16,7 +16,7 @@ const boundedLevel=level=>Math.min(MAX_LEVEL,Math.max(1,Math.floor(Number(level)
 // Existing levels and stored XP are retained. Only future level-up thresholds change.
 export const xpRequired=level=>{
  const n=boundedLevel(level);
- return Math.round(120+n*60+n*n*9+n*n*n*.045);
+ return Math.round((120+n*60+n*n*9+n*n*n*.045)*(1.18+.72*Math.exp(-n/30)));
 };
 // Low-level enemies remain useful for materials and story goals, but cease being
 // the fastest way to level. A much stronger party member cannot award many levels

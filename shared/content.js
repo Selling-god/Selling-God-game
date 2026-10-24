@@ -1,4 +1,5 @@
 import { cleanAttributes, enhancementBonus } from './rpg.js';
+import { titleStatBonus } from './title-catalog.js';
 import { installExtraItems } from './extra-items.js';
 export { MAX_LEVEL, xpRequired } from './rpg.js';
 import { installBossGear } from './visuals.js';
@@ -151,8 +152,12 @@ export const getStats = (p, now=Date.now()) => {
     const n=p.enhancements?.[id]||0;
     const bonus=enhancementBonus(i.slot,n);s.atk+=bonus.atk||0;s.def+=bonus.def||0;s.maxHp+=bonus.hp||0;s.maxMp+=bonus.mp||0;
   }
+  if(c.tier==='novice'){s.atk*=.86;s.def*=.90;s.maxHp*=.94;}
   const passive=c.passive||{};
   s.atk+=passive.atk||0;s.def+=passive.def||0;s.maxHp+=passive.hp||0;s.crit+=passive.crit||0;s.speed+=passive.speed||0;
+  if(p.title&&p.titles?.includes(p.title)){
+    const b=titleStatBonus(p.title);s.atk+=b.atk||0;s.def+=b.def||0;s.maxHp+=b.hp||0;s.maxMp+=b.mp||0;s.crit+=b.crit||0;
+  }
   const mastery=Math.min(10,Math.floor((p.discovery?.mastery?.[p.classId]||0)/25));
   s.atk+=Math.floor(mastery/3);s.maxHp+=mastery*2;
   const a=cleanAttributes(p.attributes,p.level),family=c.family||p.classId;
@@ -175,6 +180,22 @@ installDungeons({ZONES,MONSTERS,ITEMS});
 installRealms({ZONES,MONSTERS,ITEMS});
 installEncounterIdentities({MONSTERS,ZONES,QUESTS});
 installExtraItems({ITEMS,RECIPES});
+
+// Combat pacing (applied once at startup to canonical monster definitions).
+// A fresh adventurer should survive an error, but cannot one-shot whole packs.
+// Endgame ecology, quest and world-boss identifiers stay unchanged.
+for(const enemy of Object.values(MONSTERS)){
+ if(enemy.boss){
+  enemy.hp=Math.round(enemy.hp*1.38);
+  enemy.atk=Math.round(enemy.atk*.98);
+  enemy.def=Math.round(enemy.def*1.14+2);
+ }else{
+  enemy.hp=Math.round(enemy.hp*(enemy.level<=10?1.65:1.35));
+  enemy.atk=Math.round(enemy.atk*(enemy.level<=10?1.20:1.12));
+  enemy.def=Math.round(enemy.def*1.17+1);
+ }
+}
+
 
 // Every region, including the original four, has a stable UI/save identifier.
 for(const [id,zone]of Object.entries(ZONES))zone.id=id;
