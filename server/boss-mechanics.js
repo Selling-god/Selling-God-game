@@ -126,6 +126,7 @@ export function tickBossMechanics(game,world,now=game.now){
    }else{
     const quadrant=QUADRANTS[step];
     mechanic.missed+=punish(game,players,p=>(p.x-mechanic.x)*quadrant.x>=12&&(p.y-mechanic.y)*quadrant.y>=12&&dist(p,mechanic)<=210,mechanic.phase===1?.25:.30);
+    game.fx(world.id,{type:'impact',owner:boss.id,castId:`${boss.id}:eclipse:${mechanic.phase}:${mechanic.step}:${mechanic.nextPulse}`,x:mechanic.x,y:mechanic.y,radius:210,shape:'quadrant',quadrant:step,safeQuadrant:step,boss:true,theme:'void',monster:boss.type});
    }
    mechanic.step++;
    if(mechanic.step>=mechanic.sequence.length){finish(game,world,boss,mechanic.missed?'failed':'success');continue;}

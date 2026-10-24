@@ -6,8 +6,12 @@ import {bossVisual} from '../shared/visuals.js';
 import {prepareProgression,recordProgress,evaluateJobs,readRelic,progressionAction,ensureDaily,metric} from './progression.js';
 import {WorldEvents} from './world-events.js';
 import {ChallengeManager} from './challenges.js';
+import {DungeonManager} from './dungeons.js';
+import {RealmManager} from './realms.js';
 import {tickBossMechanics,bossDamageMultiplier,bossMechanicKilled,bossMechanicView} from './boss-mechanics.js';
 import {prepareChallenges} from '../shared/challenges.js';
+import {prepareDungeons} from '../shared/dungeons.js';
+import {prepareRealms} from '../shared/realms.js';
 import {combatExperience} from '../shared/rpg.js';
 import {ACHIEVEMENTS} from '../shared/expansion.js';
 import { randomUUID } from 'node:crypto';
@@ -23,14 +27,14 @@ export function newCharacter(id,name,classId='novice'){
     quests:{},completed:[],opened:[],kills:0,bossKills:0,gathered:0,playSeconds:0,
     title:'별빛을 따라온 자',titles:['별빛을 따라온 자'],revision:1,createdAt:Date.now()
   };
-  prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareChallenges(p);prepareRPG(p);const s=getStats(p);p.hp=s.maxHp;p.mp=s.maxMp;return p;
+  prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareChallenges(p);prepareDungeons(p);prepareRealms(p);prepareRPG(p);const s=getStats(p);p.hp=s.maxHp;p.mp=s.maxMp;return p;
 }
 export function hydrate(state){
   const p={...state};
   p.inventory={...p.inventory};p.equipment={...p.equipment};p.enhancements={...p.enhancements};
   p.quests=structuredClone(p.quests||{});p.completed=[...(p.completed||[])];p.opened=[...(p.opened||[])];
   if(!CLASSES[p.classId])p.classId='novice';
-  prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareChallenges(p,{recover:true});
+  prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareChallenges(p,{recover:true});prepareDungeons(p,{recover:true});prepareRealms(p,{recover:true});
   p.titles=[...(p.titles||['별빛을 따라온 자'])];p.level=clamp(p.level||1,1,MAX_LEVEL);
   prepareRPG(p);
   if(!ZONES[p.zone])p.zone='town';
@@ -46,7 +50,7 @@ export function hydrate(state){
   return p;
 }
 export function serialize(p){
-  const keys=['id','name','classId','level','xp','gold','zone','x','y','hp','mp','inventory','equipment','enhancements','quests','completed','opened','kills','bossKills','gathered','playSeconds','title','titles','revision','createdAt','schemaVersion','discovery','journey','atlas','daily','attributes','statResets','enhancePity','deaths','deathWeakUntil','soul','lastDeath','challenges'];
+  const keys=['id','name','classId','level','xp','gold','zone','x','y','hp','mp','inventory','equipment','enhancements','quests','completed','opened','kills','bossKills','gathered','playSeconds','title','titles','revision','createdAt','schemaVersion','discovery','journey','atlas','daily','attributes','statResets','enhancePity','deaths','deathWeakUntil','soul','lastDeath','challenges','dungeons','realms'];
   return structuredClone(Object.fromEntries(keys.map(k=>[k,p[k]])));
 }
 export class Game {
@@ -57,11 +61,13 @@ export class Game {
     this.worlds.get('town');
     this.events=new WorldEvents(this,eventStore);
     this.challenges=new ChallengeManager(this);
+    this.dungeons=new DungeonManager(this);
+    this.realms=new RealmManager(this);
   }
   createWorld(id){
     const z=ZONES[id];if(!z)throw new Error('Unknown region');
     const map=createMap(id),world={id,map,mobs:[],nodes:map.resources.map(x=>({...x,readyAt:0})),casts:[],lastAccess:this.now,fieldTrial:null};
-    if(id!=='town'&&!z.challenge){
+    if(id!=='town'&&!z.challenge&&!z.dungeon){
       const rand=seeded(z.seed||{forest:551,ruins:989,citadel:1411}[id]);
       const types=z.mobTypes||(id==='forest'?['slime','slime','beetle','wolf']:id==='ruins'?['skeleton','skeleton','wisp','golem']:['imp','ash_knight','ash_knight']);
       const count=z.mobCount||(id==='forest'?34:id==='ruins'?28:24);
@@ -99,6 +105,7 @@ export class Game {
   mark(p){p.revision=(p.revision||0)+1;p.dirty=true;}
   toast(p,message,tone='info'){this.send(p.id,'notice',{message,tone});}
   fx(zone,data){
+    if(ZONES[zone]?.dungeon){this.dungeons.fx({...data,t:this.now});return;}
     if(ZONES[zone]?.challenge){
       const actor=this.players.get(data.by||data.id);
       const entity=actor||this.worlds.get(zone).mobs.find(m=>m.id===data.id||m.id===data.owner);
@@ -109,6 +116,10 @@ export class Game {
     this.broadcast(zone,'fx',{...data,t:this.now});
   }
   stats(p){return getStats(p,this.now);}
+  canSeeEntity(p,entity){return this.challenges.allows(p,entity)&&this.dungeons.allows(p,entity);}
+  canDamage(p,m){return this.challenges.canDamage(p,m)&&this.dungeons.canDamage(p,m)&&this.realms.canDamage(p,m);}
+  sameInstance(a,b){return this.challenges.sameInstance(a,b)&&this.dungeons.sameInstance(a,b);}
+  mobSpec(m){return m.dungeonRun?this.dungeons.mobSpec(m):this.challenges.mobSpec(m);}
   publicPlayer(p){
     const s=this.stats(p);
     return {id:p.id,name:p.name,classId:p.classId,level:p.level,x:Math.round(p.x*10)/10,y:Math.round(p.y*10)/10,dir:p.dir,vx:Math.round(p.vx||0),vy:Math.round(p.vy||0),
@@ -117,7 +128,7 @@ export class Game {
       dead:p.hp<=0,weapon:p.equipment.weapon,equipment:{...p.equipment},gearEnhance:Object.fromEntries(Object.values(p.equipment).filter(Boolean).map(id=>[id,p.enhancements[id]||0])),weakened:s.weakened,partyId:p.partyId};
   }
   privatePlayer(p){
-    return {...serialize(p),atlas:privateAtlas(p),storyTracker:storyTracker(p),stats:this.stats(p),cooldowns:{...p.cooldowns},target:p.target,partyId:p.partyId,
+    return {...serialize(p),atlas:privateAtlas(p),realms:this.realms.profile(p),storyTracker:storyTracker(p),stats:this.stats(p),cooldowns:{...p.cooldowns},target:p.target,partyId:p.partyId,
       shieldUntil:p.shieldUntil,respawnAt:p.respawnAt,lastCombat:p.lastCombat,
       soul:p.soul&&p.soul.expires>this.now?p.soul:null,achievementProgress:Object.fromEntries(ACHIEVEMENTS.map(a=>[a.id,metric(p,a.metric)]))};
   }
@@ -130,15 +141,17 @@ export class Game {
         cooldowns:p.cooldowns,target:p.target,revision:p.revision,respawnAt:p.respawnAt,
         inputSeq:p.inputSeq||0,motionId:p.motionId||0,speed:this.stats(p).speed,
         speedUntil:p.speedUntil,dashUntil:p.dashUntil,dashVector:p.dashVector||{x:0,y:0},pathing:p.path.length>0},
-      players:[...this.players.values()].filter(x=>x.active&&x.id!==p.id&&x.zone===p.zone&&this.challenges.sameInstance(p,x)&&dist(x,p)<near+200).map(x=>this.publicPlayer(x)),
-      mobs:w.mobs.filter(m=>m.alive&&this.challenges.allows(p,m)&&dist(m,p)<near).map(m=>({id:m.id,type:m.type,level:this.challenges.mobSpec(m).level,x:Math.round(m.x*10)/10,y:Math.round(m.y*10)/10,hp:m.hp,maxHp:m.maxHp,dir:m.dir,moving:m.moving,casting:m.castUntil>this.now,slow:m.slowUntil>this.now,phase:m.hp/m.maxHp<.45?2:m.hp/m.maxHp<.7?1:0,dot:m.dots?.[0]?.kind,challengeShield:!!m.challengeShield,mechanicObjective:m.mechanicObjective})),
+      players:[...this.players.values()].filter(x=>x.active&&x.id!==p.id&&x.zone===p.zone&&this.sameInstance(p,x)&&dist(x,p)<near+200).map(x=>this.publicPlayer(x)),
+      mobs:w.mobs.filter(m=>m.alive&&this.canSeeEntity(p,m)&&dist(m,p)<near).map(m=>({id:m.id,type:m.type,name:m.name||MONSTERS[m.type].name,dungeonObjective:m.dungeonObjective,level:this.mobSpec(m).level,x:Math.round(m.x*10)/10,y:Math.round(m.y*10)/10,hp:m.hp,maxHp:m.maxHp,dir:m.dir,moving:m.moving,casting:m.castUntil>this.now,slow:m.slowUntil>this.now,phase:m.hp/m.maxHp<.45?2:m.hp/m.maxHp<.7?1:0,dot:m.dots?.[0]?.kind,challengeShield:!!(m.challengeShield||m.dungeonShield),mechanicObjective:m.mechanicObjective})),
       nodes:w.nodes.filter(n=>dist(n,p)<near).map(n=>({...n,ready:n.readyAt<=this.now})),
-      casts:w.casts.filter(c=>this.challenges.allows(p,c)&&c.ends>this.now&&dist(c,p)<near+350).map(({damage,owner,challengeOwner,challengeRun,...c})=>c),
-      bosses:w.mobs.filter(m=>this.challenges.allows(p,m)&&MONSTERS[m.type].boss).map(m=>({id:m.id,type:m.type,hp:m.hp,maxHp:m.maxHp,alive:m.alive,respawnAt:m.respawnAt})),
+      casts:w.casts.filter(c=>this.canSeeEntity(p,c)&&c.ends>this.now&&dist(c,p)<near+350).map(({damage,owner,challengeOwner,challengeRun,...c})=>c),
+      bosses:w.mobs.filter(m=>this.canSeeEntity(p,m)&&MONSTERS[m.type].boss).map(m=>({id:m.id,type:m.type,hp:m.hp,maxHp:m.maxHp,alive:m.alive,respawnAt:m.respawnAt})),
       soul:p.soul?.expires>this.now&&p.soul.zone===p.zone?p.soul:null,
       online:[...this.players.values()].filter(x=>x.active).length,
-      zoneOnline:[...this.players.values()].filter(x=>x.active&&x.zone===p.zone&&this.challenges.sameInstance(p,x)).length,
+      zoneOnline:[...this.players.values()].filter(x=>x.active&&x.zone===p.zone&&this.sameInstance(p,x)).length,
       challenge:this.challenges.view(p),
+      dungeon:this.dungeons.view(p),
+      realm:this.realms.view(p),
       bossMechanics:bossMechanicView(this,w),
       fieldTrial:trialView(w,this.now),events:withEvents?this.events.view(this.now):undefined,eventError:withEvents?this.events.error:undefined,
       party:this.partyView(p),profile:full?this.privatePlayer(p):undefined
@@ -154,6 +167,7 @@ export class Game {
       if(!Number.isSafeInteger(v.seq)||v.seq<0||v.seq<=(p.inputSeq||0))return;
       p.inputSeq=v.seq;
     }
+    if(this.dungeons.blocksInput(p)){p.input={x:0,y:0};p.path=[];p.dashUntil=0;return;}
     if(v.stop){p.path=[];p.dashUntil=0;}
     const mag=Math.hypot(v.x,v.y);p.input={x:mag>1?v.x/mag:v.x,y:mag>1?v.y/mag:v.y};
     p.lastInput=this.now;
@@ -194,9 +208,9 @@ export class Game {
   }
   getTarget(p,range){
     const w=this.worlds.get(p.zone);
-    const chosen=w.mobs.find(m=>m.id===p.target&&m.alive&&this.challenges.allows(p,m)&&dist(m,p)<=range+(MONSTERS[m.type].radius||14));
+    const chosen=w.mobs.find(m=>m.id===p.target&&m.alive&&this.canSeeEntity(p,m)&&dist(m,p)<=range+(MONSTERS[m.type].radius||14));
     if(chosen&&lineOfSight(w.map,p,chosen))return chosen;
-    return w.mobs.filter(m=>m.alive&&this.challenges.allows(p,m)&&dist(m,p)<=range+(MONSTERS[m.type].radius||14)&&lineOfSight(w.map,p,m)).sort((a,b)=>dist(a,p)-dist(b,p))[0];
+    return w.mobs.filter(m=>m.alive&&this.canSeeEntity(p,m)&&dist(m,p)<=range+(MONSTERS[m.type].radius||14)&&lineOfSight(w.map,p,m)).sort((a,b)=>dist(a,p)-dist(b,p))[0];
   }
   attack(p,skillId){
     const c=CLASSES[p.classId],skill=c.skills.find(x=>x.id===skillId);
@@ -214,7 +228,7 @@ export class Game {
       if(skill.partyHeal){
         const party=this.parties.get(p.partyId);
         for(const id of party?.members||[]){
-          const ally=this.players.get(id);if(!ally?.active||ally.id===p.id||ally.zone!==p.zone||!this.challenges.sameInstance(p,ally)||ally.hp<=0||dist(ally,p)>260)continue;
+          const ally=this.players.get(id);if(!ally?.active||ally.id===p.id||ally.zone!==p.zone||!this.sameInstance(p,ally)||ally.hp<=0||dist(ally,p)>260)continue;
           const amount=Math.min(this.stats(ally).maxHp-ally.hp,this.stats(ally).maxHp*skill.heal*(1+(c.passive?.healBonus||0)));
           ally.hp+=amount;restored+=Math.max(0,amount);this.mark(ally);
           for(const mob of this.worlds.get(p.zone).mobs)if(mob.alive&&(mob.worldKey||mob.trialKey)&&mob.contributors.has(ally.id)&&amount>0){
@@ -229,19 +243,20 @@ export class Game {
     }
     const target=this.getTarget(p,skill.range);
     if(!target)return {ok:false,quiet:skillId==='basic',error:'공격할 적에게 조금 더 가까이 다가가세요.'};
-    if(!this.challenges.canDamage(p,target))return {ok:false,error:'봉인을 해제하거나 소환수를 처치해야 수호자를 공격할 수 있습니다.'};
+    if(!this.canDamage(p,target))return {ok:false,error:target.dungeonRun?'던전의 협동 기믹을 해결해 보스의 보호막을 해제하세요.':'봉인을 해제하거나 소환수를 처치해야 수호자를 공격할 수 있습니다.'};
     const w=this.worlds.get(p.zone);
     p.target=target.id;p.mp-=skill.mp;p.cooldowns[skillId]=this.now+skill.cd;
     p.attackUntil=this.now+300;p.lastCombat=this.now;
     const dx=target.x-p.x,dy=target.y-p.y;
     p.dir=Math.abs(dx)>Math.abs(dy)?(dx>0?'e':'w'):(dy>0?'s':'n');
     const center=skill.center==='self'||!skill.center&&(c.family||p.classId)==='guardian'?p:target;
-    const victims=skill.radius?w.mobs.filter(m=>m.alive&&this.challenges.canDamage(p,m)&&dist(m,center)<=skill.radius&&lineOfSight(w.map,p,m)):[target];
+    const victims=skill.radius?w.mobs.filter(m=>m.alive&&this.canDamage(p,m)&&dist(m,center)<=skill.radius&&lineOfSight(w.map,p,m)):[target];
     this.fx(p.zone,{type:'attack',id:p.id,classId:c.family||p.classId,job:p.classId,center:skill.center||((c.family||p.classId)==='guardian'?'self':'target'),skill:skillId,x:p.x,y:p.y,tx:target.x,ty:target.y,radius:skill.radius,color:c.color});
     if(victims.length)recordStory(this,p,{kind:skillId==='basic'?'hit':'skill',target:c.family||p.classId,skill:skillId});
     for(const m of victims){
       const crit=this.random()*100<this.stats(p).crit;
-      const damage=Math.max(1,Math.round((this.stats(p).atk*skill.power-this.challenges.mobSpec(m).def*.65*(1-(c.passive?.armorPierce||0)))*(0.92+this.random()*.16)*(crit?1.65:1)*bossDamageMultiplier(m)));
+      const rawDamage=Math.max(1,Math.round((this.stats(p).atk*skill.power-this.mobSpec(m).def*.65*(1-(c.passive?.armorPierce||0)))*(0.92+this.random()*.16)*(crit?1.65:1)*bossDamageMultiplier(m)));
+      const damage=m.dungeonRun?this.dungeons.damageAmount(m,rawDamage):rawDamage;
       const actual=Math.min(m.hp,damage);
       m.hp=Math.max(0,m.hp-damage);m.contributors.set(p.id,this.now);m.damageLog.set(p.id,(m.damageLog.get(p.id)||0)+actual);m.target=p.id;
       const drain=(c.passive?.lifesteal||0)+(skill.lifesteal||0);
@@ -260,6 +275,8 @@ export class Game {
   }
   killMob(zone,m){
     if(!m.alive)return;
+    if(this.realms.mobKilled(m))return;
+    if(this.dungeons.mobKilled(m))return;
     if(this.challenges.mobKilled(m))return;
     if(bossMechanicKilled(this,this.worlds.get(zone),m))return;
     if(m.trialKey&&fieldTrialKill(this,this.worlds.get(zone),m))return;
@@ -318,7 +335,7 @@ export class Game {
     p.hp=Math.max(0,p.hp-damage);p.lastCombat=this.now;
     this.fx(p.zone,{type:'hit',id:p.id,x:p.x,y:p.y-25,amount:damage,kind:'player'});
     if(p.hp<=0){
-      if(!this.challenges.onDeath(p)){
+      if(!this.dungeons.onDeath(p)&&!this.challenges.onDeath(p)){
         p.path=[];p.input={x:0,y:0};p.respawnAt=this.now+3500;
         onDeath(this,p);
       }
@@ -326,9 +343,11 @@ export class Game {
     this.mark(p);
   }
   teleport(p,zone,x,y){
-    if(!ZONES[zone])return false;
+    if(!ZONES[zone]||!this.realms.canEnter(p,zone))return false;
     const arrival=findSafePosition(this.worlds.get(zone).map,{x,y},10);
     if(!arrival)return false;
+    this.dungeons.beforeTeleport(p,zone);
+    this.realms.beforeTeleport(p,zone);
     this.challenges.beforeTeleport(p,zone);
     p.zone=zone;p.x=arrival.x;p.y=arrival.y;p.path=[];p.input={x:0,y:0};p.target=null;p.vx=0;p.vy=0;p.moving=false;
     p.dashUntil=0;p.dashVector={x:0,y:0};p.lastInput=0;p.motionId=(p.motionId||0)+1;
@@ -338,6 +357,8 @@ export class Game {
     return true;
   }
   interact(p,id){
+    const realm=this.realms.action(p,{type:'interact',id});if(realm)return realm;
+    const dungeon=this.dungeons.action(p,{type:'interact',id});if(dungeon)return dungeon;
     const challenge=this.challenges.action(p,{type:'interact',id});if(challenge)return challenge;
     if(this.now-p.lastInteract<450)return {ok:false,quiet:true};
     const w=this.worlds.get(p.zone);
@@ -382,7 +403,9 @@ export class Game {
   }
   action(p,a){
     if(!a||typeof a.type!=='string')return {ok:false,error:'잘못된 요청입니다.'};
+    const dungeonResult=this.dungeons.action(p,a);if(dungeonResult)return dungeonResult;
     if(p.hp<=0&&a.type!=='respawn')return {ok:false,quiet:true};
+    const realmResult=this.realms.action(p,a);if(realmResult)return realmResult;
     const challengeResult=this.challenges.action(p,a);if(challengeResult)return challengeResult;
     const storyResult=storyAction(this,p,a);if(storyResult)return storyResult;
     const atlasResult=atlasAction(this,p,a);if(atlasResult)return atlasResult;
@@ -392,7 +415,7 @@ export class Game {
     if(a.type==='attack')return this.attack(p,a.skill||'basic');
     if(a.type==='target'){
       if(typeof a.id!=='string')return {ok:false,quiet:true};
-      const m=this.worlds.get(p.zone).mobs.find(m=>m.id===a.id&&m.alive&&this.challenges.allows(p,m)&&dist(m,p)<750);
+      const m=this.worlds.get(p.zone).mobs.find(m=>m.id===a.id&&m.alive&&this.canSeeEntity(p,m)&&dist(m,p)<750);
       if(m)p.target=m.id;return {ok:!!m};
     }
     if(a.type==='move'){
@@ -406,7 +429,7 @@ export class Game {
       p.cooldowns.dash=this.now+4000;p.dashUntil=this.now+190;p.invulnerableUntil=this.now+280;
       let v=p.input;
       if(Math.hypot(v.x,v.y)<.1)v={s:{x:0,y:1},n:{x:0,y:-1},e:{x:1,y:0},w:{x:-1,y:0}}[p.dir];
-      p.dashVector={...v};this.fx(p.zone,{type:'dash',id:p.id,x:p.x,y:p.y,color:CLASSES[p.classId].color});return {ok:true};
+      p.dashVector={...v};this.fx(p.zone,{type:'dash',id:p.id,x:p.x,y:p.y,dx:v.x,dy:v.y,direction:p.dir,job:p.classId,color:CLASSES[p.classId].color});return {ok:true};
     }
     if(a.type==='interact')return this.interact(p,a.id);
     if(a.type==='return'){
@@ -515,6 +538,7 @@ export class Game {
     return {ok:false,error:'처리할 수 없는 요청입니다.'};
   }
   leaveParty(p){
+    this.dungeons.beforePartyLeave(p);
     const party=this.parties.get(p.partyId);p.partyId=null;
     if(!party)return;
     party.members=party.members.filter(id=>id!==p.id);
@@ -538,6 +562,7 @@ export class Game {
         }
         continue;
       }
+      if(this.dungeons.blocksInput(p)){p.input={x:0,y:0};p.path=[];p.vx=0;p.vy=0;p.moving=false;p.dashUntil=0;continue;}
       let v=now-p.lastInput<450?p.input:{x:0,y:0};
       if(p.path.length&&Math.hypot(v.x,v.y)<.1){
         let next=p.path[0],d=dist(p,next);
@@ -565,6 +590,7 @@ export class Game {
       }
     }
     this.challenges.tick(dt);
+    this.dungeons.tick(dt);
     const zonePlayers=new Map();
     for(const p of active){if(!zonePlayers.has(p.zone))zonePlayers.set(p.zone,[]);if(p.hp>0)zonePlayers.get(p.zone).push(p);}
     this.perf={loadedRegions:this.worlds.size,occupiedRegions:zonePlayers.size,awakeMobs:0,sleepingMobs:0};
@@ -577,7 +603,7 @@ export class Game {
         continue;
       }
       for(const m of w.mobs){
-        if(m.challengeRun)continue;
+        if(m.challengeRun||m.dungeonRun)continue;
         const spec=MONSTERS[m.type];
         if(!m.alive){
           if(!m.worldKey&&m.respawnAt<=now){Object.assign(m,this.makeMob(m.id,m.type,m.homeX,m.homeY));}
@@ -598,7 +624,7 @@ export class Game {
         for(const effect of m.dots||[]){
           if(effect.left<=0||effect.next>now)continue;
           const owner=this.players.get(effect.by);effect.left--;effect.next=now+1000;
-          if(!owner?.active||owner.zone!==zone||owner.hp<=0||!this.challenges.allows(owner,m))continue;
+          if(!owner?.active||owner.zone!==zone||owner.hp<=0||!this.canSeeEntity(owner,m))continue;
           const dealt=Math.min(m.hp,Math.max(1,Math.round(effect.damage*bossDamageMultiplier(m))));m.hp-=dealt;m.contributors.set(owner.id,now);m.damageLog.set(owner.id,(m.damageLog.get(owner.id)||0)+dealt);
           this.fx(zone,{type:'hit',id:m.id,x:m.x,y:m.y-22,amount:dealt,kind:'monster',by:owner.id});
           if(m.hp<=0){this.killMob(zone,m);break;}
@@ -641,7 +667,7 @@ export class Game {
       }
       const done=w.casts.filter(c=>c.ends<=now);
       for(const cast of done){
-        if(cast.challengeRun)continue;
+        if(cast.challengeRun||cast.dungeonRun)continue;
         const owner=w.mobs.find(m=>m.id===cast.owner);
         if(!owner?.alive)continue;
         for(const p of inZone){
@@ -653,7 +679,7 @@ export class Game {
           }
           if(hit)this.damagePlayer(p,cast.damage);
         }
-        this.fx(zone,{type:'impact',x:cast.x,y:cast.y,radius:cast.radius,shape:cast.shape,inner:cast.inner,angle:cast.angle,length:cast.length,width:cast.width,boss:cast.boss,theme:cast.theme,monster:cast.monster});
+        this.fx(zone,{type:'impact',castId:cast.id,owner:cast.owner,x:cast.x,y:cast.y,radius:cast.radius,shape:cast.shape,inner:cast.inner,angle:cast.angle,length:cast.length,width:cast.width,boss:cast.boss,theme:cast.theme,monster:cast.monster});
       }
       w.casts=w.casts.filter(c=>c.ends>now);
       this.tickFieldTrial(w);

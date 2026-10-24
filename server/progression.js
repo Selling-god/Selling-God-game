@@ -48,7 +48,7 @@ export const SEQUENCES={
 const sequenceNames={voidwalker:'경계의 발자국',eclipse_reaper:'검은 달의 서약',phoenix_heir:'꺼지지 않는 불',tide_oracle:'바다가 숨긴 문장'};
 export function prepareProgression(p,now=Date.now()){
  const d=p.discovery||{};
- p.discovery={visited:[...new Set(['town',p.zone,...(d.visited||[])])].filter(x=>ZONES[x]&&!ZONES[x].challenge),relics:[...(d.relics||[])],
+ p.discovery={visited:[...new Set(['town',p.zone,...(d.visited||[])])].filter(x=>ZONES[x]&&!ZONES[x].challenge&&!ZONES[x].dungeon),relics:[...(d.relics||[])],
   jobs:[...new Set(['novice',p.classId,...(d.jobs||[])])].filter(x=>CLASSES[x]),
   mastery:{...(d.mastery||{})},killTypes:{...(d.killTypes||{})},gatherTypes:{...(d.gatherTypes||{})},
   crafted:d.crafted||0,healed:d.healed||0,worldKills:{...(d.worldKills||{})},sequences:{...(d.sequences||{})},claims:[...(d.claims||[])],
@@ -87,7 +87,7 @@ export function evaluateJobs(game,p,notify=true){
 }
 export function recordProgress(game,p,kind,id,count=1){
  // Private training rooms do not complete exploration or profession journeys.
- if(kind==='visit'&&ZONES[id]?.challenge)return;
+ if(kind==='visit'&&(ZONES[id]?.challenge||ZONES[id]?.dungeon))return;
  const d=p.discovery;ensureDaily(p,game.now);
  if(kind==='kill'){d.killTypes[id]=(d.killTypes[id]||0)+count;d.mastery[p.classId]=(d.mastery[p.classId]||0)+count;p.daily.kills+=count;}
  if(kind==='boss'){d.mastery[p.classId]=(d.mastery[p.classId]||0)+10;p.daily.bosses+=count;}
@@ -164,7 +164,7 @@ export function progressionAction(game,p,a){
  }
  if(a.type==='travel'){
   const z=ZONES[a.id];
-  if(p.zone!=='town'||!z||z.expedition||!p.discovery.visited.includes(a.id)||p.level<z.minLevel)return {ok:false,error:'마을에서는 이미 방문한 지역으로만 이동할 수 있습니다.'};
+  if(p.zone!=='town'||!z||z.expedition||z.challenge||z.dungeon||z.secretRealm||!p.discovery.visited.includes(a.id)||p.level<z.minLevel)return {ok:false,error:'마을에서는 이미 방문한 일반 지역으로만 이동할 수 있습니다.'};
   if(game.now-p.lastCombat<8000)return {ok:false,error:'전투가 끝난 뒤 이동하세요.'};
   game.teleport(p,a.id,z.spawn[0]*32+16,z.spawn[1]*32+16);return {ok:true};
  }

@@ -1,10 +1,18 @@
 import {ZONES,MONSTERS} from '../shared/content.js';
-import {PROVINCES,LANDMARKS} from '../shared/expeditions.js';
+import {PROVINCES,LANDMARKS,expeditionRewards} from '../shared/expeditions.js';
 import {dist} from '../shared/world.js';
 import {STORY_POINTS,openMentor,readSecret,recordStory} from './stories.js';
 
 export const atlasDay=now=>new Date(now+9*3600000).toISOString().slice(0,10);
 const validZone=id=>Object.prototype.hasOwnProperty.call(ZONES,id)&&ZONES[id].expedition;
+function grantReward(game,p,zone,kind){
+ const reward=expeditionRewards(zone,kind);
+ p.gold+=reward.gold||0;
+ if(reward.xp)game.giveXP(p,reward.xp);
+ if(reward.seals)game.addItem(p,'wayfarer_seal',reward.seals);
+ if(reward.material&&reward.materials)game.addItem(p,reward.material,reward.materials);
+ return reward;
+}
 export function prepareAtlas(p){
  const a=p.atlas||{};
  p.atlas={version:1,waypoints:[...new Set(a.waypoints||[])].filter(validZone),
@@ -60,12 +68,12 @@ export function interactPoint(game,p,point){
  let signals=[];
  if(point.kind==='camp'){
   if(!p.atlas.waypoints.includes(p.zone)){
-   p.atlas.waypoints.push(p.zone);game.giveXP(p,50+ZONES[p.zone].minLevel*8);
+   p.atlas.waypoints.push(p.zone);grantReward(game,p,ZONES[p.zone],'camp');
    game.toast(p,'귀환석을 깨웠습니다. 마을과 다른 야영지에서 이곳으로 이동할 수 있습니다.','success');
   }
  }else if(point.kind==='tablet'||point.kind==='watch'){
   if(!p.atlas.pages.includes(point.id)){
-   p.atlas.pages.push(point.id);game.giveXP(p,45+ZONES[p.zone].minLevel*5);game.addItem(p,'wayfarer_seal');
+   p.atlas.pages.push(point.id);grantReward(game,p,ZONES[p.zone],'page');
   }
   signals=readSecret(game,p,point);recordStory(game,p,{kind:'read',target:point.id});
  }
@@ -118,7 +126,7 @@ export function tickFieldTrial(game,w){
   recordStory(game,p,{kind:'trial',target:w.id});
   if(p.atlas.trialClaims[w.id]!==day){
    p.atlas.trialClaims[w.id]=day;p.atlas.reputation[z.province]=(p.atlas.reputation[z.province]||0)+2;
-   game.addItem(p,'wayfarer_seal',3);p.gold+=100+z.minLevel*15;game.giveXP(p,160+z.minLevel*25);
+   grantReward(game,p,z,'trial');
    game.toast(p,'세 번의 기억을 지켰습니다. 오늘의 시련 보상과 길손의 증표 3개를 받았습니다.','success');
   }else game.toast(p,'시련 수련을 기록했습니다. 오늘 이 제단의 물품 보상은 이미 받았습니다.','success');
   game.mark(p);
@@ -144,7 +152,7 @@ export function atlasAction(game,p,a){
   const camps=p.atlas.waypoints.filter(id=>ZONES[id].province===r.id).length;
   const pages=p.atlas.pages.filter(id=>STORY_POINTS.get(id)?.zone?.startsWith(r.id+'_reach_')).length;
   if(camps<9||pages<18||p.atlas.surveyClaims.includes(r.id))return {ok:false,error:'야영지 9곳과 기록 18장을 모두 발견해야 합니다. 보상은 한 번만 받습니다.'};
-  p.atlas.surveyClaims.push(r.id);p.gold+=1200;game.giveXP(p,1800);game.addItem(p,'wayfarer_seal',12);
+  p.atlas.surveyClaims.push(r.id);grantReward(game,p,r,'survey');
   const title=r.name+'의 길잡이';if(!p.titles.includes(title))p.titles.push(title);
   game.mark(p);return {ok:true,message:r.name+'의 지도를 완성했습니다. 탐사 보상과 칭호를 받았습니다.'};
  }
@@ -159,7 +167,7 @@ export function atlasAction(game,p,a){
    game.mark(p);sync(camp);return {ok:true,message:'이 지역에서 사냥 12회와 지정 재료 채집 5회를 마치고 돌아오세요.'};
   }
   if(!old||old.day!==day||old.claimed||old.kills<old.killGoal||old.gathered<old.gatherGoal)return {ok:false,error:'현재 야영지 의뢰 목표와 수령 여부를 확인하세요.'};
-  old.claimed=true;p.gold+=80+z.minLevel*12;game.giveXP(p,120+z.minLevel*18);game.addItem(p,'wayfarer_seal',2);
+  old.claimed=true;grantReward(game,p,z,'contract');
   p.atlas.reputation[z.province]=(p.atlas.reputation[z.province]||0)+1;game.mark(p);sync(camp);return {ok:true,message:'야영지 의뢰 완료 · 명성과 길손의 증표 2개 획득'};
  }
  if(a.type==='trialStart'){
