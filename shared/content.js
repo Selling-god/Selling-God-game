@@ -1,4 +1,5 @@
 import { cleanAttributes, enhancementBonus } from './rpg.js';
+import { installExtraItems } from './extra-items.js';
 export { MAX_LEVEL, xpRequired } from './rpg.js';
 import { installBossGear } from './visuals.js';
 import { installExpeditions } from './expeditions.js';
@@ -173,6 +174,7 @@ Object.assign(ZONES,CHALLENGE_ZONES);
 installDungeons({ZONES,MONSTERS,ITEMS});
 installRealms({ZONES,MONSTERS,ITEMS});
 installEncounterIdentities({MONSTERS,ZONES,QUESTS});
+installExtraItems({ITEMS,RECIPES});
 
 // Every region, including the original four, has a stable UI/save identifier.
 for(const [id,zone]of Object.entries(ZONES))zone.id=id;
