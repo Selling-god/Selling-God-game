@@ -2,8 +2,7 @@ import { cleanAttributes, enhancementBonus } from './rpg.js';
 export { MAX_LEVEL, xpRequired } from './rpg.js';
 import { installBossGear } from './visuals.js';
 import { installExpeditions } from './expeditions.js';
-import { installExpansion,ACHIEVEMENTS } from './expansion.js';
-import {makeHonorAchievements,honorBonus} from './personalization.js';
+import { installExpansion } from './expansion.js';
 import { CHALLENGE_ZONES } from './challenges.js';
 import { installDungeons } from './dungeons.js';
 import { installRealms } from './realms.js';
@@ -137,7 +136,6 @@ export const ZONES = {
 export const NPCS = [
   { id: 'lia', name: '리아', role: '별지기 · 의뢰', kind: 'quest', sprite: 'lia', zone: 'town', x: 25.5*TILE, y: 18.5*TILE, dialog: '이 마을에서는 아직 밤에도 불을 꺼두지 않아요. 돌아오는 사람에게 길이 보이도록요. 당신도, 무사히 돌아와 주세요.' },
   { id: 'mora', name: '모라', role: '여행 상인', kind: 'shop', sprite: 'merchant', zone: 'town', x: 19.5*TILE, y: 21*TILE, dialog: '가방이 너무 가볍다고요? 그럼 물약부터 챙겨요. 별을 구하는 일도 체력이 있어야 하니까!' },
-  { id: 'lumi', name: '루미', role: '모험가 꾸미기 공방', kind: 'atelier', sprite: 'merchant', zone: 'town', x: 22.5*TILE, y: 17.5*TILE, dialog: '전투 장비는 그대로 두고, 너만의 실루엣과 아우라를 골라 봐! 처음에는 무료 외형도 준비했어.' },
   { id: 'bran', name: '브란', role: '대장장이 · 제작', kind: 'craft', sprite: 'smith', zone: 'town', x: 29*TILE, y: 20.5*TILE, dialog: '좋은 무기에는 좋은 재료와 약간의 고집이 필요하지. 재료를 가져오면 네 손에 맞춰 만들어 주겠어.' },
   { id: 'erin', name: '에린', role: '치유사', kind: 'heal', sprite: 'healer', zone: 'town', x: 24*TILE, y: 24.5*TILE, dialog: '잠깐 쉬어 가요. 돌아올 곳이 있다는 걸 잊지 않으면, 조금 멀리 가도 괜찮아요.' }
 ];
@@ -152,8 +150,6 @@ export const getStats = (p, now=Date.now()) => {
     const n=p.enhancements?.[id]||0;
     const bonus=enhancementBonus(i.slot,n);s.atk+=bonus.atk||0;s.def+=bonus.def||0;s.maxHp+=bonus.hp||0;s.maxMp+=bonus.mp||0;
   }
-  const titleStats=p.titles?.includes(p.title)?honorBonus(p.title,ACHIEVEMENTS):null;
-  if(titleStats){s.atk+=titleStats.atk||0;s.def+=titleStats.def||0;s.maxHp+=titleStats.hp||0;s.maxMp+=titleStats.mp||0;s.crit+=titleStats.crit||0;}
   const passive=c.passive||{};
   s.atk+=passive.atk||0;s.def+=passive.def||0;s.maxHp+=passive.hp||0;s.crit+=passive.crit||0;s.speed+=passive.speed||0;
   const mastery=Math.min(10,Math.floor((p.discovery?.mastery?.[p.classId]||0)/25));
@@ -180,9 +176,3 @@ installEncounterIdentities({MONSTERS,ZONES,QUESTS});
 
 // Every region, including the original four, has a stable UI/save identifier.
 for(const [id,zone]of Object.entries(ZONES))zone.id=id;
-
-// Add claimable region/bestiary/profession honor milestones after all content has installed.
-ACHIEVEMENTS.push(...makeHonorAchievements({CLASSES,MONSTERS,ZONES}));
-ITEMS.rename_ticket={name:'닉네임 변경권',type:'token',icon:'charm',rarity:'rare',buy:17600,sell:100,desc:'외형 작업실에서 캐릭터 이름을 한 번 변경합니다. 이름 중복 여부는 서버에서 검사합니다.'};
-ITEMS.portrait_ticket={name:'초상화 변환권',type:'token',icon:'orb',rarity:'epic',buy:10500,sell:100,desc:'PNG/JPG/WebP 이미지를 24×32 도트 외형으로 바꾸어 한 번 등록합니다.'};
-SHOP.push('rename_ticket','portrait_ticket');
