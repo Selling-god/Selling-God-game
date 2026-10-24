@@ -13,7 +13,7 @@ import { dungeonsPanel, dungeonHUD } from './dungeons-ui.js';
 import { realmsPanel, realmHUD } from './realms-ui.js';
 import {encounterDescription} from './encounters-ui.js';
 import {creatureHitTest} from './creatures.js';
-import {TITLE_CATALOG,titleInfo,titleProgress} from '../shared/title-catalog.js';
+import {TITLE_CATALOG,HIDDEN_TITLES,titleInfo,titleProgress,titleStatLabel} from '../shared/title-catalog.js';
 import {enhancementSpec} from '../shared/rpg.js';
 import {EnhancementCinema} from './enhance-fx.js';
 
@@ -30,7 +30,7 @@ let config,auth,net,profile=null,state=null,selectedClass='novice',inGame=false,
 let keys=new Set(),joystick={x:0,y:0},attackHeld=false,autoAttack=false,lastInputAt=0,lastAttackAt=0,lastHUD=0,lastMini=0;
 let pendingInteract=null,lastInteractAt=0,lastErrorAt=0,wasOnline=false,lastProfileSignature='',lastModalSignature='';
 let busy=new Set(),settings={sfx:true,music:false,effects:true,zoom:1,lowPower:false,shake:false},mutedPlayers=new Set();
-let statDraft={},lastPortraitKey='',previousTitleNames=null,showAllForgeRecipes=false;
+let statDraft={},lastPortraitKey='',previousTitleNames=null,showAllForgeRecipes=false,titleSearch='';
 let jobBookData=null,eventList=[],lastSentInput={x:0,y:0},inputSeq=0;
 let accountMode='login',lastFocused=null,firstConnection=true,uiRefreshNeeded=false,lastStateAt=0;
 const keybindings=createKeybindings(),capturedKeyUps=new Set();
@@ -117,7 +117,7 @@ function profileChanged(p){
   const newNames=previousTitleNames?p.titles.filter(t=>!previousTitleNames.has(t)):[];
   previousTitleNames=new Set(p.titles);
   if(newNames.length&&inGame)queueTitleUnlocks(newNames);
-  const sig=JSON.stringify([p.inventory,p.equipment,p.enhancements,p.quests,p.completed,p.level,p.gold,p.titles,p.classId,p.discovery,p.journey,p.atlas,p.storyTracker,p.daily,p.challenges,p.dungeons,p.realms,p.attributes,p.enhancePity,p.deathWeakUntil,p.soul]);
+  const sig=JSON.stringify([p.inventory,p.equipment,p.enhancements,p.quests,p.completed,p.level,p.gold,p.titles,p.title,p.classId,p.discovery,p.journey,p.atlas,p.storyTracker,p.daily,p.challenges,p.dungeons,p.realms,p.attributes,p.enhancePity,p.deathWeakUntil,p.soul]);
   if(previousClass&&previousClass!==p.classId)renderAbilities();
   const portraitKey=JSON.stringify([p.equipment,p.enhancements]);
   if(portraitKey!==lastPortraitKey){lastPortraitKey=portraitKey;$('portrait').src=renderer.avatarURL(p);}
@@ -132,20 +132,20 @@ function queueTitleUnlocks(names){
   if(!titleAwardTimer)showNextTitleAward();
 }
 function showNextTitleAward(){
-  const name=titleAwardQueue.shift();
-  if(!name){titleAwardTimer=null;return;}
-  const data=titleInfo(name),root=document.getElementById('title-award')||document.createElement('div');
-  root.id='title-award';root.className=`title-award rarity-${data.rarity}`;
-  root.setAttribute('role','status');root.setAttribute('aria-live','polite');
-  root.innerHTML=`<span aria-hidden="true">✦</span><div><small>새로운 칭호 획득</small><b>${esc(name)}</b></div>`;
-  if(!root.isConnected)document.body.appendChild(root);
-  root.classList.remove('title-award-hide');
-  void root.offsetWidth;
-  titleAwardTimer=setTimeout(()=>{
-    root.classList.add('title-award-hide');
-    titleAwardTimer=setTimeout(showNextTitleAward,350);
-  },3200);
+ const name=titleAwardQueue.shift();
+ if(!name){titleAwardTimer=null;return;}
+ const data=titleInfo(name),root=document.getElementById('title-award')||document.createElement('div');
+ root.id='title-award';root.className=`title-award rarity-${data.rarity}`;
+ root.setAttribute('role','status');root.setAttribute('aria-live','polite');
+ root.innerHTML=`<span aria-hidden="true">✦</span><div><small>새로운 칭호 획득</small><b>${esc(name)}</b></div>`;
+ if(!root.isConnected)document.body.appendChild(root);
+ // Remove the node explicitly. A legendary neon keyframe can otherwise override
+ // the CSS opacity of the previous dismiss class and leave the popup on screen.
+ titleAwardTimer=setTimeout(()=>{
+  root.remove();titleAwardTimer=setTimeout(showNextTitleAward,150);
+ },3000);
 }
+
 function beginGame(p,local){
   const first=!inGame;
   profileChanged(p);inGame=true;show('landing',false);show('creator',false);show('game-ui');
@@ -352,7 +352,8 @@ function openPanel(name,data){
   cancelKeyCapture(false);
   if(name==='keybindings'){keyStatus='';keyStatusTone='';}
   resetControls();sound.play('click');lastFocused=document.activeElement;
-  modal=name;modalTab=name==='craft'?'recipes':name==='jobs'?'common':'all';selectedItem=null;
+  modal=name;modalTab=name==='craft'?'recipes':name==='jobs'?'common':name==='titles'?'owned':'all';selectedItem=null;
+  if(name==='titles')titleSearch='';
   if(name==='craft')showAllForgeRecipes=false;
   if(name==='stats')statDraft={};
   window._modalData=data;show('modal');renderPanel();if(name==='jobs')action({type:'jobs'});
@@ -399,6 +400,60 @@ function questCards(forNpc=false){
       ${forNpc&&!done?`<button class="btn small ${ready||!qs&&!locked?'primary':''}" data-act="${qs?'claimQuest':'acceptQuest'}" data-id="${q.id}" ${qs&&!ready||locked?'disabled':''}>${ready?'보상 받기':qs?'진행 중':locked?'조건 미충족':'의뢰 수락'}</button>`:!done?'<span class="small muted">리아에게 대화</span>':''}</footer></article>`;
   }).join('');
 }
+const TITLE_RARITY_LABEL={common:'일반',uncommon:'고급',rare:'희귀',epic:'영웅',legendary:'전설'};
+function renderTitleGallery(p){
+  const earned=new Set(p.titles);
+  const current=titleInfo(p.title);
+  const owned=[p.title,...p.titles.slice().reverse()].filter((name,i,arr)=>name&&arr.indexOf(name)===i);
+  const names=modalTab==='owned'?owned:[...owned,...[...TITLE_CATALOG,...HIDDEN_TITLES].filter(t=>!earned.has(t.name)).map(t=>t.name)];
+  const cards=names.map(name=>{
+    const data=titleInfo(name),has=earned.has(name),equipped=name===p.title;
+    const rarity=TITLE_RARITY_LABEL[data.rarity]||'일반';
+    const progress=data.metric!==undefined?Math.min(titleProgress(p,data.metric),data.goal):0;
+    const progressLabel=data.metric==='playSeconds'
+      ? `${Math.floor(progress/60)} / ${Math.ceil(data.goal/60)}분`
+      : `${money(progress)} / ${money(data.goal)}`;
+    const condition=data.hidden?'해금 방법 비공개 · 스스로 발견하세요'
+      : data.metric!==undefined?`${esc(data.description)} ${progressLabel}`
+      : (has?'특별 활동을 통해 획득한 칭호':'특별 활동 보상');
+    const effect=data.hidden&&!has?'':titleStatLabel(name);
+    const searchable=esc(`${name} ${data.theme||'특별 칭호'} ${rarity}`.toLocaleLowerCase());
+    return `<article class="title-card rarity-${data.rarity} ${has?'':'locked'} ${equipped?'equipped':''}" data-search="${searchable}">
+      <div class="title-card-top"><span class="title-rarity">${data.hidden&&!has?'히든':rarity}</span><span class="title-theme">${data.hidden&&!has?'미확인 칭호':esc(data.theme||'특별 획득')}</span></div>
+      <strong class="title-card-name">✦ ${esc(name)}</strong>
+      <p>${has?(equipped?'현재 장착한 칭호 · ': '획득 완료 · '):'달성 조건 · '}${condition}</p>
+      ${effect?`<p class="title-bonus">⚔ ${esc(effect)}</p>`:''}
+      ${has?`<button type="button" class="btn small ${equipped?'':'primary'}" data-act="equipTitle" data-title="${esc(name)}" ${equipped?'disabled':''}>${equipped?'장착 중':'이 칭호 장착'}</button>`:
+      '<span class="title-locked" aria-label="미획득">🔒 미획득</span>'}
+    </article>`;
+  }).join('');
+  return `<section class="title-vault">
+    <div class="title-feature rarity-${current.rarity}">
+      <div><span class="title-feature-label">현재 장착한 칭호</span><h3>✦ ${esc(p.title)}</h3><p>장착 효과 · ${esc(titleStatLabel(p.title))}<br>캐릭터 이름 위에 표시되며, 한 번에 하나의 칭호 효과만 적용됩니다.</p></div>
+      <div class="title-feature-total"><strong>${p.titles.length}</strong><span>획득 / ${TITLE_CATALOG.length+HIDDEN_TITLES.length}종+특별 칭호</span></div>
+    </div>
+    <div class="title-vault-tools">
+      <div class="tabs title-vault-tabs"><button type="button" class="tab ${modalTab==='owned'?'active':''}" data-act="tab" data-id="owned" aria-pressed="${modalTab==='owned'}">보유한 칭호 (${p.titles.length})</button><button type="button" class="tab ${modalTab==='all'?'active':''}" data-act="tab" data-id="all" aria-pressed="${modalTab==='all'}">전체 칭호 도감 (${TITLE_CATALOG.length+HIDDEN_TITLES.length})</button></div>
+      <label class="title-vault-search">칭호 검색<input id="title-search" type="search" autocomplete="off" placeholder="이름 · 주제 · 희귀도 검색" value="${esc(titleSearch)}"></label>
+    </div>
+    <div class="title-vault-summary"><span>히든 ${HIDDEN_TITLES.length}종: 획득 전에는 이름만 공개하며 해금 조건과 효과는 비밀입니다.</span><span id="title-count">${names.length}개 표시</span></div>
+    <div id="title-grid" class="title-grid">${cards}</div>
+    <p id="title-empty" class="info-box hidden">검색 결과가 없습니다. 다른 이름이나 주제로 찾아보세요.</p>
+  </section>`;
+}
+function filterTitleGallery(){
+  const input=$('title-search');if(!input)return;
+  titleSearch=input.value;
+  const query=titleSearch.trim().toLocaleLowerCase();
+  let shown=0;
+  for(const el of document.querySelectorAll('#title-grid .title-card')){
+    const match=el.dataset.search.includes(query);
+    el.classList.toggle('hidden',!match);
+    if(match)shown++;
+  }
+  setText('title-count',`${shown}개 표시`);
+  show('title-empty',shown===0);
+}
 function renderPanel(){
   const p=profile,c=p&&CLASSES[p.classId],data=window._modalData;
   let title='',eyebrow='STARFALL ONLINE',html='';
@@ -433,10 +488,18 @@ function renderPanel(){
     title='모라의 여행 상점';eyebrow=`SUPPLIES FOR THE ROAD · ${money(p.gold)} G`;
     html=npcIntro('mora')+`<div class="tabs"><button class="tab ${modalTab!=='sell'?'active':''}" data-act="tab" data-id="buy">구매</button><button class="tab ${modalTab==='sell'?'active':''}" data-act="tab" data-id="sell">판매</button></div>`;
     if(modalTab==='sell'){
-      html+=`<p class="small muted">장착 중이거나 강화한 장비는 판매가 제한됩니다. 아래 버튼은 한 번에 1개를 판매합니다.</p>`;
+      html+=`<p class="small muted">장착 중이거나 강화한 장비는 보호됩니다. 수량 버튼 또는 직접 입력으로 한 번에 판매할 수 있습니다.</p>`;
       html+=Object.entries(p.inventory).filter(([id,n])=>n>0&&ITEMS[id]).map(([id,n])=>{
-        const i=ITEMS[id],locked=Object.values(p.equipment).includes(id)||p.enhancements[id];
-        return `<div class="recipe">${icon(i.icon)}<div class="recipe-body"><h3 style="color:${RARITIES[i.rarity].color}">${esc(i.name)}</h3><p>보유 ${n}개 · 판매 ${i.sell||1} G</p></div><button class="btn small" data-act="sell" data-id="${id}" ${locked?'disabled':''}>1개 판매</button></div>`;
+        const i=ITEMS[id],locked=Object.values(p.equipment).includes(id)||p.enhancements[id],unit=i.sell||1;
+        return `<div class="recipe sell-recipe">${icon(i.icon)}<div class="recipe-body"><h3 style="color:${RARITIES[i.rarity].color}">${esc(i.name)}</h3><p>보유 ${money(n)}개 · 개당 ${money(unit)} G</p>
+          <div class="sell-actions">
+            <button type="button" class="btn small" data-act="sellCount" data-id="${id}" data-count="1" ${locked?'disabled':''}>1개</button>
+            <button type="button" class="btn small" data-act="sellCount" data-id="${id}" data-count="10" ${locked||n<10?'disabled':''}>10개</button>
+            <button type="button" class="btn small" data-act="sellCount" data-id="${id}" data-count="${Math.min(n,9999)}" ${locked?'disabled':''}>전량</button>
+            <label class="sell-input-label" for="sell-count-${id}">직접 입력<input id="sell-count-${id}" type="number" inputmode="numeric" min="1" max="${Math.min(n,9999)}" value="1" ${locked?'disabled':''}></label>
+            <button type="button" class="btn small primary" data-act="sellCustom" data-id="${id}" ${locked?'disabled':''}>입력 수량 판매</button>
+          </div>
+        </div></div>`;
       }).join('');
     }else html+=SHOP.map(id=>{const i=ITEMS[id];return `<div class="recipe">${icon(i.icon)}<div class="recipe-body"><h3 style="color:${RARITIES[i.rarity].color}">${esc(i.name)}</h3><p>${esc(i.desc||gearStats(i))}<br>${i.buy} G · 보유 ${p.inventory[id]||0}개</p></div><button class="btn small primary" data-act="buy" data-id="${id}" ${p.gold<i.buy?'disabled':''}>1개 구매</button>${i.type==='consumable'?`<button class="btn small" data-act="buy5" data-id="${id}" ${p.gold<i.buy*5?'disabled':''}>5개</button>`:''}</div>`;}).join('');
   }else if(modal==='craft'){
@@ -469,6 +532,8 @@ function renderPanel(){
       html+=others.length?others.map(m=>`<div class="member-row"><img src="${imgHero(m.classId)}" alt=""><div class="grow"><b>${esc(m.name)}</b><small>Lv.${m.level} ${CLASSES[m.classId].name}${m.partyId?' · 파티 참여 중':''}</small></div><button class="btn small" data-act="mute" data-id="${m.id}">${mutedPlayers.has(m.id)?'차단 해제':'채팅 차단'}</button><button class="btn small primary" data-act="partyInvite" data-id="${m.id}" ${m.partyId||party&&party.leader!==p.id?'disabled':''}>초대</button></div>`).join(''):'<p class="muted small">아직 가까이에 다른 모험가가 없습니다. 같은 서버 주소를 친구에게 공유해 보세요.</p>';
       html+='<button class="btn small" style="margin-top:15px" data-act="copyLink">게임 주소 복사</button>';
     }
+  }else if(modal==='titles'){
+    title='칭호 보관함';eyebrow='YOUR NAME · YOUR LEGEND';html=renderTitleGallery(p);
   }else if(modal==='keybindings'){
     title='키 설정';eyebrow='KEY BINDINGS · YOUR CONTROLS';html=renderKeybindingsSettings();
   }else if(modal==='settings'){
@@ -482,7 +547,7 @@ function renderPanel(){
       <div class="settings-row"><label for="setting-zoom">화면 배율<small>모바일에서는 작은 배율을 권장합니다.</small></label><input id="setting-zoom" type="range" min=".75" max="1.3" step=".05" value="${settings.zoom}"></div>
       <div class="settings-row"><label>자동 기본 공격<small>가까운 적에게 기본 공격을 반복합니다. 이동은 직접 조작합니다.</small></label><button class="btn small" data-act="auto">${autoAttack?'끄기':'켜기'}</button></div>
       <div class="settings-row"><label>키 설정<small>이동·공격·기술·메뉴의 주 키와 보조 키를 변경합니다.</small></label><button class="btn small primary" data-act="keybindings">키 설정 열기</button></div>
-      <div class="settings-row"><label>칭호<small>보유 ${p.titles.length}개 · 추가 획득 가능 ${TITLE_CATALOG.length}종</small></label><select id="title-select">${p.titles.map(t=>`<option ${t===p.title?'selected':''}>${esc(t)}</option>`).join('')}</select></div><p class="small muted">희귀 이상 칭호는 캐릭터 이름 위에 특별한 빛으로 표시됩니다. 달성 시 잠시 알림이 나타납니다.</p>
+      <div class="settings-row"><label>칭호<small>게임 화면의 '칭호' 전용 버튼에서 장착할 수 있습니다.</small></label><button class="btn small" data-act="openTitles">칭호 보관함</button></div>
       <div class="settings-actions"><button class="btn small primary" data-act="save">지금 저장</button><button class="btn small" data-act="guide">조작 도움말</button><button class="btn small" data-act="account">계정 연결</button><button class="btn small" data-act="copyLink">주소 복사</button><button class="btn small danger" data-act="logout">나가기</button></div>
       <p class="small muted" style="margin:20px 0 0">v2.0.0 · ${config.devGuest?'로컬 개발 저장소':'Supabase 영구 저장'} · ${money(p.kills)}마리 처치 · 보스 ${p.bossKills}회<br>저장은 30초마다, 주요 거래 후와 접속 종료 시 시도합니다.</p>`;
   }else if(modal==='guide'){
@@ -523,7 +588,17 @@ function renderPanel(){
     $('modal-content').innerHTML=html;lastModalSignature=signature;
     $('modal-content').querySelectorAll('details').forEach((d,i)=>{if(expanded[i]!==undefined)d.open=expanded[i];});
     if(focused?.act)[...$('modal-content').querySelectorAll('[data-act]')].find(b=>b.dataset.act===focused.act&&b.dataset.id===focused.id)?.focus({preventScroll:true});
-  }else{$('modal-content').innerHTML=html;lastModalSignature='';}
+  }else{
+    const titleFocused=modal==='titles'&&document.activeElement?.id==='title-search';
+    const caret=titleFocused?document.activeElement.selectionStart:null;
+    const galleryScroll=modal==='titles'?$('modal-content').scrollTop:0;
+    $('modal-content').innerHTML=html;lastModalSignature='';
+    if(modal==='titles'){
+      filterTitleGallery();$('modal-content').scrollTop=galleryScroll;
+      if(titleFocused){const input=$('title-search');input?.focus({preventScroll:true});
+        if(caret!==null)input?.setSelectionRange(caret,caret);}
+    }
+  }
   if(modal==='map')requestAnimationFrame(()=>{$('large-map')&&renderer.minimap($('large-map'),true);});
   attachForms();
 }
@@ -564,13 +639,36 @@ function attachForms(){
   });
   for(const key of ['sfx','music','effects','lowPower','shake'])$('setting-'+key)?.addEventListener('change',e=>{settings[key]=e.target.checked;sound.start();applySettings();});
   $('setting-zoom')?.addEventListener('input',e=>{settings.zoom=Number(e.target.value);applySettings();});
-  $('title-select')?.addEventListener('change',e=>action({type:'title',title:e.target.value}));
+  $('title-search')?.addEventListener('input',filterTitleGallery);
 }
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-act]');if(!b||b.disabled)return;
   const type=b.dataset.act,id=b.dataset.id;
   if(type==='keybindings'){openPanel('keybindings');return;}
   if(type==='openSettings'){openPanel('settings');return;}
+  if(type==='openTitles'){openPanel('titles');return;}
+  if(type==='sellCount'||type==='sellCustom'){
+    if(modal!=='shop'||modalTab!=='sell'||!profile)return;
+    const owned=profile.inventory?.[id]||0;
+    const selected=type==='sellCount'?Number(b.dataset.count):Number(document.getElementById('sell-count-'+id)?.value);
+    if(!Number.isSafeInteger(selected)||selected<1||selected>Math.min(9999,owned)){
+      notice('판매 수량은 1개부터 현재 보유 수량까지 입력해 주세요.','warn');return;
+    }
+    b.disabled=true;
+    const result=await action({type:'sell',id,count:selected});
+    if(b.isConnected)b.disabled=false;
+    if(result.ok)uiRefreshNeeded=true;
+    return;
+  }
+  if(type==='equipTitle'){
+    const wanted=b.dataset.title;
+    if(modal!=='titles'||!wanted||!profile?.titles.includes(wanted)||profile.title===wanted)return;
+    b.disabled=true;
+    const result=await action({type:'title',title:wanted});
+    if(result.ok){profile.title=wanted;notice(`칭호 「${wanted}」 장착 완료`,'success');renderPanel();}
+    else if(b.isConnected)b.disabled=false;
+    return;
+  }
   if(type==='bindKey'){
     const slot=Number(b.dataset.slot);
     if(modal!=='keybindings'||!KEY_ACTIONS.some(a=>a.id===id)||(slot!==0&&slot!==1))return;
