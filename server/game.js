@@ -15,6 +15,7 @@ import {prepareDungeons} from '../shared/dungeons.js';
 import {prepareRealms} from '../shared/realms.js';
 import {combatExperience} from '../shared/rpg.js';
 import {syncProgressTitles} from '../shared/title-catalog.js';
+import {syncHiddenTitles} from './hidden-titles.js';
 import {extraDropsForLevel} from '../shared/extra-items.js';
 import {ACHIEVEMENTS} from '../shared/expansion.js';
 import { randomUUID } from 'node:crypto';
@@ -40,7 +41,7 @@ export function hydrate(state){
   prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareChallenges(p,{recover:true});prepareDungeons(p,{recover:true});prepareRealms(p,{recover:true});
   p.titles=[...(p.titles||['별빛을 따라온 자'])];p.level=clamp(p.level||1,1,MAX_LEVEL);
   prepareRPG(p);
-  syncProgressTitles(p); // Restore milestones silently when an existing save is loaded.
+  syncProgressTitles(p);syncHiddenTitles(p); // Restore earned milestones and hidden titles silently.
   if(!ZONES[p.zone])p.zone='town';
   if(!(p.hp>0)){p.zone='town';p.x=24*TILE+16;p.y=21*TILE+16;}
   const map=createMap(p.zone);
@@ -108,7 +109,7 @@ export class Game {
   addPlayer(state){
     const p=hydrate(state);this.players.set(p.id,p);evaluateJobs(this,p,false);return p;
   }
-  mark(p){syncProgressTitles(p);p.revision=(p.revision||0)+1;p.dirty=true;}
+  mark(p){syncProgressTitles(p);syncHiddenTitles(p);p.revision=(p.revision||0)+1;p.dirty=true;}
   toast(p,message,tone='info'){this.send(p.id,'notice',{message,tone});}
   fx(zone,data){
     if(ZONES[zone]?.dungeon){this.dungeons.fx({...data,t:this.now});return;}
@@ -495,8 +496,8 @@ export class Game {
     }
     if(a.type==='buy'||a.type==='sell'){
       if(!this.nearNpc(p,'shop'))return {ok:false,error:'여행 상인 모라 가까이에서 거래해 주세요.'};
-      const n=Number(a.count??1),i=ITEMS[a.id];
-      if(!i||!Number.isInteger(n)||n<1||n>99)return {ok:false,error:'수량을 확인해 주세요.'};
+      const n=Number(a.count===undefined?1:a.count),i=ITEMS[a.id];
+      if(!i||!Number.isSafeInteger(n)||n<1||n>9999)return {ok:false,error:'수량을 확인해 주세요. (1~9,999개)'};
       if(a.type==='buy'){
         if(!SHOP.includes(a.id)||!i.buy)return {ok:false,error:'판매하지 않는 아이템입니다.'};
         const cost=i.buy*n;if(p.gold<cost)return {ok:false,error:'골드가 부족합니다.'};
@@ -508,7 +509,7 @@ export class Game {
         if(p.enhancements[a.id])return {ok:false,error:'강화한 장비는 보호를 위해 판매가 제한됩니다.'};
         p.inventory[a.id]-=n;p.gold+=(i.sell||1)*n;
       }
-      this.mark(p);return {ok:true,message:a.type==='buy'?'구매했습니다.':'판매했습니다.'};
+      this.mark(p);return {ok:true,message:a.type==='buy'?`${n}개 구매했습니다.`:`${n}개 판매 · ${((i.sell||1)*n).toLocaleString('ko-KR')} G 획득`};
     }
     if(a.type==='craft'){
       if(!this.nearNpc(p,'craft'))return {ok:false,error:'대장장이 브란 가까이에서 제작해 주세요.'};
@@ -523,7 +524,7 @@ export class Game {
     }
     if(a.type==='title'){
       if(!p.titles.includes(a.title))return {ok:false,error:'아직 얻지 못한 칭호입니다.'};
-      p.title=a.title;this.mark(p);return {ok:true};
+      p.title=a.title;const updated=this.stats(p);p.hp=Math.min(p.hp,updated.maxHp);p.mp=Math.min(p.mp,updated.maxMp);this.mark(p);return {ok:true};
     }
     if(a.type==='partyInvite'){
       const target=this.players.get(a.id);

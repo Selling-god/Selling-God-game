@@ -76,6 +76,7 @@ export class EncounterManager{
    if(m.encounterSummon){m.alive=false;m.hp=0;m.respawnAt=Infinity;continue;}
    if(!this.owns(m))continue;
    m.encounterState=null;m.encounterTransition=null;m.target=null;m.castUntil=0;
+   m.encounterAttackScale=m.hp/m.maxHp<=.35?1.31:m.hp/m.maxHp<=.7?1.14:1;
    m.encounterPhase=m.hp<=m.maxHp*.35?3:m.hp<=m.maxHp*.7?2:1;
   }
   w.mobs=w.mobs.filter(m=>!m.encounterSummon);
@@ -107,9 +108,13 @@ export class EncounterManager{
     m.encounterPhase=phaseOf(m)+1;
     this.clearOwner(w,m,{adds:true});s.action=null;s.queue=[];s.path=[];
     const p=this.profile(m),phase=phaseOf(m),extra=LATE_MOVES[MONSTERS[m.type].encounter||m.type]?.[phase-2];
+    // The boss cannot be damaged throughout the transformation. Phase 2 and 3
+    // increase pressure and unlock distinctly identifiable attacks.
+    m.encounterAttackScale=phase===2?1.14:1.31;
+    const cutTime=1850;
     m.encounterTransition={id:`phase_${m.id}_${phase}_${now}`,bossId:m.id,name:MONSTERS[m.type].name,title:p.phaseNames?.[phase-1]||PHASE_NAMES[phase],phase,
-     starts:now,ends:now+1800,theme:this.theme(m),description:`${p.hint} ${moveLabels[extra]||'새 연속기'}가 추가됩니다.`};
-    m.castUntil=now+1800;m.nextAttack=now+2300;m.moving=false;
+     starts:now,ends:now+cutTime,theme:this.theme(m),description:`${moveLabels[extra]||'새 연속기'} 등장 · ${phase===3?'폭주 패턴과 연속 공격에 주의하세요.':'공격 리듬이 바뀝니다.'}`};
+    m.castUntil=now+cutTime;m.nextAttack=now+cutTime+450;m.moving=false;
     this.game.fx(w.id,{type:'armorBreak',id:m.id,x:m.x,y:m.y,theme:this.theme(m),phase:phase-1});
    }
   }
@@ -231,9 +236,27 @@ export class EncounterManager{
   if(state.action){this.clearOwner(w,m);state.action=null;}
   const chosen=profile.sequences[(state.sequence+++(phase-1))%profile.sequences.length].map(x=>({...x}));
   if(phase>1){
-   const kind=LATE_MOVES[key]?.[phase-2]||'echo';
-   const reference=profile.sequences.flat().find(x=>x.kind===kind)||{};
-   chosen.push({...reference,kind,name:moveLabels[kind],phaseMove:true,...(kind==='charge'&&phase===3?{trail:true}:{})});
+   // Show a *new* named mechanic immediately on transformation; don't bury it
+   // after the old attacks where phase 2 looked identical to phase 1.
+   const kinds=LATE_MOVES[key]||['echo','fan'];
+   const build=(kind,final=false)=>{
+    const reference=profile.sequences.flat().find(x=>x.kind===kind)||{};
+    return {...reference,kind,name:`${phase===3?'최종 각성':'각성'} · ${moveLabels[kind]||'변이 공격'}`,
+     phaseMove:true,windup:phase===3?1080:1280,
+     ...(kind==='charge'?{trail:phase===3,length:phase===3?345:280}:{}),
+     ...(kind==='fan'?{count:phase===3?8:6}:{}),
+     ...(kind==='poison'?{count:phase===3?4:3}:{}),
+     ...(kind==='summon'?{count:phase===3?3:2}:{}),
+     ...(kind==='echo'?{count:phase===3?5:3}:{}),
+     ...(kind==='wave'?{count:phase===3?5:3}:{}),
+     ...(final?{recover:700}:{})};
+   };
+   const awaken=build(kinds[phase-2]||'echo');
+   chosen.unshift(awaken);
+   // Phase 3 retains the second-phase mechanic and adds a faster finishing
+   // signature. Phase 2 repeats its first signature at the end of each combo.
+   if(phase===3)chosen.push(build(kinds[0]||'echo'),build(kinds[1]||'fan',true));
+   else chosen.push(build(kinds[0]||'echo',true));
   }
   state.queue=chosen.slice(1);m.target=target.id;m.phase=(m.phase||0)+1;
   this.beginMove(w,m,target,chosen[0]);return true;
