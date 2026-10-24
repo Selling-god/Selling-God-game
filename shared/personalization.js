@@ -14,15 +14,50 @@ const entries=[
  ['nametag','녹색 잎장식','#8fcea0',320],['nametag','달빛 테두리','#b6a5db',550],['nametag','황금 명패','#e2c080',820],['nametag','여명의 띠','#f1b9a2',1000],['nametag','수호 문장','#9ec8d9',1600],['nametag','왕관 명패','#eecf9b',2300],['nametag','밤하늘 성좌','#9f9cdb',3600],['nametag','초월자의 증명','#f1dcaf',6500],
  ['entrance','하늘에서 내린 잎','#9dce9f',450],['entrance','물방울 귀환','#92c8e9',800],['entrance','파편 소환','#b6a2e9',1300],['entrance','불꽃 문','#ecaa80',2000],['entrance','별의 사다리','#ebcb86',3800],['entrance','공허의 문턱','#9986cf',6000],['entrance','황금 왕관의 귀환','#f4d798',9500]
 ];
-export const COSMETICS=Object.fromEntries(entries.map(([slot,name,color,price],i)=>{
-  const id=`${slot}_${String(i).padStart(2,'0')}`;
-  return [id,{id,slot,name,color,price,desc:`전투 능력치를 바꾸지 않는 ${COSMETIC_GROUPS[slot]} 꾸미기 아이템`}];
-}));
+// 12 silhouettes x 10 independently drawn details per slot. A palette change
+// alone never constitutes a separate entry: (form, motif) is unique per slot.
+const COLLECTIONS = [
+  ['이슬','#91cbb4','#dff4c6'],['홍염','#ed937c','#ffe09b'],['조수','#82c9df','#c4eef2'],
+  ['월식','#b1a0ec','#f5d5fa'],['모래','#e2bf88','#ffeec1'],['수정','#9dcfee','#dfefff'],
+  ['연무','#a4b5b8','#e8eeee'],['뇌명','#a5a6ee','#f0caff'],['장미','#e7a0b9','#f4e6dc'],
+  ['유성','#d9b784','#fbecb8'],['심연','#8482bc','#bdafec'],['여명','#e8baac','#f9e9a3']
+];
+const FORMS = {
+ costume:['기사 갑주','활잡이 망토','주술사 장포','원정대 재킷','성기사 판금','연회복','닌자 가리개','숲 수호복','천문학자 외투','마도 기갑','사제 예복','용린 갑옷'],
+ aura:['해무의 고리','삼중 궤도','나선 깃발','광휘의 기둥','분열하는 별','톱니 파동','잎새 소용돌이','룬의 원환','잔상 기류','수정 결계','유성 비','십자 성운'],
+ wings:['깃털 날개','나비 날개','톱니 날개','용익','요정 박막','천사 날개','박쥐 날개','수정 날개','기계 비행익','고리 날개','불사조 날개','풀잎 날개'],
+ nametag:['왕관 문장','기하 명패','고서 두루마리','성운 액자','파도 경계','방패 명판','뿔 달린 명패','가지 장식','수정 가시','별의 띠','톱니 테두리','사슬 문양'],
+ entrance:['유성 강림','별빛 개화','얼음 분출','화염 문','공간 균열','시계 소환','룬 각인','꽃비 낙하','차원 계단','번개 착지','수정 조립','파도 등장']
+};
+const DETAILS=['기본형','격자 문양','큰 문장','비대칭 장식','세 줄 비단','마름모 수정','방사형 술','이중 별무늬','가지 문양','고리 방울'];
+const categoryKeys=Object.keys(COSMETIC_GROUPS);
+const catalogue=[...entries.map(([slot,name,color,price],i)=>({
+  id:`${slot}_${String(i).padStart(2,'0')}`,slot,name,color,price,
+  design:{form:i%12,motif:Math.floor(i/2)%10,primary:color,secondary:COLLECTIONS[i%12][2],legacy:true}
+}))];
+for(const slot of categoryKeys){
+  // Exactly 120 new models per body part. Shape + motif combinations never repeat.
+  for(let theme=0;theme<10;theme++)for(let form=0;form<12;form++){
+    const [collection,color,secondary]=COLLECTIONS[(theme+form*5)%COLLECTIONS.length];
+    const id=`${slot}_atelier_${String(theme).padStart(2,'0')}_${String(form).padStart(2,'0')}`;
+    const motif=theme;
+    catalogue.push({id,slot,name:`${collection} ${FORMS[slot][form]} · ${DETAILS[motif]}`,
+      color,price:theme===0&&form===0 ? 0 : Math.round((260+form*95+theme*270+Math.floor(theme/3)*700)*(slot==='wings'?1.6:slot==='entrance'?1.25:1)),
+      design:{form,motif,primary:color,secondary,variant:theme+form*13}
+    });
+  }
+}
+export const COSMETICS=Object.fromEntries(catalogue.map(v=>[v.id,{
+  ...v,desc:`${FORMS[v.slot][v.design.form]}의 독립적인 도트 실루엣과 ${DETAILS[v.design.motif]} 장식 · 능력치 변화 없음`
+}]));
 export const COSMETIC_SLOTS=Object.keys(COSMETIC_GROUPS);
+export const COSMETIC_COUNT=Object.freeze(Object.fromEntries(COSMETIC_SLOTS.map(slot=>[slot,catalogue.filter(v=>v.slot===slot).length])));
 export const DEFAULT_VANITY={owned:[],slots:{costume:null,aura:null,wings:null,nametag:null,entrance:null},avatarPixels:null};
 export function prepareVanity(p){
   const old=p.vanity||{};
-  const owned=[...new Set(Array.isArray(old.owned)?old.owned:[])].filter(id=>Object.hasOwn(COSMETICS,id)).slice(0,80);
+  // The previous 80-item cap silently deleted purchases when the collection grew.
+  // Keep all legitimate catalogue IDs while discarding malformed/duplicated save data.
+  const owned=[...new Set(Array.isArray(old.owned)?old.owned.slice(0,1000):[])].filter(id=>typeof id==='string'&&Object.hasOwn(COSMETICS,id));
   const slots=Object.fromEntries(COSMETIC_SLOTS.map(slot=>{
     const id=old.slots?.[slot];return [slot,id&&COSMETICS[id]?.slot===slot&&owned.includes(id)?id:null];
   }));

@@ -137,6 +137,7 @@ export const ZONES = {
 export const NPCS = [
   { id: 'lia', name: '리아', role: '별지기 · 의뢰', kind: 'quest', sprite: 'lia', zone: 'town', x: 25.5*TILE, y: 18.5*TILE, dialog: '이 마을에서는 아직 밤에도 불을 꺼두지 않아요. 돌아오는 사람에게 길이 보이도록요. 당신도, 무사히 돌아와 주세요.' },
   { id: 'mora', name: '모라', role: '여행 상인', kind: 'shop', sprite: 'merchant', zone: 'town', x: 19.5*TILE, y: 21*TILE, dialog: '가방이 너무 가볍다고요? 그럼 물약부터 챙겨요. 별을 구하는 일도 체력이 있어야 하니까!' },
+  { id: 'lumi', name: '루미', role: '모험가 꾸미기 공방', kind: 'atelier', sprite: 'merchant', zone: 'town', x: 22.5*TILE, y: 17.5*TILE, dialog: '전투 장비는 그대로 두고, 너만의 실루엣과 아우라를 골라 봐! 처음에는 무료 외형도 준비했어.' },
   { id: 'bran', name: '브란', role: '대장장이 · 제작', kind: 'craft', sprite: 'smith', zone: 'town', x: 29*TILE, y: 20.5*TILE, dialog: '좋은 무기에는 좋은 재료와 약간의 고집이 필요하지. 재료를 가져오면 네 손에 맞춰 만들어 주겠어.' },
   { id: 'erin', name: '에린', role: '치유사', kind: 'heal', sprite: 'healer', zone: 'town', x: 24*TILE, y: 24.5*TILE, dialog: '잠깐 쉬어 가요. 돌아올 곳이 있다는 걸 잊지 않으면, 조금 멀리 가도 괜찮아요.' }
 ];
