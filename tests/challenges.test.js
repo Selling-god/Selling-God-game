@@ -34,7 +34,9 @@ function completeRunes(g, p) {
     const r = g.challenges.runFor(p);
     if (r.phase === 'rest') advance(g, Math.max(1, r.nextAt - g.now + 1));
     if (r.phase === 'memorize') advance(g, Math.max(1, r.peekUntil - g.now + 1));
-    const sequence = [...r.sequence];
+    // Later chambers seal the glyphs behind combat, and the last reverses the order.
+    for(const guardian of [...owned(g,p)].filter(m=>m.challengeRole==='rune_guard'))defeat(g,p,guardian);
+    const sequence = [...r.runeOrder];
     for (const index of sequence) {
       const pad = g.snapshot(p).challenge.markers.find(m => m.id === `rune_${index}`);
       p.x = pad.x; p.y = pad.y; g.now += 600;
@@ -227,7 +229,7 @@ test('a destroyed defense crystal fails even when the player is alive', () => {
   assert.equal(p.challenges.lastResult.won, false); assert.equal(p.challenges.tokens, 0); assert.ok(p.hp > 0); assert.equal(p.zone, 'town');
 });
 
-test('rune sequence is concealed after preview, requires proximity, and three correct rounds win', () => {
+test('rune preview is concealed; later rooms require combat, reversed order and proximity', () => {
   const { g, p } = setup(); const r = start(g, p, 'runes');
   assert.equal(g.snapshot(p).challenge.sequence.length, 3);
   advance(g, r.peekUntil - g.now + 1); assert.equal(g.snapshot(p).challenge.sequence, null);
