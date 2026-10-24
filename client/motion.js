@@ -39,8 +39,13 @@ export class LocalMotion {
    past=h[i];
   }
   // Corrections are applied across render frames, never directly at packet arrival.
-  this.correction={x:s.x-past.x,y:s.y-past.y};
-  if(Math.hypot(this.correction.x,this.correction.y)<1)this.correction={x:0,y:0};
+  const dx=s.x-past.x,dy=s.y-past.y,error=Math.hypot(dx,dy);
+  // Small packet-level differences are visual noise. Do not twitch the camera at every snapshot.
+  if(error<2.5){this.correction.x*=.65;this.correction.y*=.65;}
+  else{
+    const cap=Math.min(42,error),blend=error>25?1:.55;
+    this.correction={x:dx/error*cap*blend,y:dy/error*cap*blend};
+  }
   if(s.hp<=0){this.path=[];this.dashEnd=0;}
  }
  click(map,target){if(this.position)this.path=findPath(map,this.position,target);}
@@ -51,7 +56,7 @@ export class LocalMotion {
  }
  step(map,v,s,dt,now,serverNow){
   if(!this.position)return;
-  dt=clamp(dt,0,.05);
+  dt=clamp(dt,0,.09);
   if(s.hp<=0||now-this.lastServerAt>850){v={x:0,y:0};this.path=[];this.dashEnd=0;}
   let speed=s.speed||170,vector={...v};
   if(Math.hypot(v.x,v.y)>.05)this.path=[];
@@ -64,7 +69,9 @@ export class LocalMotion {
   if(this.dashEnd>now){vector=this.dashVector;speed*=3.6;}
   else if(s.dashUntil>serverNow){vector=s.dashVector||vector;speed*=3.6;}
   const before={...this.position};
-  moveEntity(map,this.position,vector.x*speed*dt,vector.y*speed*dt,10);
+  // Divide slower frames into stable steps so brief frame stalls do not shorten movement.
+  const steps=Math.max(1,Math.ceil(dt/.025));
+  for(let i=0;i<steps;i++)moveEntity(map,this.position,vector.x*speed*dt/steps,vector.y*speed*dt/steps,10);
   this.lastDelta={x:this.position.x-before.x,y:this.position.y-before.y};
   const f=1-Math.exp(-10*dt),dx=this.correction.x*f,dy=this.correction.y*f;
   const x=this.position.x,y=this.position.y;

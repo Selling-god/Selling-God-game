@@ -14,6 +14,7 @@ import {drawPixelTelegraph,clearPixelFX} from './pixel-effects.js';
 import { LocalMotion, SnapshotTrack } from './motion.js';
 import { createMap, moveEntity, clamp, dist, seeded } from '../shared/world.js';
 import { TILE, ZONES, MONSTERS, CLASSES, NPCS } from '../shared/content.js';
+import {titleInfo} from '../shared/title-catalog.js';
 
 const loadImage=src=>new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=src;});
 export class Renderer {
@@ -147,7 +148,7 @@ export class Renderer {
   }
   frame(t){
     if(!this.running)return;
-    const dt=Math.min(.05,(t-this.last)/1000);this.last=t;
+    const dt=Math.min(.09,Math.max(0,(t-this.last)/1000));this.last=t;
     this.onFrame(dt,t);
     if(this.state&&this.map&&this.atlas){
       this.draw(dt,t);
@@ -166,7 +167,10 @@ export class Renderer {
     c.save();
     const shakeX=this.showEffects?(Math.random()-.5)*this.shake:0,shakeY=this.showEffects?(Math.random()-.5)*this.shake:0;
     this.shake*=.85;
-    c.translate(this.w/2+shakeX,this.h/2+shakeY);c.scale(this.zoom,this.zoom);c.translate(-this.camera.x,-this.camera.y);
+    c.translate(this.w/2+shakeX,this.h/2+shakeY);c.scale(this.zoom,this.zoom);
+    // Snap world translation to physical pixels to avoid pixel-art shimmer while panning.
+    const granularity=this.zoom*this.dpr;
+    c.translate(-Math.round(this.camera.x*granularity)/granularity,-Math.round(this.camera.y*granularity)/granularity);
     this.drawMapBackdrop(halfX,halfY);
     this.ground.draw(c,m,this.camera,halfX,halfY,this.atlas,this.meta,this.lowPower);
     if(this.showEffects)drawTerrainAmbient(this,m,t);
@@ -284,7 +288,14 @@ export class Renderer {
         else this.gear.draw(this,other,q.x,q.y,direction,frame,this.flash.get(other.id)>t?.55:1,t);
         if(other.shield){c.strokeStyle='#b8d8df99';c.lineWidth=1.5;c.beginPath();c.ellipse(q.x,q.y-25,23,35,0,0,Math.PI*2);c.stroke();}
         this.label(other.name,q.x,q.y-62,self?'#f2dbab':other.partyId&&other.partyId===p.partyId?'#b2dfba':'#c2d6da',10);
-        if(!self)this.label(`Lv.${other.level}`,q.x,q.y-75,'#b6c8c2',8);
+        if(other.title){
+          const info=titleInfo(other.title),color={common:'#c0cfcc',uncommon:'#9bd4af',rare:'#83cbfa',epic:'#d3b2ff',legendary:'#ffe3a4'}[info.rarity]||'#bfcbd1';
+          const glow=info.rarity==='legendary'?11:info.rarity==='epic'?6:info.rarity==='rare'?3:0;
+          if(glow&&this.showEffects){c.save();c.shadowColor=color;c.shadowBlur=glow*(.84+.16*Math.sin(t/380));}
+          this.label('✦ '+other.title+' ✦',q.x,q.y-79,color,8);
+          if(glow&&this.showEffects)c.restore();
+        }
+        if(!self)this.label(`Lv.${other.level}`,q.x,q.y-(other.title?92:77),'#b6c8c2',8);
         if(!self&&other.hp<other.maxHp){
           c.fillStyle='#16282c';c.fillRect(q.x-18,q.y-53,36,3);c.fillStyle='#91bd97';c.fillRect(q.x-18,q.y-53,36*other.hp/other.maxHp,3);
         }

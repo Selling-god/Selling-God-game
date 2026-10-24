@@ -13,6 +13,9 @@ import { dungeonsPanel, dungeonHUD } from './dungeons-ui.js';
 import { realmsPanel, realmHUD } from './realms-ui.js';
 import {encounterDescription} from './encounters-ui.js';
 import {creatureHitTest} from './creatures.js';
+import {TITLE_CATALOG,titleInfo,titleProgress} from '../shared/title-catalog.js';
+import {enhancementSpec} from '../shared/rpg.js';
+import {EnhancementCinema} from './enhance-fx.js';
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -22,11 +25,12 @@ const show=(id,on=true)=>$(id).classList.toggle('hidden',!on);
 const setText=(id,s)=>{if($(id)?.textContent!==String(s))$(id).textContent=s;};
 const money=n=>Math.round(n||0).toLocaleString('ko-KR');
 const renderer=new Renderer($('world')),sound=new Sound();
+const forgeCinema=new EnhancementCinema();
 let config,auth,net,profile=null,state=null,selectedClass='novice',inGame=false,modal=null,modalTab='all',selectedItem=null;
 let keys=new Set(),joystick={x:0,y:0},attackHeld=false,autoAttack=false,lastInputAt=0,lastAttackAt=0,lastHUD=0,lastMini=0;
 let pendingInteract=null,lastInteractAt=0,lastErrorAt=0,wasOnline=false,lastProfileSignature='',lastModalSignature='';
 let busy=new Set(),settings={sfx:true,music:false,effects:true,zoom:1,lowPower:false,shake:false},mutedPlayers=new Set();
-let statDraft={},lastPortraitKey='';
+let statDraft={},lastPortraitKey='',previousTitleNames=null,showAllForgeRecipes=false;
 let jobBookData=null,eventList=[],lastSentInput={x:0,y:0},inputSeq=0;
 let accountMode='login',lastFocused=null,firstConnection=true,uiRefreshNeeded=false,lastStateAt=0;
 const keybindings=createKeybindings(),capturedKeyUps=new Set();
@@ -90,14 +94,14 @@ function finishKeyEdit(result,message,focusId,slot=0){
   keyStatusTone=result.saved?'success':'warn';
   syncKeyHints();redrawKeybindings(focusId,slot);
 }
-async function action(data,{silent=false}={}){
+async function action(data,{silent=false,suppressMessage=false}={}){
   if(!net?.connected)return {ok:false};
   const key=data.type+':'+(data.id||data.skill||'');
   if(busy.has(key))return {ok:false,quiet:true};
   busy.add(key);
   const result=await net.action(data);busy.delete(key);
   if(result?.error&&!result.quiet&&!silent&&performance.now()-lastErrorAt>900){notice(result.error,'warn');lastErrorAt=performance.now();}
-  if(result?.message)notice(result.message,result.tone||'success');
+  if(result?.message&&!suppressMessage)notice(result.message,result.tone||'success');
   if(result?.ok)uiRefreshNeeded=true;
   return result||{ok:false};
 }
@@ -109,11 +113,38 @@ function resetControls(){
 function profileChanged(p){
   const previousClass=profile?.classId;
   profile=p;renderer.profile=p;
+  // Compare actual server-issued title collections; never trust browser awards.
+  const newNames=previousTitleNames?p.titles.filter(t=>!previousTitleNames.has(t)):[];
+  previousTitleNames=new Set(p.titles);
+  if(newNames.length&&inGame)queueTitleUnlocks(newNames);
   const sig=JSON.stringify([p.inventory,p.equipment,p.enhancements,p.quests,p.completed,p.level,p.gold,p.titles,p.classId,p.discovery,p.journey,p.atlas,p.storyTracker,p.daily,p.challenges,p.dungeons,p.realms,p.attributes,p.enhancePity,p.deathWeakUntil,p.soul]);
   if(previousClass&&previousClass!==p.classId)renderAbilities();
   const portraitKey=JSON.stringify([p.equipment,p.enhancements]);
   if(portraitKey!==lastPortraitKey){lastPortraitKey=portraitKey;$('portrait').src=renderer.avatarURL(p);}
   if(sig!==lastProfileSignature){lastProfileSignature=sig;uiRefreshNeeded=true;renderTracker();}
+}
+const titleAwardQueue=[];
+let titleAwardTimer=null;
+function queueTitleUnlocks(names){
+  // Bursty awards (e.g. crossing several milestones) are grouped for readability.
+  const entries=names.length>3?[...names.slice(0,2),`외 ${names.length-2}개 칭호 추가 획득`]:names;
+  titleAwardQueue.push(...entries);
+  if(!titleAwardTimer)showNextTitleAward();
+}
+function showNextTitleAward(){
+  const name=titleAwardQueue.shift();
+  if(!name){titleAwardTimer=null;return;}
+  const data=titleInfo(name),root=document.getElementById('title-award')||document.createElement('div');
+  root.id='title-award';root.className=`title-award rarity-${data.rarity}`;
+  root.setAttribute('role','status');root.setAttribute('aria-live','polite');
+  root.innerHTML=`<span aria-hidden="true">✦</span><div><small>새로운 칭호 획득</small><b>${esc(name)}</b></div>`;
+  if(!root.isConnected)document.body.appendChild(root);
+  root.classList.remove('title-award-hide');
+  void root.offsetWidth;
+  titleAwardTimer=setTimeout(()=>{
+    root.classList.add('title-award-hide');
+    titleAwardTimer=setTimeout(showNextTitleAward,350);
+  },3200);
 }
 function beginGame(p,local){
   const first=!inGame;
@@ -123,9 +154,7 @@ function beginGame(p,local){
   sound.zone=p.zone;renderer.start();
   if(first){
     zoneToast(p.zone);
-    addChat({channel:'system',text:'별여울에 오신 것을 환영합니다. 마을의 리아에게 첫 의뢰를 받아보세요.'});
-    if(local)addChat({channel:'system',text:'이 실행은 로컬 개발 서버입니다. 공개 배포 시 Supabase 연결이 필수입니다.'});
-    if(auth?.session?.user?.is_anonymous)addChat({channel:'system',text:'빠른 시작 계정입니다. 다른 기기에서도 이어 하려면 설정 → 계정 연결에서 이메일을 연결하세요.'});
+    // Tutorial and account hints already appear in the HUD/toasts, not chat.
     if(matchMedia('(pointer:coarse)').matches||innerWidth<700)$('chat').classList.add('collapsed');
   }
 }
@@ -185,7 +214,7 @@ async function connectGame(){
     });
     net.on('loot',loot);
     net.on('deathSummary',e=>{statDraft={};openPanel('deathSummary',e);});
-    net.on('enhanceResult',e=>{sound.play(e.success?'level':'hurt');});
+    net.on('enhanceResult',()=>{ /* Presentation waits for the authoritative action acknowledgement. */ });
     net.on('jobBook',book=>{jobBookData=book;if(modal==='jobs')refreshPanel();});
     net.on('jobUnlocked',()=>{if(modal==='jobs')action({type:'jobs'});sound.play('level');});
     net.on('jobChanged',()=>{action({type:'jobs'});sound.play('level');});
@@ -201,10 +230,10 @@ async function connectGame(){
       if(data.refreshOnly){if(modal==='realms'){window._modalData=data;uiRefreshNeeded=true;}return;}
       openPanel('realms',data);
     });
-    net.on('worldNotice',data=>{addChat({channel:'system',text:data.message});notice(data.message,'info',8500);});
+    net.on('worldNotice',data=>{addChat({channel:'system',text:data.message,important:true});notice(data.message,'info',8500);});
     net.on('dialog',e=>{const npc=NPCS.find(n=>n.id===e.npc);if(npc)openPanel(npc.kind==='quest'?'npcQuest':npc.kind==='shop'?'shop':npc.kind==='craft'?'craft':npc.kind==='jobs'?'jobs':'healer');});
     net.on('chat',msg=>{if(!mutedPlayers.has(msg.playerId))addChat(msg);});
-    net.on('system',e=>addChat({channel:'system',text:e.message}));
+    net.on('system',e=>{if(e.category==='worldBoss')addChat({channel:'system',text:e.message,important:true});});
     net.on('saved',e=>{setText('save-state',e.local?'개발 저장 완료':'서버 저장 완료');$('save-state').style.color='#a6c49a';});
     net.on('saveError',e=>{setText('save-state','저장 재시도 중');$('save-state').style.color='#e3b58f';notice(e.message,'warn',8000);});
     net.on('questComplete',e=>{
@@ -304,6 +333,7 @@ function loot(e){
   if(e.boss)notice(e.name||'특별한 전리품을 얻었습니다.','success',5500);
 }
 function addChat(msg){
+  if(msg.channel==='system'&&!msg.important)return;
   const row=document.createElement('div');row.className='chat-msg '+(msg.channel||'system');
   if(msg.name){const name=document.createElement('span');name.className='who';name.textContent=`[${msg.channel==='world'?'전체':msg.channel==='party'?'파티':'지역'}] ${msg.name}`;row.append(name);}
   const text=document.createElement('span');text.textContent=msg.text;row.append(text);
@@ -323,6 +353,7 @@ function openPanel(name,data){
   if(name==='keybindings'){keyStatus='';keyStatusTone='';}
   resetControls();sound.play('click');lastFocused=document.activeElement;
   modal=name;modalTab=name==='craft'?'recipes':name==='jobs'?'common':'all';selectedItem=null;
+  if(name==='craft')showAllForgeRecipes=false;
   if(name==='stats')statDraft={};
   window._modalData=data;show('modal');renderPanel();if(name==='jobs')action({type:'jobs'});
   $('modal-close').focus();
@@ -341,7 +372,10 @@ const gearStats=i=>[['atk','공격력'],['def','방어력'],['hp','체력'],['mp
   .filter(([key])=>i[key]).map(([key,label])=>`${label} ${i[key]>0?'+':''}${i[key]}${key==='crit'?'%':''}`).join(' · ');
 const npcIntro=id=>{const n=NPCS.find(x=>x.id===id);return `<div class="npc-intro"><img src="/assets/${n.sprite}_s_0.png" alt="${esc(n.name)}"><p>“${esc(n.dialog)}”</p></div>`;};
 function recipeRows(){
-  return RECIPES.map(r=>{
+  // The old recipes remain available; show new sets near the player's level to avoid a huge DOM list.
+  const visible=RECIPES.filter(r=>showAllForgeRecipes||!r.id.startsWith('forge_')||
+    (r.level<=profile.level+12&&r.level>=Math.max(1,profile.level-30)));
+  return `<div class="settings-actions"><span class="small muted">추가 제작 장비 120종 · 현재 레벨의 장비를 우선 표시합니다.</span><button type="button" class="btn small" data-act="forgeCatalogToggle">${showAllForgeRecipes?'레벨별 추천만 보기':'전체 제작법 보기'}</button></div>`+visible.map(r=>{
     const id=r.output||weaponFor(r.weaponTier,profile.classId),i=ITEMS[id];
     const enough=profile.level>=r.level&&profile.gold>=r.gold&&Object.entries(r.cost).every(([id,n])=>(profile.inventory[id]||0)>=n);
     return `<div class="recipe">${icon(i.icon)}<div class="recipe-body"><h3 style="color:${RARITIES[i.rarity].color}">${esc(r.name)}</h3><p>${Object.entries(r.cost).map(([id,n])=>`<span class="${(profile.inventory[id]||0)<n?'insufficient':''}">${esc(ITEMS[id].name)} ${profile.inventory[id]||0}/${n}</span>`).join(' · ')}<br>${r.gold} G · 필요 레벨 ${r.level}</p></div><button class="btn small ${enough?'primary':''}" data-act="craft" data-id="${r.id}" ${enough?'':'disabled'}>제작</button></div>`;
@@ -448,7 +482,7 @@ function renderPanel(){
       <div class="settings-row"><label for="setting-zoom">화면 배율<small>모바일에서는 작은 배율을 권장합니다.</small></label><input id="setting-zoom" type="range" min=".75" max="1.3" step=".05" value="${settings.zoom}"></div>
       <div class="settings-row"><label>자동 기본 공격<small>가까운 적에게 기본 공격을 반복합니다. 이동은 직접 조작합니다.</small></label><button class="btn small" data-act="auto">${autoAttack?'끄기':'켜기'}</button></div>
       <div class="settings-row"><label>키 설정<small>이동·공격·기술·메뉴의 주 키와 보조 키를 변경합니다.</small></label><button class="btn small primary" data-act="keybindings">키 설정 열기</button></div>
-      <div class="settings-row"><label>칭호<small>다른 모험가에게 표시되는 이름</small></label><select id="title-select">${p.titles.map(t=>`<option ${t===p.title?'selected':''}>${esc(t)}</option>`).join('')}</select></div>
+      <div class="settings-row"><label>칭호<small>보유 ${p.titles.length}개 · 추가 획득 가능 ${TITLE_CATALOG.length}종</small></label><select id="title-select">${p.titles.map(t=>`<option ${t===p.title?'selected':''}>${esc(t)}</option>`).join('')}</select></div><p class="small muted">희귀 이상 칭호는 캐릭터 이름 위에 특별한 빛으로 표시됩니다. 달성 시 잠시 알림이 나타납니다.</p>
       <div class="settings-actions"><button class="btn small primary" data-act="save">지금 저장</button><button class="btn small" data-act="guide">조작 도움말</button><button class="btn small" data-act="account">계정 연결</button><button class="btn small" data-act="copyLink">주소 복사</button><button class="btn small danger" data-act="logout">나가기</button></div>
       <p class="small muted" style="margin:20px 0 0">v2.0.0 · ${config.devGuest?'로컬 개발 저장소':'Supabase 영구 저장'} · ${money(p.kills)}마리 처치 · 보스 ${p.bossKills}회<br>저장은 30초마다, 주요 거래 후와 접속 종료 시 시도합니다.</p>`;
   }else if(modal==='guide'){
@@ -557,6 +591,21 @@ document.addEventListener('click',async e=>{
     }return;
   }
   if(type==='tab'){modalTab=id;renderPanel();return;}
+  if(type==='forgeCatalogToggle'){showAllForgeRecipes=!showAllForgeRecipes;renderPanel();return;}
+  if(type==='enhance'){
+    if(forgeCinema.active)return;
+    const item=ITEMS[id],level=profile?.enhancements?.[id]||0;
+    if(!item||item.type!=='gear')return;
+    const quote=enhancementSpec(level,profile?.enhancePity?.[id]||0,item.level);
+    if(quote.max)return;
+    forgeCinema.start(item,quote);
+    b.disabled=true;
+    const result=await action({type:'enhance',id},{silent:true,suppressMessage:true});
+    if(b.isConnected)b.disabled=false;
+    if(result.ok){forgeCinema.resolve(result,()=>sound.play(result.success?'level':'hurt'));uiRefreshNeeded=true;}
+    else forgeCinema.abort(result.error||'강화 요청을 처리하지 못했습니다.');
+    return;
+  }
   if(type==='selectItem'){if(id){selectedItem=id;if(modalTab!=='all')modalTab='all';renderPanel();}return;}
   if(type==='close'){closeModal();return;}
   if(type==='reload'){location.reload();return;}
