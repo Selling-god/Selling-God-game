@@ -48,7 +48,7 @@ export const SEQUENCES={
 const sequenceNames={voidwalker:'경계의 발자국',eclipse_reaper:'검은 달의 서약',phoenix_heir:'꺼지지 않는 불',tide_oracle:'바다가 숨긴 문장'};
 export function prepareProgression(p,now=Date.now()){
  const d=p.discovery||{};
- p.discovery={visited:[...new Set(['town',p.zone,...(d.visited||[])])].filter(x=>ZONES[x]),relics:[...(d.relics||[])],
+ p.discovery={visited:[...new Set(['town',p.zone,...(d.visited||[])])].filter(x=>ZONES[x]&&!ZONES[x].challenge),relics:[...(d.relics||[])],
   jobs:[...new Set(['novice',p.classId,...(d.jobs||[])])].filter(x=>CLASSES[x]),
   mastery:{...(d.mastery||{})},killTypes:{...(d.killTypes||{})},gatherTypes:{...(d.gatherTypes||{})},
   crafted:d.crafted||0,healed:d.healed||0,worldKills:{...(d.worldKills||{})},sequences:{...(d.sequences||{})},claims:[...(d.claims||[])],
@@ -86,6 +86,8 @@ export function evaluateJobs(game,p,notify=true){
  return [];
 }
 export function recordProgress(game,p,kind,id,count=1){
+ // Private training rooms do not complete exploration or profession journeys.
+ if(kind==='visit'&&ZONES[id]?.challenge)return;
  const d=p.discovery;ensureDaily(p,game.now);
  if(kind==='kill'){d.killTypes[id]=(d.killTypes[id]||0)+count;d.mastery[p.classId]=(d.mastery[p.classId]||0)+count;p.daily.kills+=count;}
  if(kind==='boss'){d.mastery[p.classId]=(d.mastery[p.classId]||0)+10;p.daily.bosses+=count;}

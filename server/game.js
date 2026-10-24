@@ -5,10 +5,14 @@ import {prepareRPG,rpgAction,onDeath,recoverSoul} from './rpg.js';
 import {bossVisual} from '../shared/visuals.js';
 import {prepareProgression,recordProgress,evaluateJobs,readRelic,progressionAction,ensureDaily,metric} from './progression.js';
 import {WorldEvents} from './world-events.js';
+import {ChallengeManager} from './challenges.js';
+import {tickBossMechanics,bossDamageMultiplier,bossMechanicKilled,bossMechanicView} from './boss-mechanics.js';
+import {prepareChallenges} from '../shared/challenges.js';
+import {combatExperience} from '../shared/rpg.js';
 import {ACHIEVEMENTS} from '../shared/expansion.js';
 import { randomUUID } from 'node:crypto';
 import { CLASSES, ITEMS, MONSTERS, QUESTS, ZONES, NPCS, RECIPES, SHOP, TILE, MAX_LEVEL, xpRequired, getStats, weaponFor } from '../shared/content.js';
-import { createMap, seeded, spawnPoint, moveEntity, isBlocked, lineOfSight, findPath, clamp, dist, BOSS_SPAWNS } from '../shared/world.js';
+import { createMap, seeded, spawnPoint, findSafePosition, moveEntity, isBlocked, lineOfSight, findPath, clamp, dist, BOSS_SPAWNS } from '../shared/world.js';
 
 export function newCharacter(id,name,classId='novice'){
   const c=CLASSES[classId];if(!c)throw new Error('직업을 선택해 주세요.');
@@ -19,20 +23,22 @@ export function newCharacter(id,name,classId='novice'){
     quests:{},completed:[],opened:[],kills:0,bossKills:0,gathered:0,playSeconds:0,
     title:'별빛을 따라온 자',titles:['별빛을 따라온 자'],revision:1,createdAt:Date.now()
   };
-  prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareRPG(p);const s=getStats(p);p.hp=s.maxHp;p.mp=s.maxMp;return p;
+  prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareChallenges(p);prepareRPG(p);const s=getStats(p);p.hp=s.maxHp;p.mp=s.maxMp;return p;
 }
 export function hydrate(state){
   const p={...state};
   p.inventory={...p.inventory};p.equipment={...p.equipment};p.enhancements={...p.enhancements};
   p.quests=structuredClone(p.quests||{});p.completed=[...(p.completed||[])];p.opened=[...(p.opened||[])];
   if(!CLASSES[p.classId])p.classId='novice';
-  prepareProgression(p);prepareStories(p);prepareAtlas(p);
+  prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareChallenges(p,{recover:true});
   p.titles=[...(p.titles||['별빛을 따라온 자'])];p.level=clamp(p.level||1,1,MAX_LEVEL);
   prepareRPG(p);
   if(!ZONES[p.zone])p.zone='town';
   if(!(p.hp>0)){p.zone='town';p.x=24*TILE+16;p.y=21*TILE+16;}
   const map=createMap(p.zone);
-  if(isBlocked(map,p.x,p.y)){p.x=ZONES[p.zone].spawn[0]*TILE+16;p.y=ZONES[p.zone].spawn[1]*TILE+16;}
+  let arrival=findSafePosition(map,{x:p.x,y:p.y},10);
+  if(!arrival){p.zone='town';arrival=findSafePosition(createMap('town'),{x:24*TILE+16,y:21*TILE+16},10);}
+  p.x=arrival.x;p.y=arrival.y;
   const s=getStats(p);p.hp=clamp(p.hp||s.maxHp,1,s.maxHp);p.mp=clamp(p.mp??s.maxMp,0,s.maxMp);
   Object.assign(p,{active:true,input:{x:0,y:0},lastInput:0,dir:'s',moving:false,cooldowns:{},path:[],
     target:null,dirty:true,inputSeq:0,motionId:0,vx:0,vy:0,lastCombat:0,lastRegen:0,lastSecond:0,invulnerableUntil:0,shieldUntil:0,
@@ -40,7 +46,7 @@ export function hydrate(state){
   return p;
 }
 export function serialize(p){
-  const keys=['id','name','classId','level','xp','gold','zone','x','y','hp','mp','inventory','equipment','enhancements','quests','completed','opened','kills','bossKills','gathered','playSeconds','title','titles','revision','createdAt','schemaVersion','discovery','journey','atlas','daily','attributes','statResets','enhancePity','deaths','deathWeakUntil','soul','lastDeath'];
+  const keys=['id','name','classId','level','xp','gold','zone','x','y','hp','mp','inventory','equipment','enhancements','quests','completed','opened','kills','bossKills','gathered','playSeconds','title','titles','revision','createdAt','schemaVersion','discovery','journey','atlas','daily','attributes','statResets','enhancePity','deaths','deathWeakUntil','soul','lastDeath','challenges'];
   return structuredClone(Object.fromEntries(keys.map(k=>[k,p[k]])));
 }
 export class Game {
@@ -50,11 +56,12 @@ export class Game {
     this.worlds=new LazyWorldMap(this,id=>this.createWorld(id));
     this.worlds.get('town');
     this.events=new WorldEvents(this,eventStore);
+    this.challenges=new ChallengeManager(this);
   }
   createWorld(id){
     const z=ZONES[id];if(!z)throw new Error('Unknown region');
     const map=createMap(id),world={id,map,mobs:[],nodes:map.resources.map(x=>({...x,readyAt:0})),casts:[],lastAccess:this.now,fieldTrial:null};
-    if(id!=='town'){
+    if(id!=='town'&&!z.challenge){
       const rand=seeded(z.seed||{forest:551,ruins:989,citadel:1411}[id]);
       const types=z.mobTypes||(id==='forest'?['slime','slime','beetle','wolf']:id==='ruins'?['skeleton','skeleton','wisp','golem']:['imp','ash_knight','ash_knight']);
       const count=z.mobCount||(id==='forest'?34:id==='ruins'?28:24);
@@ -91,7 +98,16 @@ export class Game {
   }
   mark(p){p.revision=(p.revision||0)+1;p.dirty=true;}
   toast(p,message,tone='info'){this.send(p.id,'notice',{message,tone});}
-  fx(zone,data){this.broadcast(zone,'fx',{...data,t:this.now});}
+  fx(zone,data){
+    if(ZONES[zone]?.challenge){
+      const actor=this.players.get(data.by||data.id);
+      const entity=actor||this.worlds.get(zone).mobs.find(m=>m.id===data.id||m.id===data.owner);
+      const owner=data.challengeOwner||entity?.challengeOwner||(actor?.zone===zone?actor.id:null);
+      if(owner)this.send(owner,'fx',{...data,t:this.now});
+      return;
+    }
+    this.broadcast(zone,'fx',{...data,t:this.now});
+  }
   stats(p){return getStats(p,this.now);}
   publicPlayer(p){
     const s=this.stats(p);
@@ -114,14 +130,16 @@ export class Game {
         cooldowns:p.cooldowns,target:p.target,revision:p.revision,respawnAt:p.respawnAt,
         inputSeq:p.inputSeq||0,motionId:p.motionId||0,speed:this.stats(p).speed,
         speedUntil:p.speedUntil,dashUntil:p.dashUntil,dashVector:p.dashVector||{x:0,y:0},pathing:p.path.length>0},
-      players:[...this.players.values()].filter(x=>x.active&&x.id!==p.id&&x.zone===p.zone&&dist(x,p)<near+200).map(x=>this.publicPlayer(x)),
-      mobs:w.mobs.filter(m=>m.alive&&dist(m,p)<near).map(m=>({id:m.id,type:m.type,x:Math.round(m.x*10)/10,y:Math.round(m.y*10)/10,hp:m.hp,maxHp:m.maxHp,dir:m.dir,moving:m.moving,casting:m.castUntil>this.now,slow:m.slowUntil>this.now,phase:m.hp/m.maxHp<.45?2:m.hp/m.maxHp<.7?1:0,dot:m.dots?.[0]?.kind})),
+      players:[...this.players.values()].filter(x=>x.active&&x.id!==p.id&&x.zone===p.zone&&this.challenges.sameInstance(p,x)&&dist(x,p)<near+200).map(x=>this.publicPlayer(x)),
+      mobs:w.mobs.filter(m=>m.alive&&this.challenges.allows(p,m)&&dist(m,p)<near).map(m=>({id:m.id,type:m.type,level:this.challenges.mobSpec(m).level,x:Math.round(m.x*10)/10,y:Math.round(m.y*10)/10,hp:m.hp,maxHp:m.maxHp,dir:m.dir,moving:m.moving,casting:m.castUntil>this.now,slow:m.slowUntil>this.now,phase:m.hp/m.maxHp<.45?2:m.hp/m.maxHp<.7?1:0,dot:m.dots?.[0]?.kind,challengeShield:!!m.challengeShield,mechanicObjective:m.mechanicObjective})),
       nodes:w.nodes.filter(n=>dist(n,p)<near).map(n=>({...n,ready:n.readyAt<=this.now})),
-      casts:w.casts.filter(c=>c.ends>this.now&&dist(c,p)<near+350).map(({damage,owner,...c})=>c),
-      bosses:w.mobs.filter(m=>MONSTERS[m.type].boss).map(m=>({id:m.id,type:m.type,hp:m.hp,maxHp:m.maxHp,alive:m.alive,respawnAt:m.respawnAt})),
+      casts:w.casts.filter(c=>this.challenges.allows(p,c)&&c.ends>this.now&&dist(c,p)<near+350).map(({damage,owner,challengeOwner,challengeRun,...c})=>c),
+      bosses:w.mobs.filter(m=>this.challenges.allows(p,m)&&MONSTERS[m.type].boss).map(m=>({id:m.id,type:m.type,hp:m.hp,maxHp:m.maxHp,alive:m.alive,respawnAt:m.respawnAt})),
       soul:p.soul?.expires>this.now&&p.soul.zone===p.zone?p.soul:null,
       online:[...this.players.values()].filter(x=>x.active).length,
-      zoneOnline:[...this.players.values()].filter(x=>x.active&&x.zone===p.zone).length,
+      zoneOnline:[...this.players.values()].filter(x=>x.active&&x.zone===p.zone&&this.challenges.sameInstance(p,x)).length,
+      challenge:this.challenges.view(p),
+      bossMechanics:bossMechanicView(this,w),
       fieldTrial:trialView(w,this.now),events:withEvents?this.events.view(this.now):undefined,eventError:withEvents?this.events.error:undefined,
       party:this.partyView(p),profile:full?this.privatePlayer(p):undefined
     };
@@ -155,7 +173,7 @@ export class Game {
     if(levelled){
       const s=this.stats(p);p.hp=s.maxHp;p.mp=s.maxMp;
       this.fx(p.zone,{type:'level',id:p.id,x:p.x,y:p.y,level:p.level});
-      this.toast(p,`레벨 ${p.level}! 능력치 포인트가 추가되었습니다. U를 눌러 배분하세요.`,'success');
+      this.toast(p,`레벨 ${p.level}! 능력치 포인트가 추가되었습니다. 능력치 메뉴에서 배분하세요.`,'success');
       if(p.level>=5&&!p.titles.includes('별의 길잡이'))p.titles.push('별의 길잡이');
     }
   }
@@ -176,16 +194,16 @@ export class Game {
   }
   getTarget(p,range){
     const w=this.worlds.get(p.zone);
-    const chosen=w.mobs.find(m=>m.id===p.target&&m.alive&&dist(m,p)<=range+(MONSTERS[m.type].radius||14));
+    const chosen=w.mobs.find(m=>m.id===p.target&&m.alive&&this.challenges.allows(p,m)&&dist(m,p)<=range+(MONSTERS[m.type].radius||14));
     if(chosen&&lineOfSight(w.map,p,chosen))return chosen;
-    return w.mobs.filter(m=>m.alive&&dist(m,p)<=range+(MONSTERS[m.type].radius||14)&&lineOfSight(w.map,p,m)).sort((a,b)=>dist(a,p)-dist(b,p))[0];
+    return w.mobs.filter(m=>m.alive&&this.challenges.allows(p,m)&&dist(m,p)<=range+(MONSTERS[m.type].radius||14)&&lineOfSight(w.map,p,m)).sort((a,b)=>dist(a,p)-dist(b,p))[0];
   }
   attack(p,skillId){
     const c=CLASSES[p.classId],skill=c.skills.find(x=>x.id===skillId);
     if(!skill)return {ok:false,error:'없는 기술입니다.'};
     if(p.level<skill.unlock)return {ok:false,error:`레벨 ${skill.unlock}에 배울 수 있습니다.`};
     if((p.cooldowns[skillId]||0)>this.now)return {ok:false,quiet:true};
-    if(p.mp<skill.mp)return {ok:false,error:'마나가 부족합니다. 2번 물약을 사용해 보세요.'};
+    if(p.mp<skill.mp)return {ok:false,error:'마나가 부족합니다. 마나 물약을 사용해 보세요.'};
     if(skill.power===0){
       let restored=0;const beforeHeal=p.hp;
       p.mp-=skill.mp;p.cooldowns[skillId]=this.now+skill.cd;
@@ -196,7 +214,7 @@ export class Game {
       if(skill.partyHeal){
         const party=this.parties.get(p.partyId);
         for(const id of party?.members||[]){
-          const ally=this.players.get(id);if(!ally?.active||ally.id===p.id||ally.zone!==p.zone||ally.hp<=0||dist(ally,p)>260)continue;
+          const ally=this.players.get(id);if(!ally?.active||ally.id===p.id||ally.zone!==p.zone||!this.challenges.sameInstance(p,ally)||ally.hp<=0||dist(ally,p)>260)continue;
           const amount=Math.min(this.stats(ally).maxHp-ally.hp,this.stats(ally).maxHp*skill.heal*(1+(c.passive?.healBonus||0)));
           ally.hp+=amount;restored+=Math.max(0,amount);this.mark(ally);
           for(const mob of this.worlds.get(p.zone).mobs)if(mob.alive&&(mob.worldKey||mob.trialKey)&&mob.contributors.has(ally.id)&&amount>0){
@@ -211,18 +229,19 @@ export class Game {
     }
     const target=this.getTarget(p,skill.range);
     if(!target)return {ok:false,quiet:skillId==='basic',error:'공격할 적에게 조금 더 가까이 다가가세요.'};
+    if(!this.challenges.canDamage(p,target))return {ok:false,error:'봉인을 해제하거나 소환수를 처치해야 수호자를 공격할 수 있습니다.'};
     const w=this.worlds.get(p.zone);
     p.target=target.id;p.mp-=skill.mp;p.cooldowns[skillId]=this.now+skill.cd;
     p.attackUntil=this.now+300;p.lastCombat=this.now;
     const dx=target.x-p.x,dy=target.y-p.y;
     p.dir=Math.abs(dx)>Math.abs(dy)?(dx>0?'e':'w'):(dy>0?'s':'n');
     const center=skill.center==='self'||!skill.center&&(c.family||p.classId)==='guardian'?p:target;
-    const victims=skill.radius?w.mobs.filter(m=>m.alive&&dist(m,center)<=skill.radius&&lineOfSight(w.map,p,m)):[target];
+    const victims=skill.radius?w.mobs.filter(m=>m.alive&&this.challenges.canDamage(p,m)&&dist(m,center)<=skill.radius&&lineOfSight(w.map,p,m)):[target];
     this.fx(p.zone,{type:'attack',id:p.id,classId:c.family||p.classId,job:p.classId,center:skill.center||((c.family||p.classId)==='guardian'?'self':'target'),skill:skillId,x:p.x,y:p.y,tx:target.x,ty:target.y,radius:skill.radius,color:c.color});
     if(victims.length)recordStory(this,p,{kind:skillId==='basic'?'hit':'skill',target:c.family||p.classId,skill:skillId});
     for(const m of victims){
       const crit=this.random()*100<this.stats(p).crit;
-      const damage=Math.max(1,Math.round((this.stats(p).atk*skill.power-MONSTERS[m.type].def*.65*(1-(c.passive?.armorPierce||0)))*(0.92+this.random()*.16)*(crit?1.65:1)));
+      const damage=Math.max(1,Math.round((this.stats(p).atk*skill.power-this.challenges.mobSpec(m).def*.65*(1-(c.passive?.armorPierce||0)))*(0.92+this.random()*.16)*(crit?1.65:1)*bossDamageMultiplier(m)));
       const actual=Math.min(m.hp,damage);
       m.hp=Math.max(0,m.hp-damage);m.contributors.set(p.id,this.now);m.damageLog.set(p.id,(m.damageLog.get(p.id)||0)+actual);m.target=p.id;
       const drain=(c.passive?.lifesteal||0)+(skill.lifesteal||0);
@@ -241,6 +260,8 @@ export class Game {
   }
   killMob(zone,m){
     if(!m.alive)return;
+    if(this.challenges.mobKilled(m))return;
+    if(bossMechanicKilled(this,this.worlds.get(zone),m))return;
     if(m.trialKey&&fieldTrialKill(this,this.worlds.get(zone),m))return;
     const spec=MONSTERS[m.type];m.alive=false;m.hp=0;m.respawnAt=m.worldKey?Infinity:this.now+(spec.boss?120000:18000+this.random()*10000);
     if(m.worldKey)this.events.defeated(m);
@@ -266,7 +287,8 @@ export class Game {
       const gold=Math.floor(spec.gold[0]+this.random()*(spec.gold[1]-spec.gold[0]+1));
       p.gold+=gold;p.kills++;if(spec.boss)p.bossKills++;
       recordProgress(this,p,'kill',m.type);if(spec.boss)recordProgress(this,p,'boss',m.type);
-      this.giveXP(p,spec.xp*(p.partyId?1.1:1));
+      const earnedXP=combatExperience(spec.xp,p.level,spec.level,{boss:!!spec.boss,party:!!p.partyId});
+      this.giveXP(p,earnedXP);
       this.progress(p,'kill',m.type);this.addItem(p,spec.material,1);
       if(this.random()<.12)this.addItem(p,'potion',1);
       const drops=[{id:spec.material,count:1}];
@@ -274,14 +296,14 @@ export class Game {
         if(spec.signatureCore){this.addItem(p,spec.signatureCore);drops.push({id:spec.signatureCore,count:1});}
       }
       if(spec.boss){
-        const reward=m.type==='moss_guardian'?'moss_charm':m.type==='moon_witch'?'moon_robe':spec.level>=16?'relic_charm':spec.level>=9?'dawn_charm':'moss_charm';
+        const reward=spec.gearCharm||(m.type==='moss_guardian'?'moss_charm':m.type==='moon_witch'?'moon_robe':spec.level>=16?'relic_charm':spec.level>=9?'dawn_charm':'moss_charm');
         this.addItem(p,reward);drops.push({id:reward,count:1});
         if(!p.titles.includes('수호자의 벗'))p.titles.push('수호자의 벗');
       }else if(this.random()<.065){
-        const reward=spec.level>=9?weaponFor('star',p.classId):spec.level>=5?'leather':(this.random()>.5?'ore':'potion');
+        const reward=spec.gearTier?weaponFor(spec.gearTier,p.classId):spec.level>=9?weaponFor('star',p.classId):spec.level>=5?'leather':(this.random()>.5?'ore':'potion');
         this.addItem(p,reward);drops.push({id:reward,count:1});
       }
-      this.send(p.id,'loot',{gold,xp:Math.round(spec.xp*(p.partyId?1.1:1)),items:drops,boss:!!spec.boss,name:spec.name});
+      this.send(p.id,'loot',{gold,xp:earnedXP,items:drops,boss:!!spec.boss,name:spec.name});
       this.mark(p);
     }
     this.fx(zone,{type:'death',id:m.id,monster:m.type,x:m.x,y:m.y,boss:!!spec.boss});
@@ -296,18 +318,27 @@ export class Game {
     p.hp=Math.max(0,p.hp-damage);p.lastCombat=this.now;
     this.fx(p.zone,{type:'hit',id:p.id,x:p.x,y:p.y-25,amount:damage,kind:'player'});
     if(p.hp<=0){
-      p.path=[];p.input={x:0,y:0};p.respawnAt=this.now+3500;
-      onDeath(this,p);
+      if(!this.challenges.onDeath(p)){
+        p.path=[];p.input={x:0,y:0};p.respawnAt=this.now+3500;
+        onDeath(this,p);
+      }
     }
     this.mark(p);
   }
   teleport(p,zone,x,y){
-    p.zone=zone;p.x=x;p.y=y;p.path=[];p.input={x:0,y:0};p.target=null;p.vx=0;p.vy=0;p.moving=false;p.motionId=(p.motionId||0)+1;
+    if(!ZONES[zone])return false;
+    const arrival=findSafePosition(this.worlds.get(zone).map,{x,y},10);
+    if(!arrival)return false;
+    this.challenges.beforeTeleport(p,zone);
+    p.zone=zone;p.x=arrival.x;p.y=arrival.y;p.path=[];p.input={x:0,y:0};p.target=null;p.vx=0;p.vy=0;p.moving=false;
+    p.dashUntil=0;p.dashVector={x:0,y:0};p.lastInput=0;p.motionId=(p.motionId||0)+1;
     recordProgress(this,p,'visit',zone);p.nextSurveyAt=0;revealTerrain(this,p);
     p.invulnerableUntil=this.now+2200;this.mark(p);
     this.send(p.id,'zone',{zone,profile:this.privatePlayer(p)});
+    return true;
   }
   interact(p,id){
+    const challenge=this.challenges.action(p,{type:'interact',id});if(challenge)return challenge;
     if(this.now-p.lastInteract<450)return {ok:false,quiet:true};
     const w=this.worlds.get(p.zone);
     let options=[
@@ -319,7 +350,7 @@ export class Game {
       ...(w.map.relics||[]).map(n=>({...n,entity:'relic'})),
       ...(w.map.storyPoints||[]).map(n=>({...n,entity:'storyPoint'}))
     ].filter(n=>dist(p,n)<95&&(!id||n.id===id)).sort((a,b)=>dist(p,a)-dist(p,b));
-    const obj=options[0];if(!obj)return {ok:false,error:'가까이 다가가서 F를 눌러주세요.'};
+    const obj=options[0];if(!obj)return {ok:false,error:'가까이 다가가서 상호작용해 주세요.'};
     p.lastInteract=this.now;
     if(obj.entity==='soul')return recoverSoul(this,p,obj.id);
     if(obj.entity==='storyPoint')return interactPoint(this,p,obj);
@@ -352,6 +383,7 @@ export class Game {
   action(p,a){
     if(!a||typeof a.type!=='string')return {ok:false,error:'잘못된 요청입니다.'};
     if(p.hp<=0&&a.type!=='respawn')return {ok:false,quiet:true};
+    const challengeResult=this.challenges.action(p,a);if(challengeResult)return challengeResult;
     const storyResult=storyAction(this,p,a);if(storyResult)return storyResult;
     const atlasResult=atlasAction(this,p,a);if(atlasResult)return atlasResult;
     const rpgResult=rpgAction(this,p,a);if(rpgResult)return rpgResult;
@@ -360,7 +392,7 @@ export class Game {
     if(a.type==='attack')return this.attack(p,a.skill||'basic');
     if(a.type==='target'){
       if(typeof a.id!=='string')return {ok:false,quiet:true};
-      const m=this.worlds.get(p.zone).mobs.find(m=>m.id===a.id&&m.alive&&dist(m,p)<750);
+      const m=this.worlds.get(p.zone).mobs.find(m=>m.id===a.id&&m.alive&&this.challenges.allows(p,m)&&dist(m,p)<750);
       if(m)p.target=m.id;return {ok:!!m};
     }
     if(a.type==='move'){
@@ -532,17 +564,20 @@ export class Game {
         if(before!==p.hp+p.mp)this.mark(p);
       }
     }
+    this.challenges.tick(dt);
     const zonePlayers=new Map();
     for(const p of active){if(!zonePlayers.has(p.zone))zonePlayers.set(p.zone,[]);if(p.hp>0)zonePlayers.get(p.zone).push(p);}
     this.perf={loadedRegions:this.worlds.size,occupiedRegions:zonePlayers.size,awakeMobs:0,sleepingMobs:0};
     for(const [zone,w]of this.worlds){
-      const inZone=zonePlayers.get(zone)||[];
+      tickBossMechanics(this,w,now);
+      const inZone=(zonePlayers.get(zone)||[]).filter(p=>p.hp>0&&p.zone===zone);
       if(!inZone.length){
         w.casts=[];
         if(w.fieldTrial)this.cancelFieldTrial(w);
         continue;
       }
       for(const m of w.mobs){
+        if(m.challengeRun)continue;
         const spec=MONSTERS[m.type];
         if(!m.alive){
           if(!m.worldKey&&m.respawnAt<=now){Object.assign(m,this.makeMob(m.id,m.type,m.homeX,m.homeY));}
@@ -563,13 +598,14 @@ export class Game {
         for(const effect of m.dots||[]){
           if(effect.left<=0||effect.next>now)continue;
           const owner=this.players.get(effect.by);effect.left--;effect.next=now+1000;
-          if(!owner?.active||owner.zone!==zone||owner.hp<=0)continue;
-          const dealt=Math.min(m.hp,effect.damage);m.hp-=dealt;m.contributors.set(owner.id,now);m.damageLog.set(owner.id,(m.damageLog.get(owner.id)||0)+dealt);
+          if(!owner?.active||owner.zone!==zone||owner.hp<=0||!this.challenges.allows(owner,m))continue;
+          const dealt=Math.min(m.hp,Math.max(1,Math.round(effect.damage*bossDamageMultiplier(m))));m.hp-=dealt;m.contributors.set(owner.id,now);m.damageLog.set(owner.id,(m.damageLog.get(owner.id)||0)+dealt);
           this.fx(zone,{type:'hit',id:m.id,x:m.x,y:m.y-22,amount:dealt,kind:'monster',by:owner.id});
           if(m.hp<=0){this.killMob(zone,m);break;}
         }
         m.dots=(m.dots||[]).filter(e=>e.left>0);
         if(!m.alive||m.stunUntil>now)continue;
+        if(m.mechanicObjective||m.bossMechanic?.active)continue;
         if(!inZone.length){m.target=null;continue;}
         let target=inZone.find(p=>p.id===m.target&&dist(p,m)<440);
         if(target&&Math.hypot(m.x-m.homeX,m.y-m.homeY)>440)target=null;
@@ -605,6 +641,7 @@ export class Game {
       }
       const done=w.casts.filter(c=>c.ends<=now);
       for(const cast of done){
+        if(cast.challengeRun)continue;
         const owner=w.mobs.find(m=>m.id===cast.owner);
         if(!owner?.alive)continue;
         for(const p of inZone){

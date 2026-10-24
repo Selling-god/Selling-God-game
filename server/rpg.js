@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {ITEMS,ZONES,xpRequired,getStats} from '../shared/content.js';
-import {ATTRIBUTE_KEYS,cleanAttributes,statBudget,spentPoints,resetPrice,enhancementSpec,deathLoss,DEATH_RULES} from '../shared/rpg.js';
+import {ATTRIBUTE_KEYS,MAX_ATTRIBUTE,cleanAttributes,statBudget,spentPoints,resetPrice,enhancementSpec,deathLoss,DEATH_RULES} from '../shared/rpg.js';
 export function prepareRPG(p){
  p.attributes=cleanAttributes(p.attributes,p.level);
  p.statResets=Math.max(0,Math.floor(p.statResets||0));
@@ -46,10 +46,10 @@ export function rpgAction(game,p,a){
   if(!a.points||typeof a.points!=='object'||Array.isArray(a.points))return {ok:false,error:'능력치 입력을 확인하세요.'};
   if(Object.keys(a.points).some(k=>!ATTRIBUTE_KEYS.includes(k)))return {ok:false,error:'알 수 없는 능력치입니다.'};
   const added=Object.fromEntries(ATTRIBUTE_KEYS.map(k=>[k,a.points[k]??0]));
-  if(Object.values(added).some(v=>!Number.isSafeInteger(v)||v<0||v>100))return {ok:false,error:'배분할 포인트가 올바르지 않습니다.'};
+  if(Object.values(added).some(v=>!Number.isSafeInteger(v)||v<0||v>MAX_ATTRIBUTE))return {ok:false,error:'배분할 포인트가 올바르지 않습니다.'};
   const n=Object.values(added).reduce((a,b)=>a+b,0);
   if(!n||spentPoints(p)+n>statBudget(p.level))return {ok:false,error:'남은 능력치 포인트가 부족합니다.'};
-  if(ATTRIBUTE_KEYS.some(k=>p.attributes[k]+added[k]>100))return {ok:false,error:'능력치 한 종류에는 최대 100포인트를 투자할 수 있습니다.'};
+  if(ATTRIBUTE_KEYS.some(k=>p.attributes[k]+added[k]>MAX_ATTRIBUTE))return {ok:false,error:`능력치 한 종류에는 최대 ${MAX_ATTRIBUTE}포인트를 투자할 수 있습니다.`};
   preserveVitals(game,p,()=>{for(const k of ATTRIBUTE_KEYS)p.attributes[k]+=added[k];});
   game.mark(p);return {ok:true,message:`능력치 ${n}포인트를 배분했습니다.`};
  }

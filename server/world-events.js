@@ -1,5 +1,6 @@
 import {MONSTERS,ZONES} from '../shared/content.js';
 import {WORLD_BOSSES,EVENT_DURATION_MS} from '../shared/expansion.js';
+import {findSafePosition} from '../shared/world.js';
 const HOUR=3600000;
 export function bossWindow(def,now){
  let start=Math.floor(now/HOUR)*HOUR+def.minute*60000;
@@ -79,7 +80,11 @@ export class WorldEvents {
   if(p.level<def.level)return {ok:false,error:`참가하려면 레벨 ${def.level}이 필요합니다.`};
   if(this.game.now-p.lastCombat<8000)return {ok:false,error:'전투 종료 8초 후 이동할 수 있습니다.'};
   if(p.discovery.rewardedWindows.includes(win.key))return {ok:false,error:'이번 출현의 보상은 이미 받았습니다.'};
-  this.game.teleport(p,def.zone,e.mob.homeX-210,e.mob.homeY+110);
+  // The former (-210,+110) offset landed outside the clearing, inside a tree on meadow.
+  // Stay inside the arena and validate the whole player footprint before transport.
+  const map=this.game.worlds.get(def.zone).map;
+  const arrival=findSafePosition(map,{x:e.mob.homeX-128,y:e.mob.homeY+64},10);
+  if(!arrival||this.game.teleport(p,def.zone,arrival.x,arrival.y)===false)return {ok:false,error:'안전한 도착 지점을 찾을 수 없습니다. 잠시 후 다시 시도해 주세요.'};
   return {ok:true,message:'보스에게 직접 피해를 주거나 전투 중인 파티원을 치유하면 참여 기록이 남습니다.'};
  }
 }
