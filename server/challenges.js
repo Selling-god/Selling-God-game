@@ -243,15 +243,16 @@ export class ChallengeManager {
     this.tell(r, '좌우의 두 봉인을 해제해야 수호자에게 피해를 줄 수 있습니다.');
   }
   beginRuneRound(r) {
-    r.phase = 'memorize'; r.runeStep = 0; r.sequence = [];
+    r.phase = 'memorize'; r.runeStep = 0; r.sequence = [];r.runeOrder=[];r.runeGuards=[];r.runeGuardsReady=false;
     for (let i = 0; i < r.stage + 2; i++) {
       let value = Math.min(3, Math.max(0, Math.floor(this.game.random() * 4)));
       if (value === r.sequence.at(-1)) value = (value + 1) % 4;
       r.sequence.push(value);
     }
+    r.runeOrder=r.stage===3?[...r.sequence].reverse():[...r.sequence];
     r.peekUntil = this.game.now + 4200 + r.sequence.length * 500;
     r.nextHazard = r.peekUntil + 2500;
-    r.hint = `시험 ${r.stage}/3 · 문양 순서를 기억하세요. 곧 표시가 사라집니다.`;
+    r.hint = r.stage===1?'1관문 · 기억한 순서를 되짚으며 광선을 피하세요.':r.stage===2?'2관문 · 기억이 사라진 뒤 방해꾼을 처치해야 발판을 사용할 수 있습니다.':'3관문 · 문양을 역순으로 해독하세요. 세 파수꾼이 길을 막습니다.';
     this.tell(r, `기억할 순서: ${r.sequence.map(n => RUNE_NAMES[n]).join(' → ')}`);
   }
   interact(p, r, id) {
@@ -279,16 +280,17 @@ export class ChallengeManager {
       const index = RUNE_PADS.findIndex((pad, i) => dist(p, pad) <= 70 && (!id || id === `rune_${i}`));
       if (index < 0) return failure('문양 발판 가까이에서 상호작용하세요.');
       r.lastInteract = now;
-      if (r.sequence[r.runeStep] !== index) {
-        r.mistakes++; r.runeStep = 0;
+      if (this.mobs(r).some(m=>m.challengeRole==='rune_guard'))return failure('기억의 파수꾼을 모두 쓰러뜨려야 발판 봉인이 풀립니다.');
+      if (r.runeOrder[r.runeStep] !== index) {
+        r.mistakes++; r.runeStep = 0;r.ends-=r.stage===3?3000:1200;
         if (r.mistakes >= 3) this.finish(p, r, false, '문양 순서를 세 번 틀려 기억의 시험이 종료되었습니다.');
-        else { r.hint = `순서가 틀렸습니다. 처음 문양부터 다시 입력하세요. 실수 ${r.mistakes}/3`; this.tell(r, r.hint); }
+        else { r.hint = `오답! 다시 처음부터 · 실수 ${r.mistakes}/3 · 남은 시간 감소`; this.tell(r, r.hint); } 
         return { ok: true };
       }
       r.runeStep++; this.fx(r, { type: 'buff', ...RUNE_PADS[index], color: RUNE_COLORS[index] });
       r.hint = `올바른 문양 ${r.runeStep}/${r.sequence.length} · 다음 발판으로 이동하세요.`;
-      if (r.runeStep === r.sequence.length) {
-        if (r.stage === 3) this.finish(p, r, true, '세 기억의 순서를 모두 되찾았습니다.');
+      if (r.runeStep === r.runeOrder.length) {
+        if (r.stage === 3) this.finish(p, r, true, '파수꾼을 뚫고 반전 문양을 해독했습니다.');
         else { r.stage++; r.phase = 'rest'; r.nextAt = now + 1800; this.clearCasts(r); r.hint = '기억을 되찾았습니다. 다음 시험을 준비하세요.'; }
       }
       return { ok: true };
@@ -376,9 +378,20 @@ export class ChallengeManager {
   }
   tickRunes(r) {
     const now = this.game.now;
-    if (r.phase === 'memorize' && now >= r.peekUntil) { r.phase = 'input'; r.hint = '기억한 순서대로 발판을 찾아가 상호작용하세요.'; }
+    if (r.phase === 'memorize' && now >= r.peekUntil) {
+      r.phase = 'input';
+      const count=r.stage===2?2:r.stage===3?3:0;
+      r.runeGuards=[];
+      for(let i=0;i<count;i++){
+        const pos=RUNE_PADS[(i+r.stage)%RUNE_PADS.length];
+        const guard=this.spawn(r,i%2?'skeleton':'wisp',pos.x+25,pos.y+30,{role:'rune_guard',factor:r.stage===3?1.8:1.15});
+        r.runeGuards.push(guard.id);
+      }
+      r.hint=count?`봉인된 문양 · 기억의 파수꾼 ${count}명을 먼저 쓰러뜨리세요.${r.stage===3?' 이후 역순 입력!':''}`:'기억한 순서대로 발판을 찾아가 상호작용하세요.';
+      if(count)this.tell(r,r.hint);
+    }
     if (r.phase !== 'input' || now < r.nextHazard) return;
-    r.nextHazard = now + 4200; r.pulse++;
+    r.nextHazard = now + (r.stage===3?2700:r.stage===2?3500:4200); r.pulse++;
     const horizontal = r.pulse % 2 === 1;
     this.cast(r, { x: horizontal ? 80 : CENTER.x, y: horizontal ? CENTER.y : 80,
       shape: 'beam', angle: horizontal ? 0 : Math.PI / 2, length: horizontal ? 992 : 736, width: 70, radius: 1000,
@@ -496,7 +509,7 @@ export class ChallengeManager {
       nextAt: r.nextAt, remaining: Math.max(0, (r.mode === 'tower' && r.phase === 'fight' ? r.stageEnds : r.ends) - now),
       kills: r.kills, alive: this.mobs(r).length, hint: r.hint, markers,
       crystalHp: r.mode === 'defense' ? r.crystalHp : null, charge: r.charge, wardUntil: r.wardUntil, wardReady: r.wardReady,
-      mistakes: r.mistakes, runeStep: r.runeStep, runeGoal: r.sequence?.length || 0,
+      mistakes: r.mistakes, runeStep: r.runeStep, runeGoal: r.sequence?.length || 0, runeReverse:r.mode==='runes'&&r.stage===3, runeGuards:this.mobs(r).filter(m=>m.challengeRole==='rune_guard').length,
       sequence: r.mode === 'runes' && r.phase === 'memorize' ? r.sequence.map(n => RUNE_NAMES[n]) : null,
       peekUntil: r.peekUntil || 0, channelUntil: r.channelUntil || 0
     };

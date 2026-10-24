@@ -14,6 +14,7 @@ import {prepareChallenges} from '../shared/challenges.js';
 import {prepareDungeons} from '../shared/dungeons.js';
 import {prepareRealms} from '../shared/realms.js';
 import {combatExperience} from '../shared/rpg.js';
+import {prepareVanity, COSMETICS, COSMETIC_SLOTS, validPortrait} from '../shared/personalization.js';
 import {ACHIEVEMENTS} from '../shared/expansion.js';
 import { randomUUID } from 'node:crypto';
 import { CLASSES, ITEMS, MONSTERS, QUESTS, ZONES, NPCS, RECIPES, SHOP, TILE, MAX_LEVEL, xpRequired, getStats, weaponFor } from '../shared/content.js';
@@ -26,9 +27,9 @@ export function newCharacter(id,name,classId='novice'){
     hp:0,mp:0,inventory:{[c.weapon]:1,tunic:1,potion:8,mana:5},
     equipment:{weapon:c.weapon,armor:'tunic',charm:null},enhancements:{},
     quests:{},completed:[],opened:[],kills:0,bossKills:0,gathered:0,playSeconds:0,
-    title:'별빛을 따라온 자',titles:['별빛을 따라온 자'],revision:1,createdAt:Date.now()
+    title:'별빛을 따라온 자',titles:['별빛을 따라온 자'],vanity:null,revision:1,createdAt:Date.now()
   };
-  prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareChallenges(p);prepareDungeons(p);prepareRealms(p);prepareRPG(p);const s=getStats(p);p.hp=s.maxHp;p.mp=s.maxMp;return p;
+  prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareChallenges(p);prepareDungeons(p);prepareRealms(p);prepareRPG(p);prepareVanity(p);const s=getStats(p);p.hp=s.maxHp;p.mp=s.maxMp;return p;
 }
 export function hydrate(state){
   const p={...state};
@@ -37,7 +38,7 @@ export function hydrate(state){
   if(!CLASSES[p.classId])p.classId='novice';
   prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareChallenges(p,{recover:true});prepareDungeons(p,{recover:true});prepareRealms(p,{recover:true});
   p.titles=[...(p.titles||['별빛을 따라온 자'])];p.level=clamp(p.level||1,1,MAX_LEVEL);
-  prepareRPG(p);
+  prepareRPG(p);prepareVanity(p);
   if(!ZONES[p.zone])p.zone='town';
   if(!(p.hp>0)){p.zone='town';p.x=24*TILE+16;p.y=21*TILE+16;}
   const map=createMap(p.zone);
@@ -51,7 +52,7 @@ export function hydrate(state){
   return p;
 }
 export function serialize(p){
-  const keys=['id','name','classId','level','xp','gold','zone','x','y','hp','mp','inventory','equipment','enhancements','quests','completed','opened','kills','bossKills','gathered','playSeconds','title','titles','revision','createdAt','schemaVersion','discovery','journey','atlas','daily','attributes','statResets','enhancePity','deaths','deathWeakUntil','soul','lastDeath','challenges','dungeons','realms'];
+  const keys=['id','name','classId','level','xp','gold','zone','x','y','hp','mp','inventory','equipment','enhancements','quests','completed','opened','kills','bossKills','gathered','playSeconds','title','titles','revision','createdAt','schemaVersion','discovery','journey','atlas','daily','attributes','statResets','enhancePity','deaths','deathWeakUntil','soul','lastDeath','challenges','dungeons','realms','vanity'];
   return structuredClone(Object.fromEntries(keys.map(k=>[k,p[k]])));
 }
 export class Game {
@@ -103,7 +104,7 @@ export class Game {
       encounterState:null,encounterPhase:1,encounterTransition:null,encounterPose:null,encounterSummon:null};
   }
   addPlayer(state){
-    const p=hydrate(state);this.players.set(p.id,p);evaluateJobs(this,p,false);return p;
+    const p=hydrate(state);p.arrivedAt=this.now;this.players.set(p.id,p);evaluateJobs(this,p,false);return p;
   }
   mark(p){p.revision=(p.revision||0)+1;p.dirty=true;}
   toast(p,message,tone='info'){this.send(p.id,'notice',{message,tone});}
@@ -126,7 +127,7 @@ export class Game {
   publicPlayer(p){
     const s=this.stats(p);
     return {id:p.id,name:p.name,classId:p.classId,level:p.level,x:Math.round(p.x*10)/10,y:Math.round(p.y*10)/10,dir:p.dir,vx:Math.round(p.vx||0),vy:Math.round(p.vy||0),
-      moving:p.moving,hp:Math.round(p.hp),maxHp:s.maxHp,title:p.title,
+      moving:p.moving,hp:Math.round(p.hp),maxHp:s.maxHp,title:p.title,vanity:{slots:{...p.vanity.slots},avatarPixels:p.vanity.avatarPixels},arrivedAt:p.arrivedAt||0,
       attacking:p.attackUntil>this.now,shield:p.shieldUntil>this.now,dashing:p.dashUntil>this.now,
       dead:p.hp<=0,weapon:p.equipment.weapon,equipment:{...p.equipment},gearEnhance:Object.fromEntries(Object.values(p.equipment).filter(Boolean).map(id=>[id,p.enhancements[id]||0])),weakened:s.weakened,partyId:p.partyId};
   }
@@ -354,7 +355,7 @@ export class Game {
     this.dungeons.beforeTeleport(p,zone);
     this.realms.beforeTeleport(p,zone);
     this.challenges.beforeTeleport(p,zone);
-    p.zone=zone;p.x=arrival.x;p.y=arrival.y;p.path=[];p.input={x:0,y:0};p.target=null;p.vx=0;p.vy=0;p.moving=false;
+    p.zone=zone;p.x=arrival.x;p.y=arrival.y;p.arrivedAt=this.now;p.path=[];p.input={x:0,y:0};p.target=null;p.vx=0;p.vy=0;p.moving=false;
     p.dashUntil=0;p.dashVector={x:0,y:0};p.lastInput=0;p.motionId=(p.motionId||0)+1;
     recordProgress(this,p,'visit',zone);p.nextSurveyAt=0;revealTerrain(this,p);
     p.invulnerableUntil=this.now+2200;this.mark(p);
@@ -512,6 +513,7 @@ export class Game {
       this.mark(p);this.send(p.id,'loot',{gold:0,xp:0,items:[{id:out,count:r.count}],boss:true,name:'제작 완료'});
       return {ok:true};
     }
+    const vanityResult=this.vanityAction(p,a);if(vanityResult)return vanityResult;
     if(a.type==='title'){
       if(!p.titles.includes(a.title))return {ok:false,error:'아직 얻지 못한 칭호입니다.'};
       p.title=a.title;this.mark(p);return {ok:true};
@@ -541,6 +543,48 @@ export class Game {
       this.leaveParty(p);return {ok:true};
     }
     return {ok:false,error:'처리할 수 없는 요청입니다.'};
+  }
+  vanityAction(p,a){
+    const types=['cosmeticBuy','cosmeticEquip','avatarApply','avatarClear','renameConfirmed'];
+    if(!types.includes(a.type))return null;
+    const inTown=p.zone==='town'&&this.now-p.lastCombat>=8000;
+    if(a.type==='cosmeticBuy'){
+      const item=COSMETICS[a.id];
+      if(!item)return {ok:false,error:'존재하지 않는 꾸미기 상품입니다.'};
+      if(!inTown)return {ok:false,error:'마을의 안전한 장소에서만 꾸미기 아이템을 구매할 수 있습니다.'};
+      if(p.vanity.owned.includes(a.id))return {ok:false,error:'이미 보유한 아이템입니다.'};
+      if(p.gold<item.price)return {ok:false,error:'골드가 부족합니다.'};
+      p.gold-=item.price;p.vanity.owned.push(a.id);this.mark(p);
+      return {ok:true,message:`${item.name}을 구매했습니다. 외형 작업실에서 장착해 보세요.`};
+    }
+    if(a.type==='cosmeticEquip'){
+      if(!COSMETIC_SLOTS.includes(a.slot))return {ok:false,error:'잘못된 장착 부위입니다.'};
+      if(a.id!==null&&a.id!==''&&(!COSMETICS[a.id]||COSMETICS[a.id].slot!==a.slot||!p.vanity.owned.includes(a.id)))
+        return {ok:false,error:'해당 부위에 소유한 꾸미기 아이템만 장착할 수 있습니다.'};
+      p.vanity.slots[a.slot]=a.id||null;this.mark(p);return {ok:true,message:'외형을 변경했습니다.'};
+    }
+    if(a.type==='avatarApply'){
+      if(!inTown)return {ok:false,error:'마을에서 전투를 마친 뒤 이미지 외형을 변경하세요.'};
+      if(!validPortrait(a.pixels))return {ok:false,error:'24×32 도트 이미지 데이터가 올바르지 않습니다.'};
+      if(!(p.inventory.portrait_ticket>0))return {ok:false,error:'초상화 변환권이 필요합니다. 모라의 상점에서 구매할 수 있습니다.'};
+      p.inventory.portrait_ticket--;p.vanity.avatarPixels=a.pixels;this.mark(p);
+      this.fx(p.zone,{type:'level',id:p.id,x:p.x,y:p.y});
+      return {ok:true,message:'도트 캐릭터 외형을 적용했습니다. 다른 플레이어에게도 보입니다.'};
+    }
+    if(a.type==='avatarClear'){
+      p.vanity.avatarPixels=null;this.mark(p);return {ok:true,message:'기본 직업 외형으로 되돌렸습니다. 사용한 변환권은 환급되지 않습니다.'};
+    }
+    if(a.type==='renameConfirmed'){
+      // Only the authenticated websocket handler may supply this authorization.
+      if(a.serverAuthorized!==true)return {ok:false,error:'서버 인증이 필요합니다.'};
+      const name=String(a.name||'').trim().normalize('NFC');
+      if(!/^[\p{L}\p{N} _-]{2,14}$/u.test(name))return {ok:false,error:'2~14글자의 닉네임을 사용하세요.'};
+      if(!inTown)return {ok:false,error:'마을에서 전투 종료 8초 후 변경하세요.'};
+      if(!(p.inventory.rename_ticket>0))return {ok:false,error:'닉네임 변경권이 없습니다.'};
+      if(name.toLocaleLowerCase('ko')===p.name.toLocaleLowerCase('ko'))return {ok:false,error:'현재와 같은 이름입니다.'};
+      p.inventory.rename_ticket--;p.name=name;this.mark(p);return {ok:true,message:`닉네임이 ${name}(으)로 변경되었습니다.`};
+    }
+    return null;
   }
   leaveParty(p){
     this.dungeons.beforePartyLeave(p);
