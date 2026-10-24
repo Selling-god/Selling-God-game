@@ -311,3 +311,36 @@
   .abilities{left:12px;right:auto;transform:none}
   .world-status{bottom:151px}
 }
+
+/* October HUD hotfix: chat and combat bar must never occupy the same bottom lane. */
+@media (min-width: 701px) and (max-width: 1599px) and (pointer: fine) {
+  #game-ui { --combat-bar-clearance: 128px; }
+  .chat {
+    left: 12px;
+    bottom: var(--combat-bar-clearance);
+    width: min(282px, calc(100vw - 28px));
+    max-height: min(28vh, 175px);
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+  }
+  .chat #chat-messages { height: clamp(36px, 9vh, 78px); min-height: 0; }
+  .chat.collapsed { bottom: var(--combat-bar-clearance); width: 138px; }
+  .abilities { z-index: 3; }
+}
+@media (min-width: 701px) and (max-width: 950px) and (pointer: fine) {
+  .chat { width: 214px; max-height: min(25vh, 148px); }
+  .chat #chat-messages { height: clamp(30px, 7vh, 58px); }
+}
+/* On touch portrait, skills are at 174px; chat sits entirely above them. */
+@media (max-width: 700px) and (min-height: 541px) {
+  .chat { bottom: 256px; max-height: 24vh; }
+  .chat.collapsed { bottom: 256px; }
+  .chat #chat-messages { height: clamp(35px, 8vh, 60px); }
+}
+/* Compact landscape: keep chat outside the lower center action bar. */
+@media (max-height: 540px) and (pointer: coarse) {
+  .chat { left: 10px; right: auto; top: 72px; bottom: auto; width: min(200px, 29vw); max-height: 120px; }
+  .chat.collapsed { left: 10px; top: 72px; bottom: auto; width: 105px; }
+  .chat #chat-messages { height: 39px; }
+}
