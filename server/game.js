@@ -342,9 +342,23 @@ export class Game {
     // Ordinary boss kills stay in the local reward feed, not global chat.
     m.contributors.clear();
   }
-  damagePlayer(p,amount){
-    if(p.hp<=0||p.invulnerableUntil>this.now||this.encounters.protects(p))return;
-    let damage=Math.max(1,Math.round(amount-this.stats(p).def*.65));
+  blockedHitFeedback(p,reason='회피'){
+    // A dodge, portal entry or boss cutscene can legitimately negate a blow.
+    // Show why HP did not change without flooding the screen each frame.
+    if(p.hp<=0||this.now-(p.lastBlockedHitNotice||0)<650)return;
+    p.lastBlockedHitNotice=this.now;
+    this.fx(p.zone,{type:'hit',id:p.id,x:p.x,y:p.y-25,amount:reason,kind:'evade'});
+  }
+  damagePlayer(p,amount,{monster=false}={}){
+    if(p.hp<=0||!(amount>0))return 0;
+    if(p.invulnerableUntil>this.now){this.blockedHitFeedback(p,p.dashUntil>this.now?'회피':'무적');return 0;}
+    if(this.encounters.protects(p)){this.blockedHitFeedback(p,'전환 중 보호');return 0;}
+    const defense=this.stats(p).def*.65;
+    // Armor should matter, but stacked titles/gear must not make a monster
+    // that visibly strikes the player deal a near-invisible 1 damage forever.
+    // Dungeon percentages and other non-monster damage keep their old rules.
+    const mitigated=monster?Math.min(defense,amount*.65):defense;
+    let damage=Math.max(1,Math.round(amount-mitigated));
     damage=Math.max(1,Math.round(damage*(1-(CLASSES[p.classId].passive?.reduction||0))));
     if(p.shieldUntil>this.now){const before=damage;damage=Math.max(1,Math.round(damage*.45));if(before>damage)recordStory(this,p,{kind:'guard',target:'any'});}
     p.hp=Math.max(0,p.hp-damage);p.lastCombat=this.now;
@@ -356,6 +370,7 @@ export class Game {
       }
     }
     this.mark(p);
+    return damage;
   }
   teleport(p,zone,x,y){
     if(!ZONES[zone]||!this.realms.canEnter(p,zone))return false;
@@ -696,7 +711,7 @@ export class Game {
             const along=dx*Math.cos(cast.angle)+dy*Math.sin(cast.angle),across=-dx*Math.sin(cast.angle)+dy*Math.cos(cast.angle);
             hit=along>=-10&&along<=cast.length&&Math.abs(across)<cast.width/2+8;
           }
-          if(hit)this.damagePlayer(p,cast.damage);
+          if(hit)this.damagePlayer(p,cast.damage,{monster:true});
         }
         this.fx(zone,{type:'impact',castId:cast.id,owner:cast.owner,x:cast.x,y:cast.y,radius:cast.radius,shape:cast.shape,inner:cast.inner,angle:cast.angle,length:cast.length,width:cast.width,boss:cast.boss,theme:cast.theme,monster:cast.monster});
       }

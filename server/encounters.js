@@ -9,6 +9,15 @@ const angle=(a,b)=>Math.atan2(b.y-a.y,b.x-a.x);
 const PRIVATE=m=>!!(m.challengeRun||m.dungeonRun||m.mechanicObjective);
 const phaseOf=m=>m.encounterPhase||1;
 const bodyRadius=m=>MONSTERS[m.type]?.boss?16:12;
+// Actor positions are at the feet, but the drawn character extends above them.
+// Flying shots must test the visible torso instead of a tiny circle at the feet.
+// Ground warnings still use the foot position (as the drawn floor markers do).
+const PLAYER_GROUND_RADIUS=12;
+const projectileTouchesPlayer=(shot,p)=>{
+ const nearestX=clamp(shot.x,p.x-14,p.x+14);
+ const nearestY=clamp(shot.y,p.y-40,p.y+9);
+ return Math.hypot(shot.x-nearestX,shot.y-nearestY)<=Math.max(3,shot.radius||6)+2;
+};
 const directions=[['e',0],['s',Math.PI/2],['w',Math.PI],['n',-Math.PI/2]];
 const facing=(m,a)=>{m.dir=directions.reduce((best,item)=>Math.cos(a-item[1])>Math.cos(a-best[1])?item:best,directions[0])[0];};
 const PHASE_NAMES=['','잠들어 있던 형상','깨어난 본성','마지막 변이'];
@@ -129,7 +138,7 @@ export class EncounterManager{
   for(const hazard of w.encounterHazards){
    if(now<hazard.activeAt||now<hazard.nextTick)continue;
    hazard.nextTick=now+900;
-   for(const p of players)if(p.hp>0&&p.zone===w.id&&dist(p,hazard)<hazard.radius+8&&lineOfSight(w.map,hazard,p)&&this.groupHit(w,hazard.group,p.id,800))this.game.damagePlayer(p,hazard.damage);
+   for(const p of players)if(p.hp>0&&p.zone===w.id&&dist(p,hazard)<hazard.radius+PLAYER_GROUND_RADIUS&&this.groupHit(w,hazard.group,p.id,800))this.game.damagePlayer(p,hazard.damage,{monster:true});
   }
   for(const [key,expires]of w.encounterHitAt)if(expires<now)w.encounterHitAt.delete(key);
   w.mobs=w.mobs.filter(m=>!(m.encounterSummon&&!m.alive));
@@ -153,8 +162,9 @@ export class EncounterManager{
     c.dead=true;this.game.fx(w.id,{type:'impact',castId:c.castId+':wall',owner:c.owner,x:c.x,y:c.y,shape:'circle',radius:18,theme:c.theme,monster:c.monster,boss:c.boss});break;
    }
    c.x=x;c.y=y;
-   for(const p of players)if(p.hp>0&&p.zone===w.id&&dist(p,c)<=c.radius+10){
-    if(this.groupHit(w,c.group,p.id,650))this.game.damagePlayer(p,c.damage);
+   for(const p of players)if(p.hp>0&&p.zone===w.id&&projectileTouchesPlayer(c,p)){
+    if(this.groupHit(w,c.group,p.id,650))this.game.damagePlayer(p,c.damage,{monster:true});
+    else this.game.blockedHitFeedback(p,'연속 공격 방어');
     c.dead=true;
     this.game.fx(w.id,{type:'impact',castId:c.castId+':hit',owner:c.owner,x:c.x,y:c.y,shape:'circle',radius:20,theme:c.theme,monster:c.monster,boss:c.boss});break;
    }
@@ -379,18 +389,23 @@ export class EncounterManager{
    if(p.hp<=0||p.zone!==w.id||a.hit.has(p.id))continue;
    const t=l2?clamp(((p.x-old.x)*dx+(p.y-old.y)*dy)/l2,0,1):0,near={x:old.x+dx*t,y:old.y+dy*t};
    if(dist(p,near)<(a.boss?41:29)&&lineOfSight(w.map,near,p)){
-    this.game.damagePlayer(p,a.attack*.95);a.hit.add(p.id);
+    this.game.damagePlayer(p,a.attack*.95,{monster:true});a.hit.add(p.id);
     this.game.fx(w.id,{type:'impact',castId:a.castId+':hit:'+p.id,owner:m.id,x:p.x,y:p.y,shape:'circle',radius:24,theme:a.theme,boss:a.boss,monster:m.type});
    }
   }
  }
  hitArea(c,p){
   const dx=p.x-c.x,dy=p.y-c.y,d=Math.hypot(dx,dy);
-  if(c.shape==='beam'){const along=dx*Math.cos(c.angle)+dy*Math.sin(c.angle),across=-dx*Math.sin(c.angle)+dy*Math.cos(c.angle);return along>=-10&&along<=c.length+8&&Math.abs(across)<=c.width/2+8;}
-  return c.shape==='ring'?d<=c.radius+8&&d>=c.inner-8:d<=c.radius+8;
+  if(c.shape==='beam'){const along=dx*Math.cos(c.angle)+dy*Math.sin(c.angle),across=-dx*Math.sin(c.angle)+dy*Math.cos(c.angle);return along>=-PLAYER_GROUND_RADIUS&&along<=c.length+PLAYER_GROUND_RADIUS&&Math.abs(across)<=c.width/2+PLAYER_GROUND_RADIUS;}
+  return c.shape==='ring'?d<=c.radius+PLAYER_GROUND_RADIUS&&d>=c.inner-PLAYER_GROUND_RADIUS:d<=c.radius+PLAYER_GROUND_RADIUS;
  }
  damageCast(w,c,players){
-  for(const p of players)if(p.hp>0&&p.zone===w.id&&this.hitArea(c,p)&&lineOfSight(w.map,c,p)&&this.groupHit(w,c.group,p.id,220))this.game.damagePlayer(p,c.damage);
+  // The ground marker itself is authoritative for circular and ring attacks:
+  // otherwise a painted danger zone could hit visually but deal no damage just
+  // because an object lies between its center and the target's feet. Directional
+  // beams still respect cover; missiles have separate wall collision above.
+  for(const p of players)if(p.hp>0&&p.zone===w.id&&this.hitArea(c,p)&&
+   (c.shape!=='beam'||lineOfSight(w.map,c,p))&&this.groupHit(w,c.group,p.id,220))this.game.damagePlayer(p,c.damage,{monster:true});
  }
  hazard(w,m,data){
   w.encounterHazards||=[];
