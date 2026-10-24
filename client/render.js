@@ -285,13 +285,14 @@ export class Renderer {
         const frame=other.attacking?Math.floor(t/80)%4:moving?Math.floor(t/130)%4:Math.floor(t/800)%2*2;
         if(!other.dead)drawVanityBack(this,other,q.x,q.y,t);
         if(other.dead){c.save();c.translate(q.x,q.y);c.rotate(-Math.PI/2);this.gear.draw(this,other,0,0,'s',0,.6,t);c.restore();}
-        else this.gear.draw(this,other,q.x,q.y,direction,frame,this.flash.get(other.id)>t?.55:1,t);
+        else if(!other.vanity?.avatarPixels)this.gear.draw(this,other,q.x,q.y,direction,frame,this.flash.get(other.id)>t?.55:1,t);
         if(!other.dead)drawVanityBody(this,other,q.x,q.y,t);
         if(other.shield){c.strokeStyle='#b8d8df99';c.lineWidth=1.5;c.beginPath();c.ellipse(q.x,q.y-25,23,35,0,0,Math.PI*2);c.stroke();}
         drawVanityName(this,other,q.x,q.y,self,other.partyId&&other.partyId===p.partyId);
         drawVanityEntrance(this,other,q.x,q.y,Date.now()+this.clock);
-        if(other.title)this.label(other.title,q.x,q.y-80,'#eddbb9',8);
-        if(!self)this.label(`Lv.${other.level}`,q.x,q.y-94,'#b6c8c2',8);
+        const withNameplate=!!other.vanity?.slots?.nametag;
+        if(other.title)this.label(other.title,q.x,q.y-(withNameplate?99:80),'#eddbb9',8);
+        if(!self)this.label(`Lv.${other.level}`,q.x,q.y-(withNameplate?113:94),'#b6c8c2',8);
         if(!self&&other.hp<other.maxHp){
           c.fillStyle='#16282c';c.fillRect(q.x-18,q.y-53,36,3);c.fillStyle='#91bd97';c.fillRect(q.x-18,q.y-53,36*other.hp/other.maxHp,3);
         }

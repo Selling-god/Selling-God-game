@@ -20,6 +20,7 @@ export function customPortraitURL(pixels) { const cv=avatarCanvas(pixels); retur
 const item=(p,slot)=>COSMETICS[p.vanity?.slots?.[slot]];
 export function drawVanityBack(renderer,p,x,y,t){
   for(const slot of ['aura','wings']) drawCosmetic(renderer.ctx,item(p,slot),x,y,t);
+  drawCosmetic(renderer.ctx,item(p,'costume'),x,y,t,{layer:'back'});
 }
 export function drawVanityBody(renderer,p,x,y,t){
   const c=renderer.ctx,pixels=p.vanity?.avatarPixels;
@@ -29,10 +30,11 @@ export function drawVanityBody(renderer,p,x,y,t){
 export function drawVanityName(renderer,p,x,y,self,party){
   const c=renderer.ctx,tag=item(p,'nametag');
   if(tag){
-    const width=Math.min(160,Math.max(62,c.measureText(p.name).width+32));
-    drawCosmetic(c,tag,x,y,renderer.clock||0,{nameY:y-70,width});
+    c.save();c.font='500 10px sans-serif';
+    const width=Math.min(142,Math.max(60,c.measureText(p.name).width+22));c.restore();
+    drawCosmetic(c,tag,x,y,renderer.clock||0,{nameY:y-79,width});
   }
-  renderer.label(p.name,x,y-62,tag?.design?.secondary||tag?.color||(self?'#f2dbab':party?'#b2dfba':'#c2d6da'),10);
+  renderer.label(p.name,x,tag?y-71:y-62,tag?.design?.secondary||tag?.color||(self?'#f2dbab':party?'#b2dfba':'#c2d6da'),10);
 }
 export function drawVanityEntrance(renderer,p,x,y,now){
   const entry=item(p,'entrance');if(!entry||!(p.arrivedAt>0))return;

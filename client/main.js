@@ -207,10 +207,25 @@ async function connectGame(){
       if(data.refreshOnly){if(modal==='realms'){window._modalData=data;uiRefreshNeeded=true;}return;}
       openPanel('realms',data);
     });
-    net.on('worldNotice',data=>{addChat({channel:'system',text:data.message});notice(data.message,'info',8500);});
+    net.on('worldNotice',data=>{
+      if(!data?.message)return;
+      // Chat is for people and WORLD boss arrivals / victories only.
+      // Normal boss / area / trial telegraphs belong to the scene or toast UI.
+      if(data.kind==='worldBoss'&&(data.event==='spawn'||data.event==='defeated')){
+        addChat({channel:'system',text:data.message});
+        notice(data.message,'info',7200);
+      }else if(data.kind==='bossMechanic'){
+        notice(data.message,'info',3000);
+      }
+    });
     net.on('dialog',e=>{const npc=NPCS.find(n=>n.id===e.npc);if(npc)openPanel(npc.kind==='quest'?'npcQuest':npc.kind==='shop'?'shop':npc.kind==='craft'?'craft':npc.kind==='atelier'?'appearance':npc.kind==='jobs'?'jobs':'healer');});
     net.on('chat',msg=>{if(!mutedPlayers.has(msg.playerId))addChat(msg);});
-    net.on('system',e=>addChat({channel:'system',text:e.message}));
+    net.on('system',e=>{
+      // Do not flood chat with local quests, ordinary bosses or trial progress.
+      // Server maintenance still has a visible notice.
+      if(e?.message?.includes('서버가 재시작'))notice(e.message,'warn',8000);
+      else if(e?.message && /기억의 시련|제단|봉인|빛의 문/.test(e.message))notice(e.message,'info',4200);
+    });
     net.on('saved',e=>{setText('save-state',e.local?'개발 저장 완료':'서버 저장 완료');$('save-state').style.color='#a6c49a';});
     net.on('saveError',e=>{setText('save-state','저장 재시도 중');$('save-state').style.color='#e3b58f';notice(e.message,'warn',8000);});
     net.on('questComplete',e=>{

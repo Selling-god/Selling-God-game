@@ -21,63 +21,101 @@ const bit=(c,x,y,kind,size=3)=>{
 };
 const design=item=>item?.design||{form:0,motif:0,primary:item?.color||'#cbbca7',secondary:'#eff0d3'};
 
-function body(c,d,x,y,t){
+/**
+ * A 48x64 atlas actor renders at 40.8x54.4 with its feet at y+3.
+ * Its head occupies roughly y-51..y-32. Costumes MUST stay below y-32:
+ * a small chest/arm overlay and an optional cape behind the real sprite.
+ * This keeps the character's eyes, hair, weapon and animations visible.
+ */
+function body(c,d,x,y,t,layer='front'){
   const f=d.form%12,m=d.motif%10;
-  const yy=y-35;
-  c.fillStyle='#26323f';rect(c,x-11,yy-1,22,23);
-  c.fillStyle=d.primary;
+  const primary=d.primary,trim=d.secondary,ink='#23313c';
+  x=Math.round(x);y=Math.round(y);
+  if(layer==='back'){
+    // Cloth and capes behind the original character, never over the face.
+    c.fillStyle=ink;
+    if([1,2,5,6,7,8,10].includes(f)){
+      const swing=Math.round(Math.sin(t/260+f)*2);
+      poly(c,[[x-9,y-29],[x+9,y-29],[x+14+swing,y-1],[x+4,y+1],[x,y-5],[x-5,y+1],[x-14+swing,y-1]]);
+      c.fillStyle=primary;
+      poly(c,[[x-7,y-27],[x+7,y-27],[x+10+swing,y-4],[x+4,y-2],[x,y-7],[x-4,y-2],[x-10+swing,y-4]]);
+      c.fillStyle=trim;rect(c,x-2,y-9,4,3);
+    }else if([0,4,9,11].includes(f)){
+      // Split short capes / mechanical fins are slim enough not to hide arms.
+      for(const side of [-1,1]){
+        c.fillStyle=ink;rect(c,x+side*12-2,y-28,5,20);
+        c.fillStyle=primary;rect(c,x+side*12-1,y-26,3,17);
+      }
+    }
+    return;
+  }
+  // Physically aligned breastplate/jacket: 18 px across, 17 px tall.
+  // Face starts ABOVE this garment, so it remains unobscured.
+  c.fillStyle=ink;rect(c,x-10,y-31,20,21);
+  c.fillStyle=primary;rect(c,x-8,y-29,16,17);
+  // Garment silhouette variations, kept within the sprite's actual arm span.
   switch(f){
-    case 0: // plated knight, squared pauldrons and cape
-      rect(c,x-17,yy-1,34,8);rect(c,x-13,yy+6,26,15);rect(c,x-8,yy+21,16,9);break;
-    case 1: // split archer cape, drawn with two torn fins
-      poly(c,[[x-8,yy],[x-23,yy+10],[x-18,yy+30],[x-8,yy+20]]);
-      poly(c,[[x+8,yy],[x+23,yy+8],[x+20,yy+28],[x+8,yy+19]]);rect(c,x-9,yy,18,16);break;
-    case 2: // tapered mage robe and high neckline
-      poly(c,[[x-8,yy],[x+8,yy],[x+18,yy+30],[x-18,yy+30]]);rect(c,x-12,yy-5,24,7);break;
-    case 3: // sleeved adventurer jacket with straps
-      rect(c,x-12,yy+1,24,21);rect(c,x-15,yy+2,6,17);rect(c,x+9,yy+2,6,17);
-      rect(c,x-12,yy+23,10,5);rect(c,x+3,yy+23,9,5);break;
-    case 4: // fortress plate and hip guards
-      rect(c,x-18,yy+1,36,6);rect(c,x-13,yy+7,26,16);rect(c,x-18,yy+23,11,6);rect(c,x+7,yy+23,11,6);break;
-    case 5: // long asymmetric ceremonial skirt
-      poly(c,[[x-10,yy],[x+10,yy],[x+22,yy+31],[x-19,yy+29]]);
-      rect(c,x-14,yy+3,8,7);rect(c,x+7,yy+1,8,7);break;
-    case 6: // rogue with a diagonal scarf
-      rect(c,x-12,yy,24,17);poly(c,[[x-7,yy-2],[x+14,yy+8],[x+6,yy+13],[x-12,yy+5]]);
-      poly(c,[[x+12,yy+10],[x+22,yy+15],[x+9,yy+25]]);break;
-    case 7: // leaf armor with irregular roots
-      poly(c,[[x-8,yy],[x-17,yy+4],[x-12,yy+24],[x,yy+19],[x+15,yy+27],[x+18,yy+5],[x+8,yy]]);break;
-    case 8: // astrologer vest and layered sleeves
-      poly(c,[[x-11,yy],[x+11,yy],[x+12,yy+28],[x-12,yy+28]]);
-      rect(c,x-17,yy+2,5,25);rect(c,x+12,yy+2,5,25);rect(c,x-15,yy+22,30,4);break;
-    case 9: // mechanical armor, split chest and piston arms
-      rect(c,x-15,yy-3,30,11);rect(c,x-11,yy+8,22,13);rect(c,x-19,yy+9,7,12);rect(c,x+12,yy+9,7,12);
-      rect(c,x-15,yy+22,11,8);rect(c,x+5,yy+22,11,8);break;
-    case 10: // priest, mantle and divided hem
-      poly(c,[[x-11,yy-4],[x+11,yy-4],[x+12,yy+19],[x+17,yy+30],[x+3,yy+28],[x,yy+17],[x-3,yy+28],[x-18,yy+30]]);break;
-    default: // scales and pointed draconic shoulders
-      poly(c,[[x-20,yy-5],[x-9,yy+1],[x+9,yy+1],[x+20,yy-5],[x+13,yy+15],[x+11,yy+28],[x-11,yy+28],[x-13,yy+15]]);
+    case 0: // knight: square pauldrons and chest plate
+      c.fillStyle=ink;rect(c,x-15,y-28,7,8);rect(c,x+8,y-28,7,8);
+      c.fillStyle=primary;rect(c,x-14,y-27,5,5);rect(c,x+9,y-27,5,5);break;
+    case 1: // archer: crossed leather wrap and pointed cuffs
+      c.fillStyle=trim;line(c,x-7,y-28,x+7,y-16,2);line(c,x+7,y-28,x-7,y-16,2);break;
+    case 2: // mage: narrow high collar and fluttering hem
+      c.fillStyle=ink;rect(c,x-9,y-32,18,3);rect(c,x-13,y-12,26,6);
+      c.fillStyle=primary;rect(c,x-7,y-31,14,2);rect(c,x-12,y-11,24,4);break;
+    case 3: // explorer: sleeved jacket with visible zip
+      c.fillStyle=ink;rect(c,x-14,y-28,5,13);rect(c,x+9,y-28,5,13);
+      c.fillStyle=primary;rect(c,x-13,y-27,3,10);rect(c,x+10,y-27,3,10);break;
+    case 4: // paladin: broad plated collar and hard hip guards
+      c.fillStyle=ink;rect(c,x-14,y-30,28,5);rect(c,x-12,y-11,9,7);rect(c,x+3,y-11,9,7);
+      c.fillStyle=primary;rect(c,x-13,y-29,26,3);rect(c,x-11,y-10,7,5);rect(c,x+4,y-10,7,5);break;
+    case 5: // court: asymmetric silk, long apron
+      c.fillStyle=primary;poly(c,[[x-8,y-14],[x+8,y-14],[x+13,y-2],[x-10,y-3]]);
+      c.fillStyle=trim;rect(c,x-9,y-29,18,2);break;
+    case 6: // rogue: slim scarf that stays BELOW the head
+      c.fillStyle=trim;poly(c,[[x-8,y-31],[x+8,y-26],[x+6,y-22],[x-8,y-27]]);
+      c.fillStyle=primary;rect(c,x+9,y-19,5,11);break;
+    case 7: // ranger: leafy pauldrons
+      c.fillStyle=primary;
+      poly(c,[[x-9,y-30],[x-16,y-25],[x-11,y-19],[x-8,y-25]]);
+      poly(c,[[x+9,y-30],[x+16,y-25],[x+11,y-19],[x+8,y-25]]);break;
+    case 8: // astrologer: star collar and long contrasting hem
+      c.fillStyle=trim;rect(c,x-9,y-31,18,3);rect(c,x-10,y-12,20,2);
+      c.fillStyle=primary;rect(c,x-12,y-10,24,5);break;
+    case 9: // mechanist: plated arms and waist rivets
+      c.fillStyle=ink;rect(c,x-16,y-25,7,9);rect(c,x+9,y-25,7,9);
+      c.fillStyle=trim;rect(c,x-15,y-24,5,4);rect(c,x+10,y-24,5,4);break;
+    case 10: // priest: shawl and split front
+      c.fillStyle=trim;rect(c,x-9,y-30,18,3);
+      c.fillStyle=primary;rect(c,x-10,y-11,20,8);
+      c.fillStyle=ink;rect(c,x-1,y-11,2,8);break;
+    case 11: // draconic scales and angled shoulders
+      c.fillStyle=primary;
+      poly(c,[[x-8,y-30],[x-16,y-31],[x-13,y-22],[x-9,y-23]]);
+      poly(c,[[x+8,y-30],[x+16,y-31],[x+13,y-22],[x+9,y-23]]);break;
   }
-  c.fillStyle=d.secondary;
-  // The ten motifs have genuinely different geometry, placement and symmetry.
+  // Slim motif area (8x10), not a solid block across face or legs.
+  c.fillStyle=trim;c.strokeStyle=trim;
   switch(m){
-    case 0:rect(c,x-3,yy+9,6,8);rect(c,x-7,yy+2,14,2);break;
-    case 1:for(let k=0;k<4;k++){rect(c,x-9+k*5,yy+7+(k%2)*4,2,13); }break;
-    case 2:bit(c,x,yy+12,3,7);rect(c,x-12,yy+21,24,2);break;
-    case 3:rect(c,x-11,yy+6,5,16);rect(c,x+4,yy+3,7,3);bit(c,x+7,yy+17,1,3);break;
-    case 4:for(let k=0;k<3;k++)rect(c,x-9,yy+5+k*6,18,2);break;
-    case 5:for(let k=0;k<3;k++)bit(c,x-6+k*6,yy+8+(k%2)*5,3,3);break;
-    case 6:for(let k=0;k<5;k++)line(c,x-8+k*4,yy+17,x-6+k*4,yy+26,1);break;
-    case 7:bit(c,x,yy+11,1,5);bit(c,x-7,yy+20,1,2);bit(c,x+7,yy+20,1,2);break;
-    case 8:line(c,x-9,yy+7,x,yy+17,2);line(c,x,yy+17,x+9,yy+6,2);for(let k=-1;k<=1;k++)rect(c,x+k*6-1,yy+22,2,5);break;
-    default:for(let k=0;k<4;k++)bit(c,x-9+k*6,yy+9+(k%2)*6,4,2);
+    case 0:rect(c,x-2,y-25,4,5);break;
+    case 1:for(let k=-1;k<=1;k++)rect(c,x+k*4-1,y-25,2,9);break;
+    case 2:bit(c,x,y-23,3,4);break;
+    case 3:rect(c,x-6,y-27,3,10);bit(c,x+3,y-20,1,2);break;
+    case 4:for(let k=0;k<3;k++)rect(c,x-5,y-26+k*4,10,1);break;
+    case 5:for(let k=-1;k<=1;k++)bit(c,x+k*4,y-21,3,2);break;
+    case 6:for(let k=-1;k<=1;k++)line(c,x+k*4-1,y-25,x+k*4+2,y-18,1);break;
+    case 7:bit(c,x,y-25,1,3);rect(c,x-4,y-17,8,1);break;
+    case 8:line(c,x-6,y-25,x,y-19,1);line(c,x,y-19,x+6,y-25,1);break;
+    default:for(let k=0;k<3;k++)bit(c,x-5+k*5,y-25+k%2*5,4,1);break;
   }
-  c.fillStyle='#15232dbb';rect(c,x-2,yy+16,4,3);
+  // Small belt separates chest and pants, so the sprite still reads as a body.
+  c.fillStyle=ink;rect(c,x-9,y-12,18,3);
+  c.fillStyle=trim;rect(c,x-2,y-12,4,2);
 }
 function wing(c,d,x,y,t){
   const f=d.form%12,m=d.motif%10,flap=Math.round(2*Math.sin(t/240+(m%3)));
   for(const side of [-1,1]){
-    c.save();c.translate(Math.round(x+side*11),Math.round(y-39));c.scale(side,1);
+    c.save();c.translate(Math.round(x+side*11),Math.round(y-32));c.scale(side*.72,.72);
     c.fillStyle=d.primary;
     switch(f){
       case 0: // fan feathers
@@ -111,7 +149,7 @@ function wing(c,d,x,y,t){
 }
 function aura(c,d,x,y,t){
   const f=d.form%12,m=d.motif%10,tick=t/700;
-  c.globalAlpha=.65;c.strokeStyle=d.primary;c.fillStyle=d.primary;
+  c.globalAlpha=.46;c.strokeStyle=d.primary;c.fillStyle=d.primary;
   const drawOrbit=(rad,yScale=1,points=12)=>{
     for(let k=0;k<points;k++){const a=2*PI*k/points+tick*(m%2?-.3:.3),rx=rad+Math.sin(tick+k)*3;
       bit(c,x+Math.cos(a)*rx,y-19+Math.sin(a)*rx*yScale,(m+k)%10,1+k%2);
@@ -131,35 +169,31 @@ function aura(c,d,x,y,t){
     case 10:for(let k=0;k<19;k++)bit(c,x-30+(k*19)%63,y-53+((k*13+Math.floor(tick*5))%57),m%10,1+(k%2));break;
     default:drawOrbit(31,.65);for(let k=0;k<4;k++)line(c,x-34+k*23,y-39,x-34+k*23,y+1,3);
   }
-  c.globalAlpha=.88;c.fillStyle=d.secondary;
+  c.globalAlpha=.68;c.fillStyle=d.secondary;
   for(let k=0;k<3+(m%5);k++){
     const a=k*PI*2/(3+m%5)+tick*(m%2?-.8:.6);const r=13+(m%3)*4;
     bit(c,x+Math.cos(a)*r,y-25+Math.sin(a)*r,(m+k)%10,1+(m%3));
   }
 }
 function namePlate(c,d,x,y,width=80){
-  const f=d.form%12,m=d.motif%10,left=x-width/2,top=y;
-  c.fillStyle='#11232c';rect(c,left,top,width,19);
-  c.strokeStyle=d.primary;c.fillStyle=d.primary;c.lineWidth=2;c.strokeRect(Math.round(left),Math.round(top),Math.round(width),19);
-  switch(f){
-    case 0:poly(c,[[x,top-10],[x+8,top],[x-8,top]]);break;
-    case 1:for(let k=0;k<3;k++)rect(c,left+2+k*6,top-4,3,3);break;
-    case 2:rect(c,left-9,top+2,8,15);rect(c,left+width+1,top+2,8,15);break;
-    case 3:for(let k=0;k<3;k++)star(c,left+k*width/2,top-4,2);break;
-    case 4:for(let k=0;k<4;k++)rect(c,left+k*width/4,top+19+(k%2?0:-4),10,3);break;
-    case 5:poly(c,[[left-7,top],[left+2,top+9],[left-7,top+19]]);poly(c,[[left+width+7,top],[left+width-2,top+9],[left+width+7,top+19]]);break;
-    case 6:poly(c,[[left+4,top-7],[left+13,top],[left+20,top-6]]);poly(c,[[left+width-20,top-6],[left+width-13,top],[left+width-4,top-7]]);break;
-    case 7:for(const side of [-1,1])for(let k=0;k<3;k++)bit(c,x+side*(width/2+4+k*3),top+3+k*5,6,2);break;
-    case 8:for(let k=0;k<4;k++)poly(c,[[left+k*width/4,top],[left+5+k*width/4,top-8],[left+10+k*width/4,top]]);break;
-    case 9:rect(c,left-6,top+15,width+12,6);break;
-    case 10:for(let k=0;k<6;k++)rect(c,left-4+k*(width+8)/5,top-6,5,5);break;
-    default:for(let k=0;k<5;k++)poly(c,[[left-5+k*(width+10)/4,top-4],[left+k*(width+10)/4,top-9],[left+5+k*(width+10)/4,top-4]]);
+  const f=d.form%12,m=d.motif%10;
+  const w=Math.max(58,Math.min(142,Math.round(width))),left=Math.round(x-w/2),top=Math.round(y);
+  // A 15px-high name ribbon; old 19px frame and large ornaments hid titles.
+  c.fillStyle='#11232de8';rect(c,left,top,w,15);
+  c.strokeStyle=d.primary;c.lineWidth=1.5;
+  c.strokeRect(left+.5,top+.5,w-1,14);
+  c.fillStyle=d.primary;
+  if([0,3,6,8].includes(f)){
+    bit(c,x,top-3,(m+f)%10,2);
+  }else if([1,5,7,10].includes(f)){
+    for(const side of [-1,1])bit(c,x+side*(w/2+3),top+7,(m+f)%10,2);
+  }else{
+    rect(c,left+4,top-3,6,3);rect(c,left+w-10,top-3,6,3);
   }
   c.fillStyle=d.secondary;
-  // Personalized heraldry at different corners, number, orientation and contour.
-  for(let k=0;k<1+m%4;k++){
-    const px=left+7+(k*(width-15)/Math.max(1,m%4)),py=top+(m%2?14:4);
-    bit(c,px,py,(m+k)%10,1+m%3);
+  for(let k=0;k<1+m%3;k++){
+    const px=left+7+k*5;
+    bit(c,px,top+(m%2?11:4),(m+k)%10,1);
   }
 }
 function entrance(c,d,x,y,t,progress){
@@ -192,7 +226,7 @@ export function drawCosmetic(c,item,x,y,t=0,options={}){
   if(!item)return;
   const d=design(item);
   c.save();c.imageSmoothingEnabled=false;
-  if(item.slot==='costume')body(c,d,x,y,t);
+  if(item.slot==='costume')body(c,d,x,y,t,options.layer||'front');
   else if(item.slot==='wings')wing(c,d,x,y,t);
   else if(item.slot==='aura')aura(c,d,x,y,t);
   else if(item.slot==='nametag')namePlate(c,d,x,options.nameY??y-70,options.width??80);
@@ -203,12 +237,22 @@ export function paintCosmeticPreview(canvas,item){
   const c=canvas.getContext('2d');if(!c)return;
   canvas.width=108;canvas.height=98;
   c.clearRect(0,0,108,98);c.imageSmoothingEnabled=false;
-  c.fillStyle='#1b303c';rect(c,3,3,102,92);c.fillStyle='#31434e';rect(c,52,18,6,17);rect(c,48,35,14,18);
+  c.fillStyle='#1b303c';rect(c,3,3,102,92);
+  const x=54,y=80;
+  if(item.slot==='costume')drawCosmetic(c,item,x,y,840,{layer:'back'});
+  if(item.slot==='wings'||item.slot==='aura')drawCosmetic(c,item,x,y,840);
+  // 40x54 default mannequin matches the equipment sprite bounding box.
   if(item.slot!=='nametag'&&item.slot!=='entrance'){
-    c.fillStyle='#c9b5a3';rect(c,47,16,16,17);c.fillStyle='#51687a';rect(c,44,33,21,31);rect(c,46,63,7,14);rect(c,57,63,7,14);
+    c.fillStyle='#253541';rect(c,x-13,y-31,26,21);
+    c.fillStyle='#c49b7a';rect(c,x-9,y-52,18,18);
+    c.fillStyle='#6b7d8f';rect(c,x-11,y-32,22,21);
+    c.fillStyle='#283746';rect(c,x-10,y-12,8,13);rect(c,x+2,y-12,8,13);
+    c.fillStyle='#f0d0a5';rect(c,x-5,y-46,4,3);rect(c,x+3,y-46,4,3);
   }
-  drawCosmetic(c,item,54,78,840,{nameY:37,width:90,progress:.28});
+  if(item.slot!=='wings'&&item.slot!=='aura'){
+    drawCosmetic(c,item,x,y,840,{nameY:22,width:82,progress:.28});
+  }
   if(item.slot==='nametag'){
-    c.fillStyle=item.design.secondary;c.font='8px sans-serif';c.textAlign='center';c.fillText('모험가',54,51);
+    c.fillStyle=item.design.secondary;c.font='9px sans-serif';c.textAlign='center';c.fillText('모험가',x,32);
   }
 }
