@@ -45,10 +45,13 @@ const bossRows={
  world_tempest:['thunder','crown'],world_leviathan:['water','coral'],
  world_glacier:['ice','ice'],world_eclipse:['void','horns'],
  sunscar_warden:['fire','crown'],deepsea_warden:['water','coral'],wildroot_warden:['nature','antlers'],clockwork_warden:['time','halo'],
- stormcrown_warden:['thunder','wings'],voidfront_warden:['void','horns'],astralforge_warden:['star','crown'],dawnend_warden:['holy','halo']
+ stormcrown_warden:['thunder','wings'],voidfront_warden:['void','horns'],astralforge_warden:['star','crown'],dawnend_warden:['holy','halo'],
+ dungeon_arke:['fire','horns'],dungeon_neme:['time','moon'],dungeon_astra:['void','halo'],
+ realm_heaven_warden:['holy','wings'],realm_inferno_warden:['fire','horns'],realm_mirror_warden:['time','crown']
 };
 export function bossVisual(type){
- const [theme,gear]=bossRows[type]||['steel','crown'];
+ const province=/^(.+)_reach_\d+_warden$/.exec(type)?.[1];
+ const [theme,gear]=bossRows[type]||bossRows[province+'_warden']||['steel','crown'];
  return {theme,gear,...THEMES[theme]};
 }
 export const JOB_VISUALS=ROWS;

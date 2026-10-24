@@ -4,6 +4,8 @@ import { installBossGear } from './visuals.js';
 import { installExpeditions } from './expeditions.js';
 import { installExpansion } from './expansion.js';
 import { CHALLENGE_ZONES } from './challenges.js';
+import { installDungeons } from './dungeons.js';
+import { installRealms } from './realms.js';
 export const VERSION = '3.0.0';
 export const TILE = 32;
 export const CLASSES = {
@@ -167,6 +169,8 @@ installExpansion({CLASSES,ITEMS,MONSTERS,ZONES,NPCS,QUESTS,RECIPES,SHOP});
 installBossGear({ITEMS,RECIPES,MONSTERS});
 installExpeditions({ZONES,MONSTERS,ITEMS,RECIPES});
 Object.assign(ZONES,CHALLENGE_ZONES);
+installDungeons({ZONES,MONSTERS,ITEMS});
+installRealms({ZONES,MONSTERS,ITEMS});
 
 // Every region, including the original four, has a stable UI/save identifier.
 for(const [id,zone]of Object.entries(ZONES))zone.id=id;

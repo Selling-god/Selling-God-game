@@ -5,6 +5,9 @@ import { indexScenery } from './spatial.js';
 import { FRONTIER, RELICS } from './expansion.js';
 import { buildFrontier } from './frontier-world.js';
 import { buildChallengeMap } from './challenge-world.js';
+import { buildDungeonMap, decorateDungeonEntrance } from './dungeon-world.js';
+import { buildRealmMap, decorateRealmEntrance, REALM_BOSS_SPAWNS } from './realm-world.js';
+import { REALM_ZONES } from './realms.js';
 import { TILE, ZONES, NPCS } from './content.js';
 
 export function seeded(seed) {
@@ -28,8 +31,10 @@ export const PORTALS = {
 export const BOSS_SPAWNS = {
   forest:{x:49*TILE+16,y:18*TILE+16,type:'moss_guardian'},
   ruins:{x:46*TILE+16,y:15*TILE+16,type:'moon_witch'},
-  citadel:{x:28*TILE+16,y:13*TILE+16,type:'eclipse_dragon'}
+  citadel:{x:28*TILE+16,y:13*TILE+16,type:'eclipse_dragon'},
+  ...REALM_BOSS_SPAWNS
 };
+for(const id of Object.keys(REALM_ZONES))PORTALS[id]=[];
 
 // Branching roads, not a single linear corridor.
 for(const z of FRONTIER)PORTALS[z.id]=[];
@@ -78,6 +83,8 @@ for(const z of EXPEDITION_ZONES){
 const cache=new Map();
 export const mapCacheInfo=()=>({size:cache.size,limit:10});
 function remember(id,map){
+ decorateDungeonEntrance(map,ZONES[id]);
+ decorateRealmEntrance(map,ZONES[id]);
  indexScenery(map);
  cache.delete(id);cache.set(id,map);
  while(cache.size>10)cache.delete(cache.keys().next().value);
@@ -87,6 +94,8 @@ function remember(id,map){
 export function createMap(id) {
   if(cache.has(id)){const map=cache.get(id);cache.delete(id);cache.set(id,map);return map;}
   const z=ZONES[id]; if(!z)throw new Error('Unknown zone');
+  if(z.secretRealm)return remember(id,buildRealmMap(id,z));
+  if(z.dungeon)return remember(id,buildDungeonMap(id,z));
   if(z.challenge)return remember(id,buildChallengeMap(id,z));
   if(z.expedition)return remember(id,buildExpedition(id,z,PORTALS[id]));
   if(z.seed){const map=buildFrontier(id,z,PORTALS[id],NPCS.filter(n=>n.zone===id));map.storyPoints=VOCATION_SITES.filter(s=>s.zone===id);return remember(id,map);}

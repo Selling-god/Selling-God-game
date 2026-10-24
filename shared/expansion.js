@@ -223,6 +223,14 @@ export function installExpansion({CLASSES,ITEMS,MONSTERS,ZONES,NPCS,QUESTS,RECIP
  NPCS.push({id:'sorin',name:'소린',role:'길잡이 · 전직',kind:'jobs',sprite:'lia',zone:'town',x:27*32+16,y:23*32+16,dialog:'길은 태어날 때 정해지지 않아. 네가 걸어온 흔적이 새로운 이름이 되어 줄 거야.'});
 }
 
+// Hubs and their surrounding expedition sectors use one combat/reward curve.
+export function endgameCombatStats(level,rank=0,boss=false){
+ const n=Math.min(MAX_LEVEL,Math.max(1,Math.floor(level)));
+ return {level:n,hp:Math.round((80+n*26+n*n*.38)*(boss?7:rank===1?.92:rank===2?1.12:1)),
+  atk:Math.round((boss?22:12)+n*(boss?6.2:4.6)),def:Math.round(n*(boss?.85:.7)),
+  xp:Math.round(boss?xpRequired(n)*.18:xpRequired(n)/36),
+  gold:boss?[n*35,n*45]:[20+n*5,35+n*6]};
+}
 function installEndgame({ITEMS,MONSTERS,ZONES,QUESTS,RECIPES}){
  ENDGAME_REGIONS.forEach((z,index)=>{
   const tier=z.gearTier,level=z.level;
@@ -247,15 +255,13 @@ function installEndgame({ITEMS,MONSTERS,ZONES,QUESTS,RECIPES}){
   const levels=[level,Math.floor((level+z.maxLevel)/2),z.maxLevel];
   z.mobs.forEach((id,i)=>{
    const n=levels[i],skin=z.skins[i];
-   MONSTERS[id]={...MONSTERS[skin],name:z.mobNames[i],sprite:skin,skin,level:n,
-    hp:Math.round((80+n*26+n*n*.38)*(i===1?.92:i===2?1.12:1)),atk:Math.round(12+n*4.6),def:Math.round(n*.7),
-    xp:Math.round(xpRequired(n)/36),gold:[20+n*5,35+n*6],material:z.material,gearTier:tier,
+   MONSTERS[id]={...MONSTERS[skin],...endgameCombatStats(n,i),name:z.mobNames[i],sprite:skin,skin,
+    material:z.material,gearTier:tier,
     boss:false,worldBoss:false};
   });
   const n=Math.min(MAX_LEVEL,z.maxLevel+1),skin=z.bossSkin;
-  MONSTERS[z.boss]={...MONSTERS[skin],name:z.bossName,sprite:skin,skin,level:n,
-   hp:Math.round((80+n*26+n*n*.38)*7),atk:Math.round(22+n*6.2),def:Math.round(n*.85),
-   xp:Math.round(xpRequired(n)*.18),gold:[n*35,n*45],speed:65,range:110,aggro:280,
+  MONSTERS[z.boss]={...MONSTERS[skin],...endgameCombatStats(n,0,true),name:z.bossName,sprite:skin,skin,
+   speed:65,range:110,aggro:280,
    material:z.material,boss:true,worldBoss:false,radius:34,pattern:z.pattern,gearTier:tier,gearCharm:tier+'_charm'};
   ZONES[z.id]={name:z.name,subtitle:`Lv.${level}–${z.maxLevel} · ${z.subtitle}`,minLevel:level,maxLevel:z.maxLevel,
    width:56,height:44,theme:z.theme,color:z.color,spawn:[28,37],weather:z.weather,music:'citadel',seed:z.seed,
