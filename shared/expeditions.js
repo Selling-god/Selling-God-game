@@ -77,8 +77,10 @@ export function installExpeditions({ZONES,MONSTERS,ITEMS,RECIPES}){
  );
 }
 export function atlasTotals(ZONES){
- const old=Object.values(ZONES).filter(z=>!z.expedition).reduce((n,z)=>n+z.width*z.height,0);
- const added=EXPEDITION_ZONES.reduce((n,z)=>n+z.width*z.height,0);
- return {regions:Object.keys(ZONES).length,expeditions:EXPEDITION_ZONES.length,landmarks:LANDMARKS.length,
-   tiles:old+added,oldTiles:old,areaRatio:(old+added)/old};
+ const publicZones=Object.values(ZONES).filter(z=>!z.challenge);
+ // Keep "old" anchored to the original twelve regions when later roads arrive.
+ const old=publicZones.filter(z=>!z.expedition&&!z.endgame).reduce((n,z)=>n+z.width*z.height,0);
+ const tiles=publicZones.reduce((n,z)=>n+z.width*z.height,0);
+ return {regions:publicZones.length,expeditions:EXPEDITION_ZONES.length,landmarks:LANDMARKS.length,
+   tiles,oldTiles:old,areaRatio:tiles/old};
 }

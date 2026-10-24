@@ -7,16 +7,34 @@ export const ATTRIBUTES={
  luk:{name:'행운',short:'LUK',desc:'치명타 확률 +0.22%'}
 };
 export const ATTRIBUTE_KEYS=Object.keys(ATTRIBUTES);
+export const MAX_LEVEL=200;
+export const MAX_ATTRIBUTE=400;
 export const POINTS_PER_LEVEL=4;
 export const MAX_ENHANCE=10;
 export const DEATH_RULES={safeLevel:4,goldRate:.03,goldCap:500,xpRate:.03,graveMs:10*60000,weakMs:60000,goldRecovery:.8};
-export const statBudget=level=>Math.max(0,(Math.min(30,Math.max(1,Math.floor(Number(level)||1)))-1)*POINTS_PER_LEVEL);
+const boundedLevel=level=>Math.min(MAX_LEVEL,Math.max(1,Math.floor(Number(level)||1)));
+// Existing levels and stored XP are retained. Only future level-up thresholds change.
+export const xpRequired=level=>{
+ const n=boundedLevel(level);
+ return Math.round(120+n*60+n*n*9+n*n*n*.045);
+};
+// Low-level enemies remain useful for materials and story goals, but cease being
+// the fastest way to level. A much stronger party member cannot award many levels
+// from a single tagged enemy. Use the returned value for both XP and the loot UI.
+export function combatExperience(baseXP,playerLevel,enemyLevel,{boss=false,party=false}={}){
+ if(!Number.isFinite(baseXP)||baseXP<=0)return 0;
+ const level=boundedLevel(playerLevel),gap=level-boundedLevel(enemyLevel);
+ const scale=gap<=5?1:Math.max(.05,1-(gap-5)*.075);
+ const reward=Math.round(baseXP*scale*(party?1.1:1));
+ return Math.min(reward,Math.floor(xpRequired(level)*(boss?.35:.12)));
+}
+export const statBudget=level=>(boundedLevel(level)-1)*POINTS_PER_LEVEL;
 export const spentPoints=p=>ATTRIBUTE_KEYS.reduce((n,k)=>n+(p.attributes?.[k]||0),0);
 export const freePoints=p=>Math.max(0,statBudget(p.level)-spentPoints(p));
 export function cleanAttributes(input,level){
  let left=statBudget(level);
  return Object.fromEntries(ATTRIBUTE_KEYS.map(k=>{
-  const n=Number(input?.[k]),v=Number.isSafeInteger(n)?Math.max(0,Math.min(n,100,left)):0;
+  const n=Number(input?.[k]),v=Number.isSafeInteger(n)?Math.max(0,Math.min(n,MAX_ATTRIBUTE,left)):0;
   left-=v;return [k,v];
  }));
 }
@@ -45,7 +63,7 @@ export function deathLoss(p,xpNeeded){
 export const resetPrice=p=>(p.statResets||0)===0?0:500;
 export const equipmentVisual=id=>{
  if(!id)return null;
- const tier=id.startsWith('astral')?6:id.startsWith('boss_')?5:id.startsWith('horizon')||id==='explorer_coat'||id==='relic_charm'?5:
+ const tier=id.startsWith('end_')||id.startsWith('astral')?6:id.startsWith('boss_')?5:id.startsWith('horizon')||id==='explorer_coat'||id==='relic_charm'?5:
  id.startsWith('dawn')?4:id.startsWith('star')||id==='moon_robe'||id==='moon_charm'?3:
  id.startsWith('moon')||id==='moss_charm'?2:id==='leather'||id==='charm'?1:0;
  const palette=['#8c9c9d','#7eae8e','#a7cdda','#bcabdf','#edcd8a','#7ed2cb','#b6b6f3'];

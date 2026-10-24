@@ -2,6 +2,7 @@
  * Starfall Online 2.0: data-driven professions and frontier.
  * Gameplay uses server-authoritative unlock conditions in server/progression.js.
  */
+import {xpRequired,MAX_LEVEL} from './rpg.js';
 export const JOB_TIERS = {
   common: {name:'일반',color:'#9ecbb2'}, rare:{name:'희귀',color:'#83b9e8'},
   epic:{name:'영웅',color:'#c4a3ea'}, hidden:{name:'히든',color:'#efc481'}
@@ -46,6 +47,27 @@ const JOB_ROWS = [
  ['nameless_king','이름 없는 왕','guardian','hidden','모든 땅과 네 거인을 기억하는 자에게 왕관은 이름을 묻는다.','이름 없는 검','왕의 맹세','만왕의 새벽','shield']
 ];
 export const JOB_HINTS=Object.fromEntries(JOB_ROWS.map(r=>[r[0],r[4]]));
+// The original routes and every profession story retain their existing gates.
+// These roads extend beyond the observatory with real enemy/gear level bands.
+export const ENDGAME_REGIONS=[
+ {id:'sunscar',name:'태양흔 고원',subtitle:'꺼진 태양을 깨우는 첫 원정',level:35,maxLevel:49,parent:'observatory',theme:'desert',visualTheme:'fire',color:'#e9bd79',weather:'sand',
+  gearName:'태양흔',materialName:'태양흔 결정',mobNames:['불볕 풍뎅이','금빛 잔영','황혼 선봉기사'],skins:['beetle','wisp','ash_knight'],bossName:'황혼의 거상 · 솔라크',bossSkin:'golem',pattern:'root'},
+ {id:'deepsea',name:'심해의 회랑',subtitle:'부서진 조수문 너머의 왕국',level:50,maxLevel:69,parent:'sunscar',theme:'coast',visualTheme:'water',color:'#80cdd9',weather:'stars',
+  gearName:'심해',materialName:'심해 진주',mobNames:['심해 껍질사냥꾼','해구의 등불','침몰한 파수병'],skins:['beetle','wisp','skeleton'],bossName:'조수의 수호자 · 네리스',bossSkin:'moon_witch',pattern:'moon'},
+ {id:'wildroot',name:'잊힌 거목의 심장',subtitle:'세계의 뿌리를 잠식한 오래된 독',level:70,maxLevel:89,parent:'deepsea',theme:'swamp',visualTheme:'nature',color:'#98c290',weather:'fog',
+  gearName:'거목',materialName:'거목의 수액 결정',mobNames:['독안개 새싹','뿌리의 망령','잠식된 거목병'],skins:['slime','wisp','golem'],bossName:'천년 뿌리왕 · 베르단',bossSkin:'moss_guardian',pattern:'root'},
+ {id:'clockwork',name:'멈춘 시계의 성채',subtitle:'흘러가지 못한 시간이 쌓이는 곳',level:90,maxLevel:109,parent:'wildroot',theme:'frost',visualTheme:'time',color:'#a9d6e4',weather:'snow',
+  gearName:'시계',materialName:'시간의 톱니',mobNames:['초침 사냥개','빙결된 시간불','역행하는 갑주'],skins:['wolf','wisp','ash_knight'],bossName:'정오의 집행자 · 크로넬',bossSkin:'golem',pattern:'dragon'},
+ {id:'stormcrown',name:'폭풍왕의 옥좌',subtitle:'부서진 하늘 위로 이어지는 전선',level:110,maxLevel:134,parent:'clockwork',theme:'sky',visualTheme:'thunder',color:'#b4b5ed',weather:'stars',
+  gearName:'폭풍왕',materialName:'왕관의 번개',mobNames:['뇌운 풍뎅이','옥좌의 번개','폭풍 근위기사'],skins:['beetle','wisp','ash_knight'],bossName:'천둥왕 · 라그니스',bossSkin:'moon_witch',pattern:'moon'},
+ {id:'voidfront',name:'공허의 국경',subtitle:'이름을 잃은 자들이 지키는 마지막 문',level:135,maxLevel:159,parent:'stormcrown',theme:'abyss',visualTheme:'void',color:'#bd91df',weather:'fog',
+  gearName:'경계',materialName:'공허의 심장편',mobNames:['경계의 추적자','빈 별의 망령','이름 없는 군단병'],skins:['wolf','wisp','skeleton'],bossName:'문을 삼킨 자 · 아크론',bossSkin:'eclipse_dragon',pattern:'dragon'},
+ {id:'astralforge',name:'별을 벼리는 용광로',subtitle:'무너진 성좌를 다시 잇는 불꽃',level:160,maxLevel:179,parent:'voidfront',theme:'observatory',visualTheme:'star',color:'#e8c6a0',weather:'embers',
+  gearName:'별벼림',materialName:'별벼림 주괴',mobNames:['별불 파수병','용광로 성운','무너진 성좌기사'],skins:['skeleton','wisp','ash_knight'],bossName:'별의 대장장이 · 아스테르',bossSkin:'golem',pattern:'root'},
+ {id:'dawnend',name:'새벽의 끝',subtitle:'모든 별이 돌아오는 마지막 관측선',level:180,maxLevel:200,parent:'astralforge',theme:'observatory',visualTheme:'holy',color:'#f1d99f',weather:'stars',
+  gearName:'영원의 새벽',materialName:'영원의 별핵',mobNames:['여명의 추적자','태초의 별불','영원의 수호기사'],skins:['wolf','wisp','ash_knight'],bossName:'마지막 성좌 · 아우렐',bossSkin:'eclipse_dragon',pattern:'dragon'}
+].map((z,i)=>({...z,endgame:true,seed:12001+i*1103,gearTier:'end_'+z.id,material:z.id+'_crystal',
+ mobs:[z.id+'_hunter',z.id+'_caster',z.id+'_sentinel'],boss:z.id+'_warden'}));
 export const FRONTIER = [
  {id:'meadow',name:'별바람 초원',subtitle:'첫 직업이 잠에서 깨어나는 들판',level:2,theme:'meadow',color:'#b3cd7c',weather:'leaves',seed:1901,mobs:['hare','sprout','wolf'],boss:'thorn_stag'},
  {id:'coast',name:'유리빛 해안',subtitle:'파도가 삼킨 문장을 찾아서',level:6,theme:'coast',color:'#7ed4dc',weather:'stars',seed:2202,mobs:['crab','siren','shell_guard'],boss:'coral_queen'},
@@ -54,7 +76,8 @@ export const FRONTIER = [
  {id:'frost',name:'백야 설원',subtitle:'시간마저 얼어붙은 밤',level:13,theme:'frost',color:'#b4dce8',weather:'snow',seed:5505,mobs:['ice_wolf','frost_wisp','ice_guard'],boss:'snow_sentinel'},
  {id:'sky',name:'천둥의 하늘섬',subtitle:'구름 위에서 이어지는 발자국',level:16,theme:'sky',color:'#ada6eb',weather:'stars',seed:6606,mobs:['storm_wisp','sky_guard','thunder_beetle'],boss:'sky_seraph'},
  {id:'abyss',name:'침묵의 심연',subtitle:'누군가 남겨 둔 마지막 경계',level:21,theme:'abyss',color:'#bc8ed5',weather:'fog',seed:7707,mobs:['void_wisp','hollow_knight','abyss_wolf'],boss:'abyss_keeper'},
- {id:'observatory',name:'무너진 천문대',subtitle:'별의 끝에서 다시 시작되는 이야기',level:25,theme:'observatory',color:'#ecd4a2',weather:'stars',seed:8808,mobs:['star_guard','astral_wisp','clock_golem'],boss:'orion'}
+ {id:'observatory',name:'무너진 천문대',subtitle:'별의 끝에서 다시 시작되는 이야기',level:25,theme:'observatory',color:'#ecd4a2',weather:'stars',seed:8808,mobs:['star_guard','astral_wisp','clock_golem'],boss:'orion'},
+ ...ENDGAME_REGIONS
 ];
 export const WORLD_BOSSES=[
  {id:'tempest',minute:0,type:'world_tempest',zone:'meadow',name:'폭풍의 거신 · 아스트론',level:5,color:'#c4d9a0',desc:'번개 원과 넓은 충격파를 번갈아 피하세요.'},
@@ -86,9 +109,9 @@ export const RELICS=[
  ['observatory_dawn','observatory','새벽의 기록','불씨가 날개가 되고 별의 실이 새벽을 엮는다.']
 ].map(([id,zone,name,text],i)=>({id,zone,name,text,x:(i%2?39:13)*32+16,y:(i%2?28:18)*32+16}));
 export const DAILY_TASKS=[
- {id:'hunt',name:'오늘의 토벌',desc:'아무 몬스터나 25마리 처치',metric:'kills',goal:25,gold:260,xp:450,items:{potion:5}},
- {id:'gather',name:'보급대 지원',desc:'자원 12회 채집',metric:'gather',goal:12,gold:220,xp:300,items:{mana:5}},
- {id:'boss',name:'위험한 발자국',desc:'지역 보스 또는 월드 보스 1회 처치 참여',metric:'bosses',goal:1,gold:450,xp:750,items:{world_token:1}}
+ {id:'hunt',name:'오늘의 토벌',desc:'아무 몬스터나 25마리 처치',metric:'kills',goal:25,gold:260,xp:300,items:{potion:5}},
+ {id:'gather',name:'보급대 지원',desc:'자원 12회 채집',metric:'gather',goal:12,gold:220,xp:160,items:{mana:5}},
+ {id:'boss',name:'위험한 발자국',desc:'지역 보스 또는 월드 보스 1회 처치 참여',metric:'bosses',goal:1,gold:450,xp:400,items:{world_token:1}}
 ];
 export const ACHIEVEMENTS=[
  {id:'first_job',name:'나만의 첫 길',metric:'jobs',goal:2,gold:100},
@@ -102,7 +125,10 @@ export const ACHIEVEMENTS=[
  {id:'craft10',name:'손끝의 기적',metric:'crafted',goal:10,gold:600},
  {id:'boss10',name:'거인의 벗',metric:'bosses',goal:10,gold:1000},
  {id:'world4',name:'네 하늘의 증인',metric:'worldKinds',goal:4,gold:2000},
- {id:'hidden',name:'이름 없는 길',metric:'hidden',goal:1,gold:1200}
+ {id:'hidden',name:'이름 없는 길',metric:'hidden',goal:1,gold:1200},
+ {id:'level50',name:'심해로 향하는 원정대',metric:'level',goal:50,gold:3000},
+ {id:'level100',name:'백 번의 새벽',metric:'level',goal:100,gold:6000},
+ {id:'level200',name:'마지막 성좌의 여행자',metric:'level',goal:200,gold:12000}
 ];
 
 export function installExpansion({CLASSES,ITEMS,MONSTERS,ZONES,NPCS,QUESTS,RECIPES,SHOP}){
@@ -182,16 +208,68 @@ export function installExpansion({CLASSES,ITEMS,MONSTERS,ZONES,NPCS,QUESTS,RECIP
   MONSTERS[id]={...b,name,sprite:id,skin,level,hp:Math.round(44+level*19+level*level*.8),atk:7+level*3,def:Math.floor(level*.8),xp:18+level*17,gold:[8+level*3,14+level*4],material};
  }
  const bossNames=['가시뿔 · 에녹','산호 여왕 · 멜리','모래 왕 · 아문','포자 여왕 · 미레','백야 감시자 · 폴라','하늘의 수호자 · 세라','심연 문지기 · 오블','성좌의 끝 · 오리온'];
- FRONTIER.forEach((z,i)=>{
+ FRONTIER.filter(z=>!z.endgame).forEach((z,i)=>{
   ZONES[z.id]={name:z.name,subtitle:z.subtitle,minLevel:z.level,width:56,height:44,theme:z.theme,color:z.color,spawn:[28,37],weather:z.weather,music:i%2?'ruins':'forest',seed:z.seed,mobTypes:z.mobs,mobCount:22,boss:z.boss};
   const level=z.level+3,skin=['moss_guardian','moon_witch','golem','moss_guardian','golem','moon_witch','eclipse_dragon','moon_witch'][i];
   MONSTERS[z.boss]={...MONSTERS[skin],name:bossNames[i],sprite:z.boss,skin,level,hp:1100+level*230,atk:20+level*3,def:Math.floor(level*.7),xp:300+level*85,gold:[100+level*15,180+level*18],speed:65,range:110,aggro:270,material:z.mobs.map(t=>MONSTERS[t].material)[0],boss:true,radius:30,pattern:i%3===0?'root':i%3===1?'moon':'dragon'};
   QUESTS.push({id:'frontier_'+z.id,name:z.name+'의 부탁',chapter:'탐험',npc:'lia',level:z.level,desc:`${z.name}에서 ${MONSTERS[z.mobs[0]].name} 8마리와 ${MONSTERS[z.mobs[1]].name} 5마리를 처치해 주세요. 마을의 세계지도에서 이동 경로를 확인할 수 있어요.`,
    objectives:[{kind:'kill',target:z.mobs[0],count:8},{kind:'kill',target:z.mobs[1],count:5}],xp:350+z.level*85,gold:160+z.level*35,items:{potion:6,world_token:1},end:'또 하나의 길이 열렸어요. 그 땅의 유물도 읽어 보셨나요? 잊힌 직업의 흔적이 남아 있을 거예요.'});
  });
+ installEndgame({ITEMS,MONSTERS,ZONES,QUESTS,RECIPES});
  for(const [i,b]of WORLD_BOSSES.entries()){
   const skin=['golem','moon_witch','moss_guardian','eclipse_dragon'][i];
   MONSTERS[b.type]={...MONSTERS[skin],name:b.name,sprite:b.type,skin,level:b.level,hp:[8500,14000,22000,33000][i],atk:[26,40,58,78][i],def:b.level,speed:65,range:120,aggro:310,xp:1000+b.level*150,gold:[450+b.level*20,700+b.level*25],material:'world_token',boss:true,worldBoss:true,radius:40,pattern:b.id};
  }
  NPCS.push({id:'sorin',name:'소린',role:'길잡이 · 전직',kind:'jobs',sprite:'lia',zone:'town',x:27*32+16,y:23*32+16,dialog:'길은 태어날 때 정해지지 않아. 네가 걸어온 흔적이 새로운 이름이 되어 줄 거야.'});
+}
+
+function installEndgame({ITEMS,MONSTERS,ZONES,QUESTS,RECIPES}){
+ ENDGAME_REGIONS.forEach((z,index)=>{
+  const tier=z.gearTier,level=z.level;
+  ITEMS[z.material]={name:z.materialName,type:'material',icon:'shard',rarity:'epic',sell:25+index*5,
+   desc:`${z.name}의 몬스터에게서 얻습니다. 이 지역의 장비를 제작할 수 있습니다.`};
+  for(const [family,part,label]of [['guardian','sword','검'],['ranger','bow','활'],['mage','staff','지팡이']]){
+   ITEMS[`${tier}_${part}`]={name:`${z.gearName}의 ${label}`,type:'gear',slot:'weapon',class:family,icon:part,
+    rarity:'legendary',level,atk:Math.round(20+level*3.2)+(family==='mage'?6:0),crit:8,
+    sell:level*20,visualTheme:z.visualTheme,visualSet:tier,visualBase:'astral_'+part,desc:`Lv.${level} 원정 무기. 해당 지역의 재료로 제작할 수 있습니다.`};
+  }
+  ITEMS[tier+'_armor']={name:z.gearName+' 수호의',type:'gear',slot:'armor',icon:'armor',rarity:'legendary',level,
+   hp:180+level*9,mp:40+level*2,def:Math.round(12+level*1.05),sell:level*16,visualTheme:z.visualTheme,visualSet:tier,visualBase:'astral_armor'};
+  ITEMS[tier+'_charm']={name:z.gearName+'의 약속',type:'gear',slot:'charm',icon:'charm',rarity:'legendary',level,
+   hp:80+level*4,mp:30+level,atk:12+Math.round(level*.42),def:Math.round(level*.08),crit:4,sell:level*14,visualTheme:z.visualTheme,visualBase:'dawn_charm'};
+  // Materials come from ordinary monsters and the ore nodes in the same map.
+  // No world boss, profession or later region is needed to craft the entry set.
+  RECIPES.push(
+   {id:tier+'_weapon',name:z.gearName+' 무기',weaponTier:tier,count:1,gold:level*45,cost:{[z.material]:8+index*2,ore:6+index},level},
+   {id:tier+'_armor',name:ITEMS[tier+'_armor'].name,output:tier+'_armor',count:1,gold:level*35,cost:{[z.material]:7+index,ore:5+index},level},
+   {id:tier+'_charm',name:ITEMS[tier+'_charm'].name,output:tier+'_charm',count:1,gold:level*30,cost:{[z.material]:6+index,ore:4+index},level}
+  );
+  const levels=[level,Math.floor((level+z.maxLevel)/2),z.maxLevel];
+  z.mobs.forEach((id,i)=>{
+   const n=levels[i],skin=z.skins[i];
+   MONSTERS[id]={...MONSTERS[skin],name:z.mobNames[i],sprite:skin,skin,level:n,
+    hp:Math.round((80+n*26+n*n*.38)*(i===1?.92:i===2?1.12:1)),atk:Math.round(12+n*4.6),def:Math.round(n*.7),
+    xp:Math.round(xpRequired(n)/36),gold:[20+n*5,35+n*6],material:z.material,gearTier:tier,
+    boss:false,worldBoss:false};
+  });
+  const n=Math.min(MAX_LEVEL,z.maxLevel+1),skin=z.bossSkin;
+  MONSTERS[z.boss]={...MONSTERS[skin],name:z.bossName,sprite:skin,skin,level:n,
+   hp:Math.round((80+n*26+n*n*.38)*7),atk:Math.round(22+n*6.2),def:Math.round(n*.85),
+   xp:Math.round(xpRequired(n)*.18),gold:[n*35,n*45],speed:65,range:110,aggro:280,
+   material:z.material,boss:true,worldBoss:false,radius:34,pattern:z.pattern,gearTier:tier,gearCharm:tier+'_charm'};
+  ZONES[z.id]={name:z.name,subtitle:`Lv.${level}–${z.maxLevel} · ${z.subtitle}`,minLevel:level,maxLevel:z.maxLevel,
+   width:56,height:44,theme:z.theme,color:z.color,spawn:[28,37],weather:z.weather,music:'citadel',seed:z.seed,
+   mobTypes:[...z.mobs],mobCount:24,boss:z.boss,endgame:true,gearTier:tier,parent:z.parent};
+  QUESTS.push(
+   {id:'frontier_'+z.id,name:z.name+'의 첫 발자국',chapter:'후반 원정',npc:'lia',level,
+    desc:`${z.name}에서 ${z.mobNames[0]} 8마리와 ${z.mobNames[1]} 5마리를 처치해 주세요. ${ZONES[z.parent]?.name||'이전 원정지'}의 길을 따라 진입할 수 있습니다.`,
+    objectives:[{kind:'kill',target:z.mobs[0],count:8},{kind:'kill',target:z.mobs[1],count:5}],
+    xp:Math.round(xpRequired(level)*.22),gold:level*45,weaponTier:tier,items:{potion:6,mana:4},
+    end:'새 원정 무기를 준비했어요. 현지 결정과 광석으로 방어구도 마련하고 다음 수호자에게 도전해 보세요.'},
+   {id:'frontier_'+z.id+'_warden',name:z.bossName+'의 봉인',chapter:'원정 수호자',npc:'lia',level:level+5,requires:'frontier_'+z.id,
+    desc:`${z.name} 북동쪽의 ${z.bossName}에게 도전하세요. 경고된 바닥을 피하고 공격이 끝난 틈을 노리세요.`,
+    objectives:[{kind:'kill',target:z.boss,count:1}],xp:Math.round(xpRequired(level+5)*.3),gold:level*60,
+    items:{[tier+'_armor']:1,[z.material]:4},end:'봉인된 길의 기억을 되찾았어요. 이 수호의와 함께 다음 원정에 나서 주세요.'}
+  );
+ });
 }

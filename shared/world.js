@@ -4,6 +4,7 @@ import { buildExpedition } from './expedition-world.js';
 import { indexScenery } from './spatial.js';
 import { FRONTIER, RELICS } from './expansion.js';
 import { buildFrontier } from './frontier-world.js';
+import { buildChallengeMap } from './challenge-world.js';
 import { TILE, ZONES, NPCS } from './content.js';
 
 export function seeded(seed) {
@@ -35,7 +36,8 @@ for(const z of FRONTIER)PORTALS[z.id]=[];
 const edges=[
  ['town','meadow'],['forest','meadow'],['forest','swamp'],['meadow','coast'],
  ['coast','desert'],['desert','sky'],['swamp','ruins'],['citadel','frost'],
- ['frost','abyss'],['sky','observatory'],['abyss','observatory']
+ ['frost','abyss'],['sky','observatory'],['abyss','observatory'],
+ ...FRONTIER.filter(z=>z.parent).map(z=>[z.parent,z.id])
 ];
 for(const [a,b]of edges){
  const aIndex=PORTALS[a].length,bIndex=PORTALS[b].length;
@@ -85,6 +87,7 @@ function remember(id,map){
 export function createMap(id) {
   if(cache.has(id)){const map=cache.get(id);cache.delete(id);cache.set(id,map);return map;}
   const z=ZONES[id]; if(!z)throw new Error('Unknown zone');
+  if(z.challenge)return remember(id,buildChallengeMap(id,z));
   if(z.expedition)return remember(id,buildExpedition(id,z,PORTALS[id]));
   if(z.seed){const map=buildFrontier(id,z,PORTALS[id],NPCS.filter(n=>n.zone===id));map.storyPoints=VOCATION_SITES.filter(s=>s.zone===id);return remember(id,map);}
   const {width:w,height:h}=z, seed={town:73,forest:928,ruins:1049,citadel:5408}[id], rand=seeded(seed);
@@ -188,6 +191,38 @@ export function isBlocked(map,x,y,r=10) {
     if(tx<0||ty<0||tx>=map.w||ty>=map.h||map.blocked[ty*map.w+tx])return true;
   }
   return false;
+}
+// Arrival points must fit the whole character and leave room to start moving.
+// A blocked destination falls back to the nearest safe tile connected to spawn.
+export function findSafePosition(map,preferred,r=10) {
+  const spawn=ZONES[map.id]?.spawn||[Math.floor(map.w/2),Math.floor(map.h/2)];
+  const origin={x:spawn[0]*TILE+TILE/2,y:spawn[1]*TILE+TILE/2};
+  const wanted=Number.isFinite(preferred?.x)&&Number.isFinite(preferred?.y)?preferred:origin;
+  const exits=[[0,0],[-16,0],[16,0],[0,-16],[0,16]];
+  const clear=p=>exits.every(([dx,dy])=>!isBlocked(map,p.x+dx,p.y+dy,r));
+  if(clear(wanted))return {x:wanted.x,y:wanted.y};
+  const center=n=>({x:(n%map.w)*TILE+TILE/2,y:Math.floor(n/map.w)*TILE+TILE/2});
+  let start=-1,bestOrigin=Infinity;
+  for(let n=0;n<map.w*map.h;n++){
+    const pt=center(n);if(isBlocked(map,pt.x,pt.y,r))continue;
+    const d=dist(pt,origin);if(d<bestOrigin){start=n;bestOrigin=d;}
+  }
+  if(start<0)return null;
+  const seen=new Uint8Array(map.w*map.h),queue=[start];seen[start]=1;
+  let best=null,bestDistance=Infinity,fallback=center(start),fallbackDistance=dist(fallback,wanted);
+  for(let at=0;at<queue.length;at++){
+    const n=queue[at],x=n%map.w,y=Math.floor(n/map.w),pt=center(n),d=dist(pt,wanted);
+    if(d<fallbackDistance){fallback=pt;fallbackDistance=d;}
+    if(d<bestDistance&&clear(pt)){best=pt;bestDistance=d;}
+    for(const [dx,dy]of [[-1,0],[1,0],[0,-1],[0,1]]){
+      const nx=x+dx,ny=y+dy,ni=ny*map.w+nx;
+      if(nx<0||ny<0||nx>=map.w||ny>=map.h||seen[ni])continue;
+      const next=center(ni);
+      if(isBlocked(map,next.x,next.y,r)||isBlocked(map,(pt.x+next.x)/2,(pt.y+next.y)/2,r))continue;
+      seen[ni]=1;queue.push(ni);
+    }
+  }
+  return best||(queue.length>1?fallback:null);
 }
 export function moveEntity(map,p,dx,dy,r=10) {
   // Small substeps prevent tunneling through a wall during a dash.

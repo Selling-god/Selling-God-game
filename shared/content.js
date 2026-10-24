@@ -1,10 +1,11 @@
 import { cleanAttributes, enhancementBonus } from './rpg.js';
+export { MAX_LEVEL, xpRequired } from './rpg.js';
 import { installBossGear } from './visuals.js';
 import { installExpeditions } from './expeditions.js';
 import { installExpansion } from './expansion.js';
+import { CHALLENGE_ZONES } from './challenges.js';
 export const VERSION = '3.0.0';
 export const TILE = 32;
-export const MAX_LEVEL = 30;
 export const CLASSES = {
   guardian: {
     name: '서약기사', short: '기사', color: '#e9bd7a', sprite: 'guardian',
@@ -136,7 +137,6 @@ export const NPCS = [
   { id: 'erin', name: '에린', role: '치유사', kind: 'heal', sprite: 'healer', zone: 'town', x: 24*TILE, y: 24.5*TILE, dialog: '잠깐 쉬어 가요. 돌아올 곳이 있다는 걸 잊지 않으면, 조금 멀리 가도 괜찮아요.' }
 ];
 export const SHOP = ['potion','mana','leather','charm'];
-export const xpRequired = (level) => Math.round(55 + level * 35 + level * level * 5);
 export const objectiveLabel = (o) => o.kind === 'kill' ? (o.target === 'any' ? '몬스터 처치' : `${MONSTERS[o.target]?.name || o.target} 처치`) : `${ITEMS[o.target]?.name || o.target} 채집`;
 export const getStats = (p, now=Date.now()) => {
   const c=CLASSES[p.classId] || CLASSES.guardian;
@@ -166,6 +166,7 @@ installExpansion({CLASSES,ITEMS,MONSTERS,ZONES,NPCS,QUESTS,RECIPES,SHOP});
 
 installBossGear({ITEMS,RECIPES,MONSTERS});
 installExpeditions({ZONES,MONSTERS,ITEMS,RECIPES});
+Object.assign(ZONES,CHALLENGE_ZONES);
 
 // Every region, including the original four, has a stable UI/save identifier.
 for(const [id,zone]of Object.entries(ZONES))zone.id=id;

@@ -43,7 +43,9 @@ const bossRows={
  spore_matron:['poison','mushroom'],snow_sentinel:['ice','ice'],sky_seraph:['thunder','wings'],
  abyss_keeper:['void','horns'],orion:['star','halo'],
  world_tempest:['thunder','crown'],world_leviathan:['water','coral'],
- world_glacier:['ice','ice'],world_eclipse:['void','horns']
+ world_glacier:['ice','ice'],world_eclipse:['void','horns'],
+ sunscar_warden:['fire','crown'],deepsea_warden:['water','coral'],wildroot_warden:['nature','antlers'],clockwork_warden:['time','halo'],
+ stormcrown_warden:['thunder','wings'],voidfront_warden:['void','horns'],astralforge_warden:['star','crown'],dawnend_warden:['holy','halo']
 };
 export function bossVisual(type){
  const [theme,gear]=bossRows[type]||['steel','crown'];
