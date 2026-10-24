@@ -2,7 +2,8 @@ import { cleanAttributes, enhancementBonus } from './rpg.js';
 export { MAX_LEVEL, xpRequired } from './rpg.js';
 import { installBossGear } from './visuals.js';
 import { installExpeditions } from './expeditions.js';
-import { installExpansion } from './expansion.js';
+import { installExpansion,ACHIEVEMENTS } from './expansion.js';
+import {makeHonorAchievements,honorBonus} from './personalization.js';
 import { CHALLENGE_ZONES } from './challenges.js';
 import { installDungeons } from './dungeons.js';
 import { installRealms } from './realms.js';
@@ -150,6 +151,8 @@ export const getStats = (p, now=Date.now()) => {
     const n=p.enhancements?.[id]||0;
     const bonus=enhancementBonus(i.slot,n);s.atk+=bonus.atk||0;s.def+=bonus.def||0;s.maxHp+=bonus.hp||0;s.maxMp+=bonus.mp||0;
   }
+  const titleStats=p.titles?.includes(p.title)?honorBonus(p.title,ACHIEVEMENTS):null;
+  if(titleStats){s.atk+=titleStats.atk||0;s.def+=titleStats.def||0;s.maxHp+=titleStats.hp||0;s.maxMp+=titleStats.mp||0;s.crit+=titleStats.crit||0;}
   const passive=c.passive||{};
   s.atk+=passive.atk||0;s.def+=passive.def||0;s.maxHp+=passive.hp||0;s.crit+=passive.crit||0;s.speed+=passive.speed||0;
   const mastery=Math.min(10,Math.floor((p.discovery?.mastery?.[p.classId]||0)/25));
@@ -176,3 +179,9 @@ installEncounterIdentities({MONSTERS,ZONES,QUESTS});
 
 // Every region, including the original four, has a stable UI/save identifier.
 for(const [id,zone]of Object.entries(ZONES))zone.id=id;
+
+// Add claimable region/bestiary/profession honor milestones after all content has installed.
+ACHIEVEMENTS.push(...makeHonorAchievements({CLASSES,MONSTERS,ZONES}));
+ITEMS.rename_ticket={name:'닉네임 변경권',type:'token',icon:'charm',rarity:'rare',buy:2200,sell:100,desc:'외형 작업실에서 캐릭터 이름을 한 번 변경합니다. 이름 중복 여부는 서버에서 검사합니다.'};
+ITEMS.portrait_ticket={name:'초상화 변환권',type:'token',icon:'orb',rarity:'epic',buy:1500,sell:100,desc:'PNG/JPG/WebP 이미지를 24×32 도트 외형으로 바꾸어 한 번 등록합니다.'};
+SHOP.push('rename_ticket','portrait_ticket');
