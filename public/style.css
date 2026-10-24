@@ -273,3 +273,36 @@
 @keyframes title-award-neon{to{box-shadow:0 0 60px #f2d19c99,0 0 22px #f2d19c66,0 10px 35px #000a}}
 @media(max-width:700px){.forge-scene{padding:23px 16px}.forge-crystal{width:116px;height:116px}.forge-crystal span{font-size:67px}.title-award{top:20%;padding:12px 16px}.title-award b{font-size:13px}}
 @media(prefers-reduced-motion:reduce){.forge-cinema *, .title-award{animation:none!important;transition:none!important}.forge-meter span{width:80%}}
+
+/* Independent title menu and collection — responsive, keyboard friendly. */
+.hud-dock .title-menu-button{border-color:#d6c28d80;background:linear-gradient(170deg,#4a3f32d9,#25363ce8)}
+.hud-dock .title-menu-button:hover,.hud-dock .title-menu-button:focus-visible{background:#66533f}
+.hud-dock .title-menu-button img{filter:drop-shadow(0 0 5px #e4c98a90)}
+.title-vault{min-width:0}.title-feature{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:20px 22px;border:1px solid #acc5c052;border-radius:11px;background:linear-gradient(120deg,#1a3540,#20333b)}
+.title-feature.rarity-rare{border-color:#81c6ef88;background:linear-gradient(120deg,#173747,#263746)}
+.title-feature.rarity-epic{border-color:#b79dedaa;background:linear-gradient(120deg,#30294d,#183039)}
+.title-feature.rarity-legendary{border-color:#ebc37e;background:linear-gradient(120deg,#43372a,#182f3a);box-shadow:inset 0 0 24px #d7a55f16}
+.title-feature>div:first-child{min-width:0}.title-feature-label{font-size:10px;letter-spacing:.12em;color:#d6c593}.title-feature h3{font-size:clamp(16px,2vw,24px);line-height:1.5;margin:8px 0;color:#f1ddad;overflow-wrap:anywhere}.title-feature.rarity-rare h3{color:#b8e5ff}.title-feature.rarity-epic h3{color:#e0c9ff}.title-feature.rarity-legendary h3{color:#ffe4a3;text-shadow:0 0 13px #f0bd6088}
+.title-feature p{font-size:11px;margin:0;color:#b8ccc7;line-height:1.7}.title-feature-total{flex:0 0 auto;display:grid;text-align:center;gap:5px;padding:0 0 0 15px;border-left:1px solid #aac6b640}.title-feature-total strong{font-size:27px;color:#f3dfa7}.title-feature-total span{font-size:9px;color:#c4c5b4;max-width:100px;line-height:1.5}
+.title-vault-tools{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:20px 0 13px;flex-wrap:wrap}.title-vault-tabs{margin:0}.title-vault-search{display:grid;gap:5px;font-size:10px;color:#b4c9c4;flex:1 1 210px;max-width:350px}.title-vault-search input{width:100%;padding:10px 12px;font-size:13px}
+.title-vault-summary{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 10px;color:#abbeb6;font-size:10px;line-height:1.6}.title-vault-summary #title-count{white-space:nowrap;color:#e5cea0}
+.title-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.title-card{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:157px;padding:14px 15px;border:1px solid #a8b8a64d;background:linear-gradient(150deg,#203640,#1a2a34);border-radius:9px}
+.title-card.rarity-uncommon{border-color:#89c99d63}.title-card.rarity-rare{border-color:#7fbee887}.title-card.rarity-epic{border-color:#ab91e399;background:linear-gradient(150deg,#312b48,#1b3040)}.title-card.rarity-legendary{border-color:#e9bb69aa;background:linear-gradient(140deg,#443526,#22343a);box-shadow:inset 0 0 18px #ffbd5420}
+.title-card.locked{opacity:.64;background:#172b31}.title-card.locked .title-card-name{color:#b2beba;text-shadow:none!important}.title-card.equipped{outline:2px solid #e6c78a;outline-offset:-3px}
+.title-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;font-size:10px}.title-rarity{color:#d0dad3}.rarity-uncommon .title-rarity{color:#9ad0ab}.rarity-rare .title-rarity{color:#92d2ff}.rarity-epic .title-rarity{color:#dec0ff}.rarity-legendary .title-rarity{color:#f5d18b}.title-theme{color:#90a9ae;font-size:9px;text-align:right}
+.title-card-name{display:block;font-size:14px;line-height:1.6;overflow-wrap:anywhere;color:#e7e5d7}.rarity-rare .title-card-name{color:#adddff}.rarity-epic .title-card-name{color:#e2cbff;text-shadow:0 0 6px #c7a4f84d}.rarity-legendary .title-card-name{color:#ffe5a5;text-shadow:0 0 12px #dbaa56aa}
+.title-card p{margin:0;line-height:1.5;font-size:10px;color:#b0c2bc}.title-card .btn{margin-top:auto;padding:7px 11px;font-size:10px}.title-locked{margin-top:auto;color:#a6b2af;font-size:10px}
+@media(min-width:701px) and (max-width:1599px) and (pointer:fine){.hud-dock{grid-template-columns:repeat(6,44px)}}
+@media(min-width:701px) and (max-width:1200px) and (pointer:fine){.hud-dock{grid-template-columns:repeat(6,40px)}}
+@media(max-height:540px) and (pointer:coarse){.hud-dock{grid-template-columns:repeat(6,30px)}}
+@media(max-width:700px){.title-feature{padding:14px;gap:9px}.title-feature-total{padding-left:10px}.title-feature-total strong{font-size:21px}.title-vault-tools{margin-top:14px}.title-vault-search{max-width:none;flex-basis:100%}.title-grid{grid-template-columns:1fr}.title-card{min-height:140px;padding:12px}.title-feature p{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.title-card,.title-feature{transition:none!important;animation:none!important}}
+
+/* Quantity-aware shop sale UI and per-title rewards. */
+.sell-recipe{align-items:flex-start}.sell-recipe .recipe-body{min-width:0;flex:1}
+.sell-actions{display:flex;flex-wrap:wrap;align-items:end;gap:7px;margin-top:10px}
+.sell-actions .btn{min-height:34px}.sell-input-label{font-size:10px;display:grid;gap:3px;color:#d0d7cc}
+.sell-input-label input{width:86px;max-width:100%;min-height:34px;padding:6px 7px;font-size:14px}
+.title-card .title-bonus{border-radius:4px;padding:7px 9px;background:#122631af;color:#d8eabb;font-size:10px;line-height:1.65}
+.title-award{animation-fill-mode:forwards}.title-award-hide{display:none!important}
+@media(max-width:700px){.sell-recipe{display:flex;flex-wrap:wrap;gap:8px}.sell-recipe .recipe-body{flex-basis:calc(100% - 62px)}.sell-actions{gap:6px}.sell-input-label input{width:80px}}
