@@ -235,3 +235,9 @@
  .dungeon-hud,.realm-hud{left:12px;right:auto;top:163px;width:191px;max-height:27vh;padding:10px}.dungeon-hud-heading h3,.realm-hud h3{font-size:11px;margin-bottom:8px}.dungeon-hint{font-size:10px}.dungeon-controls .btn,.realm-hud .btn{font-size:9px;padding:7px 8px}.dungeon-roster{grid-template-columns:1fr;gap:4px}.dungeon-member{padding:5px 6px}.dungeon-sequence>span{min-width:22px;font-size:11px;padding:5px 2px}.dungeon-sequence i{font-size:8px}.dungeon-my-role{font-size:10px}
 }
 @media(max-height:540px){.dungeon-hud,.realm-hud{left:10px;right:auto;top:112px;width:190px;max-height:calc(100vh - 245px);padding:9px}.dungeon-hud-heading h3,.realm-hud h3{font-size:11px}.dungeon-hint{font-size:10px}}
+
+/* Keep the brief, server-protected phase portrait clear of side panels. */
+.phase-transition-active .quest-tracker,.phase-transition-active .dungeon-hud,.phase-transition-active .realm-hud,.phase-transition-active .party-mini,.phase-transition-active .target-info{opacity:0;pointer-events:none}
+.target-info{max-width:min(660px,calc(100vw - 40px));text-align:center;line-height:1.5}
+#boss-name{min-width:0;overflow-wrap:anywhere}#boss-hp{flex-shrink:0;margin-left:10px}
+.phase-transition-active .notices,.phase-transition-active .zone-toast,.phase-transition-active .loot-feed{opacity:0;pointer-events:none}
