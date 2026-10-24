@@ -182,16 +182,18 @@ installEncounterIdentities({MONSTERS,ZONES,QUESTS});
 installExtraItems({ITEMS,RECIPES});
 
 // Combat pacing (applied once at startup to canonical monster definitions).
-// A fresh adventurer should survive an error, but cannot one-shot whole packs.
-// Endgame ecology, quest and world-boss identifiers stay unchanged.
+// Increase incoming damage; keep HP, armor, patterns, speed, XP, drops and IDs.
+// The boost is strongest early on, where hits were single digits against 100+ HP.
+// It tapers for high-level monsters to avoid accidental one-hit knockouts.
 for(const enemy of Object.values(MONSTERS)){
+ const level=Math.max(1,Number(enemy.level)||1);
  if(enemy.boss){
   enemy.hp=Math.round(enemy.hp*1.38);
-  enemy.atk=Math.round(enemy.atk*.98);
+  enemy.atk=Math.round(enemy.atk*Math.max(.98,1.02+1.40*Math.exp(-level/14)));
   enemy.def=Math.round(enemy.def*1.14+2);
  }else{
   enemy.hp=Math.round(enemy.hp*(enemy.level<=10?1.65:1.35));
-  enemy.atk=Math.round(enemy.atk*(enemy.level<=10?1.20:1.12));
+  enemy.atk=Math.round(enemy.atk*Math.max(enemy.level<=10?1.20:1.12,1.15+3.70*Math.exp(-level/17)));
   enemy.def=Math.round(enemy.def*1.17+1);
  }
 }
