@@ -54,13 +54,13 @@ test('new gates are reachable from town at their level, without moving existing 
  for(const [id,level]of Object.entries({town:1,forest:1,ruins:5,citadel:9,meadow:2,coast:6,desert:9,swamp:10,frost:13,sky:16,abyss:21,observatory:25})){
   assert.equal(ZONES[id].minLevel,level,id);
  }
- assert.ok(EXPEDITION_ZONES.every(z=>z.minLevel<=28));
+ assert.ok(EXPEDITION_ZONES.filter(z=>!z.endgame).every(z=>z.minLevel<=28));
  for(const z of ENDGAME_REGIONS){
   assert.equal(reachableAt(z.level-1).has(z.id),false,z.id+' must remain gated');
   assert.equal(reachableAt(z.level).has(z.id),true,z.id+' has an accessible incoming road');
   assert.ok(PORTALS[z.id].some(p=>p.to===z.parent&&p.level===ZONES[z.parent].minLevel));
  }
- assert.equal(atlasTotals(ZONES).regions,92);
+ assert.equal(atlasTotals(ZONES).regions,164);
 });
 
 test('late zones contain progressively stronger, correctly rendered enemies and a level 200 final boss',()=>{

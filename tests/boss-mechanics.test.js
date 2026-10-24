@@ -105,6 +105,7 @@ test('the second glacier phase requires three crystals',()=>{
 
 test('eclipse safe quarters rotate; standing at the center is never safe',()=>{
  const {game,world,boss,p,damage,tick}=setup('eclipse');tick(10000);
+ const impacts=[];game.fx=(zone,data)=>impacts.push({zone,...data});
  const q={...p,id:'center',x:boss.homeX,y:boss.homeY};game.players.set(q.id,q);
  const order=[];
  for(let i=0;i<4;i++){
@@ -115,6 +116,9 @@ test('eclipse safe quarters rotate; standing at the center is never safe',()=>{
  assert.deepEqual(order,[0,1,2,3]);
  assert.equal(damage.filter(d=>d.id===p.id).length,0);
  assert.equal(damage.filter(d=>d.id===q.id).length,4);
+ assert.deepEqual(impacts.map(e=>e.safeQuadrant),[0,1,2,3]);
+ assert.equal(new Set(impacts.map(e=>e.castId)).size,4);
+ assert.ok(impacts.every(e=>e.type==='impact'&&e.shape==='quadrant'&&e.theme==='void'&&e.radius===210));
  assert.equal(boss.bossMechanic.active,false);
 });
 
