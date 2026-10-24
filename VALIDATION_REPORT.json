@@ -1,0 +1,241 @@
+{
+  "date": "2026-10-24",
+  "runtime": "v24.19.0",
+  "domain_tests": {
+    "tests": 189,
+    "pass": 189,
+    "fail": 0,
+    "skipped": 0,
+    "includes": [
+      "regions",
+      "growth",
+      "keyboard model",
+      "transport and camera",
+      "solo challenges",
+      "world bosses",
+      "party dungeons",
+      "secret realms",
+      "pixel rendering"
+    ]
+  },
+  "existing_real_network_and_store_tests": {
+    "tests": 7,
+    "pass": 7,
+    "fail": 0,
+    "skipped": 0
+  },
+  "new_real_raid_network_tests": {
+    "tests": 2,
+    "pass": 2,
+    "fail": 0,
+    "skipped": 0,
+    "source": "tests/raid-network.test.js",
+    "verified": [
+      "two WebSocket clients and individual ready/cancel",
+      "leader-only entry",
+      "same run and boss snapshots",
+      "validated motion",
+      "disconnect pause and reconnect resume",
+      "party exit",
+      "disk saves and cold server restarts",
+      "realm weapon purification and enhancement persistence"
+    ]
+  },
+  "dom_integration": {
+    "keybinding_qa": {
+      "passed": 20,
+      "failed": 0,
+      "checks": [
+        "settings opens complete keybinding editor",
+        "physical key capture, persistence and hotbar update",
+        "duplicate key is refused without changing either action",
+        "Escape cancels capture while keeping editor open",
+        "live state refresh does not destroy key capture",
+        "modifier combination is rejected during capture",
+        "secondary key and clear button work",
+        "Space and Enter capture consume keydown and keyup",
+        "only remapped action key dispatches and repeats do not duplicate casts",
+        "remapped held movement, secondary arrow and diagonal normalization",
+        "held basic attack stops on keyup",
+        "chat focus blocks gameplay key input and preserves chat submission",
+        "blur clears movement and cancels pending key capture",
+        "menu, interaction and world event hints follow mappings",
+        "persisted mappings survive a fresh DOM and module load",
+        "settings can be rebound to Escape without resetting other mappings",
+        "opening key settings clears queued world interaction",
+        "storage-denied startup still permits session-only key edits",
+        "reset requires confirmation and restores defaults",
+        "no uncaught DOM/module runtime errors"
+      ]
+    },
+    "adventure_qa": {
+      "passed": 12,
+      "failed": 0,
+      "checks": [
+        "exploration menu opens all five challenges with authoritative tier locks",
+        "start button enters a real private tower and shows its stage timer",
+        "HUD exit restores location and entry health without a free heal",
+        "challenge shop clicks exchange actual earned currency and update displayed inventory",
+        "saved tower checkpoint button resumes the correct stage on the server",
+        "remapped interaction key changes rune hints and operates the real nearest pad",
+        "rune HUD button and world click route to separate next-pad interactions",
+        "defense repair and ward HUD buttons spend charge and affect the real crystal",
+        "named high-level province tabs expose actual sectors without private or hidden maps",
+        "attribute UI applies investment above the old 100-point cap",
+        "challenge-only profile changes request menu refresh",
+        "no uncaught DOM/module runtime errors during integrated challenge actions"
+      ]
+    },
+    "raid_qa": {
+      "passed": 14,
+      "failed": 0,
+      "checks": [
+        "all sixteen province tabs expose nine real sectors without a high-level catchall or secret-map leak",
+        "the exploration notebook exposes solo challenges, party dungeons and the hidden-world journal through existing dock buttons",
+        "a dungeon menu without a party can open the real party panel",
+        "the remapped interaction key opens the actual nearby dungeon entrance with no explicit ID",
+        "each party member independently sets and cancels ready while only the leader sees start",
+        "leader start transports both members, closes the panel and renders actual assigned mechanics",
+        "real dungeon markers participate in pointer and remapped-key interaction",
+        "wipe disables movement and skills while keeping dead-member retry buttons functional",
+        "a disconnected ally stops predicted input and the HUD exposes the return action",
+        "hidden-world journal shows permanent requirements across regions without revealing undiscovered worlds",
+        "an unlocked hidden entrance works from its journal and only the owner-qualified trial opens the sanctuary",
+        "the real hidden trial device appears in HUD and dispatches its explicit server ID",
+        "claim and purification controls change a real weapon, preserve upgrades and display negative stats correctly",
+        "hidden-only and dungeon-only profile updates refresh menus and the UI stays free of uncaught errors"
+      ]
+    }
+  },
+  "native_canvas": {
+    "rendered_skill_combinations": 444,
+    "rendered_utility_combinations": 24,
+    "settings": [
+      "normal",
+      "low power",
+      "effects disabled"
+    ],
+    "checked": [
+      "ring center and safe quarter transparent",
+      "warning and impact visibility",
+      "critical queue survives 400 damage-number events",
+      "server casts reach the renderer"
+    ]
+  },
+  "coordinated_two_player_bots": {
+    "method": "Two real Game players, guardian and mage, at each dungeon's minimum level. Actual party invite/accept, individual readiness and leader entry. After entry, only validated movement inputs, target selection, cooldown-limited attacks and nearby interaction actions were used. No coordinate placement, forced kills or synthetic damage during these gameplay checks. Level-appropriate non-boss field gear, no enhancements, allocated attributes and twelve finite HP/MP potions per player. Seeded non-constant randomness exercises varied memory sequences and normal critical attacks.",
+    "cases": [
+      {
+        "dungeon": "concord_forge",
+        "level": 35,
+        "members": 2,
+        "state": "complete",
+        "elapsed_ms": 40800,
+        "boss_hp": 38584,
+        "mandatory_hp_stages_completed": 3,
+        "mechanic_failures": 0,
+        "mechanics": "Both players simultaneously held their assigned sun/moon plates for two seconds in each stage, then independently aligned their authorized pillars. Stage two changes role assignments and stage three changes the plate arrangement.",
+        "interactions": {
+          "pillar_0": 6,
+          "pillar_1": 6
+        },
+        "gear": [
+          "end_sunscar_sword",
+          "end_sunscar_staff",
+          "end_sunscar_armor",
+          "end_sunscar_charm"
+        ],
+        "hp_potions_used": [
+          0,
+          0
+        ],
+        "mp_potions_used": [
+          0,
+          0
+        ]
+      },
+      {
+        "dungeon": "memory_archive",
+        "level": 80,
+        "members": 2,
+        "state": "complete",
+        "elapsed_ms": 86200,
+        "boss_hp": 80704,
+        "mandatory_hp_stages_completed": 3,
+        "mechanic_failures": 0,
+        "mechanics": "Previewed sequences of three, four and five symbols were entered by alternating authorized players at actual devices. The bait player aligned the tracking beam through the prism while the other player held the separate anchor zone; roles and positions changed across stages.",
+        "interactions": {
+          "memory_0": 3,
+          "memory_1": 3,
+          "memory_2": 2,
+          "memory_3": 4
+        },
+        "gear": [
+          "end_wildroot_sword",
+          "end_wildroot_staff",
+          "end_wildroot_armor",
+          "end_wildroot_charm"
+        ],
+        "hp_potions_used": [
+          0,
+          0
+        ],
+        "mp_potions_used": [
+          0,
+          0
+        ]
+      },
+      {
+        "dungeon": "fallen_observatory",
+        "level": 140,
+        "members": 2,
+        "state": "complete",
+        "elapsed_ms": 54600,
+        "boss_hp": 136864,
+        "mandatory_hp_stages_completed": 3,
+        "mechanic_failures": 0,
+        "mechanics": "The marked player lured each meteor onto its outer seal and stepped away after lock; the other held the central refuge. Both players waited until each arrived at the assigned conduit, then activated within the required two-second window and maintained position. Linked players stayed more than 180 units apart during the final attack phase.",
+        "interactions": {
+          "conduit_0": 12,
+          "conduit_1": 9
+        },
+        "gear": [
+          "end_voidfront_sword",
+          "end_voidfront_staff",
+          "end_voidfront_armor",
+          "end_voidfront_charm"
+        ],
+        "hp_potions_used": [
+          0,
+          0
+        ],
+        "mp_potions_used": [
+          0,
+          0
+        ]
+      }
+    ],
+    "cooperation_negative_check": {
+      "dungeon": "fallen_observatory",
+      "strategy": "Each bot activated its conduit immediately on arrival without waiting for its teammate.",
+      "result": "Three explained synchronization failures and a party wipe; no rewards. Switching to waiting until both players were in position before activating produced the successful completion above. No server timing relaxation was needed."
+    }
+  },
+  "visual_theme_check": {
+    "dungeon_and_realm_bosses": 6,
+    "regional_wardens": 72,
+    "passed": true
+  },
+  "release_overlay": {
+    "all_source_hashes_match": true,
+    "build": "Build ready: native ES modules, no bundler or external CDN.",
+    "startup": "Original archive + changed files: server/client imports and character startup verified."
+  },
+  "limits": [
+    "UI tests use two DOM documents, not a real browser layout engine.",
+    "Pixel previews are actual effect-module native Canvas renders, not browser screenshots.",
+    "The coordinated bots verify completion feasibility and cooperation, not human difficulty.",
+    "No real-device full-game FPS or long-session human multiplayer playtest was performed.",
+    "No production deployment was performed."
+  ]
+}

@@ -1,0 +1,369 @@
+{
+  "project": "starfall-online",
+  "date": "2026-10-24",
+  "baseline_archive": "Selling-God-game-main(2).zip",
+  "baseline_sha256": "7ff95203c71eefd05943c0e3d1fd4bca3ba2842602784b1d8334e5cc6f1c101b",
+  "kind": "cumulative changed source and regression tests only",
+  "included_code_files": 51,
+  "runtime_files": 38,
+  "test_files": 13,
+  "files": [
+    {
+      "path": "client/adventure-ui.js",
+      "status": "modified",
+      "bytes": 16107,
+      "sha256": "7dadcd52f2faca64002697579e1b7d6e7ef986d571d0ec81f99e4c0a88dfcac2",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "client/boss-mechanics-ui.js",
+      "status": "added",
+      "bytes": 5264,
+      "sha256": "1e46415a5a1818bcd8e022f7626b1026cf54f5bdf747df2e022c1599dc08bd3d",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "client/challenges-ui.js",
+      "status": "added",
+      "bytes": 11227,
+      "sha256": "132fb4b5ea74fe5488a6dcaf16d319ca07d3e07d799a06a958fcfbad72716a7e",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "client/dungeons-ui.js",
+      "status": "added",
+      "bytes": 14572,
+      "sha256": "3844befb3adb406a71708843bb27d1bf603993c9c4305dd594364addf2f03625",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "client/effects.js",
+      "status": "modified",
+      "bytes": 19183,
+      "sha256": "ca011a13e2d030e42b64aeaaa83062c8c26aa28404476182661717a2a31209b6",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "client/equipment.js",
+      "status": "modified",
+      "bytes": 4483,
+      "sha256": "dd18dda5dec52db8b7bd4ddb08228b7723f578bf88ea3f2521a496afce03558e",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "client/expansion-ui.js",
+      "status": "modified",
+      "bytes": 11592,
+      "sha256": "fbf60c1d7cdc0554b4d3327ed4e1c35a5f87c998d29a1d2a5d8a1754eb1a33ce",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "client/keybindings.js",
+      "status": "added",
+      "bytes": 7560,
+      "sha256": "a4e8a159d0de7add67ae2705bfa58a3007d3308610193bec1c2f1d8e8595513a",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "client/main.js",
+      "status": "modified",
+      "bytes": 77496,
+      "sha256": "10fc5df33f45d9b13408f80a8d3851c79bd25eb53762d69c5d6a45f6c8e18bc5",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "client/motion.js",
+      "status": "modified",
+      "bytes": 4101,
+      "sha256": "95abc1e070b9f788612a195b402d1b7acb5e69058efbe49d7370a21bce3b40ad",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "client/pixel-effects.js",
+      "status": "added",
+      "bytes": 14473,
+      "sha256": "99eb9bcbde31160ecaf8c282379825ee4fd91ac4b3fe6b33e0f4a1effb907f12",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "client/realms-ui.js",
+      "status": "added",
+      "bytes": 7688,
+      "sha256": "ca7dcd75b5040099bc932a21dcbb5d826c105ebe66339e3bf098709e50212edb",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "client/render.js",
+      "status": "modified",
+      "bytes": 24875,
+      "sha256": "7d353e133a3c2211e71e97338a22a63cceacbb2cd3f529a4540f0ea62edec275",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "client/rpg-ui.js",
+      "status": "modified",
+      "bytes": 6081,
+      "sha256": "8a7cca3691eb672e3443e86a2d2055fea1e24f6100da3d6d0e9408bc94fdfe1d",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "public/index.html",
+      "status": "modified",
+      "bytes": 8997,
+      "sha256": "c9365ed8f32e28fbb38cd1e5a8cc48446923b1fafe0ff97e19e7dc33ad2ac10b",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "public/style.css",
+      "status": "modified",
+      "bytes": 64849,
+      "sha256": "3a91c0619295a82f3baa7212ad8419d7ab1bb60fa52d4b91a349b26d12562dfd",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "server/atlas.js",
+      "status": "modified",
+      "bytes": 11716,
+      "sha256": "58b230ef242f7c18b58a390a4b5c571b8d06bd7def8b8652532e7aa16e84490d",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "server/boss-mechanics.js",
+      "status": "added",
+      "bytes": 10442,
+      "sha256": "09af33f637d69520043525d534eec51226c0dbb93d6a9b44ee2cdde11cef1c4c",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "server/challenges.js",
+      "status": "added",
+      "bytes": 33650,
+      "sha256": "14d5c8d4f7e94808332a7f61c89fe9c2448368e95c9aa1b73b296e60ca2a8d8c",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "server/dungeons.js",
+      "status": "added",
+      "bytes": 53143,
+      "sha256": "f6bfeea307a5578ef762e11c27af003a6e2d43f87ac2a33504bac70617a491ae",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "server/game.js",
+      "status": "modified",
+      "bytes": 47117,
+      "sha256": "1e42b6f5de78948b4262875d3e1652741921e422fcbcfcd636299c1879352f86",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "server/progression.js",
+      "status": "modified",
+      "bytes": 12391,
+      "sha256": "85b316e17f67190af2cbb501fbb76e685abb8ce53364170ad9b1b2e307425405",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "server/realms.js",
+      "status": "added",
+      "bytes": 12315,
+      "sha256": "26a95852321cf02ba1bd2969422c1b9a42d667c034997675f91746844a957498",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "server/rpg.js",
+      "status": "modified",
+      "bytes": 5838,
+      "sha256": "85a959c8b4315c5aba5891c9cb29491ae399df4910b449e185aea9aa6d0f8238",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "server/world-events.js",
+      "status": "modified",
+      "bytes": 5743,
+      "sha256": "1648d8c1af7c6bec2d55803afabdb0783e8d40709c2766e143f7281376673f38",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "shared/camera.js",
+      "status": "added",
+      "bytes": 1561,
+      "sha256": "d9593632cc3127556fead9e1e4a9f09d13701094dcefbe7a4ccfb3c4f6b06faa",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "shared/challenge-world.js",
+      "status": "added",
+      "bytes": 844,
+      "sha256": "2bd5b1d6f2748b5733aee0fffe1f22761f992cc1c9696db5a80f18b0921192c1",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "shared/challenges.js",
+      "status": "added",
+      "bytes": 7717,
+      "sha256": "0bd9150bcb69bc185ee5929b819a20f00cf3acd348ac69c413f70a96c821d338",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "shared/content.js",
+      "status": "modified",
+      "bytes": 21859,
+      "sha256": "df16629f8322cedc74ca82855abff33cd536a82de138a067d16e340b43541304",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "shared/dungeon-world.js",
+      "status": "added",
+      "bytes": 1934,
+      "sha256": "629109e23061926f6ffbf341909172f7f7f2abaf2f9e73c5ce63a506684563d2",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "shared/dungeons.js",
+      "status": "added",
+      "bytes": 6697,
+      "sha256": "d4293f2aee094a765881d2fc01f578c3ef0531b3e67a483cc8ea8dd290c1388e",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "shared/expansion.js",
+      "status": "modified",
+      "bytes": 32820,
+      "sha256": "0f29426efb7e4198356cfed3448ffb8c1f64b97d1206aadb3fe3dddd8d76b8e5",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "shared/expeditions.js",
+      "status": "modified",
+      "bytes": 26396,
+      "sha256": "77f3e651b1ce3a469ee5b0eb09cf7c74c86ddc1548aeac370134f646436c96da",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "shared/realm-world.js",
+      "status": "added",
+      "bytes": 3869,
+      "sha256": "75288f9596b50af5a19f3b25b21346f62ce6a797e5903b6b5b084b76211e9b70",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "shared/realms.js",
+      "status": "added",
+      "bytes": 8585,
+      "sha256": "a0ef9d0009f18a92abff6fa532b79a92abf2fee385b869f0291e204a941030fb",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "shared/rpg.js",
+      "status": "modified",
+      "bytes": 3945,
+      "sha256": "a713aec6905c195a72bea24f2bccd0ea053814a61ccab932da4d1f1138c5528d",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "shared/visuals.js",
+      "status": "modified",
+      "bytes": 6044,
+      "sha256": "381cf39effc99ce53fb57006ac748777091c70bce91f17dd3334e7ff688f7cc8",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "shared/world.js",
+      "status": "modified",
+      "bytes": 15803,
+      "sha256": "227e530c055c4d46178442b9a4685ef9031a1c45c4f2390b2f73b89a19e93e67",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "tests/adventure.test.js",
+      "status": "modified",
+      "bytes": 20367,
+      "sha256": "24cbf8feff073d21affae12f9a37931baa5fe265a71fbc376c4759cac2565804",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "tests/boss-mechanics.test.js",
+      "status": "added",
+      "bytes": 9503,
+      "sha256": "ce3e840dca8c57f01af7142b70fe776aa9d9d8ca9955e96fe99969394b413d23",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "tests/challenges.test.js",
+      "status": "added",
+      "bytes": 19715,
+      "sha256": "82e75a753e297235461bf3391868f944e3a57d485d4704fdc81aa323a7494a3e",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "tests/dungeons.test.js",
+      "status": "added",
+      "bytes": 24781,
+      "sha256": "2f9acf33a7477adad046ab90c5996c45dd1c3c1ea96ae7a8a66c39d27bbe764a",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "tests/expansion.test.js",
+      "status": "modified",
+      "bytes": 12746,
+      "sha256": "ff7daafa8775fa467b52b292d0b25e74beb27fbd733cbd48d9a81a3f90d3ebe3",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "tests/game.test.js",
+      "status": "modified",
+      "bytes": 12355,
+      "sha256": "3f93b960b8ec6ac306d54396c6168a4f87cb4698c84e614b18abdbd457c40d23",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "tests/keybindings.test.js",
+      "status": "added",
+      "bytes": 6087,
+      "sha256": "bf3fca649285ae030af147c211b961f02b18b44d503804b02a8d16268b26e09a",
+      "changed_since_previous_update": false
+    },
+    {
+      "path": "tests/pixel-effects.test.js",
+      "status": "added",
+      "bytes": 12276,
+      "sha256": "0dd1d2e79bc19cb7a0e53e5fffc226e36128b8d3cf3adff048b06a2362702812",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "tests/progression-balance.test.js",
+      "status": "added",
+      "bytes": 11331,
+      "sha256": "b4e36f581cd9a98b7870fb4b12ac96c05d81f7288d67465e06737b2f111fb59a",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "tests/raid-network.test.js",
+      "status": "added",
+      "bytes": 14253,
+      "sha256": "5cc001ea34730e5003ae27bd86040a61177d8f4692afa583a9c710dee8452286",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "tests/realms.test.js",
+      "status": "added",
+      "bytes": 15238,
+      "sha256": "96b0e557a23420889882cdd87b80caaa4e98aada9989eb59cc1efca7a63fef42",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "tests/region-expansion.test.js",
+      "status": "added",
+      "bytes": 15488,
+      "sha256": "76621874b165e4e119ab493c7feb38d06d1f9dc9d49a50947c9c930c763c4709",
+      "changed_since_previous_update": true
+    },
+    {
+      "path": "tests/transport-camera.test.js",
+      "status": "added",
+      "bytes": 7470,
+      "sha256": "dcf099b71e0fc560b588963321b0419be3727ca1099cb6e51a59a15fe63fc65a",
+      "changed_since_previous_update": false
+    }
+  ]
+}
