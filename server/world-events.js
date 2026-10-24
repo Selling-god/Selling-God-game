@@ -30,7 +30,7 @@ export class WorldEvents {
    if(entry.status==='active'&&now>=entry.end){
     entry.status='expired';entry.mob.alive=false;entry.mob.respawnAt=Infinity;
     const world=this.game.worlds.get(entry.def.zone);world.casts=world.casts.filter(c=>c.owner!==entry.mob.id);
-    this.persist(entry);this.game.broadcast(null,'worldNotice',{message:entry.def.name+'의 기운이 사라졌습니다. 다음 정시를 기다려 주세요.'});
+    this.persist(entry);this.game.broadcast(null,'worldNotice',{kind:'worldBoss',event:'expired',id:entry.def.id,message:entry.def.name+'의 기운이 사라졌습니다. 다음 정시를 기다려 주세요.'});
    }
    if(now-entry.end>HOUR){this.windows.delete(key);const w=this.game.worlds.get(entry.def.zone);w.mobs=w.mobs.filter(m=>m.worldKey!==key);}
   }
@@ -49,7 +49,7 @@ export class WorldEvents {
   m.worldKey=win.key;m.worldEventId=def.id;m.expiresAt=win.end;
   m.damageLog=new Map(record?.damage||[]);m.supportLog=new Map(record?.support||[]);m.contributors=new Map(record?.contributors||[]);
   entry.mob=m;world.mobs.push(m);
-  this.game.broadcast(null,'worldNotice',{message:`월드 보스 출현! ${ZONES[def.zone].name}에 ${def.name}이 나타났습니다. B에서 남은 시간과 참가 조건을 확인하세요.`,id:def.id});
+  this.game.broadcast(null,'worldNotice',{kind:'worldBoss',event:'spawn',message:`월드 보스 출현! ${ZONES[def.zone].name}에 ${def.name}이 나타났습니다. B에서 남은 시간과 참가 조건을 확인하세요.`,id:def.id});
   this.persist(entry);
  }
  persist(entry){

@@ -331,7 +331,7 @@ export class Game {
       this.mark(p);
     }
     this.fx(zone,{type:'death',id:m.id,monster:m.type,x:m.x,y:m.y,boss:!!spec.boss});
-    if(spec.boss)this.broadcast(null,'system',{message:`${spec.name}의 속박이 풀렸습니다. 참여한 모험가 모두에게 전리품이 지급되었습니다.`});
+    if(spec.worldBoss)this.broadcast(null,'worldNotice',{kind:'worldBoss',event:'defeated',id:m.worldEventId||m.type,message:`월드 보스 격파! ${spec.name}이(가) 쓰러졌습니다. 기여한 모험가에게 전리품이 지급되었습니다.`});
     m.contributors.clear();
   }
   damagePlayer(p,amount){
