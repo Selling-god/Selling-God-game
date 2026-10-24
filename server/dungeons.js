@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { MONSTERS, ZONES, ITEMS, MAX_LEVEL, xpRequired } from '../shared/content.js';
-import { createMap, findSafePosition, dist, moveEntity } from '../shared/world.js';
-import { DUNGEONS, DUNGEON_BY_ID, DUNGEON_ZONE, DUNGEON_RULES, DUNGEON_SYMBOLS, DUNGEON_COLORS, DUNGEON_SHOP, dungeonDay, prepareDungeons } from '../shared/dungeons.js';
+import { createMap, findSafePosition, dist, moveEntity, findPath, lineOfSight, isBlocked } from '../shared/world.js';
+import { DUNGEONS, DUNGEON_BY_ID, DUNGEON_ZONE, DUNGEON_ZONE_IDS, DUNGEON_RULES, DUNGEON_SYMBOLS, DUNGEON_COLORS, DUNGEON_SHOP, dungeonDay, prepareDungeons } from '../shared/dungeons.js';
 
 const C = { x: 704, y: 544 };
 const FLOOR = [.7, .35, 0];
@@ -12,21 +12,22 @@ const sameList = (a, b) => a.length === b.length && [...a].sort().every((id, i) 
 
 export class DungeonManager {
   constructor(game) { this.game = game; this.runs = new Map(); this.lobbies = new Map(); this.byParty = new Map(); }
-  world() { return this.game.worlds.get(DUNGEON_ZONE); }
+  zone(r) { return DUNGEON_BY_ID[r?.dungeon]?.zone || DUNGEON_ZONE; }
+  world(r) { return this.game.worlds.get(this.zone(r)); }
   runFor(p) { const r = this.runs.get(p?.dungeonRun); return r && r.members.includes(p.id) && !r.exited.has(p.id) ? r : null; }
   partyRun(id) { return this.runs.get(this.byParty.get(id)); }
   allows(p, entity) {
     if (!entity) return false;
-    if (entity.dungeonRun) { const r = this.runFor(p); return !!r && p.zone === DUNGEON_ZONE && r.id === entity.dungeonRun && r.partyId === entity.dungeonParty; }
-    return p.zone !== DUNGEON_ZONE && !p.dungeonRun;
+    if (entity.dungeonRun) { const r = this.runFor(p); return !!r && p.zone === this.zone(r) && r.id === entity.dungeonRun && r.partyId === entity.dungeonParty; }
+    return !ZONES[p.zone]?.dungeon && !p.dungeonRun;
   }
   sameInstance(a, b) {
     if (!a || !b || a.zone !== b.zone) return false;
-    if (a.dungeonRun || b.dungeonRun || a.zone === DUNGEON_ZONE) return !!this.runFor(a) && a.dungeonRun === b.dungeonRun && !!this.runFor(b);
+    if (a.dungeonRun || b.dungeonRun || ZONES[a.zone]?.dungeon) return !!this.runFor(a) && a.dungeonRun === b.dungeonRun && !!this.runFor(b);
     return true;
   }
-  blocksInput(p) { const r = this.runFor(p); return !!r && ['grace', 'wipe', 'complete'].includes(r.state); }
-  connected(r) { return r.members.every(id => { const p = this.game.players.get(id); return p?.active && p.zone === DUNGEON_ZONE && p.dungeonRun === r.id; }); }
+  blocksInput(p) { const r = this.runFor(p); return !!r && (['grace', 'wipe', 'complete'].includes(r.state) || r.phase === 'transformation'); }
+  connected(r) { return r.members.every(id => { const p = this.game.players.get(id); return p?.active && p.zone === this.zone(r) && p.dungeonRun === r.id; }); }
   canDamage(p, m) { const r = this.runFor(p); return this.allows(p, m) && (!m.dungeonRun || r?.state === 'active' && this.connected(r) && !m.dungeonShield && (m.id !== r.bossId || m.hp > Math.floor(m.maxHp * FLOOR[r.stage]))); }
   mobSpec(m) { return { ...MONSTERS[m.type], ...(m.dungeonStats || {}) }; }
   damageAmount(m, damage) {
@@ -39,11 +40,13 @@ export class DungeonManager {
   }
   tell(r, message, tone = 'info') { this.send(r, 'notice', { message, tone }); }
   fx(data) {
-    const actor = this.game.players.get(data.by || data.id), entity = actor || this.world().mobs.find(m => m.id === data.id || m.id === data.owner);
-    const r = this.runs.get(data.dungeonRun || entity?.dungeonRun); if (r) this.send(r, 'fx', { ...data, dungeonRun: r.id, t: this.game.now });
+    const actor = this.game.players.get(data.by || data.id);
+    const explicit = this.runs.get(data.dungeonRun || actor?.dungeonRun);
+    const entity = explicit ? null : [...this.game.worlds.values()].flatMap(w => w.mobs).find(m => m.id === data.id || m.id === data.owner);
+    const r = explicit || this.runs.get(entity?.dungeonRun); if (r) this.send(r, 'fx', { ...data, dungeonRun: r.id, t: this.game.now });
   }
-  players(r, living = false) { return r.members.map(id => this.game.players.get(id)).filter(p => p && !r.exited.has(p.id) && (!living || p.active && p.hp > 0 && p.zone === DUNGEON_ZONE && p.dungeonRun === r.id)); }
-  mobs(r) { return this.world().mobs.filter(m => m.dungeonRun === r.id && m.alive); }
+  players(r, living = false) { return r.members.map(id => this.game.players.get(id)).filter(p => p && !r.exited.has(p.id) && (!living || p.active && p.hp > 0 && p.zone === this.zone(r) && p.dungeonRun === r.id)); }
+  mobs(r) { return this.world(r).mobs.filter(m => m.dungeonRun === r.id && m.alive); }
   boss(r) { return this.mobs(r).find(m => m.id === r.bossId); }
   record(p, id) { return p.dungeons.records[id] ||= { clears: 0, attempts: 0, wipes: 0, bestMs: 0, firstAt: 0 }; }
   action(p, a) {
@@ -65,7 +68,7 @@ export class DungeonManager {
       else this.endRun(r, `${p.name} 님이 퇴장해 파티가 입구로 돌아갑니다.`);
       return { ok: true };
     }
-    if (['travel', 'waypoint', 'worldJoin', 'challengeStart'].includes(a.type) && (r || a.id === DUNGEON_ZONE))
+    if (['travel', 'waypoint', 'worldJoin', 'challengeStart'].includes(a.type) && (r || DUNGEON_ZONE_IDS.includes(a.id)))
       return failure('던전 나가기 버튼으로 돌아간 뒤 다른 모험을 시작하세요.');
     if (r && ['changeJob', 'respawn'].includes(a.type)) return failure('던전에서는 전직하거나 일반 부활할 수 없습니다. 동료의 구조 또는 파티 재도전을 기다려 주세요.');
     if (a.type === 'partyInvite' && (partyRun || lobby)) return failure('준비 확인 또는 던전 진행 중에는 파티 구성을 바꿀 수 없습니다.');
@@ -149,13 +152,13 @@ export class DungeonManager {
     this.clearEntities(r); const now = this.game.now, def = DUNGEON_BY_ID[r.dungeon];
     Object.assign(r, { state: 'active', phase: 'preparing', stage: 0, attempt: r.attempt + 1, attemptStarted: now + 4000,
       ends: now + 4000 + def.minutes * 60000, phaseEnds: now + 4000, strikes: 0, revives: DUNGEON_RULES.revives,
-      reviving: null, holdSince: 0, hint: '4초 뒤 시작합니다. 파티원의 역할과 안내를 확인하세요.', lastFailure: '',
+      reviving: null, bossAction: null, phaseTransition: null, holdSince: 0, hint: '4초 뒤 시작합니다. 파티원의 역할과 안내를 확인하세요.', lastFailure: '',
       actors: [...r.members], credit: {}, support: {}, tether: null, retry: new Set(), rewarded: false });
     this.players(r).forEach((p, index) => {
       const stats = this.game.stats(p); p.hp = stats.maxHp; p.mp = stats.maxMp; p.respawnAt = 0; p.target = null; p.path = []; p.input = { x: 0, y: 0 };
       for (const key of ['basic', 'skill1', 'skill2', 'ultimate', 'dash']) p.cooldowns[key] = 0;
       this.record(p, r.dungeon).attempts++; p.dungeonRun = r.id;
-      this.game.teleport(p, DUNGEON_ZONE, C.x + (index - (r.members.length - 1) / 2) * 54, 904);
+      this.game.teleport(p, def.zone, C.x + (index - (r.members.length - 1) / 2) * 54, 904);
       p.invulnerableUntil = now + 4000; this.game.mark(p);
     });
     this.tell(r, `${def.name} · ${r.attempt}번째 도전. 함께 기믹을 해결하면 보호막이 열립니다.`);
@@ -169,15 +172,18 @@ export class DungeonManager {
     if (r.members.every(id => r.retry.has(id) && this.game.players.get(id)?.active)) this.startAttempt(r);
     return { ok: true };
   }
-  clearCasts(r) { const w = this.world(); w.casts = w.casts.filter(c => c.dungeonRun !== r.id); }
-  clearEntities(r) { const w = this.world(); w.mobs = w.mobs.filter(m => m.dungeonRun !== r.id); this.clearCasts(r); }
+  clearCasts(r) {
+    const w = this.world(r); w.casts = w.casts.filter(c => c.dungeonRun !== r.id); r.bossAction = null;
+    for (const m of w.mobs.filter(m => m.dungeonRun === r.id)) { m.encounterPose = null; m.castUntil = 0; m.raidPath = null; }
+  }
+  clearEntities(r) { const w = this.world(r); w.mobs = w.mobs.filter(m => m.dungeonRun !== r.id); this.clearCasts(r); }
   beforePartyLeave(p) {
     const r = this.runFor(p) || this.partyRun(p.partyId), lobby = this.lobbies.get(p.partyId);
     if (r) this.endRun(r, '파티 구성이 변경되어 던전에서 돌아왔습니다.');
     if (lobby) this.cancelLobby(lobby, '파티 구성이 변경되어 준비 확인을 취소했습니다.');
   }
   beforeTeleport(p, zone) {
-    const r = this.runFor(p); if (!r || zone === DUNGEON_ZONE) return;
+    const r = this.runFor(p); if (!r || zone === this.zone(r)) return;
     // External teleports already have a destination; restore everyone, then let
     // the caller finish moving this player without nested teleport recursion.
     this.endRun(r, '파티원이 던전 밖으로 이동해 입구로 돌아갑니다.', p.id);
@@ -247,7 +253,7 @@ export class DungeonManager {
     for (const p of this.players(r)) {
       // The roster was locked before entry; outsiders and late party joins never
       // appear in this list. Disconnected parties pause before any clear.
-      if (!p.active || p.dungeonRun !== r.id || p.zone !== DUNGEON_ZONE) continue;
+      if (!p.active || p.dungeonRun !== r.id || p.zone !== this.zone(r)) continue;
       const record = this.record(p, r.dungeon); record.clears++; record.bestMs = record.bestMs ? Math.min(record.bestMs, elapsed) : elapsed; record.firstAt ||= this.game.now;
       let tokens = 0, gold = 0, xp = 0, item = null;
       if (!p.dungeons.claims.includes(def.id)) {
@@ -267,29 +273,54 @@ export class DungeonManager {
     m.hp = m.maxHp = Math.round(r.power * 160 * (.7 + r.members.length * .3));
     Object.assign(m, { dungeonRun: r.id, dungeonParty: r.partyId, dungeonShield: true, dungeonRole: 'boss', name: def.bossName, respawnAt: Infinity });
     m.dungeonStats = { level: r.level, def: Math.round(r.level * .6), atk: 20 + r.level * 3, speed: 65, aggro: 1400 };
-    r.bossId = m.id; r.nextAttack = this.game.now + 4000; r.attackCount = 0; this.world().mobs.push(m);
+    r.bossId = m.id; r.nextAttack = this.game.now + 4000; r.attackCount = 0; this.world(r).mobs.push(m);
   }
   spawnAdds(r, count) {
+    const type = r.dungeon === 'concord_forge' ? 'dungeon_cinder' : r.dungeon === 'memory_archive' ? 'dungeon_echo' : 'dungeon_satellite';
     for (let i = 0; i < count; i++) {
-      const angle = (i + .5) / count * Math.PI * 2, m = this.game.makeMob(`${r.id}_echo_${++r.mobSeq}`, 'dungeon_echo', C.x + Math.cos(angle) * 180, C.y + Math.sin(angle) * 170);
+      const angle = (i + .5) / count * Math.PI * 2, point = findSafePosition(this.world(r).map, { x: C.x + Math.cos(angle) * 180, y: C.y + Math.sin(angle) * 170 }, 12);
+      if (!point) continue;
+      const m = this.game.makeMob(`${r.id}_add_${++r.mobSeq}`, type, point.x, point.y);
       m.hp = m.maxHp = Math.round(r.power * 3.8 * (.7 + r.members.length * .3));
-      Object.assign(m, { dungeonRun: r.id, dungeonParty: r.partyId, dungeonRole: 'add', name: MONSTERS.dungeon_echo.name, respawnAt: Infinity, nextAttack: this.game.now + 2500 });
+      Object.assign(m, { dungeonRun: r.id, dungeonParty: r.partyId, dungeonRole: 'add', name: MONSTERS[type].name, respawnAt: Infinity, nextAttack: this.game.now + 2500 + i * 400 });
       m.dungeonStats = { level: r.level, def: Math.round(r.level * .35), atk: 10 + r.level, speed: 64, range: 110 };
-      this.world().mobs.push(m);
+      this.world(r).mobs.push(m);
     }
   }
   cast(r, spec, delay = 1800) {
     const c = { id: ++this.game.castSeq, owner: r.bossId, dungeonRun: r.id, dungeonParty: r.partyId,
       shape: 'circle', radius: 80, inner: 0, boss: true, theme: DUNGEON_BY_ID[r.dungeon].theme, monster: DUNGEON_BY_ID[r.dungeon].boss,
       starts: this.game.now, ends: this.game.now + delay, damageRate: .16, ...spec };
-    this.world().casts.push(c); return c;
+    // A bookshelf / smelter clips both the drawn ray and its authoritative hit
+    // volume. Players can read the actual cover boundary before it fires.
+    if (c.shape === 'beam' && c.cover) {
+      for (let along = 12; along <= c.length; along += 12) {
+        if (isBlocked(this.world(r).map, c.x + Math.cos(c.angle) * along, c.y + Math.sin(c.angle) * along, 2)) { c.length = Math.max(0, along - 8); break; }
+      }
+    }
+    this.world(r).casts.push(c); return c;
   }
   credit(r, ids) { for (const id of ids) r.credit[id] = (r.credit[id] || 0) + 1; }
+  beginTransformation(r) {
+    const boss = this.boss(r); if (!boss) return;
+    this.clearCasts(r);
+    const w = this.world(r); w.mobs = w.mobs.filter(m => m.dungeonRun !== r.id || m.id === r.bossId);
+    const def = DUNGEON_BY_ID[r.dungeon], form = def.phases[r.stage], now = this.game.now;
+    r.phase = 'transformation'; r.phaseStarted = now; r.phaseEnds = now + 2200; r.tether = null; r.reviving = null; r.assignments = {}; r.attackCount = 0;
+    r.phaseTransition = { id: `${r.id}_phase_${r.stage + 1}`, bossId: boss.id, name: def.bossName, title: form.title,
+      phase: r.stage + 1, starts: now, ends: r.phaseEnds, theme: def.theme, form: form.form, description: form.description };
+    r.hint = `${r.stage + 1}페이즈 · ${form.title}. ${form.description}`;
+    boss.dungeonShield = true; boss.moving = false; boss.dots = []; boss.encounterPhase = r.stage + 1; boss.encounterForm = form.form;
+    boss.encounterPose = { kind: 'transform', stage: 'windup', starts: now, ends: r.phaseEnds, angle: Math.PI / 2 };
+    for (const p of this.players(r, true)) { p.invulnerableUntil = Math.max(p.invulnerableUntil || 0, r.phaseEnds + 500); p.path = []; p.input = { x: 0, y: 0 }; p.dashUntil = 0; }
+    this.tell(r, r.hint); this.fx({ dungeonRun: r.id, type: 'bossPhase', x: boss.x, y: boss.y, phase: r.stage + 1, theme: def.theme });
+  }
   beginMechanic(r) {
     const boss = this.boss(r); if (!boss || r.state !== 'active') return;
     r.actors = this.players(r, true).map(p => p.id); if (r.actors.length < 2) return;
-    this.clearCasts(r); const w = this.world(); w.mobs = w.mobs.filter(m => m.dungeonRun !== r.id || m.id === r.bossId);
+    this.clearCasts(r); const w = this.world(r); w.mobs = w.mobs.filter(m => m.dungeonRun !== r.id || m.id === r.bossId);
     boss.dungeonShield = true; boss.x = C.x; boss.y = C.y - 100; boss.moving = false;
+    boss.encounterPhase = r.stage + 1; boss.encounterForm = DUNGEON_BY_ID[r.dungeon].phases[r.stage].form; r.phaseTransition = null;
     r.holdSince = 0; r.tether = null; r.nextHazard = this.game.now + 6000; r.phaseStarted = this.game.now; r.assignments = {};
     if (r.dungeon === 'concord_forge') {
       r.phase = 'balance'; r.phaseEnds = this.game.now + 30000 - r.stage * 3000;
@@ -322,6 +353,7 @@ export class DungeonManager {
     r.anchor = { x: C.x - side * 200, y: C.y + 160 }; r.laserAngle = angle;
     const cast = this.cast(r, { ...r.emitter, shape: 'beam', angle, length: 1050, width: 55, radius: 1100, effect: 'memory_laser', name: '기록의 광선 · 프리즘 뒤로 유도' }, r.phaseEnds - this.game.now);
     r.mechanicCast = cast.id;
+    const boss = this.boss(r); if (boss) this.pose(boss, 'shoot', 'windup', this.game.now, r.phaseEnds, angle);
     for (const id of r.actors) r.assignments[id] = id === r.bait ? { role: 'bait', label: '광선 유도', color: '#edc47d' } : { role: 'anchor', label: '기록 고정', color: '#9ed8ba' };
     r.hint = `${this.game.players.get(r.bait)?.name || '유도자'} 님은 프리즘 뒤 노란 자리에, 나머지는 초록 고정진에 모여 1초 이상 유지하세요.`;
     this.tell(r, r.hint);
@@ -331,6 +363,7 @@ export class DungeonManager {
     r.lockAt = r.phaseEnds - 1800; r.bait = r.actors[r.stage % r.actors.length]; r.starGoal = { ...PADS[(r.stage + 1) % PADS.length] }; r.starLocked = false;
     const target = this.game.players.get(r.bait); r.starPoint = { x: target.x, y: target.y };
     r.mechanicCast = this.cast(r, { ...r.starPoint, radius: 95, effect: 'star_mark', name: '낙성 낙인 · 바깥 문양으로 유도 후 이탈' }, r.phaseEnds - this.game.now).id;
+    const boss = this.boss(r); if (boss) this.pose(boss, 'pull', 'windup', this.game.now, r.phaseEnds, Math.PI / 2);
     for (const id of r.actors) r.assignments[id] = id === r.bait ? { role: 'bait', label: '낙성 유도', color: '#efa57f' } : { role: 'shelter', label: '중앙 보호진', color: '#a3d9b8' };
     r.hint = `${target.name} 님은 낙인을 바깥 봉인 문양으로 유도하세요. 나머지는 중앙 초록 보호진에 모이세요. 붉은 원이 고정되면 유도자는 원 밖으로 피할 수 있습니다.`;
   }
@@ -345,17 +378,17 @@ export class DungeonManager {
   }
   expose(r) {
     const boss = this.boss(r); if (!boss || r.state !== 'active') return;
-    this.clearCasts(r); const w = this.world(); w.mobs = w.mobs.filter(m => m.dungeonRun !== r.id || m.id === r.bossId);
+    this.clearCasts(r); const w = this.world(r); w.mobs = w.mobs.filter(m => m.dungeonRun !== r.id || m.id === r.bossId);
     this.credit(r, r.actors); r.phase = 'vulnerable'; r.phaseStarted = this.game.now; r.phaseEnds = this.game.now + 24000;
-    boss.dungeonShield = false; boss.stunUntil = 0; r.nextAttack = this.game.now + 2500;
-    r.hint = '협동 기믹 성공! 24초 동안 보호막이 열립니다. 보스의 예고를 피하며 공격하세요.';
+    boss.dungeonShield = false; boss.stunUntil = 0; r.nextAttack = this.game.now + 1800;
+    r.hint = `협동 기믹 성공! 24초 동안 보호막이 열립니다. ${DUNGEON_BY_ID[r.dungeon].combat}`;
     if (r.dungeon === 'fallen_observatory' && r.stage > 0) {
       r.tether = { members: [r.actors[0], r.actors.at(-1)], ends: this.game.now + 6500, minimum: 180 };
       r.hint += ' 분리 사슬의 두 사람은 180 이상 떨어지세요.';
     }
     this.tell(r, r.hint, 'success'); this.fx({ dungeonRun: r.id, type: 'armorBreak', x: boss.x, y: boss.y, theme: DUNGEON_BY_ID[r.dungeon].theme, phase: r.stage + 1 });
   }
-  damageFraction(p, fraction) { const s = this.game.stats(p); this.game.damagePlayer(p, Math.round(s.maxHp * fraction + s.def * .65)); }
+  damageFraction(p, fraction) { if (this.runFor(p)?.phase === 'transformation') return; const s = this.game.stats(p); this.game.damagePlayer(p, Math.round(s.maxHp * fraction + s.def * .65)); }
   mechanicFail(r, reason, restart = true) {
     r.strikes++; r.lastFailure = reason;
     if (r.strikes >= 3) { this.wipe(r, `${reason} 기믹 실패가 3회 쌓여 계약이 무너졌습니다.`); return; }
@@ -414,6 +447,7 @@ export class DungeonManager {
   }
   tickMechanic(r) {
     const now = this.game.now, boss = this.boss(r); if (!boss) return;
+    if (r.phase === 'transformation') { if (now >= r.phaseEnds) this.beginMechanic(r); return; }
     if (['recover', 'reform'].includes(r.phase)) { if (now >= r.phaseEnds) this.beginMechanic(r); return; }
     if (r.phase === 'rescue') { if (now >= r.phaseEnds) this.wipe(r, '20초 안에 동료를 구조하지 못했습니다.'); return; }
     if (r.phase === 'balance') {
@@ -423,7 +457,7 @@ export class DungeonManager {
       if (now >= r.phaseEnds) { r.phase = 'memory_input'; r.phaseEnds = now + 35000; r.nextHazard = now + 6500; r.hint = `순서 입력 시작 · ${this.game.players.get(this.operator(r))?.name} 님부터 장치를 작동하세요.`; this.spawnAdds(r, 2); }
       return;
     } else if (r.phase === 'memory_laser') {
-      const bait = this.game.players.get(r.bait), cast = this.world().casts.find(c => c.id === r.mechanicCast);
+      const bait = this.game.players.get(r.bait), cast = this.world(r).casts.find(c => c.id === r.mechanicCast);
       if (now < r.lockAt && bait) r.laserAngle = Math.atan2(bait.y - r.emitter.y, bait.x - r.emitter.x);
       if (cast) cast.angle = r.laserAngle;
       const anchored = r.actors.filter(id => id !== r.bait).every(id => { const p = this.game.players.get(id); return p?.hp > 0 && p.active && dist(p, r.anchor) <= 82; });
@@ -438,7 +472,7 @@ export class DungeonManager {
       }
       return;
     } else if (r.phase === 'star_mark') {
-      const bait = this.game.players.get(r.bait), cast = this.world().casts.find(c => c.id === r.mechanicCast);
+      const bait = this.game.players.get(r.bait), cast = this.world(r).casts.find(c => c.id === r.mechanicCast);
       if (now < r.lockAt && bait) r.starPoint = { x: bait.x, y: bait.y }; else r.starLocked = true;
       if (cast) { cast.x = r.starPoint.x; cast.y = r.starPoint.y; }
       if (now >= r.phaseEnds) {
@@ -457,7 +491,7 @@ export class DungeonManager {
       const [a, b] = r.conduits;
       if (a.at && b.at && Math.abs(a.at - b.at) <= 2000 && now - Math.max(a.at, b.at) >= 1200) { this.expose(r); return; }
     } else if (r.phase === 'vulnerable') {
-      if (r.stage < 2 && boss.hp <= Math.floor(boss.maxHp * FLOOR[r.stage])) { r.stage++; this.beginMechanic(r); return; }
+      if (r.stage < 2 && boss.hp <= Math.floor(boss.maxHp * FLOOR[r.stage])) { r.stage++; this.beginTransformation(r); return; }
       if (r.tether && now >= r.tether.ends) {
         const pair = r.tether.members.map(id => this.game.players.get(id)); r.tether = null;
         if (pair.every(p => p?.hp > 0) && dist(pair[0], pair[1]) < 180) this.mechanicFail(r, '분리 사슬에 연결된 두 사람이 180 이상 떨어지지 못했습니다.', false);
@@ -468,8 +502,13 @@ export class DungeonManager {
     if (now >= r.phaseEnds) { this.mechanicFail(r, r.phase === 'balance' ? '서로 다른 문양 발판을 전원이 함께 2초 유지하지 못했습니다.' : r.phase === 'pillars' ? '제한 시간 안에 두 기둥을 목표 방향으로 맞추지 못했습니다.' : r.phase === 'memory_input' ? '문양 순서를 제한 시간 안에 완성하지 못했습니다.' : '두 차단기를 2초 안에 맞추고 유지하지 못했습니다.'); return; }
     if (now >= r.nextHazard && ['balance', 'pillars', 'memory_input'].includes(r.phase)) {
       r.nextHazard = now + 8500 - r.stage * 700;
-      this.cast(r, { x: 120, y: C.y, shape: 'beam', angle: 0, length: 1168, width: 48 + r.stage * 9, radius: 1200, damageRate: .14, name: '회랑을 가르는 빛' }, 2100);
-      if (r.dungeon === 'memory_archive' && r.stage === 2) this.cast(r, { x: C.x, y: 120, shape: 'beam', angle: Math.PI / 2, length: 848, width: 50, radius: 1000, damageRate: .14, name: '엇갈리는 기억' }, 2600);
+      if (r.dungeon === 'concord_forge') {
+        const target = this.players(r, true)[r.stage % r.actors.length];
+        if (target) this.cast(r, { x: target.x, y: target.y, radius: 61, damageRate: .11, name: '발판 아래 용광로 분출' }, 2100);
+      } else {
+        this.cast(r, { x: C.x, y: 368, shape: 'beam', angle: Math.PI / 2, length: 620, width: 46 + r.stage * 6, radius: 620, damageRate: .12, cover: true, name: '중앙 기록 회랑의 탐색광' }, 2200);
+        if (r.stage === 2) this.cast(r, { x: 976, y: 624, shape: 'beam', angle: Math.PI, length: 550, width: 45, radius: 550, damageRate: .12, cover: true, name: '금서 회랑의 교차 탐색광' }, 2750);
+      }
     }
   }
   pause(r) {
@@ -480,9 +519,10 @@ export class DungeonManager {
   resume(r) {
     const dt = this.game.now - r.pauseAt, shift = (obj, keys) => { for (const key of keys) if (Number.isFinite(obj?.[key]) && obj[key] > 0) obj[key] += dt; };
     shift(r, ['attemptStarted', 'ends', 'phaseStarted', 'phaseEnds', 'lockAt', 'holdSince', 'nextHazard', 'nextAttack']);
+    shift(r.phaseTransition, ['starts', 'ends']); shift(r.bossAction, ['starts', 'windupEnd', 'strikeEnd', 'ends', 'nextPulse']);
     shift(r.tether, ['ends']); shift(r.reviving, ['started', 'ends']); for (const c of r.conduits || []) shift(c, ['at']);
-    for (const c of this.world().casts.filter(c => c.dungeonRun === r.id)) shift(c, ['starts', 'ends']);
-    for (const m of this.mobs(r)) { shift(m, ['nextAttack', 'castUntil', 'stunUntil', 'slowUntil']); for (const dot of m.dots) shift(dot, ['next']); }
+    for (const c of this.world(r).casts.filter(c => c.dungeonRun === r.id)) shift(c, ['starts', 'ends']);
+    for (const m of this.mobs(r)) { shift(m, ['nextAttack', 'castUntil', 'stunUntil', 'slowUntil']); shift(m.encounterPose, ['starts', 'ends']); shift(m.addAction, ['starts', 'strikeAt', 'ends']); for (const dot of m.dots) shift(dot, ['next']); }
     for (const p of this.players(r)) {
       const saved = r.pauseVitals[p.id]; if (saved) { p.hp = saved.hp; p.mp = saved.mp; }
       for (const key of Object.keys(p.cooldowns)) if (p.cooldowns[key] > r.pauseAt) p.cooldowns[key] += dt;
@@ -515,7 +555,7 @@ export class DungeonManager {
         else if (!disconnected) this.resume(r);
         continue;
       }
-      if (everyone.some(p => p.zone !== DUNGEON_ZONE || p.dungeonRun !== r.id)) { this.endRun(r, '던전을 이탈한 파티원이 있어 입구로 돌아갑니다.'); continue; }
+      if (everyone.some(p => p.zone !== this.zone(r) || p.dungeonRun !== r.id)) { this.endRun(r, '던전을 이탈한 파티원이 있어 입구로 돌아갑니다.'); continue; }
       if (r.state === 'wipe') continue;
       if (now >= r.ends) { this.wipe(r, '던전의 제한 시간이 끝났습니다.'); continue; }
       if (r.phase === 'preparing') { if (now >= r.phaseEnds) { this.spawnBoss(r); this.beginMechanic(r); } continue; }
@@ -526,7 +566,7 @@ export class DungeonManager {
   }
   tickCombat(r, dt) {
     const g = this.game, now = g.now, people = this.players(r, true);
-    if (!people.length || ['rescue', 'recover', 'reform'].includes(r.phase)) return;
+    if (!people.length || ['rescue', 'recover', 'reform', 'transformation'].includes(r.phase)) return;
     for (const m of this.mobs(r)) {
       for (const effect of m.dots || []) {
         if (effect.left <= 0 || effect.next > now) continue;
@@ -542,21 +582,171 @@ export class DungeonManager {
       m.moving = false; if (m.stunUntil > now) continue;
       const target = [...people].sort((a, b) => dist(m, a) - dist(m, b))[0], dx = target.x - m.x, dy = target.y - m.y, d = Math.hypot(dx, dy);
       m.target = target.id; m.dir = Math.abs(dx) > Math.abs(dy) ? dx > 0 ? 'e' : 'w' : dy > 0 ? 's' : 'n';
-      if (m.id === r.bossId) {
-        if (r.phase !== 'vulnerable' || now < r.nextAttack) continue;
-        r.nextAttack = now + 4200 - r.stage * 350; r.attackCount++;
-        if (r.attackCount % 3 === 0) this.cast(r, { x: m.x, y: m.y, shape: 'ring', radius: 330, inner: 105, damageRate: .18 + r.stage * .025, name: '계약의 파동' }, 1900 - r.stage * 150);
-        else if (r.attackCount % 3 === 1) this.cast(r, { x: target.x, y: target.y, radius: 100 + r.stage * 12, damageRate: .17 + r.stage * .025, name: '수호자의 표적' }, 1750);
-        else this.cast(r, { x: m.x, y: m.y, shape: 'beam', angle: Math.atan2(dy, dx), length: 850, width: 85 + r.stage * 10, radius: 850, damageRate: .2, name: '성역을 가르는 검광' }, 1850);
-      } else {
-        if (d < 150 && m.nextAttack <= now) {
-          m.nextAttack = now + 2700; this.cast(r, { owner: m.id, x: target.x, y: target.y, radius: 40, boss: false, damageRate: .065, name: '기억 잔영의 파편' }, 950);
-        } else if (d > 100 && d > 0) { const speed = 64 * (m.slowUntil > now ? .5 : 1), old = { x: m.x, y: m.y }; moveEntity(this.world().map, m, dx / d * speed * Math.min(.1, dt), dy / d * speed * Math.min(.1, dt), 12); m.moving = dist(m, old) > .05; }
+      if (m.id === r.bossId) this.tickBoss(r, m, target, people, dt);
+      else this.tickAdd(r, m, target, dt);
+    }
+  }
+  pose(m, kind, stage, starts, ends, angle, extra = {}) {
+    m.encounterPose = { kind, stage, starts, ends, angle, ...extra };
+    m.castUntil = stage === 'windup' ? ends : 0;
+  }
+  walk(r, m, goal, speed, dt) {
+    const map = this.world(r).map, now = this.game.now;
+    if (!goal || dist(m, goal) < 8) return;
+    if (!m.raidPath || now >= (m.raidPathAt || 0) || dist(m.raidGoal || goal, goal) > 55) {
+      m.raidPath = findPath(map, m, goal); m.raidGoal = { x: goal.x, y: goal.y }; m.raidPathAt = now + 650;
+    }
+    while (m.raidPath?.length && dist(m, m.raidPath[0]) < 12) m.raidPath.shift();
+    const point = m.raidPath?.[0]; if (!point) return;
+    const d = dist(m, point), step = Math.min(d, speed * Math.min(.1, dt)), old = { x: m.x, y: m.y };
+    if (d > 0) moveEntity(map, m, (point.x - m.x) / d * step, (point.y - m.y) / d * step, 12);
+    m.moving = dist(old, m) > .05;
+  }
+  teleportBoss(r, m, point) {
+    const safe = findSafePosition(this.world(r).map, point, 16); if (!safe) return;
+    this.fx({ dungeonRun: r.id, type: 'blink', x: m.x, y: m.y, toX: safe.x, toY: safe.y, theme: 'time', id: m.id });
+    m.x = safe.x; m.y = safe.y; m.raidPath = null;
+  }
+  beginBossAction(r, m, target) {
+    const now = this.game.now, phase = r.stage;
+    const order = r.dungeon === 'concord_forge'
+      ? phase === 0 ? ['forge_leap', 'forge_heat', 'forge_slam'] : phase === 1 ? ['forge_slam', 'forge_leap', 'forge_heat', 'forge_vent'] : ['forge_vent', 'forge_leap', 'forge_heat', 'forge_slam']
+      : r.dungeon === 'memory_archive'
+        ? phase === 0 ? ['archive_ray', 'archive_pages', 'archive_rewrite'] : phase === 1 ? ['archive_pages', 'archive_ray', 'archive_rewrite'] : ['archive_rewrite', 'archive_ray', 'archive_pages']
+        : phase === 0 ? ['observatory_pull', 'observatory_meteors', 'observatory_comet'] : phase === 1 ? ['observatory_meteors', 'observatory_pull', 'observatory_comet'] : ['observatory_comet', 'observatory_pull', 'observatory_meteors'];
+    const key = order[r.attackCount++ % order.length], angle = Math.atan2(target.y - m.y, target.x - m.x);
+    const a = { key, starts: now, from: { x: m.x, y: m.y }, target: target.id, angle, nextPulse: now, pulses: 0 };
+    const setup = (name, hint, kind, windup, strike, recovery) => Object.assign(a, { name, hint, kind, windupEnd: now + windup, strikeEnd: now + windup + strike, ends: now + windup + strike + recovery });
+    const point = p => findSafePosition(this.world(r).map, p, 16) || { ...C };
+    if (key === 'forge_leap') {
+      setup('낙하 제련', '붉게 고정된 착지 원을 벗어나세요. 착지 뒤 식어 버린 망치가 긴 공격 기회입니다.', 'leap', 1100, 800, 2100);
+      a.point = point(target);
+      this.cast(r, { ...a.point, radius: 124 + phase * 10, damageRate: .2, name: '낙하 제련 · 착지' }, 1900);
+      if (phase > 0) this.cast(r, { ...a.point, shape: 'ring', radius: 225, inner: 155, damageRate: .13, name: '착지 후 바깥 충격파' }, 2550);
+    } else if (key === 'forge_heat') {
+      setup('추격하는 용광로', '추격 대상은 불길을 바깥쪽에 남기세요. 이미 달아오른 자리는 세 번 타오릅니다.', 'charge', 800, 3200, 1800);
+      a.nextPulse = a.windupEnd;
+    } else if (key === 'forge_slam') {
+      setup(phase > 0 ? '쌍극의 연속 망치' : '주조 망치', '들어 올린 망치의 정면을 벗어나 옆구리로 이동하세요. 이후에는 보스가 잠시 멈춥니다.', 'slam', 1450, 500 + phase * 300, 2100);
+      this.cast(r, { x: m.x, y: m.y, shape: 'beam', angle, length: 250, width: 170, radius: 280, damageRate: .2, cover: true, name: '주조 망치 · 정면' }, 1450);
+      if (phase > 0) this.cast(r, { x: m.x, y: m.y, shape: 'beam', angle: angle + Math.PI / 2, length: 250, width: 145, radius: 280, damageRate: .15, cover: true, name: '두 번째 망치 · 옆면' }, 2050);
+    } else if (key === 'forge_vent') {
+      setup('백열 배출', '십자형 열풍은 제련기 뒤에서 막을 수 있습니다. 붉은 직선 사이의 빈 공간도 안전합니다.', 'cast', 1700, 900, 2500);
+      for (let i = 0; i < 4; i++) this.cast(r, { x: m.x, y: m.y, shape: 'beam', angle: i * Math.PI / 2, length: 850, width: 70, radius: 850, damageRate: .17, cover: true, name: '용광로 배출구 · 엄폐 가능' }, 1700 + (i % 2) * 300);
+      this.spawnAdds(r, 2);
+    } else if (key === 'archive_ray') {
+      const stations = [{ x: 704, y: 368 }, { x: 976, y: 640 }, { x: 448, y: 640 }, { x: 704, y: 880 }];
+      this.teleportBoss(r, m, stations[(r.attackCount - 1 + phase) % stations.length]);
+      a.angle = Math.atan2(target.y - m.y, target.x - m.x);
+      setup('금서의 고정 광선', '광선은 처음 겨눈 방향으로 고정됩니다. 서가 뒤로 숨거나 직선에서 옆으로 빠지세요.', 'shoot', 1800, 650, 1800);
+      this.cast(r, { x: m.x, y: m.y, shape: 'beam', angle: a.angle, length: 1050, width: 72 + phase * 8, radius: 1050, damageRate: .18, cover: true, name: '금서의 광선 · 서가로 차단' }, 1800);
+      if (phase === 2) this.cast(r, { x: m.x, y: m.y, shape: 'beam', angle: a.angle + .55, length: 900, width: 62, radius: 900, damageRate: .12, cover: true, name: '찢어진 두 번째 페이지' }, 2400);
+    } else if (key === 'archive_pages') {
+      setup('시간차 기록', '발밑에 차례대로 남는 책장 표식을 옆으로 옮겨 피하세요. 앞선 자리는 폭발 후 다시 지나갈 수 있습니다.', 'summon', 800, 3000, 1900);
+      a.nextPulse = a.windupEnd; a.records = [];
+    } else if (key === 'archive_rewrite') {
+      setup('기억 되감기', '이전에 남겼던 잔상이 순서대로 폭발합니다. 바닥 번호를 읽고 마지막 폭발 뒤 나타난 본체를 공격하세요.', 'cast', 1400, 1900, 2300);
+      const records = r.recordedPositions?.length ? r.recordedPositions.slice(-(3 + phase)) : this.players(r, true).map(p => ({ x: p.x, y: p.y }));
+      records.forEach((p, i) => this.cast(r, { ...p, radius: 78 + phase * 7, damageRate: .13, name: `되감긴 기록 ${i + 1}`, order: i + 1 }, 1400 + i * 480));
+      this.teleportBoss(r, m, phase === 2 ? { x: 704, y: 880 } : { x: 704, y: 368 });
+      this.spawnAdds(r, phase === 2 ? 2 : 1);
+    } else if (key === 'observatory_pull') {
+      setup('중력핵 붕괴', '검은 핵에서 멀어지도록 계속 이동하세요. 다리를 따라 당김을 거슬러 빠져나오면 중심 폭발을 피할 수 있습니다.', 'pull', 1200, 2600, 2300);
+      a.point = { x: m.x, y: m.y };
+      this.cast(r, { ...a.point, radius: 155 + phase * 10, damageRate: .23, name: '중력핵 붕괴 · 중심에서 이탈' }, 3800);
+    } else if (key === 'observatory_meteors') {
+      setup('외곽 유성우', '낙성 원을 서로 겹치지 않게 유도하세요. 외곽 섬에도 예고가 있으므로 빈 다리와 중앙을 번갈아 사용하세요.', 'shoot', 800, 3100, 2000);
+      a.nextPulse = a.windupEnd;
+      a.point = { x: C.x + (r.attackCount % 2 ? -95 : 95), y: C.y + 65 };
+    } else {
+      setup('궤도를 긋는 혜성', '보스가 바깥 섬으로 이동하며 붕괴 흔적을 남깁니다. 바로 뒤따르지 말고 다른 다리를 골라 접근하세요.', 'charge', 1200, 2600, 2400);
+      a.point = point(PADS[(r.attackCount + phase) % PADS.length]); a.nextPulse = a.windupEnd;
+      this.cast(r, { ...a.point, shape: 'ring', radius: 240, inner: 160, damageRate: .16, name: '궤도 도착 · 안쪽 또는 원 밖으로' }, 3800);
+    }
+    r.bossAction = a; r.nextAttack = a.ends + 700;
+    this.pose(m, a.kind, 'windup', a.starts, a.windupEnd, a.angle);
+  }
+  tickBoss(r, m, target, people, dt) {
+    if (r.phase !== 'vulnerable') return;
+    const now = this.game.now;
+    if (!r.bossAction) { if (now >= r.nextAttack) this.beginBossAction(r, m, target); return; }
+    const a = r.bossAction;
+    if (now >= a.ends) { r.bossAction = null; m.encounterPose = null; return; }
+    const stage = now < a.windupEnd ? 'windup' : now < a.strikeEnd ? 'strike' : 'recover';
+    this.pose(m, a.kind, stage, stage === 'windup' ? a.starts : stage === 'strike' ? a.windupEnd : a.strikeEnd, stage === 'windup' ? a.windupEnd : stage === 'strike' ? a.strikeEnd : a.ends, a.angle);
+    if (a.key === 'forge_leap' && now >= a.windupEnd) {
+      const t = Math.min(1, (now - a.windupEnd) / (a.strikeEnd - a.windupEnd));
+      m.x = a.from.x + (a.point.x - a.from.x) * t; m.y = a.from.y + (a.point.y - a.from.y) * t;
+      m.encounterPose.height = Math.sin(t * Math.PI) * 72; m.moving = t < 1;
+    }
+    if (stage !== 'strike') return;
+    if (a.key === 'forge_heat') {
+      const chased = people.find(p => p.id === a.target) || target;
+      this.walk(r, m, chased, 108 + r.stage * 12, dt);
+      if (now >= a.nextPulse) {
+        this.cast(r, { x: chased.x, y: chased.y, radius: 67 + r.stage * 5, damageRate: .095, pulses: 3, pulseMs: 850, name: '남겨진 용암 · 지속 열기', terrainHazard: true }, 1350);
+        a.nextPulse = now + 950; a.pulses++;
+      }
+    } else if (a.key === 'archive_pages' && now >= a.nextPulse) {
+      const remembered = people[a.pulses % people.length], pt = { x: remembered.x, y: remembered.y };
+      a.records.push(pt); r.recordedPositions = a.records.slice(-5);
+      this.cast(r, { ...pt, radius: 76, damageRate: .13, name: `새겨지는 기록 ${a.pulses + 1}`, order: a.pulses + 1 }, 1500 - r.stage * 100);
+      a.nextPulse = now + 850 - r.stage * 90; a.pulses++;
+    } else if (a.key === 'observatory_pull') {
+      for (const p of people) {
+        const d = dist(p, a.point); if (d < 24 || d > 560) continue;
+        const amount = Math.min(d - 24, (65 + r.stage * 10) * Math.min(.1, dt));
+        moveEntity(this.world(r).map, p, (a.point.x - p.x) / d * amount, (a.point.y - p.y) / d * amount, 10);
+      }
+    } else if (a.key === 'observatory_meteors') {
+      this.walk(r, m, a.point, 85, dt);
+      if (now >= a.nextPulse) {
+        const marked = people[a.pulses % people.length];
+        this.cast(r, { x: marked.x, y: marked.y, radius: 82, damageRate: .14, name: '관측 유성 · 위치 고정' }, 1550);
+        const outer = PADS[(a.pulses + r.stage) % PADS.length];
+        this.cast(r, { ...outer, radius: 108, damageRate: .15, name: '외곽 섬의 유성' }, 1800);
+        a.nextPulse = now + 1250 - r.stage * 150; a.pulses++;
+      }
+    } else if (a.key === 'observatory_comet') {
+      this.walk(r, m, a.point, 185, dt);
+      if (now >= a.nextPulse) {
+        this.cast(r, { x: m.x, y: m.y, radius: 72, damageRate: .12, name: '혜성의 궤적 · 뒤따르지 않기' }, 1400);
+        a.nextPulse = now + 750; a.pulses++;
+      }
+    }
+  }
+  tickAdd(r, m, target, dt) {
+    const now = this.game.now, d = dist(m, target), angle = Math.atan2(target.y - m.y, target.x - m.x);
+    if (m.addAction && now >= m.addAction.ends) { m.addAction = null; m.encounterPose = null; }
+    if (m.addAction && m.type !== 'dungeon_cinder') {
+      const fireAt = m.addAction.starts + (m.type === 'dungeon_echo' ? 1100 : 1250);
+      this.pose(m, 'shoot', now < fireAt ? 'windup' : now < m.addAction.ends - 200 ? 'strike' : 'recover', m.addAction.starts, m.addAction.ends, angle);
+    }
+    if (m.type === 'dungeon_cinder') {
+      if (m.addAction && now >= m.addAction.strikeAt) { this.walk(r, m, m.addAction.point, 170, dt); this.pose(m, 'charge', 'strike', m.addAction.strikeAt, m.addAction.ends, m.addAction.angle); }
+      else if (!m.addAction && d < 380 && now >= m.nextAttack) {
+        m.addAction = { starts: now, strikeAt: now + 1000, ends: now + 2300, point: { x: target.x, y: target.y }, angle }; m.nextAttack = now + 4200;
+        this.pose(m, 'charge', 'windup', now, now + 1000, angle);
+        this.cast(r, { owner: m.id, x: target.x, y: target.y, radius: 64, boss: false, damageRate: .075, name: '화로 파편의 돌진 폭발' }, 2200);
+      } else if (!m.addAction) this.walk(r, m, target, 72, dt);
+    } else if (m.type === 'dungeon_satellite') {
+      if (!m.addAction) this.walk(r, m, { x: C.x + Math.cos(now / 3500 + m.homeX) * 165, y: C.y + Math.sin(now / 3500 + m.homeX) * 165 }, 92, dt);
+      if (now >= m.nextAttack) {
+        m.nextAttack = now + 3400; m.addAction = { starts: now, ends: now + 1500 };
+        this.pose(m, 'shoot', 'windup', now, now + 1250, angle);
+        this.cast(r, { owner: m.id, x: target.x, y: target.y, radius: 51, boss: false, damageRate: .065, name: '관측 위성의 작은 유성' }, 1250);
+      }
+    } else {
+      if (!m.addAction && d > 230) this.walk(r, m, target, 68, dt);
+      if (d < 500 && now >= m.nextAttack) {
+        m.nextAttack = now + 3500; m.addAction = { starts: now, ends: now + 2100 };
+        this.pose(m, 'shoot', 'windup', now, now + 1100, angle);
+        for (let i = 0; i < 3; i++) this.cast(r, { owner: m.id, x: m.x, y: m.y, shape: 'beam', angle: angle + (i - 1) * .22, length: 390, width: 25, radius: 390, boss: false, cover: true, damageRate: .045, name: `잔영의 책장 ${i + 1}` }, 1100 + i * 300);
       }
     }
   }
   resolveCasts(r) {
-    const now = this.game.now, w = this.world(), due = w.casts.filter(c => c.dungeonRun === r.id && c.ends <= now);
+    const now = this.game.now, w = this.world(r), due = w.casts.filter(c => c.dungeonRun === r.id && c.ends <= now);
     w.casts = w.casts.filter(c => c.dungeonRun !== r.id || c.ends > now);
     for (const cast of due) {
       if (r.state !== 'active') break;
@@ -566,11 +756,13 @@ export class DungeonManager {
         const dx = p.x - cast.x, dy = p.y - cast.y, d = Math.hypot(dx, dy);
         let hit = cast.shape === 'ring' ? d <= cast.radius + 8 && d >= cast.inner - 8 : d <= cast.radius + 8;
         if (cast.shape === 'beam') { const along = dx * Math.cos(cast.angle) + dy * Math.sin(cast.angle), across = -dx * Math.sin(cast.angle) + dy * Math.cos(cast.angle); hit = along >= -10 && along <= cast.length && Math.abs(across) < cast.width / 2 + 8; }
+        if (hit && cast.cover && !lineOfSight(w.map, cast, p)) hit = false;
         if (hit) this.damageFraction(p, cast.damageRate || .15);
         if (r.state !== 'active') break;
       }
       if (r.state !== 'active' || ['rescue', 'reform'].includes(r.phase)) break;
       this.fx({ dungeonRun: r.id, type: 'impact', x: cast.x, y: cast.y, radius: cast.radius, shape: cast.shape, inner: cast.inner, angle: cast.angle, length: cast.length, width: cast.width, boss: cast.boss, theme: cast.theme });
+      if (cast.pulses > 1) w.casts.push({ ...cast, id: ++this.game.castSeq, starts: now, ends: now + (cast.pulseMs || 850), pulses: cast.pulses - 1, active: true });
     }
   }
   mobKilled(m) {
@@ -611,6 +803,8 @@ export class DungeonManager {
       inputBlocked: this.blocksInput(p), leader: r.leader, isLeader: p.id === r.leader, stage: r.stage + 1, attempt: r.attempt, ends: r.ends, phaseEnds: r.phaseEnds,
       graceEnds: r.graceEnds || 0, returnAt: r.returnAt || 0, hint: r.hint, failure: r.lastFailure, strikes: r.strikes, revives: r.revives,
       boss: boss ? { id: boss.id, hp: boss.hp, maxHp: boss.maxHp, shield: boss.dungeonShield } : null, markers,
+      phaseTransition: r.phaseTransition && now < r.phaseTransition.ends ? { ...r.phaseTransition } : null,
+      action: r.bossAction ? { name: r.bossAction.name, hint: r.bossAction.hint, stage: boss?.encounterPose?.stage || 'windup', ends: r.bossAction.ends } : null,
       myRole: r.assignments?.[p.id] || null,
       assignments: Object.entries(r.assignments || {}).map(([id, role]) => ({ id, name: member(id)?.name || id, x: member(id)?.x || 0, y: member(id)?.y || 0, ...role })),
       members: this.players(r).map(m => ({ id: m.id, name: m.name, hp: m.hp, maxHp: this.game.stats(m).maxHp, online: m.active, ready: r.retry.has(m.id), dead: m.hp <= 0 })),

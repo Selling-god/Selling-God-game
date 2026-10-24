@@ -91,6 +91,7 @@ export function tickBossMechanics(game,world,now=game.now){
  for(const boss of bosses){
   const mechanic=boss.bossMechanic;
   if(!present.has(boss.id)){if(mechanic||objectives(world,boss).length)cancel(game,world,boss);continue;}
+  if(boss.encounterTransition?.ends>now)continue;
   const center=mechanic||{x:boss.homeX,y:boss.homeY},players=playersNear(game,world,center);
   if(!players.length){if(mechanic?.active)cancel(game,world,boss);continue;}
   if(!mechanic?.active){

@@ -8,6 +8,7 @@ import {WorldEvents} from './world-events.js';
 import {ChallengeManager} from './challenges.js';
 import {DungeonManager} from './dungeons.js';
 import {RealmManager} from './realms.js';
+import {EncounterManager} from './encounters.js';
 import {tickBossMechanics,bossDamageMultiplier,bossMechanicKilled,bossMechanicView} from './boss-mechanics.js';
 import {prepareChallenges} from '../shared/challenges.js';
 import {prepareDungeons} from '../shared/dungeons.js';
@@ -63,6 +64,7 @@ export class Game {
     this.challenges=new ChallengeManager(this);
     this.dungeons=new DungeonManager(this);
     this.realms=new RealmManager(this);
+    this.encounters=new EncounterManager(this);
   }
   createWorld(id){
     const z=ZONES[id];if(!z)throw new Error('Unknown region');
@@ -97,7 +99,8 @@ export class Game {
     const m=MONSTERS[type];
     return {id,type,x,y,homeX:x,homeY:y,hp:m.hp,maxHp:m.hp,dir:'s',moving:false,
       alive:true,respawnAt:0,target:null,nextAttack:0,castUntil:0,slowUntil:0,
-      contributors:new Map(),damageLog:new Map(),supportLog:new Map(),dots:[],stunUntil:0,wanderAt:0,walkDir:{x:0,y:0},phase:0};
+      contributors:new Map(),damageLog:new Map(),supportLog:new Map(),dots:[],stunUntil:0,wanderAt:0,walkDir:{x:0,y:0},phase:0,
+      encounterState:null,encounterPhase:1,encounterTransition:null,encounterPose:null,encounterSummon:null};
   }
   addPlayer(state){
     const p=hydrate(state);this.players.set(p.id,p);evaluateJobs(this,p,false);return p;
@@ -117,7 +120,7 @@ export class Game {
   }
   stats(p){return getStats(p,this.now);}
   canSeeEntity(p,entity){return this.challenges.allows(p,entity)&&this.dungeons.allows(p,entity);}
-  canDamage(p,m){return this.challenges.canDamage(p,m)&&this.dungeons.canDamage(p,m)&&this.realms.canDamage(p,m);}
+  canDamage(p,m){return this.encounters.canDamage(m)&&this.challenges.canDamage(p,m)&&this.dungeons.canDamage(p,m)&&this.realms.canDamage(p,m);}
   sameInstance(a,b){return this.challenges.sameInstance(a,b)&&this.dungeons.sameInstance(a,b);}
   mobSpec(m){return m.dungeonRun?this.dungeons.mobSpec(m):this.challenges.mobSpec(m);}
   publicPlayer(p){
@@ -142,7 +145,7 @@ export class Game {
         inputSeq:p.inputSeq||0,motionId:p.motionId||0,speed:this.stats(p).speed,
         speedUntil:p.speedUntil,dashUntil:p.dashUntil,dashVector:p.dashVector||{x:0,y:0},pathing:p.path.length>0},
       players:[...this.players.values()].filter(x=>x.active&&x.id!==p.id&&x.zone===p.zone&&this.sameInstance(p,x)&&dist(x,p)<near+200).map(x=>this.publicPlayer(x)),
-      mobs:w.mobs.filter(m=>m.alive&&this.canSeeEntity(p,m)&&dist(m,p)<near).map(m=>({id:m.id,type:m.type,name:m.name||MONSTERS[m.type].name,dungeonObjective:m.dungeonObjective,level:this.mobSpec(m).level,x:Math.round(m.x*10)/10,y:Math.round(m.y*10)/10,hp:m.hp,maxHp:m.maxHp,dir:m.dir,moving:m.moving,casting:m.castUntil>this.now,slow:m.slowUntil>this.now,phase:m.hp/m.maxHp<.45?2:m.hp/m.maxHp<.7?1:0,dot:m.dots?.[0]?.kind,challengeShield:!!(m.challengeShield||m.dungeonShield),mechanicObjective:m.mechanicObjective})),
+      mobs:w.mobs.filter(m=>m.alive&&this.canSeeEntity(p,m)&&dist(m,p)<near).map(m=>({id:m.id,type:m.type,name:m.name||MONSTERS[m.type].name,dungeonObjective:m.dungeonObjective,level:this.mobSpec(m).level,x:Math.round(m.x*10)/10,y:Math.round(m.y*10)/10,hp:m.hp,maxHp:m.maxHp,dir:m.dir,moving:m.moving,casting:m.castUntil>this.now,slow:m.slowUntil>this.now,phase:Math.max(0,(m.encounterPhase||1)-1),encounterPose:this.encounters.viewMob(m),encounterForm:m.encounterForm,dot:m.dots?.[0]?.kind,challengeShield:!!(m.challengeShield||m.dungeonShield||m.encounterTransition?.ends>this.now),mechanicObjective:m.mechanicObjective})),
       nodes:w.nodes.filter(n=>dist(n,p)<near).map(n=>({...n,ready:n.readyAt<=this.now})),
       casts:w.casts.filter(c=>this.canSeeEntity(p,c)&&c.ends>this.now&&dist(c,p)<near+350).map(({damage,owner,challengeOwner,challengeRun,...c})=>c),
       bosses:w.mobs.filter(m=>this.canSeeEntity(p,m)&&MONSTERS[m.type].boss).map(m=>({id:m.id,type:m.type,hp:m.hp,maxHp:m.maxHp,alive:m.alive,respawnAt:m.respawnAt})),
@@ -152,6 +155,7 @@ export class Game {
       challenge:this.challenges.view(p),
       dungeon:this.dungeons.view(p),
       realm:this.realms.view(p),
+      encounter:this.encounters.view(p),
       bossMechanics:bossMechanicView(this,w),
       fieldTrial:trialView(w,this.now),events:withEvents?this.events.view(this.now):undefined,eventError:withEvents?this.events.error:undefined,
       party:this.partyView(p),profile:full?this.privatePlayer(p):undefined
@@ -256,7 +260,7 @@ export class Game {
     for(const m of victims){
       const crit=this.random()*100<this.stats(p).crit;
       const rawDamage=Math.max(1,Math.round((this.stats(p).atk*skill.power-this.mobSpec(m).def*.65*(1-(c.passive?.armorPierce||0)))*(0.92+this.random()*.16)*(crit?1.65:1)*bossDamageMultiplier(m)));
-      const damage=m.dungeonRun?this.dungeons.damageAmount(m,rawDamage):rawDamage;
+      const damage=m.dungeonRun?this.dungeons.damageAmount(m,rawDamage):this.encounters.damageAmount(m,rawDamage);
       const actual=Math.min(m.hp,damage);
       m.hp=Math.max(0,m.hp-damage);m.contributors.set(p.id,this.now);m.damageLog.set(p.id,(m.damageLog.get(p.id)||0)+actual);m.target=p.id;
       const drain=(c.passive?.lifesteal||0)+(skill.lifesteal||0);
@@ -275,6 +279,7 @@ export class Game {
   }
   killMob(zone,m){
     if(!m.alive)return;
+    if(this.encounters.mobKilled(this.worlds.get(zone),m))return;
     if(this.realms.mobKilled(m))return;
     if(this.dungeons.mobKilled(m))return;
     if(this.challenges.mobKilled(m))return;
@@ -328,7 +333,7 @@ export class Game {
     m.contributors.clear();
   }
   damagePlayer(p,amount){
-    if(p.hp<=0||p.invulnerableUntil>this.now)return;
+    if(p.hp<=0||p.invulnerableUntil>this.now||this.encounters.protects(p))return;
     let damage=Math.max(1,Math.round(amount-this.stats(p).def*.65));
     damage=Math.max(1,Math.round(damage*(1-(CLASSES[p.classId].passive?.reduction||0))));
     if(p.shieldUntil>this.now){const before=damage;damage=Math.max(1,Math.round(damage*.45));if(before>damage)recordStory(this,p,{kind:'guard',target:'any'});}
@@ -595,10 +600,12 @@ export class Game {
     for(const p of active){if(!zonePlayers.has(p.zone))zonePlayers.set(p.zone,[]);if(p.hp>0)zonePlayers.get(p.zone).push(p);}
     this.perf={loadedRegions:this.worlds.size,occupiedRegions:zonePlayers.size,awakeMobs:0,sleepingMobs:0};
     for(const [zone,w]of this.worlds){
-      tickBossMechanics(this,w,now);
       const inZone=(zonePlayers.get(zone)||[]).filter(p=>p.hp>0&&p.zone===zone);
+      this.encounters.tickWorld(w,inZone,dt);
+      tickBossMechanics(this,w,now);
       if(!inZone.length){
         w.casts=[];
+        this.encounters.resetWorld(w);
         if(w.fieldTrial)this.cancelFieldTrial(w);
         continue;
       }
@@ -617,21 +624,22 @@ export class Game {
         }
         this.perf.awakeMobs++;
         if(spec.boss){
-          const phase=m.hp/m.maxHp<.45?2:m.hp/m.maxHp<.7?1:0;
+          const phase=Math.max(0,(m.encounterPhase||1)-1);
           if(phase>(m.visualPhase||0))this.fx(zone,{type:'armorBreak',x:m.x,y:m.y,theme:bossVisual(m.type).theme,phase});
           m.visualPhase=phase;
         }
         for(const effect of m.dots||[]){
           if(effect.left<=0||effect.next>now)continue;
           const owner=this.players.get(effect.by);effect.left--;effect.next=now+1000;
-          if(!owner?.active||owner.zone!==zone||owner.hp<=0||!this.canSeeEntity(owner,m))continue;
-          const dealt=Math.min(m.hp,Math.max(1,Math.round(effect.damage*bossDamageMultiplier(m))));m.hp-=dealt;m.contributors.set(owner.id,now);m.damageLog.set(owner.id,(m.damageLog.get(owner.id)||0)+dealt);
+          if(!owner?.active||owner.zone!==zone||owner.hp<=0||!this.canSeeEntity(owner,m)||!this.canDamage(owner,m))continue;
+          const dealt=Math.min(m.hp,this.encounters.damageAmount(m,Math.max(1,Math.round(effect.damage*bossDamageMultiplier(m)))));m.hp-=dealt;m.contributors.set(owner.id,now);m.damageLog.set(owner.id,(m.damageLog.get(owner.id)||0)+dealt);
           this.fx(zone,{type:'hit',id:m.id,x:m.x,y:m.y-22,amount:dealt,kind:'monster',by:owner.id});
           if(m.hp<=0){this.killMob(zone,m);break;}
         }
         m.dots=(m.dots||[]).filter(e=>e.left>0);
         if(!m.alive||m.stunUntil>now)continue;
         if(m.mechanicObjective||m.bossMechanic?.active)continue;
+        if(this.encounters.tickMob(w,m,inZone,dt))continue;
         if(!inZone.length){m.target=null;continue;}
         let target=inZone.find(p=>p.id===m.target&&dist(p,m)<440);
         if(target&&Math.hypot(m.x-m.homeX,m.y-m.homeY)>440)target=null;
@@ -670,6 +678,7 @@ export class Game {
         if(cast.challengeRun||cast.dungeonRun)continue;
         const owner=w.mobs.find(m=>m.id===cast.owner);
         if(!owner?.alive)continue;
+        if(this.encounters.resolveCast(w,cast,inZone))continue;
         for(const p of inZone){
           const dx=p.x-cast.x,dy=p.y-cast.y,d=Math.hypot(dx,dy);
           let hit=cast.shape==='ring'?(d<=cast.radius+8&&d>=cast.inner-8):d<=cast.radius+8;
@@ -689,6 +698,7 @@ export class Game {
   tickFieldTrial(w){tickFieldTrial(this,w);}
   cancelFieldTrial(w){cancelFieldTrial(this,w);}
   bossCast(w,m,target){
+    if(this.encounters.startBoss(w,m,target))return;
     const spec=MONSTERS[m.type],phase=m.phase++%3;
     const enraged=m.hp<m.maxHp*.45;
     const duration=enraged?1000:1350;
