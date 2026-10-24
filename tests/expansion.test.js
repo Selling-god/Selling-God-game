@@ -138,7 +138,7 @@ test('every job has four visual descriptors and all equipped gear has sixteen sp
   assert.ok(skillVisual(id,skill.id).primary);
   assert.ok(fs.existsSync(`public/assets/skill_${id}_${skill.id}.png`));
  }
- for(const [id,item]of Object.entries(ITEMS))if(item.type==='gear')for(const dir of 'snew')for(let f=0;f<4;f++)assert.ok(atlas[`gear_${id}_${dir}_${f}`],id);
+ for(const [id,item]of Object.entries(ITEMS))if(item.type==='gear')for(const dir of 'snew')for(let f=0;f<4;f++)assert.ok(atlas[`gear_${item.visualBase||id}_${dir}_${f}`],id);
  assert.notEqual(skillVisual('pyromancer','ultimate').shape,skillVisual('cryomancer','ultimate').shape);
 });
 test('snapshot interpolation bridges 6Hz packets with bounded extrapolation and teleport reset',()=>{

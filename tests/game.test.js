@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {Game,newCharacter,serialize,hydrate} from '../server/game.js';
-import {CLASSES,ITEMS,QUESTS,RECIPES,ZONES,MONSTERS,NPCS,getStats,MAX_LEVEL} from '../shared/content.js';
+import {CLASSES,ITEMS,QUESTS,RECIPES,ZONES,MONSTERS,NPCS,getStats,MAX_LEVEL,xpRequired} from '../shared/content.js';
 import {createMap,findPath,isBlocked,moveEntity,dist,PORTALS,BOSS_SPAWNS} from '../shared/world.js';
 
 function setup(cls='guardian'){
@@ -171,6 +171,6 @@ test('story and frontier quests grant the ending, legendary class weapon and tit
     assert.equal(p.completed.length,QUESTS.filter(q=>!q.repeatable).length);assert.ok(p.titles.includes('새벽을 되찾은 자'));
     assert.ok(events.some(e=>e.event==='questComplete'&&e.data.final));
     assert.ok(Object.entries(p.inventory).some(([id,n])=>n>0&&ITEMS[id].rarity==='legendary'&&ITEMS[id].class===(CLASSES[cls].family||cls)));
-    g.giveXP(p,1000000);assert.equal(p.level,MAX_LEVEL);
+    g.giveXP(p,Array.from({length:MAX_LEVEL},(_,i)=>xpRequired(i+1)).reduce((sum,xp)=>sum+xp,0));assert.equal(p.level,MAX_LEVEL);
   }
 });

@@ -164,8 +164,8 @@ test('story objectives, paused state, ordered clues, atlas and fog persist acros
  p.journey.signs.voidwalker=2;p.atlas.waypoints.push('meadow_reach_0');p.atlas.pages.push('meadow_reach_0_tablet');p.atlas.fog.meadow_reach_0=[0,1,3];
  const q=hydrate(serialize(p));assert.deepEqual(q.journey,p.journey);assert.deepEqual(q.atlas,p.atlas);
 });
-test('84 regions exceed 1 million tiles and 35 times the old mapped area',()=>{
- const totals=atlasTotals(ZONES);assert.equal(totals.regions,84);assert.equal(totals.expeditions,72);assert.equal(totals.landmarks,288);
+test('92 public regions exceed 1 million tiles and 35 times the old mapped area',()=>{
+ const totals=atlasTotals(ZONES);assert.equal(totals.regions,92);assert.equal(totals.expeditions,72);assert.equal(totals.landmarks,288);
  assert.ok(totals.tiles>1000000&&totals.areaRatio>35);
 });
 test('each of 72 sectors has four landmarks; all entrances, mentors, nodes, caches and bosses are reachable',()=>{
@@ -185,10 +185,10 @@ test('each of 72 sectors has four landmarks; all entrances, mentors, nodes, cach
   for(const point of targets)assert.ok(seen.has(Math.floor(point.y/32)*m.w+Math.floor(point.x/32)),z.id+':'+point.id);
  }
 });
-test('portal graph reaches all 84 regions from town and every new region has a route back',()=>{
+test('portal graph reaches all 92 public regions from town and every new region has a route back',()=>{
  const seen=new Set(['town']),q=['town'];
  for(let i=0;i<q.length;i++)for(const p of PORTALS[q[i]]||[])if(!seen.has(p.to)){seen.add(p.to);q.push(p.to);}
- assert.equal(seen.size,84);
+ assert.equal(seen.size,92);
  for(const z of EXPEDITION_ZONES)assert.ok(PORTALS[z.id].length>=2);
 });
 test('lazy worlds do not eagerly spawn all regions and preserve future cooldowns during unload/reload',()=>{
