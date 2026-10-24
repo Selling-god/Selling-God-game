@@ -148,6 +148,9 @@ test('Game integrates shields for hits and DoTs, targetable crystals, snapshots 
  const world=g.worlds.get(def.zone),boss=world.mobs.find(m=>m.worldEventId===def.id);
  assert.equal(g.events.join(p,def.id).ok,true);
  boss.hp=Math.floor(boss.maxHp*.69);g.tick(.05,g.now+50);
+ assert.equal(boss.encounterPhase,2);assert.equal(g.snapshot(p).encounter.phaseTransition.phase,2);
+ assert.equal(boss.bossMechanic?.active,undefined,'the transformation safely precedes the ice objective');
+ g.tick(.05,boss.encounterTransition.ends+1);
  assert.equal(boss.bossMechanic?.active,true);
  assert.equal(world.casts.some(c=>c.owner===boss.id),false);
  const snapshot=g.snapshot(p);

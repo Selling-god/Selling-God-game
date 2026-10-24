@@ -72,7 +72,7 @@ function expose(ctx, r) { ({ concord_forge: exposeForge, memory_archive: exposeM
 function hitGate(ctx, r) {
   const { g, p } = ctx, boss = g.dungeons.boss(r), amount = g.dungeons.damageAmount(boss, boss.maxHp * 2);
   assert.ok(amount > 0); boss.hp -= amount; boss.contributors.set(p.id, g.now); boss.damageLog.set(p.id, (boss.damageLog.get(p.id) || 0) + amount);
-  if (boss.hp <= 0) g.killMob(DUNGEON_ZONE, boss); else advance(g, 50);
+  if (boss.hp <= 0) g.killMob(ctx.def.zone, boss); else { advance(g, 50); if (r.phase === 'transformation') advance(g, r.phaseEnds - g.now + 1); }
 }
 function complete(ctx) { const r = ctx.g.dungeons.runFor(ctx.p); for (let i = 0; i < 3; i++) { assert.equal(r.stage, i); expose(ctx, r); hitGate(ctx, r); } assert.equal(r.state, 'complete'); return r; }
 function leaveComplete(ctx) { for (const p of ctx.people) assert.equal(ctx.g.action(p, { type: 'dungeonExit' }).ok, true); }
@@ -166,9 +166,11 @@ test('direct attacks and damage-over-time stop exactly at required 70%/35% mecha
   assert.equal(g.action(p, { type: 'attack', skill: 'skill1' }).ok, false); assert.equal(p.mp, mp);
   expose(ctx, r); at(p, { x: boss.x + 30, y: boss.y }); boss.hp = Math.floor(boss.maxHp * .7) + 3;
   assert.equal(g.action(p, { type: 'attack', skill: 'basic' }).ok, true); assert.equal(boss.hp, Math.floor(boss.maxHp * .7)); assert.equal(boss.alive, true);
-  advance(g, 50); assert.equal(r.stage, 1); assert.equal(r.phase, 'balance'); assert.equal(boss.dungeonShield, true);
+  advance(g, 50); assert.equal(r.stage, 1); assert.equal(r.phase, 'transformation'); assert.equal(boss.dungeonShield, true);
+  advance(g, 2201); assert.equal(r.phase, 'balance');
   expose(ctx, r); boss.hp = Math.floor(boss.maxHp * .35) + 4; boss.dots = [{ by: p.id, damage: boss.maxHp * 4, next: g.now, left: 1 }];
-  advance(g, 50); assert.equal(boss.hp, Math.floor(boss.maxHp * .35)); advance(g, 50); assert.equal(r.stage, 2); assert.equal(r.phase, 'balance');
+  advance(g, 50); assert.equal(boss.hp, Math.floor(boss.maxHp * .35)); advance(g, 50); assert.equal(r.stage, 2); assert.equal(r.phase, 'transformation');
+  advance(g, 2201); assert.equal(r.phase, 'balance');
   assert.equal(p.challenges.tokens, 0); assert.equal(p.dungeons.tokens, 0);
 });
 
