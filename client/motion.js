@@ -27,7 +27,7 @@ export class LocalMotion {
  constructor(){this.position=null;this.history=[];this.correction={x:0,y:0};this.path=[];this.dashEnd=0;this.dashVector={x:0,y:0};this.lastServerAt=0;this.rtt=100;this.motionId=null;this.zone=null;this.lastDelta={x:0,y:0};}
  reset(s,zone,now){
   this.position={x:s.x,y:s.y,zone};this.zone=zone;this.motionId=s.motionId||0;
-  this.history=[{t:now,x:s.x,y:s.y}];this.correction={x:0,y:0};this.path=[];this.dashEnd=0;this.lastServerAt=now;
+  this.history=[{t:now,x:s.x,y:s.y}];this.correction={x:0,y:0};this.path=[];this.dashEnd=0;this.dashVector={x:0,y:0};this.lastDelta={x:0,y:0};this.lastServerAt=now;
  }
  accept(s,zone,now,map){
   this.lastServerAt=now;

@@ -1,12 +1,14 @@
 import {adventurePanel,storyTrackHTML} from './adventure-ui.js';
 import {rpgPanel,enhancementRows} from './rpg-ui.js';
-import {freePoints,ATTRIBUTE_KEYS,resetPrice,spentPoints,enhancementBonus} from '../shared/rpg.js';
+import {freePoints,ATTRIBUTE_KEYS,MAX_ATTRIBUTE,resetPrice,spentPoints,enhancementBonus} from '../shared/rpg.js';
 import { expansionPanel, timeLeft } from './expansion-ui.js';
 import { Auth, Network } from './net.js';
 import { Renderer } from './render.js';
 import { Sound } from './audio.js';
 import { CLASSES, ITEMS, RARITIES, MONSTERS, QUESTS, ZONES, NPCS, RECIPES, SHOP, xpRequired, objectiveLabel, weaponFor, MAX_LEVEL } from '../shared/content.js';
 import { dist, clamp } from '../shared/world.js';
+import { KEY_ACTIONS, createKeybindings, formatKey } from './keybindings.js';
+import { challengesPanel, challengeHUD } from './challenges-ui.js';
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -23,12 +25,14 @@ let busy=new Set(),settings={sfx:true,music:false,effects:true,zoom:1,lowPower:f
 let statDraft={},lastPortraitKey='';
 let jobBookData=null,eventList=[],lastSentInput={x:0,y:0},inputSeq=0;
 let accountMode='login',lastFocused=null,firstConnection=true,uiRefreshNeeded=false,lastStateAt=0;
+const keybindings=createKeybindings(),capturedKeyUps=new Set();
+let keyCapture=null,keyStatus='',keyStatusTone='';
 try{settings={...settings,...JSON.parse(localStorage.getItem('starfall.settings')||'{}')};}catch{}
 try{mutedPlayers=new Set(JSON.parse(localStorage.getItem('starfall.muted')||'[]'));}catch{}
 function applySettings(){
   sound.sfx=settings.sfx? .28:0;sound.music=settings.music? .6:0;
   renderer.showEffects=settings.effects;renderer.lowPower=!!settings.lowPower;renderer.shakeEnabled=!!settings.shake;renderer.zoomSetting=Number(settings.zoom)||1;renderer.resize();
-  localStorage.setItem('starfall.settings',JSON.stringify(settings));
+  try{localStorage.setItem('starfall.settings',JSON.stringify(settings));}catch{}
 }
 applySettings();
 function notice(message,tone='info',duration=4200){
@@ -37,6 +41,50 @@ function notice(message,tone='info',duration=4200){
   $('notices').append(div);while($('notices').children.length>4)$('notices').firstChild.remove();
   setTimeout(()=>div.remove(),duration);
   if(!inGame){$('start-note').textContent=message;if(modal&&$('auth-status'))$('auth-status').textContent=message;}
+}
+function renderKeybindingsSettings(){
+  const groups=[...new Set(KEY_ACTIONS.map(a=>a.group))];
+  const message=keyStatus||(keyCapture
+    ? `${KEY_ACTIONS.find(a=>a.id===keyCapture.id).label} · ${keyCapture.slot===0?'주 키':'보조 키'}: 원하는 키를 누르세요. ${keyCapture.id==='settings'?'Esc도 등록할 수 있습니다. 취소하려면 아래 취소 버튼을 누르세요.':'Esc로 취소합니다.'}`
+    : '바꿀 키를 선택한 뒤 원하는 키를 한 번 누르세요.');
+  return `<div class="keybind-intro"><p>주 키와 보조 키 중 어느 쪽으로도 같은 동작을 할 수 있습니다. 변경 즉시 적용되며 이 브라우저에 자동으로 저장됩니다.</p><p class="small muted">한글·영문 입력 상태와 관계없이 키보드 위치를 사용합니다. Esc는 창 닫기·입력 취소에 사용하며 설정 열기에도 지정할 수 있습니다. 채팅 중 Enter는 전송에 사용합니다. Ctrl·Alt·Meta 조합과 기능키는 지정할 수 없습니다.</p></div>
+    <div class="keybind-status ${keyStatusTone||(keyCapture?'listening':'')}" role="status" aria-live="polite">${esc(message)}</div>
+    ${keyCapture?'<button class="btn small" data-act="cancelKey">키 입력 취소</button>':''}
+    ${groups.map(group=>`<section class="keybind-group"><h3>${esc(group)}</h3><div class="keybind-head"><span>동작</span><span>주 키</span><span>보조 키</span></div>${KEY_ACTIONS.filter(a=>a.group===group).map(a=>`<div class="keybind-row"><span class="keybind-name">${esc(a.label)}</span>${keybindings.get(a.id).map((code,slot)=>{
+      const active=keyCapture?.id===a.id&&keyCapture.slot===slot;
+      return `<div class="keybind-slot"><button type="button" class="keybind-key ${active?'listening':''}" data-act="bindKey" data-id="${a.id}" data-slot="${slot}" aria-pressed="${active}" aria-label="${esc(a.label)} ${slot===0?'주 키':'보조 키'}: ${esc(formatKey(code))}">${active?'키 입력…':esc(formatKey(code))}</button><button type="button" class="keybind-clear" data-act="clearKey" data-id="${a.id}" data-slot="${slot}" aria-label="${esc(a.label)} ${slot===0?'주 키':'보조 키'} 해제" title="이 키 해제" ${code?'':'disabled'}>×</button></div>`;
+    }).join('')}</div>`).join('')}</section>`).join('')}
+    <div class="keybind-footer"><button class="btn small danger" data-act="resetKeys">전체 기본값 복원</button><button class="btn small" data-act="openSettings">설정으로 돌아가기</button></div>`;
+}
+function redrawKeybindings(focusId,slot=0){
+  if(modal!=='keybindings')return;
+  const scroll=$('modal-content').scrollTop;
+  renderPanel();
+  $('modal-content').scrollTop=scroll;
+  if(focusId)$('modal-content').querySelector(`[data-act="bindKey"][data-id="${focusId}"][data-slot="${slot}"]`)?.focus({preventScroll:true});
+}
+function cancelKeyCapture(redraw=true){
+  if(!keyCapture)return;
+  const previous=keyCapture;keyCapture=null;keyStatus='키 변경을 취소했습니다.';keyStatusTone='';
+  if(redraw)redrawKeybindings(previous.id,previous.slot);
+}
+function syncKeyHints(){
+  for(const b of document.querySelectorAll('.hud-dock [data-panel]')){
+    const id=b.dataset.panel,a=KEY_ACTIONS.find(a=>a.id===id);
+    if(!a)continue;
+    b.title=`${a.label} (${keybindings.label(id)})`;
+    const kbd=b.querySelector('kbd');if(kbd)kbd.textContent=keybindings.primaryLabel(id);
+  }
+  const interact=$('interact-hint')?.querySelector('kbd');if(interact)interact.textContent=keybindings.primaryLabel('interact');
+  const journal=$('journal-open')?.querySelector('span');if(journal)journal.textContent=keybindings.primaryLabel('journal');
+  $('chat-input').placeholder=keybindings.get('chat').some(Boolean)?`${keybindings.label('chat')}로 이야기하기`:'눌러서 이야기하기';
+  renderAbilities();if(profile)renderTracker();if(state&&profile)updateHUD();
+}
+function finishKeyEdit(result,message,focusId,slot=0){
+  keyCapture=null;resetControls();
+  keyStatus=result.saved?message+' 이 브라우저에 저장했습니다.':message+' 브라우저 저장을 사용할 수 없어 이번 접속 동안만 유지됩니다.';
+  keyStatusTone=result.saved?'success':'warn';
+  syncKeyHints();redrawKeybindings(focusId,slot);
 }
 async function action(data,{silent=false}={}){
   if(!net?.connected)return {ok:false};
@@ -50,14 +98,14 @@ async function action(data,{silent=false}={}){
   return result||{ok:false};
 }
 function resetControls(){
-  keys.clear();joystick={x:0,y:0};attackHeld=false;
+  keys.clear();joystick={x:0,y:0};attackHeld=false;pendingInteract=null;
   renderer.lastInput={x:0,y:0};renderer.stopMotion();resetKnob();
   sendInput({x:0,y:0,stop:true});
 }
 function profileChanged(p){
   const previousClass=profile?.classId;
   profile=p;renderer.profile=p;
-  const sig=JSON.stringify([p.inventory,p.equipment,p.enhancements,p.quests,p.completed,p.level,p.gold,p.titles,p.classId,p.discovery,p.journey,p.atlas,p.storyTracker,p.daily,p.attributes,p.enhancePity,p.deathWeakUntil,p.soul]);
+  const sig=JSON.stringify([p.inventory,p.equipment,p.enhancements,p.quests,p.completed,p.level,p.gold,p.titles,p.classId,p.discovery,p.journey,p.atlas,p.storyTracker,p.daily,p.challenges,p.attributes,p.enhancePity,p.deathWeakUntil,p.soul]);
   if(previousClass&&previousClass!==p.classId)renderAbilities();
   const portraitKey=JSON.stringify([p.equipment,p.enhancements]);
   if(portraitKey!==lastPortraitKey){lastPortraitKey=portraitKey;$('portrait').src=renderer.avatarURL(p);}
@@ -157,7 +205,7 @@ async function connectGame(){
       $('notices').append(n);setTimeout(()=>n.remove(),30000);
     });
     net.on('disconnect',()=>{
-      resetControls();if(inGame)show('connection-overlay');
+      cancelKeyCapture();resetControls();if(inGame)show('connection-overlay');
     });
     net.on('replaced',e=>{
       net.stopped=true;resetControls();show('connection-overlay');
@@ -201,12 +249,13 @@ $('chat-toggle').addEventListener('click',()=>{
 });
 $('interact-hint').addEventListener('click',()=>action({type:'interact'}));
 document.querySelectorAll('[data-panel]').forEach(b=>b.addEventListener('click',()=>openPanel(b.dataset.panel)));
+syncKeyHints();
 
 function renderAbilities(){
   if(!profile)return;
   const c=CLASSES[profile.classId],all=[...c.skills,{id:'dash',name:'별걸음',key:'SHIFT',icon:'boot',unlock:1},{id:'potion',name:'체력',key:'1',icon:'potion',unlock:1},{id:'mana',name:'마나',key:'2',icon:'mana',unlock:1}];
-  $('abilities').innerHTML=all.map(s=>`<button class="ability ${s.id==='basic'?'basic':''}" data-skill="${s.id}" title="${esc(s.desc||s.name)}">
-    <span class="key">${s.key}</span>${c.skills.some(v=>v.id===s.id)?`<img src="/assets/skill_${profile.classId}_${s.id}.png" alt="">`:icon(s.icon)}<span class="skill-name">${esc(s.name)}</span><span class="count"></span><span class="cd-shade"></span><span class="cd-number"></span></button>`).join('');
+  $('abilities').innerHTML=all.map(s=>`<button class="ability ${s.id==='basic'?'basic':''}" data-skill="${s.id}" title="${esc(s.desc||s.name)} (${esc(keybindings.label(s.id))})">
+    <span class="key">${esc(keybindings.primaryLabel(s.id))}</span>${c.skills.some(v=>v.id===s.id)?`<img src="/assets/skill_${profile.classId}_${s.id}.png" alt="">`:icon(s.icon)}<span class="skill-name">${esc(s.name)}</span><span class="count"></span><span class="cd-shade"></span><span class="cd-number"></span></button>`).join('');
 }
 $('abilities').addEventListener('click',e=>{const b=e.target.closest('[data-skill]');if(b)cast(b.dataset.skill);});
 function cast(id){
@@ -220,7 +269,7 @@ function renderTracker(){
   const active=Object.entries(profile.quests||{}),story=storyTrackHTML(profile);
   if(!active.length){
     const complete=profile.completed?.includes('last_star');
-    $('tracked-quests').innerHTML=story+`<div class="quest-track"><h4>${complete?'새로운 모험을 기다리며':'리아를 찾아가세요'}</h4><div class="objective">${complete?'장비를 완성하고 다른 모험가를 도와주세요.':'마을 중앙의 별지기에게 F로 대화하세요.'}</div></div>`;
+    $('tracked-quests').innerHTML=story+`<div class="quest-track"><h4>${complete?'새로운 모험을 기다리며':'리아를 찾아가세요'}</h4><div class="objective">${complete?'장비를 완성하고 다른 모험가를 도와주세요.':`마을 중앙의 별지기에게 ${esc(keybindings.label('interact'))}로 대화하세요.`}</div></div>`;
     return;
   }
   $('tracked-quests').innerHTML=story+active.map(([id,s])=>{
@@ -259,6 +308,8 @@ $('chat-form').addEventListener('submit',async e=>{
 $('chat-input').addEventListener('focus',resetControls);
 function openPanel(name,data){
   if(name!=='auth'&&!profile&&name!=='setup'&&name!=='password')return;
+  cancelKeyCapture(false);
+  if(name==='keybindings'){keyStatus='';keyStatusTone='';}
   resetControls();sound.play('click');lastFocused=document.activeElement;
   modal=name;modalTab=name==='craft'?'recipes':name==='jobs'?'common':'all';selectedItem=null;
   if(name==='stats')statDraft={};
@@ -266,11 +317,12 @@ function openPanel(name,data){
   $('modal-close').focus();
 }
 function closeModal(){
+  cancelKeyCapture(false);
   show('modal',false);modal=null;lastModalSignature='';resetControls();
   if(lastFocused?.isConnected&&lastFocused?.tagName!=='INPUT')lastFocused.focus();
 }
 function refreshPanel(){
-  if(!modal||['auth','settings','account','password','questReward','ending','guide'].includes(modal))return;
+  if(!modal||['auth','settings','keybindings','account','password','questReward','ending','guide'].includes(modal))return;
   const scroll=$('modal-content').scrollTop;
   renderPanel();$('modal-content').scrollTop=scroll;
 }
@@ -308,8 +360,9 @@ function renderPanel(){
   const p=profile,c=p&&CLASSES[p.classId],data=window._modalData;
   let title='',eyebrow='STARFALL ONLINE',html='';
   const rpg=profile&&rpgPanel(modal,{profile,draft:statDraft,data,now:Date.now()+renderer.clock});
-  const adventure=profile&&adventurePanel(modal,{profile,tab:modalTab,data,state,now:Date.now()+renderer.clock});
-  const extra=adventure||rpg||(profile&&expansionPanel(modal,{profile,tab:modalTab,book:jobBookData,events:eventList,now:Date.now()+renderer.clock,data}));
+  const keyLabel=id=>keybindings.label(id);
+  const adventure=profile&&adventurePanel(modal,{profile,tab:modalTab,data,state,now:Date.now()+renderer.clock,keyLabel});
+  const extra=(profile&&modal==='challenges'&&challengesPanel({profile,state,now:Date.now()+renderer.clock,keyLabel}))||adventure||rpg||(profile&&expansionPanel(modal,{profile,tab:modalTab,book:jobBookData,events:eventList,now:Date.now()+renderer.clock,data,keyLabel}));
   if(extra){({title,eyebrow,html}=extra);}
   else if(modal==='inventory'){
     title='가방과 장비';eyebrow=`EQUIPMENT & INVENTORY · ${money(p.gold)} G`;
@@ -353,7 +406,7 @@ function renderPanel(){
   }else if(modal==='map'){
     title='별이 떨어진 세계';eyebrow='THE WORLD OF STARFALL';
     html=`<div class="map-frame"><canvas id="large-map" width="650" height="360"></canvas><div class="map-legend"><span>● 나</span><span style="color:#cfb9ee">● 지역의 문</span><span style="color:#e9c99f">● NPC</span><span style="color:#dd9c98">● 보스</span></div></div><div class="region-cards">${Object.entries(ZONES).map(([id,z])=>`<div class="region-card ${p.zone===id?'active':''}"><h4>${esc(z.name)}</h4><small>${id==='town'?'안전 지대':`Lv.${z.minLevel}+`}${p.zone===id?' · 현재 위치':p.discovery.visited.includes(id)?' · 발견':' · 미탐험'}</small>${p.zone==='town'&&id!=='town'&&p.discovery.visited.includes(id)?`<button class="btn small" data-act="travel" data-id="${id}">이동</button>`:''}</div>`).join('')}</div>
-      <div class="info-box" style="margin-top:17px">12개 지역이 갈림길로 이어집니다. 마을 ↔ 초원 ↔ 해안 ↔ 사막 ↔ 하늘섬 ↔ 천문대 / 숲 ↔ 습지 ↔ 유적 ↔ 성채 ↔ 설원 ↔ 심연 ↔ 천문대. 지역의 문 근처에서 F를 눌러 이동하세요. 보스의 보상은 전투에 기여한 각 플레이어에게 지급됩니다.</div><button class="btn" data-act="return">마을로 귀환 <kbd>H</kbd></button>`;
+      <div class="info-box" style="margin-top:17px">12개 지역이 갈림길로 이어집니다. 마을 ↔ 초원 ↔ 해안 ↔ 사막 ↔ 하늘섬 ↔ 천문대 / 숲 ↔ 습지 ↔ 유적 ↔ 성채 ↔ 설원 ↔ 심연 ↔ 천문대. 지역의 문 근처에서 ${esc(keybindings.label('interact'))}를 눌러 이동하세요. 보스의 보상은 전투에 기여한 각 플레이어에게 지급됩니다.</div><button class="btn" data-act="return">마을로 귀환 <kbd>${esc(keybindings.label('return'))}</kbd></button>`;
   }else if(modal==='party'){
     title='함께 걷는 모험가';eyebrow='PARTY & COMMUNITY';
     const party=state?.party;
@@ -370,6 +423,8 @@ function renderPanel(){
       html+=others.length?others.map(m=>`<div class="member-row"><img src="${imgHero(m.classId)}" alt=""><div class="grow"><b>${esc(m.name)}</b><small>Lv.${m.level} ${CLASSES[m.classId].name}${m.partyId?' · 파티 참여 중':''}</small></div><button class="btn small" data-act="mute" data-id="${m.id}">${mutedPlayers.has(m.id)?'차단 해제':'채팅 차단'}</button><button class="btn small primary" data-act="partyInvite" data-id="${m.id}" ${m.partyId||party&&party.leader!==p.id?'disabled':''}>초대</button></div>`).join(''):'<p class="muted small">아직 가까이에 다른 모험가가 없습니다. 같은 서버 주소를 친구에게 공유해 보세요.</p>';
       html+='<button class="btn small" style="margin-top:15px" data-act="copyLink">게임 주소 복사</button>';
     }
+  }else if(modal==='keybindings'){
+    title='키 설정';eyebrow='KEY BINDINGS · YOUR CONTROLS';html=renderKeybindingsSettings();
   }else if(modal==='settings'){
     title='잠깐의 쉼';eyebrow='SETTINGS · THE WORLD KEEPS MOVING';
     html=`<div class="info-box">설정과 가방을 열어도 온라인 세계의 시간은 멈추지 않습니다. 안전하게 정비하려면 마을에서 이용하세요.</div>
@@ -380,13 +435,14 @@ function renderPanel(){
       <div class="settings-row"><label for="setting-shake">타격 시 화면 흔들림<small>부드러운 이동을 위해 기본값은 꺼짐입니다.</small></label><input id="setting-shake" type="checkbox" ${settings.shake?'checked':''}></div>
       <div class="settings-row"><label for="setting-zoom">화면 배율<small>모바일에서는 작은 배율을 권장합니다.</small></label><input id="setting-zoom" type="range" min=".75" max="1.3" step=".05" value="${settings.zoom}"></div>
       <div class="settings-row"><label>자동 기본 공격<small>가까운 적에게 기본 공격을 반복합니다. 이동은 직접 조작합니다.</small></label><button class="btn small" data-act="auto">${autoAttack?'끄기':'켜기'}</button></div>
+      <div class="settings-row"><label>키 설정<small>이동·공격·기술·메뉴의 주 키와 보조 키를 변경합니다.</small></label><button class="btn small primary" data-act="keybindings">키 설정 열기</button></div>
       <div class="settings-row"><label>칭호<small>다른 모험가에게 표시되는 이름</small></label><select id="title-select">${p.titles.map(t=>`<option ${t===p.title?'selected':''}>${esc(t)}</option>`).join('')}</select></div>
       <div class="settings-actions"><button class="btn small primary" data-act="save">지금 저장</button><button class="btn small" data-act="guide">조작 도움말</button><button class="btn small" data-act="account">계정 연결</button><button class="btn small" data-act="copyLink">주소 복사</button><button class="btn small danger" data-act="logout">나가기</button></div>
       <p class="small muted" style="margin:20px 0 0">v2.0.0 · ${config.devGuest?'로컬 개발 저장소':'Supabase 영구 저장'} · ${money(p.kills)}마리 처치 · 보스 ${p.bossKills}회<br>저장은 30초마다, 주요 거래 후와 접속 종료 시 시도합니다.</p>`;
   }else if(modal==='guide'){
     title='첫 모험을 위한 작은 안내';eyebrow='HOW TO FIND YOUR WAY';
-    html=`<div class="info-box">마을 중앙의 <b>리아</b>에게 다가가 <b>F</b>로 첫 의뢰를 받으세요. 마을의 북쪽 문에서 다시 F를 누르면 숲으로 이동합니다. 적을 클릭해 선택하고 공격할 수 있으며, 선택하지 않으면 사거리 안의 가까운 적을 노립니다.</div>
-      <div class="controls-grid">${[['이동','WASD / 방향키'],['클릭 이동','빈 바닥 클릭'],['기본 공격','Space / Z'],['첫 번째 기술','Q'],['두 번째 기술 · Lv.3','E'],['궁극기 · Lv.5','R'],['무적 회피','Shift'],['대화 · 채집 · 이동','F'],['체력 / 마나 물약','1 / 2'],['가방 / 의뢰 / 지도','I / J / M'],['직업 / 전직 이야기','C / V'],['파티 / 설정','P / Esc'],['기본 공격 자동 반복','T'],['가까운 적 선택','Tab'],['마을 귀환','H']].map(([n,k])=>`<div class="control"><span>${n}</span><kbd>${k}</kbd></div>`).join('')}</div>
+    html=`<div class="info-box">마을 중앙의 <b>리아</b>에게 다가가 <b>${esc(keybindings.label('interact'))}</b>로 첫 의뢰를 받으세요. 마을의 북쪽 문에서 같은 키를 누르면 숲으로 이동합니다. 적을 클릭해 선택하고 공격할 수 있으며, 선택하지 않으면 사거리 안의 가까운 적을 노립니다.</div>
+      <div class="controls-grid">${[...KEY_ACTIONS.map(a=>[a.label,keybindings.label(a.id)]),['클릭 이동','빈 바닥 클릭'],['창 닫기 / 입력 취소','Esc']].map(([n,k])=>`<div class="control"><span>${esc(n)}</span><kbd>${esc(k)}</kbd></div>`).join('')}</div>
       <div class="info-box">휴대폰·태블릿에서는 왼쪽 조이스틱과 오른쪽 공격·회피·F 버튼을 사용하세요. 공격 버튼을 길게 누르면 기본 공격을 반복합니다. 붉은 원·고리·직선은 보스의 공격 예고입니다. 회피의 짧은 무적 시간을 활용해 보세요.<br><br>레벨 5부터 사망 시 골드·경험치 일부를 잃습니다. 10분 안에 영혼을 회수하면 손실 대부분을 되찾습니다. 장비와 레벨은 잃지 않습니다. 회복 물약은 상인에게 구매하거나 약초로 제작할 수 있습니다.</div><button class="btn primary" data-act="close">모험 계속하기</button>`;
   }else if(modal==='questReward'||modal==='ending'){
     title=modal==='ending'?'새벽이 돌아왔습니다':'의뢰를 마쳤습니다';eyebrow=modal==='ending'?'CHAPTER I · THE LAST STAR':'QUEST COMPLETE';
@@ -458,6 +514,27 @@ function attachForms(){
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-act]');if(!b||b.disabled)return;
   const type=b.dataset.act,id=b.dataset.id;
+  if(type==='keybindings'){openPanel('keybindings');return;}
+  if(type==='openSettings'){openPanel('settings');return;}
+  if(type==='bindKey'){
+    const slot=Number(b.dataset.slot);
+    if(modal!=='keybindings'||!KEY_ACTIONS.some(a=>a.id===id)||(slot!==0&&slot!==1))return;
+    resetControls();keyCapture={id,slot};keyStatus='';keyStatusTone='';redrawKeybindings(id,slot);return;
+  }
+  if(type==='cancelKey'){cancelKeyCapture();return;}
+  if(type==='clearKey'){
+    if(modal!=='keybindings')return;
+    const slot=Number(b.dataset.slot),result=keybindings.clear(id,slot);
+    if(result.ok)finishKeyEdit(result,'선택한 키를 해제했습니다.',id,slot);
+    return;
+  }
+  if(type==='resetKeys'){
+    if(modal!=='keybindings')return;
+    cancelKeyCapture(false);redrawKeybindings();
+    if(await confirmDialog('키 설정을 초기화할까요?','지정한 주 키와 보조 키를 모두 기본값으로 되돌립니다.')){
+      finishKeyEdit(keybindings.reset(),'기본 키 설정으로 복원했습니다.');
+    }return;
+  }
   if(type==='tab'){modalTab=id;renderPanel();return;}
   if(type==='selectItem'){if(id){selectedItem=id;if(modalTab!=='all')modalTab='all';renderPanel();}return;}
   if(type==='close'){closeModal();return;}
@@ -466,6 +543,17 @@ document.addEventListener('click',async e=>{
   if(type==='openJobs'){openPanel('jobs');return;}
   if(type==='openStories'){openPanel('stories');return;}
   if(type==='openAtlas'){openPanel('map');return;}
+  if(type==='openChallenges'){openPanel('challenges');return;}
+  if(type==='challengeStart'){
+    b.disabled=true;
+    const result=await action({type,id,tier:Number(b.dataset.tier||0),checkpoint:['true','1'].includes(b.dataset.checkpoint)});
+    if(b.isConnected)b.disabled=false;if(result.ok)closeModal();return;
+  }
+  if(['challengeExit','challengeInteract','challengeShop','challengeWard'].includes(type)){
+    b.disabled=true;const result=await action({type,id});
+    if(b.isConnected)b.disabled=false;
+    if(result.ok&&type==='challengeExit')closeModal();uiRefreshNeeded=true;return;
+  }
   if(['storyView','storyAccept','storyPause','storyResume','storyTrack'].includes(type)){
     await action({type,id});return;
   }
@@ -476,7 +564,7 @@ document.addEventListener('click',async e=>{
   if(type==='statPlus'||type==='statMinus'){
     if(!ATTRIBUTE_KEYS.includes(id))return;
     const used=Object.values(statDraft).reduce((a,b)=>a+b,0),n=statDraft[id]||0;
-    if(type==='statPlus'&&used<freePoints(profile)&&(profile.attributes[id]||0)+n<100)statDraft[id]=n+1;
+    if(type==='statPlus'&&used<freePoints(profile)&&(profile.attributes[id]||0)+n<MAX_ATTRIBUTE)statDraft[id]=n+1;
     if(type==='statMinus'&&n>0)statDraft[id]=n-1;
     renderPanel();return;
   }
@@ -496,7 +584,7 @@ document.addEventListener('click',async e=>{
   if(type==='copyLink'){
     try{await navigator.clipboard.writeText(location.origin);notice('게임 주소를 복사했습니다.','success');}catch{notice(location.origin,'info',8000);}return;
   }
-  if(type==='auto'){autoAttack=!autoAttack;renderPanel();notice(autoAttack?'자동 기본 공격 켜짐 · T로 끌 수 있습니다.':'자동 기본 공격 꺼짐');return;}
+  if(type==='auto'){autoAttack=!autoAttack;renderPanel();notice(autoAttack?`자동 기본 공격 켜짐 · ${keybindings.label('autoAttack')}로 끌 수 있습니다.`:'자동 기본 공격 꺼짐');return;}
   if(type==='save'){
     b.disabled=true;const r=await net.emit('save',{});b.disabled=false;if(r?.ok)notice('기록을 서버에 저장했습니다.','success');return;
   }
@@ -528,51 +616,75 @@ document.addEventListener('click',async e=>{
   }
 });
 async function confirmDialog(title,text){
+  const previousFocus=document.activeElement;
   resetControls();show('confirm');
   $('confirm').innerHTML=`<div class="creation-window" style="max-width:430px"><h3>${esc(title)}</h3><p class="muted small">${esc(text)}</p><div class="settings-actions"><button id="confirm-yes" class="btn primary">계속</button><button id="confirm-no" class="btn">취소</button></div></div>`;
   return new Promise(resolve=>{
-    const finish=v=>{show('confirm',false);$('confirm').innerHTML='';resolve(v);};
+    const finish=v=>{show('confirm',false);$('confirm').innerHTML='';if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true});resolve(v);};
     $('confirm-yes').onclick=()=>finish(true);$('confirm-no').onclick=()=>finish(false);
+    $('confirm-yes').focus();
   });
 }
 function inputDirection(){
-  if(modal||document.hidden||!net?.connected||!inGame)return {x:0,y:0};
+  if(modal||editable()||document.hidden||!net?.connected||!inGame)return {x:0,y:0};
   if(Math.hypot(joystick.x,joystick.y)>.05)return joystick;
-  const x=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0);
-  const y=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0);
+  const x=(keybindings.isHeld('moveRight',keys)?1:0)-(keybindings.isHeld('moveLeft',keys)?1:0);
+  const y=(keybindings.isHeld('moveDown',keys)?1:0)-(keybindings.isHeld('moveUp',keys)?1:0);
   const n=Math.hypot(x,y);return n?{x:x/n,y:y/n}:{x:0,y:0};
 }
-const editable=()=>['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
+const editable=()=>{const el=document.activeElement;return !!el&&(['INPUT','TEXTAREA','SELECT'].includes(el.tagName)||el.isContentEditable);};
+function trapDialogTab(e,root){
+  const f=[...root.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]')].filter(el=>el.offsetParent);
+  if(!f.length)return;
+  if(!root.contains(document.activeElement)){e.preventDefault();f[0].focus();}
+  else if(e.shiftKey&&document.activeElement===f[0]){e.preventDefault();f.at(-1).focus();}
+  else if(!e.shiftKey&&document.activeElement===f.at(-1)){e.preventDefault();f[0].focus();}
+}
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){
-    if(editable())document.activeElement.blur();
-    else if(modal)closeModal();else if(inGame)openPanel('settings');return;
+  if(capturedKeyUps.has(e.code)){e.preventDefault();return;}
+  if(keyCapture){
+    e.preventDefault();e.stopPropagation();
+    capturedKeyUps.add(e.code);
+    if(e.repeat)return;
+    if(e.code==='Escape'&&keyCapture.id!=='settings'){cancelKeyCapture();return;}
+    if(e.ctrlKey||e.altKey||e.metaKey){keyStatus='Ctrl·Alt·Meta 조합은 사용할 수 없습니다. 단일 키를 눌러 주세요.';keyStatusTone='warn';redrawKeybindings(keyCapture.id,keyCapture.slot);return;}
+    const {id,slot}=keyCapture,result=keybindings.assign(id,slot,e.code);
+    if(!result.ok){keyStatus=result.error;keyStatusTone='warn';redrawKeybindings(id,slot);return;}
+    finishKeyEdit(result,`${KEY_ACTIONS.find(a=>a.id===id).label}: ${formatKey(e.code)}로 변경했습니다.`,id,slot);return;
   }
-  if(e.key==='Tab'&&modal){
-    const f=[...$('modal').querySelectorAll('button:not(:disabled),input,select')].filter(el=>el.offsetParent);
-    if(f.length){if(e.shiftKey&&document.activeElement===f[0]){e.preventDefault();f.at(-1).focus();}else if(!e.shiftKey&&document.activeElement===f.at(-1)){e.preventDefault();f[0].focus();}}return;
+  if(!$('confirm').classList.contains('hidden')){
+    if(e.code==='Escape'){e.preventDefault();$('confirm-no')?.click();}
+    else if(e.code==='Tab')trapDialogTab(e,$('confirm'));
+    return;
   }
+  if(e.code==='Escape'&&(editable()||modal)){
+    e.preventDefault();if(editable())document.activeElement.blur();else closeModal();return;
+  }
+  if(e.code==='Tab'&&modal){trapDialogTab(e,$('modal'));return;}
   if(editable()||modal||!inGame||!net?.connected)return;
-  const k=e.key.toLowerCase();
-  if([' ','tab','arrowup','arrowdown','arrowleft','arrowright'].includes(k))e.preventDefault();
-  keys.add(k);
+  if(e.ctrlKey||e.altKey||e.metaKey){resetControls();return;}
+  const id=keybindings.actionFor(e.code);
+  if(!id)return;
+  e.preventDefault();keys.add(e.code);
   if(e.repeat)return;
-  if(k==='q')cast('skill1');if(k==='e')cast('skill2');if(k==='r')cast('ultimate');
-  if(k==='shift')cast('dash');if(k==='f')action({type:'interact'});
-  if(k==='1')cast('potion');if(k==='2')cast('mana');
-  if(k==='h')action({type:'return'});
-  if(k==='v')openPanel('stories');
-  if(k==='t'){autoAttack=!autoAttack;notice(autoAttack?'자동 기본 공격 켜짐':'자동 기본 공격 꺼짐');}
-  if(['i','j','m','p','c','b','n','u'].includes(k))openPanel({i:'inventory',j:'journal',m:'map',p:'party',c:'jobs',b:'events',n:'chronicle',u:'stats'}[k]);
-  if(k==='enter'){$('chat').classList.remove('collapsed');$('chat-input').focus();}
-  if(k==='tab'){
+  if(['skill1','skill2','ultimate','dash','potion','mana'].includes(id)){cast(id);return;}
+  if(id==='interact'){action({type:'interact'});return;}
+  if(id==='return'){action({type:'return'});return;}
+  if(id==='autoAttack'){autoAttack=!autoAttack;notice(autoAttack?'자동 기본 공격 켜짐':'자동 기본 공격 꺼짐');return;}
+  if(['inventory','journal','map','party','jobs','events','stories','chronicle','stats','settings'].includes(id)){openPanel(id);return;}
+  if(id==='chat'){$('chat').classList.remove('collapsed');$('chat-input').focus();return;}
+  if(id==='target'){
     const mobs=(state?.mobs||[]).filter(m=>dist(m,state.self)<650).sort((a,b)=>dist(a,state.self)-dist(b,state.self));
     if(mobs.length){const current=mobs.findIndex(m=>m.id===state.self.target);action({type:'target',id:mobs[(current+1)%mobs.length].id});}
   }
 });
-document.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
-window.addEventListener('blur',resetControls);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)resetControls();else sound.start();});
+document.addEventListener('keyup',e=>{
+  keys.delete(e.code);
+  if(capturedKeyUps.delete(e.code)){e.preventDefault();e.stopPropagation();}
+},true);
+document.addEventListener('focusin',()=>{if(editable())resetControls();});
+window.addEventListener('blur',()=>{capturedKeyUps.clear();cancelKeyCapture();resetControls();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){capturedKeyUps.clear();cancelKeyCapture();resetControls();}else sound.start();});
 function resetKnob(){
   const stick=$('joystick'),knob=$('joystick-knob');if(!stick||!knob)return;
   knob.style.transform='translate(0px,0px)';
@@ -606,7 +718,7 @@ $('world').addEventListener('pointerdown',e=>{
   const point=renderer.screenToWorld(e.clientX,e.clientY);
   const mobs=state.mobs.filter(m=>dist(m,point)<(MONSTERS[m.type].boss?60:34)).sort((a,b)=>dist(a,point)-dist(b,point));
   if(mobs.length){action({type:'target',id:mobs[0].id});cast('basic');return;}
-  const interactables=[...(state.soul?[state.soul]:[]),...renderer.map.npcs,...renderer.map.portals,...(renderer.map.relics||[]),...(renderer.map.storyPoints||[]),...state.nodes.filter(x=>x.ready),...renderer.map.chests.filter(x=>!profile.opened.includes(x.id))];
+  const interactables=[...(state.challenge?.markers||[]).filter(m=>['rune','seal','crystal'].includes(m.kind)),...(state.soul?[state.soul]:[]),...renderer.map.npcs,...renderer.map.portals,...(renderer.map.relics||[]),...(renderer.map.storyPoints||[]),...state.nodes.filter(x=>x.ready),...renderer.map.chests.filter(x=>!profile.opened.includes(x.id))];
   const target=interactables.filter(x=>dist(point,x)<40).sort((a,b)=>dist(a,point)-dist(b,point))[0];
   if(target&&dist(state.self,target)<95){action({type:'interact',id:target.id});return;}
   if(target)pendingInteract={...target};
@@ -623,7 +735,7 @@ renderer.onFrame=(dt,t)=>{
   if(t-lastInputAt>50||Math.abs(v.x-lastSentInput.x)+Math.abs(v.y-lastSentInput.y)>.01){
     lastInputAt=t;sendInput(v);
   }
-  const attacking=(keys.has(' ')||keys.has('z')||attackHeld||autoAttack)&&!modal&&net?.connected&&state.self.hp>0;
+  const attacking=(keybindings.isHeld('basic',keys)||attackHeld||autoAttack)&&!modal&&!editable()&&!document.hidden&&net?.connected&&state.self.hp>0;
   if(attacking&&t-lastAttackAt>180&&(state.self.cooldowns.basic||0)<Date.now()+renderer.clock+20){lastAttackAt=t;action({type:'attack',skill:'basic'},{silent:true});}
   if(pendingInteract&&dist(state.self,pendingInteract)<88&&t-lastInteractAt>900){
     lastInteractAt=t;const target=pendingInteract;pendingInteract=null;action({type:'interact',id:target.id});
@@ -638,13 +750,23 @@ renderer.onFrame=(dt,t)=>{
 function updateHUD(){
   if(!profile||!state)return;
   const p=profile,s=state.self,z=ZONES[state.zone],c=CLASSES[p.classId],now=Date.now()+renderer.clock;
+  $('game-ui').classList.toggle('challenge-active',!!state.challenge);
+  if($('challenge-hud')){
+    show('challenge-hud',!!state.challenge);
+    const html=state.challenge?challengeHUD(state.challenge,now,{keyLabel:id=>keybindings.label(id)}):'';
+    if($('challenge-hud').innerHTML!==html){
+      const focused=$('challenge-hud').contains(document.activeElement)?document.activeElement.dataset.act:null;
+      $('challenge-hud').innerHTML=html;
+      if(focused)$('challenge-hud').querySelector(`[data-act="${focused}"]`)?.focus({preventScroll:true});
+    }
+  }
   setText('player-name',p.name);setText('player-class',c.short);setText('player-level',p.level);
   $('hp-fill').style.width=clamp(s.hp/s.maxHp*100,0,100)+'%';$('mp-fill').style.width=clamp(s.mp/s.maxMp*100,0,100)+'%';
   setText('hp-text',`${Math.max(0,s.hp)} / ${s.maxHp}`);setText('mp-text',`${Math.max(0,s.mp)} / ${s.maxMp}`);
   $('xp-fill').style.width=clamp(p.xp/xpRequired(p.level)*100,0,100)+'%';
   $('gold').lastChild?.nodeType===3?$('gold').lastChild.textContent=' '+money(p.gold):$('gold').innerHTML=icon('coin')+' '+money(p.gold);
   setText('zone-name',z.name);setText('zone-subtitle',z.subtitle);
-  setText('zone-hint',state.zone==='town'?'SAFE HAVEN · 안전 지대':`SHARED WORLD · 권장 레벨 ${z.minLevel}+`);
+  setText('zone-hint',state.challenge?'PERSONAL CHALLENGE · 나의 기록에 도전':state.zone==='town'?'SAFE HAVEN · 안전 지대':`SHARED WORLD · 권장 레벨 ${z.minLevel}+`);
   setText('stat-points',freePoints(p)>0?`능력치 +${freePoints(p)}`:'능력치');
   if($('stat-alert'))$('stat-alert').classList.toggle('has-points',freePoints(p)>0);
   if($('soul-status')){
@@ -663,16 +785,21 @@ function updateHUD(){
   let boss=state.mobs.find(m=>m.id===s.target&&MONSTERS[m.type].boss);
   if(!boss)boss=state.mobs.find(m=>MONSTERS[m.type].boss&&dist(m,s)<460);
   show('boss-hud',!!boss);
-  if(boss){setText('boss-name',MONSTERS[boss.type].name);setText('boss-hp',`${Math.round(boss.hp)} / ${Math.round(boss.maxHp)}`);$('boss-fill').style.width=boss.hp/boss.maxHp*100+'%';}
+  if(boss){
+    setText('boss-name',MONSTERS[boss.type].name);setText('boss-hp',`${Math.round(boss.hp)} / ${Math.round(boss.maxHp)}`);$('boss-fill').style.width=boss.hp/boss.maxHp*100+'%';
+    const mechanic=state.bossMechanics?.find(m=>m.bossId===boss.id&&m.active);
+    setText('boss-tactic',mechanic?`${mechanic.title} · ${mechanic.instruction}`:boss.challengeShield?'보호막 · 목표를 해결해 봉인을 해제하세요':'바닥의 경고를 피하고, 틈을 노리세요');
+  }
   const target=state.mobs.find(m=>m.id===s.target);
   show('target-info',!!target&&!MONSTERS[target.type].boss);
-  if(target)setText('target-info',`${MONSTERS[target.type].name} · Lv.${MONSTERS[target.type].level} · ${Math.round(target.hp)} HP`);
+  if(target)setText('target-info',`${target.mechanicObjective?'빙결 핵':MONSTERS[target.type].name} · Lv.${target.level||MONSTERS[target.type].level} · ${Math.round(target.hp)} HP`);
   const interactables=[
+    ...(state.challenge?.markers||[]).filter(m=>['rune','seal','crystal'].includes(m.kind)).map(m=>({...m,label:m.label+' · '+keybindings.primaryLabel('interact')+' 작동'})),
     ...(state.soul?[{...state.soul,label:'내 영혼 흔적 · 손실 회수'}]:[]),
     ...renderer.map.npcs.map(x=>({...x,label:x.name+' · '+x.role})),
     ...renderer.map.portals.map(x=>({...x,label:x.name+' 이동'})),
     ...(renderer.map.relics||[]).map(x=>({...x,label:x.name+' · 문장 읽기'})),
-    ...(renderer.map.storyPoints||[]).map(x=>({...x,label:(x.hidden&&!profile.journey?.discovered?.includes(x.job)?'이름 없는 흔적':x.name)+' · F 대화'})),
+    ...(renderer.map.storyPoints||[]).map(x=>({...x,label:(x.hidden&&!profile.journey?.discovered?.includes(x.job)?'이름 없는 흔적':x.name)+' · '+keybindings.primaryLabel('interact')+' 대화'})),
     ...state.nodes.filter(x=>x.ready).map(x=>({...x,label:ITEMS[x.type].name+' 채집'})),
     ...renderer.map.chests.filter(x=>!p.opened.includes(x.id)).map(x=>({...x,label:'보물 상자 열기'}))
   ].filter(x=>dist(s,x)<95).sort((a,b)=>dist(s,a)-dist(s,b));
@@ -681,7 +808,7 @@ function updateHUD(){
   for(const element of document.querySelectorAll('[data-countdown]'))element.textContent=element.dataset.countdownMode+' '+timeLeft(Number(element.dataset.countdown)-now);
   const activeEvent=eventList.find(e=>e.status==='active'),nextEvent=eventList.filter(e=>e.start>now).sort((a,b)=>a.start-b.start)[0];
   const event=activeEvent||nextEvent;
-  if($('world-status')){$('world-status').textContent=state.fieldTrial?`기억의 시련 ${state.fieldTrial.wave}/3 · 남은 적 ${state.fieldTrial.alive} · ${timeLeft(state.fieldTrial.ends-now)}`:event?`${activeEvent?'출현 중':'다음 월드 보스'} · ${event.name.split(' · ')[0]} · ${timeLeft((activeEvent?event.end:event.start)-now)}  [B]`:'월드 보스 시간표 [B]';}
+  if($('world-status')){$('world-status').textContent=state.fieldTrial?`기억의 시련 ${state.fieldTrial.wave}/3 · 남은 적 ${state.fieldTrial.alive} · ${timeLeft(state.fieldTrial.ends-now)}`:event?`${activeEvent?'출현 중':'다음 월드 보스'} · ${event.name.split(' · ')[0]} · ${timeLeft((activeEvent?event.end:event.start)-now)}  [${keybindings.primaryLabel('events')}]`:`월드 보스 시간표 [${keybindings.primaryLabel('events')}]`;}
   const party=state.party;
   const partySig=party?JSON.stringify(party.members.map(m=>[m.name,m.hp,m.maxHp,m.online])):'';
   if($('party-mini').dataset.sig!==partySig){

@@ -1,4 +1,7 @@
 import {GroundChunks} from './ground-chunks.js';
+import {followCamera} from '../shared/camera.js';
+import {drawChallengeOverlay} from './challenges-ui.js';
+import {drawBossMechanics,drawBossObjective} from './boss-mechanics-ui.js';
 import {nearbyScenery} from '../shared/spatial.js';
 import {EquipmentRenderer,drawBossGear} from './equipment.js';
 import {drawSkillEffect} from './effects.js';
@@ -28,10 +31,15 @@ export class Renderer {
     this.canvas.width=Math.floor(this.w*this.dpr);this.canvas.height=Math.floor(this.h*this.dpr);
     this.canvas.style.width=this.w+'px';this.canvas.style.height=this.h+'px';
     this.zoom=(this.w<700?1.28:this.w<1100?1.4:1.6)*this.zoomSetting;
+    if(this.map&&this.state?.self)this.resetCamera();
+  }
+  resetCamera(){
+    const target=this.motion.position?.zone===this.map.id?this.motion.position:this.state.self;
+    this.camera=followCamera(this.camera,this.map,target,{width:this.w,height:this.h,zoom:this.zoom},0,{snap:true});
   }
   setZone(id){
     this.map=createMap(id);this.positions.clear();this.effects=[];this.damage=[];this.mapCache=null;
-    if(this.state?.self)this.camera={x:this.state.self.x,y:this.state.self.y};
+    if(this.state?.self)this.resetCamera();
     this.ground.clear();this.flash.clear();
   }
   setState(s){
@@ -40,9 +48,9 @@ export class Renderer {
     if(this.lastSnapshotTime){const interval=s.t-this.lastSnapshotTime;if(interval>0&&interval<600)this.snapshotPeriod=this.snapshotPeriod*.8+interval*.2;}
     this.lastSnapshotTime=s.t;this.state=s;if(s.profile)this.profile=s.profile;
     if(this.map?.id!==s.zone)this.setZone(s.zone);
-    const reset=!this.motion.position||this.motion.zone!==s.zone||this.motion.motionId!==(s.self.motionId||0);
+    const reset=!this.motion.position||this.motion.zone!==s.zone||this.motion.motionId!==(s.self.motionId||0)||dist(this.motion.position,s.self)>260;
     this.motion.accept(s.self,s.zone,now,this.map);this.local=this.motion.position;
-    if(reset)this.camera={x:s.self.x,y:s.self.y};
+    if(reset){this.resetCamera();this.pointerMark=null;}
     for(const entity of [...s.players,...s.mobs]){
       const key=(s.players.includes(entity)?'p':'m')+entity.id;
       if(!this.positions.has(key))this.positions.set(key,new SnapshotTrack());
@@ -84,6 +92,39 @@ export class Renderer {
   }
   screenToWorld(x,y){return {x:(x-this.w/2)/this.zoom+this.camera.x,y:(y-this.h/2)/this.zoom+this.camera.y};}
   worldToScreen(x,y){return {x:(x-this.camera.x)*this.zoom+this.w/2,y:(y-this.camera.y)*this.zoom+this.h/2};}
+  drawMapBackdrop(halfX,halfY){
+    const c=this.ctx,m=this.map,left=this.camera.x-halfX,top=this.camera.y-halfY,right=this.camera.x+halfX,bottom=this.camera.y+halfY;
+    if(left>=0&&top>=0&&right<=m.width&&bottom<=m.height)return;
+    const theme=ZONES[m.id].theme;
+    let pattern=this.backgrounds.get(theme);
+    if(!pattern){
+      // A small repeating texture avoids allocating or repainting a map-sized backdrop.
+      const tileCanvas=document.createElement('canvas');tileCanvas.width=tileCanvas.height=TILE*4;
+      const tiles=tileCanvas.getContext('2d');tiles.imageSmoothingEnabled=false;
+      tiles.fillStyle='#263b39';tiles.fillRect(0,0,tileCanvas.width,tileCanvas.height);
+      for(let y=0;y<4;y++)for(let x=0;x<4;x++){
+        const variant=(x*17+y*31+x*y)%8;
+        const tile=this.meta[`tile_${theme}_0_${variant}`]||this.meta[`tile_forest_0_${variant}`];
+        if(tile)tiles.drawImage(this.atlas,tile.x,tile.y,TILE,TILE,x*TILE,y*TILE,TILE,TILE);
+      }
+      pattern=c.createPattern(tileCanvas,'repeat');
+      if(pattern){this.backgrounds.set(theme,pattern);if(this.backgrounds.size>6)this.backgrounds.delete(this.backgrounds.keys().next().value);}
+    }
+    c.save();c.fillStyle=pattern||'#263b39';c.fillRect(left,top,halfX*2,halfY*2);
+    const tint=ZONES[m.id].color||'#9bb8ad';
+    const fog=(x,y,w,h,x1,y1,x2,y2)=>{
+      if(w<=0||h<=0)return;
+      const g=c.createLinearGradient(x1,y1,x2,y2);
+      g.addColorStop(0,tint+'44');g.addColorStop(.3,'#13293477');g.addColorStop(1,'#101c2ac9');
+      c.fillStyle=g;c.fillRect(x,y,w,h);
+    };
+    const fade=160;
+    fog(left,top,Math.max(0,-left),halfY*2,0,0,-fade,0);
+    fog(m.width,top,Math.max(0,right-m.width),halfY*2,m.width,0,m.width+fade,0);
+    fog(Math.max(0,left),top,Math.max(0,Math.min(m.width,right)-Math.max(0,left)),Math.max(0,-top),0,0,0,-fade);
+    fog(Math.max(0,left),m.height,Math.max(0,Math.min(m.width,right)-Math.max(0,left)),Math.max(0,bottom-m.height),0,m.height,0,m.height+fade);
+    c.restore();
+  }
   frame(t){
     if(!this.running)return;
     const dt=Math.min(.05,(t-this.last)/1000);this.last=t;
@@ -98,18 +139,15 @@ export class Renderer {
     this.motion.step(m,this.lastInput,p,dt,t,Date.now()+this.clock);
     this.local=this.motion.position;
     const target=this.local||p;
-    const camEase=1-Math.exp(-10*dt);
-    this.camera.x+=(target.x-this.camera.x)*camEase;
-    this.camera.y+=(target.y-this.camera.y)*camEase;
+    this.camera=followCamera(this.camera,m,target,{width:this.w,height:this.h,zoom:this.zoom},dt);
     const halfX=this.w/this.zoom/2,halfY=this.h/this.zoom/2;
-    this.camera.x=clamp(this.camera.x,Math.min(halfX,m.width/2),Math.max(m.width-halfX,m.width/2));
-    this.camera.y=clamp(this.camera.y,Math.min(halfY,m.height/2),Math.max(m.height-halfY,m.height/2));
     c.setTransform(this.dpr,0,0,this.dpr,0,0);c.imageSmoothingEnabled=false;
     c.fillStyle='#14242c';c.fillRect(0,0,this.w,this.h);
     c.save();
     const shakeX=this.showEffects?(Math.random()-.5)*this.shake:0,shakeY=this.showEffects?(Math.random()-.5)*this.shake:0;
     this.shake*=.85;
     c.translate(this.w/2+shakeX,this.h/2+shakeY);c.scale(this.zoom,this.zoom);c.translate(-this.camera.x,-this.camera.y);
+    this.drawMapBackdrop(halfX,halfY);
     this.ground.draw(c,m,this.camera,halfX,halfY,this.atlas,this.meta,this.lowPower);
     const visibleProps=nearbyScenery(m,this.camera.x-halfX-180,this.camera.y-halfY-180,this.camera.x+halfX+180,this.camera.y+halfY+180);
     for(const [id,expiry]of this.flash)if(expiry<t)this.flash.delete(id);
@@ -132,6 +170,8 @@ export class Renderer {
       this.label(portal.name,portal.x,portal.y-68,color,11);
       this.label(portal.level>1?`Lv.${portal.level}+ · F 이동`:'F 이동',portal.x,portal.y-54,'#bbc5b8',8);
     }
+    drawChallengeOverlay(this,s.challenge,t);
+    drawBossMechanics(this,s.bossMechanics,t);
     for(const cast of s.casts)this.drawCast(cast,t);
     if(s.soul&&inView(s.soul.x,s.soul.y)){
       const soul=s.soul;
@@ -186,6 +226,7 @@ export class Renderer {
     for(const mob of s.mobs)if(inView(mob.x,mob.y)){
       const q=this.interp(mob,'m'+mob.id,dt),def=MONSTERS[mob.type];
       drawables.push({y:q.y,draw:()=>{
+        if(drawBossObjective(this,mob,q,t))return;
         this.shadow(q.x,q.y,def.boss?38:15);
         if(p.target===mob.id){c.strokeStyle='#e7c786';c.lineWidth=1.5;c.beginPath();c.ellipse(q.x,q.y+2,def.boss?43:22,def.boss?17:9,0,0,Math.PI*2);c.stroke();}
         let humanoid=['skeleton','ash_knight'].includes(def.skin||mob.type);

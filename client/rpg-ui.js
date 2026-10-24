@@ -1,5 +1,5 @@
 import {getStats,ITEMS,RARITIES,ZONES} from '../shared/content.js';
-import {ATTRIBUTES,ATTRIBUTE_KEYS,freePoints,statBudget,spentPoints,resetPrice,enhancementSpec,enhancementBonus} from '../shared/rpg.js';
+import {ATTRIBUTES,ATTRIBUTE_KEYS,MAX_ATTRIBUTE,freePoints,statBudget,spentPoints,resetPrice,enhancementSpec,enhancementBonus} from '../shared/rpg.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=n=>Math.round(n||0).toLocaleString('ko-KR');
 export function rpgPanel(name,{profile:p,draft={},data,now=Date.now()}){
@@ -11,7 +11,7 @@ export function rpgPanel(name,{profile:p,draft={},data,now=Date.now()}){
    <div class="attribute-intro"><div><span class="eyebrow">CHOOSE YOUR STRENGTH</span><h3>남은 포인트 <strong>${remaining}</strong></h3><p>레벨이 오를 때마다 4포인트. 전직해도 배분은 유지됩니다.<br>직업마다 힘·민첩·지능의 공격력 반영 비율이 다릅니다.</p></div><button class="btn small" data-act="resetStats">초기화 · ${price===0?'첫 회 무료':fmt(price)+' G'}</button></div>
    <div class="attribute-layout"><div class="attribute-list">${ATTRIBUTE_KEYS.map(k=>{
     const a=ATTRIBUTES[k],value=p.attributes[k]||0,add=draft[k]||0;
-    return `<div class="attribute-row"><div><h3>${a.name} <small>${a.short}</small></h3><p>${a.desc}</p></div><div class="stat-stepper"><button class="btn small" data-act="statMinus" data-id="${k}" ${add?'':'disabled'} aria-label="${a.name} 미확정 포인트 빼기">−</button><strong>${value}${add?`<em> +${add}</em>`:''}</strong><button class="btn small" data-act="statPlus" data-id="${k}" ${remaining>0&&value+add<100?'':'disabled'} aria-label="${a.name} 포인트 더하기">+</button></div></div>`;
+    return `<div class="attribute-row"><div><h3>${a.name} <small>${a.short}</small></h3><p>${a.desc}</p></div><div class="stat-stepper"><button class="btn small" data-act="statMinus" data-id="${k}" ${add?'':'disabled'} aria-label="${a.name} 미확정 포인트 빼기">−</button><strong>${value}${add?`<em> +${add}</em>`:''}</strong><button class="btn small" data-act="statPlus" data-id="${k}" ${remaining>0&&value+add<MAX_ATTRIBUTE?'':'disabled'} aria-label="${a.name} 포인트 더하기">+</button></div></div>`;
    }).join('')}</div><aside class="stat-preview"><span class="eyebrow">BEFORE → AFTER</span>${[['atk','공격력'],['def','방어력'],['maxHp','최대 체력'],['maxMp','최대 마나'],['speed','이동 속도'],['crit','치명타 %'],['manaRegen','마나 회복/초']].map(([key,label])=>`<div><span>${label}</span><b>${Number(current[key].toFixed(2))} <i>→</i> <em>${Number(preview[key].toFixed(2))}</em></b></div>`).join('')}<small>치명타 상한 45% · 이동속도 상한 225<br>쇠약 효과가 남았다면 미리보기에도 반영됩니다.</small></aside></div>
    <div class="settings-actions"><button class="btn primary" data-act="applyStats" ${Object.values(draft).some(n=>n>0)?'':'disabled'}>배분 확정</button><button class="btn" data-act="cancelStats">다시 배분</button></div>
    <div class="info-box">확정 전에는 실제 능력치가 바뀌지 않습니다. 초기화는 마을에서만 가능하며 첫 회 무료, 이후 500 G입니다. 배분·초기화로 체력과 마나가 공짜로 회복되지는 않습니다.</div>
