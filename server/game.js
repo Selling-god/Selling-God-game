@@ -14,6 +14,8 @@ import {prepareChallenges} from '../shared/challenges.js';
 import {prepareDungeons} from '../shared/dungeons.js';
 import {prepareRealms} from '../shared/realms.js';
 import {combatExperience} from '../shared/rpg.js';
+import {syncProgressTitles} from '../shared/title-catalog.js';
+import {extraDropsForLevel} from '../shared/extra-items.js';
 import {ACHIEVEMENTS} from '../shared/expansion.js';
 import { randomUUID } from 'node:crypto';
 import { CLASSES, ITEMS, MONSTERS, QUESTS, ZONES, NPCS, RECIPES, SHOP, TILE, MAX_LEVEL, xpRequired, getStats, weaponFor } from '../shared/content.js';
@@ -38,6 +40,7 @@ export function hydrate(state){
   prepareProgression(p);prepareStories(p);prepareAtlas(p);prepareChallenges(p,{recover:true});prepareDungeons(p,{recover:true});prepareRealms(p,{recover:true});
   p.titles=[...(p.titles||['별빛을 따라온 자'])];p.level=clamp(p.level||1,1,MAX_LEVEL);
   prepareRPG(p);
+  syncProgressTitles(p); // Restore milestones silently when an existing save is loaded.
   if(!ZONES[p.zone])p.zone='town';
   if(!(p.hp>0)){p.zone='town';p.x=24*TILE+16;p.y=21*TILE+16;}
   const map=createMap(p.zone);
@@ -105,7 +108,7 @@ export class Game {
   addPlayer(state){
     const p=hydrate(state);this.players.set(p.id,p);evaluateJobs(this,p,false);return p;
   }
-  mark(p){p.revision=(p.revision||0)+1;p.dirty=true;}
+  mark(p){syncProgressTitles(p);p.revision=(p.revision||0)+1;p.dirty=true;}
   toast(p,message,tone='info'){this.send(p.id,'notice',{message,tone});}
   fx(zone,data){
     if(ZONES[zone]?.dungeon){this.dungeons.fx({...data,t:this.now});return;}
@@ -325,11 +328,17 @@ export class Game {
         const reward=spec.gearTier?weaponFor(spec.gearTier,p.classId):spec.level>=9?weaponFor('star',p.classId):spec.level>=5?'leather':(this.random()>.5?'ore':'potion');
         this.addItem(p,reward);drops.push({id:reward,count:1});
       }
+      // Optional forge pieces/materials: obtainable through regular play, not catalogue-only.
+      const family=CLASSES[p.classId]?.family||p.classId;
+      for(const drop of extraDropsForLevel(spec.level,()=>this.random(),{boss:!!spec.boss,classId:family})){
+        this.addItem(p,drop.id,drop.count);drops.push(drop);
+      }
       this.send(p.id,'loot',{gold,xp:earnedXP,items:drops,boss:!!spec.boss,name:spec.name});
       this.mark(p);
     }
     this.fx(zone,{type:'death',id:m.id,monster:m.type,x:m.x,y:m.y,boss:!!spec.boss});
-    if(spec.boss)this.broadcast(null,'system',{message:`${spec.name}의 속박이 풀렸습니다. 참여한 모험가 모두에게 전리품이 지급되었습니다.`});
+    if(m.worldKey)this.broadcast(null,'worldNotice',{message:`월드 보스 ${spec.name} 토벌! 기여한 모험가에게 전리품이 지급되었습니다.`});
+    // Ordinary boss kills stay in the local reward feed, not global chat.
     m.contributors.clear();
   }
   damagePlayer(p,amount){
@@ -591,7 +600,7 @@ export class Game {
         if(now-p.lastCombat>6000)p.hp=Math.min(s.maxHp,p.hp+(p.zone==='town'?s.maxHp*.08:2));
         p.mp=Math.min(s.maxMp,p.mp+s.manaRegen+(p.zone==='town'?4:0));
         p.playSeconds=(p.playSeconds||0)+1;
-        if(before!==p.hp+p.mp)this.mark(p);
+        if(before!==p.hp+p.mp||p.playSeconds%60===0)this.mark(p);
       }
     }
     this.challenges.tick(dt);

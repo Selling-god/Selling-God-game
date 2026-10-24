@@ -73,7 +73,8 @@ export function rpgAction(game,p,a){
   const success=game.random()<quote.rate;
   if(success){p.enhancements[a.id]=lv+1;p.enhancePity[a.id]=0;}
   else p.enhancePity[a.id]=(p.enhancePity[a.id]||0)+1;
-  const result={id:a.id,name:item.name,success,level:success?lv+1:lv,rate:quote.rate,nextRate:enhancementSpec(success?lv+1:lv,p.enhancePity[a.id]).rate};
+  const result={id:a.id,name:item.name,success,level:success?lv+1:lv,previousLevel:lv,rate:quote.rate,
+    nextRate:enhancementSpec(success?lv+1:lv,p.enhancePity[a.id]).rate};
   game.mark(p);game.send(p.id,'enhanceResult',result);
   game.fx(p.zone,{type:'forge',id:p.id,x:p.x,y:p.y,success,level:result.level});
   return {ok:true,...result,tone:success?'success':'warn',
