@@ -28,6 +28,6 @@ export function enhancementRows(p,icon){
   const item=ITEMS[id],lv=p.enhancements[id]||0,q=enhancementSpec(lv,p.enhancePity[id]||0),bonus=enhancementBonus(item.slot,lv);
   const affordable=!q.max&&p.gold>=q.gold&&Object.entries(q.cost).every(([k,n])=>(p.inventory[k]||0)>=n);
   return `<div class="recipe enhance-row">${icon(item.icon)}<div class="recipe-body"><h3 style="color:${RARITIES[item.rarity].color}">${esc(item.name)} <span class="enhance-level">+${lv}</span></h3><p>${Object.entries(bonus).map(([k,v])=>`${{atk:'공격력',def:'방어력',hp:'체력',mp:'마나'}[k]} +${v}`).join(' · ')}</p>
-   ${q.max?'<span class="badge good">최대 강화</span>':`<div class="enhance-chance"><b>성공률 ${Math.round(q.rate*100)}%</b><small>${q.pity?'실패 보정 '+q.pity+'회':'기본 확률'}</small></div><p>${fmt(q.gold)} G · ${Object.entries(q.cost).map(([k,n])=>`${esc(ITEMS[k].name)} ${p.inventory[k]||0}/${n}`).join(' · ')}</p>`}</div><button class="btn small primary" data-act="forgeStart" data-id="${id}" ${affordable?'':'disabled'}>${q.max?'완성':`+${q.next} 시도`}</button></div>`;
+   ${q.max?'<span class="badge good">최대 강화</span>':`<div class="enhance-chance"><b>성공률 ${Math.round(q.rate*100)}%</b><small>${q.pity?'실패 보정 '+q.pity+'회':'기본 확률'}</small></div><p>${fmt(q.gold)} G · ${Object.entries(q.cost).map(([k,n])=>`${esc(ITEMS[k].name)} ${p.inventory[k]||0}/${n}`).join(' · ')}</p>`}</div><button class="btn small primary" data-act="enhance" data-id="${id}" ${affordable?'':'disabled'}>${q.max?'완성':`+${q.next} 시도`}</button></div>`;
  }).join('');
 }

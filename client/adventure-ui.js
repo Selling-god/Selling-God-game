@@ -101,8 +101,8 @@ export function adventurePanel(name,{profile:p,tab,data,state,now=Date.now(),key
    html+=`<div class="settings-actions">${btn('귀환석 지도 열기','openAtlas')}${btn('별여울로 이동','waypoint','town')}</div>`;
   }else if(d.kind==='trial'){
    const trial=state?.zone===d.zone?state.fieldTrial:d.trial;
-   html+=`<div class="trial-rules"><h3>세 단계 협동 봉인 시련</h3><p>1관문: 적 6마리 처치 후 두 등불을 27초 안에 순서대로 작동<br>2관문: 적 8마리와 회전 지형 공격을 피하고 세 문양을 31초 안에 해독<br>3관문: 파수꾼의 보호막을 3회 파괴(체력 67%·33% 재봉인). 각 봉인을 24초 안에 해결해야 합니다.<br>제한 시간 6분 · 여러 사람이 함께 전투하고 장치를 작동할 수 있습니다.</p><p>${rewardText(expeditionRewards(z,'trial'))} · 명성 +2</p><p>이 제단의 물품 보상은 하루 한 번입니다. 재도전으로 직업 수련은 계속할 수 있습니다.</p></div>`;
-   html+=trial?`<div class="info-box">진행 ${trial.wave}/3 · 남은 적 ${trial.alive} · 남은 시간 ${timeLeft(trial.ends-now)}<br>${esc(trial.hint||'')}<br>${trial.ritual?`장치 ${trial.ritual.step}/${trial.ritual.total} · ${btn('가까운 봉인 작동','trialInteract')}`:''}</div>`:`${btn(a.trialClaims[d.zone]===day?'수련을 위해 다시 도전':'기억의 시련 시작','trialStart')}`;
+   html+=`<div class="trial-rules"><h3>세 번의 기억</h3><p>첫 기억 6마리 → 두 번째 기억 8마리 → 마지막 파수꾼<br>제한 시간 6분 · 동료와 함께 도전 · 죽거나 지역을 떠나지 않고 직접 전투에 기여해야 완료됩니다.</p><p>${rewardText(expeditionRewards(z,'trial'))} · 명성 +2</p><p>이 제단의 물품 보상은 하루 한 번입니다. 재도전으로 직업 수련은 계속할 수 있습니다.</p></div>`;
+   html+=trial?`<div class="info-box">진행 ${trial.wave}/3 · 남은 적 ${trial.alive} · 남은 시간 ${timeLeft(trial.ends-now)}</div>`:`${btn(a.trialClaims[d.zone]===day?'수련을 위해 다시 도전':'기억의 시련 시작','trialStart')}`;
   }else html+=`<p class="small muted">처음 읽은 기록은 탐험 수첩에 남고 경험치와 길손의 증표를 줍니다. 이미 읽은 기록도 현재 이야기의 목표라면 다시 읽을 수 있습니다.</p>`;
   return {title:d.name,eyebrow:'A STORY WAITING AT THE EDGE',html:html+`<div class="settings-actions">${btn('계속 탐험','close')}${btn('내 전직 이야기','openStories')}</div>`};
  }

@@ -1,7 +1,6 @@
 import {GroundChunks} from './ground-chunks.js';
 import {followCamera} from '../shared/camera.js';
 import {drawChallengeOverlay} from './challenges-ui.js';
-import {drawFieldTrialMarkers} from './field-trial-ui.js';
 import {drawBossMechanics,drawBossObjective} from './boss-mechanics-ui.js';
 import {drawDungeonOverlay} from './dungeons-ui.js';
 import {drawRealmOverlay} from './realms-ui.js';
@@ -13,7 +12,6 @@ import {EquipmentRenderer,drawBossGear} from './equipment.js';
 import {drawSkillEffect,effectLifetime} from './effects.js';
 import {drawPixelTelegraph,clearPixelFX} from './pixel-effects.js';
 import { LocalMotion, SnapshotTrack } from './motion.js';
-import {drawVanityBack,drawVanityBody,drawVanityName,drawVanityEntrance,customPortraitURL} from './vanity-render.js';
 import { createMap, moveEntity, clamp, dist, seeded } from '../shared/world.js';
 import { TILE, ZONES, MONSTERS, CLASSES, NPCS } from '../shared/content.js';
 
@@ -66,7 +64,7 @@ export class Renderer {
     const visible=new Set([...s.players.map(p=>'p'+p.id),...s.mobs.map(m=>'m'+m.id)]);
     for(const key of this.positions.keys())if(!visible.has(key))this.positions.delete(key);
   }
-  avatarURL(p){return customPortraitURL(p.vanity?.avatarPixels)||this.gear.portrait(this.atlas,this.meta,p);}
+  avatarURL(p){return this.gear.portrait(this.atlas,this.meta,p);}
   stopMotion(){this.motion.stop();}
   clickMove(point){this.motion.click(this.map,point);}
   predictDash(){if(this.state)this.motion.dash(this.lastInput,performance.now(),this.state.self.dir);}
@@ -194,7 +192,6 @@ export class Renderer {
       this.label(portal.level>1?`Lv.${portal.level}+ · F 이동`:'F 이동',portal.x,portal.y-54,'#bbc5b8',8);
     }
     drawChallengeOverlay(this,s.challenge,t);
-    drawFieldTrialMarkers(this,s.fieldTrial,t);
     drawDungeonOverlay(this,s,t,'ground');
     drawRealmOverlay(this,s.realm,t,'ground');
     drawBossMechanics(this,s.bossMechanics,t,'ground');
@@ -283,16 +280,11 @@ export class Renderer {
         let direction=other.dir||'s';
         if(self&&Math.hypot(this.lastInput.x,this.lastInput.y)>.1){const v=this.lastInput;direction=Math.abs(v.x)>Math.abs(v.y)?(v.x>0?'e':'w'):(v.y>0?'s':'n');}
         const frame=other.attacking?Math.floor(t/80)%4:moving?Math.floor(t/130)%4:Math.floor(t/800)%2*2;
-        if(!other.dead)drawVanityBack(this,other,q.x,q.y,t);
         if(other.dead){c.save();c.translate(q.x,q.y);c.rotate(-Math.PI/2);this.gear.draw(this,other,0,0,'s',0,.6,t);c.restore();}
-        else if(!other.vanity?.avatarPixels)this.gear.draw(this,other,q.x,q.y,direction,frame,this.flash.get(other.id)>t?.55:1,t);
-        if(!other.dead)drawVanityBody(this,other,q.x,q.y,t);
+        else this.gear.draw(this,other,q.x,q.y,direction,frame,this.flash.get(other.id)>t?.55:1,t);
         if(other.shield){c.strokeStyle='#b8d8df99';c.lineWidth=1.5;c.beginPath();c.ellipse(q.x,q.y-25,23,35,0,0,Math.PI*2);c.stroke();}
-        drawVanityName(this,other,q.x,q.y,self,other.partyId&&other.partyId===p.partyId);
-        drawVanityEntrance(this,other,q.x,q.y,Date.now()+this.clock);
-        const withNameplate=!!other.vanity?.slots?.nametag;
-        if(other.title)this.label(other.title,q.x,q.y-(withNameplate?99:80),'#eddbb9',8);
-        if(!self)this.label(`Lv.${other.level}`,q.x,q.y-(withNameplate?113:94),'#b6c8c2',8);
+        this.label(other.name,q.x,q.y-62,self?'#f2dbab':other.partyId&&other.partyId===p.partyId?'#b2dfba':'#c2d6da',10);
+        if(!self)this.label(`Lv.${other.level}`,q.x,q.y-75,'#b6c8c2',8);
         if(!self&&other.hp<other.maxHp){
           c.fillStyle='#16282c';c.fillRect(q.x-18,q.y-53,36,3);c.fillStyle='#91bd97';c.fillRect(q.x-18,q.y-53,36*other.hp/other.maxHp,3);
         }
