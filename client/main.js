@@ -9,11 +9,13 @@ import { CLASSES, ITEMS, RARITIES, MONSTERS, QUESTS, ZONES, NPCS, RECIPES, SHOP,
 import { dist, clamp } from '../shared/world.js';
 import { KEY_ACTIONS, createKeybindings, formatKey } from './keybindings.js';
 import { challengesPanel, challengeHUD } from './challenges-ui.js';
+import {fieldTrialHUD} from './field-trial-ui.js';
 import { dungeonsPanel, dungeonHUD } from './dungeons-ui.js';
 import { realmsPanel, realmHUD } from './realms-ui.js';
 import {encounterDescription} from './encounters-ui.js';
 import {creatureHitTest} from './creatures.js';
 import {vanityPanel} from './vanity-ui.js';
+import {renderVanityPreviews} from './vanity-render.js';
 import {pixelateAvatar,portraitCanvas} from './portrait-pixels.js';
 import {forgePanel} from './forge-ui.js';
 
@@ -30,6 +32,7 @@ let keys=new Set(),joystick={x:0,y:0},attackHeld=false,autoAttack=false,lastInpu
 let pendingInteract=null,lastInteractAt=0,lastErrorAt=0,wasOnline=false,lastProfileSignature='',lastModalSignature='';
 let busy=new Set(),settings={sfx:true,music:false,effects:true,zoom:1,lowPower:false,shake:false},mutedPlayers=new Set();
 let statDraft={},lastPortraitKey='',draftPortrait=null,forgeSession=null;
+let vanityPage=0,vanitySearch='',vanityOwnedOnly=false;
 let jobBookData=null,eventList=[],lastSentInput={x:0,y:0},inputSeq=0;
 let accountMode='login',lastFocused=null,firstConnection=true,uiRefreshNeeded=false,lastStateAt=0;
 const keybindings=createKeybindings(),capturedKeyUps=new Set();
@@ -205,7 +208,7 @@ async function connectGame(){
       openPanel('realms',data);
     });
     net.on('worldNotice',data=>{addChat({channel:'system',text:data.message});notice(data.message,'info',8500);});
-    net.on('dialog',e=>{const npc=NPCS.find(n=>n.id===e.npc);if(npc)openPanel(npc.kind==='quest'?'npcQuest':npc.kind==='shop'?'shop':npc.kind==='craft'?'craft':npc.kind==='jobs'?'jobs':'healer');});
+    net.on('dialog',e=>{const npc=NPCS.find(n=>n.id===e.npc);if(npc)openPanel(npc.kind==='quest'?'npcQuest':npc.kind==='shop'?'shop':npc.kind==='craft'?'craft':npc.kind==='atelier'?'appearance':npc.kind==='jobs'?'jobs':'healer');});
     net.on('chat',msg=>{if(!mutedPlayers.has(msg.playerId))addChat(msg);});
     net.on('system',e=>addChat({channel:'system',text:e.message}));
     net.on('saved',e=>{setText('save-state',e.local?'개발 저장 완료':'서버 저장 완료');$('save-state').style.color='#a6c49a';});
@@ -326,6 +329,7 @@ function openPanel(name,data){
   if(name==='keybindings'){keyStatus='';keyStatusTone='';}
   resetControls();sound.play('click');lastFocused=document.activeElement;
   modal=name;modalTab=name==='craft'?'recipes':name==='jobs'?'common':name==='appearance'?'costume':'all';selectedItem=null;
+  if(name==='appearance'){vanityPage=0;vanitySearch='';vanityOwnedOnly=false;}
   if(name==='appearance')draftPortrait=null;
   if(name==='stats')statDraft={};
   window._modalData=data;show('modal');renderPanel();if(name==='jobs')action({type:'jobs'});
@@ -375,7 +379,7 @@ function renderPanel(){
   const rpg=profile&&rpgPanel(modal,{profile,draft:statDraft,data,now:Date.now()+renderer.clock});
   const keyLabel=id=>keybindings.label(id);
   const adventure=profile&&adventurePanel(modal,{profile,tab:modalTab,data,state,now:Date.now()+renderer.clock,keyLabel});
-  const extra=(profile&&modal==='appearance'&&vanityPanel(profile,modalTab))||(profile&&modal==='forge'&&forgePanel(profile,forgeSession))||(profile&&modal==='dungeons'&&dungeonsPanel({profile,state,now:Date.now()+renderer.clock,keyLabel}))
+  const extra=(profile&&modal==='appearance'&&vanityPanel(profile,modalTab,{page:vanityPage,search:vanitySearch,ownedOnly:vanityOwnedOnly}))||(profile&&modal==='forge'&&forgePanel(profile,forgeSession))||(profile&&modal==='dungeons'&&dungeonsPanel({profile,state,now:Date.now()+renderer.clock,keyLabel}))
     ||(profile&&modal==='realms'&&realmsPanel({profile,state,now:Date.now()+renderer.clock,keyLabel,tab:modalTab,data}))
     ||(profile&&modal==='challenges'&&challengesPanel({profile,state,now:Date.now()+renderer.clock,keyLabel}))||adventure||rpg||(profile&&expansionPanel(modal,{profile,tab:modalTab,book:jobBookData,events:eventList,now:Date.now()+renderer.clock,data,keyLabel}));
   if(extra){({title,eyebrow,html}=extra);}
@@ -401,7 +405,7 @@ function renderPanel(){
     html=`<div class="tabs">${[['all','진행 중'],['completed','완료한 의뢰'],['story','전체 이야기']].map(([id,name])=>`<button class="tab ${modalTab===id?'active':''}" data-act="tab" data-id="${id}">${name}</button>`).join('')}</div><div class="card-list">${questCards()}</div>`;
   }else if(modal==='shop'){
     title='모라의 여행 상점';eyebrow=`SUPPLIES FOR THE ROAD · ${money(p.gold)} G`;
-    html=npcIntro('mora')+`<div class="info-box">✨ 아우라·날개·코스튬·이름표·등장 연출은 <button class="btn small" data-act="openAppearance">외형 공방 열기</button>에서 구매할 수 있습니다. 이름 변경권과 초상화 변환권은 이곳에서 구매하세요.</div><div class="tabs"><button class="tab ${modalTab!=='sell'?'active':''}" data-act="tab" data-id="buy">구매</button><button class="tab ${modalTab==='sell'?'active':''}" data-act="tab" data-id="sell">판매</button></div>`;
+    html=npcIntro('mora')+`<div class="info-box">✨ 마을의 루미에게 말을 걸거나 화면 하단 <button class="btn small" data-act="openAppearance">공방 버튼</button>으로 외형을 구입·착용할 수 있습니다. 공방 안에서 닉네임 변경권과 이미지 변환권도 구매할 수 있습니다.</div><div class="tabs"><button class="tab ${modalTab!=='sell'?'active':''}" data-act="tab" data-id="buy">구매</button><button class="tab ${modalTab==='sell'?'active':''}" data-act="tab" data-id="sell">판매</button></div>`;
     if(modalTab==='sell'){
       html+=`<p class="small muted">장착 중이거나 강화한 장비는 판매가 제한됩니다. 아래 버튼은 한 번에 1개를 판매합니다.</p>`;
       html+=Object.entries(p.inventory).filter(([id,n])=>n>0&&ITEMS[id]).map(([id,n])=>{
@@ -453,7 +457,7 @@ function renderPanel(){
       <div class="settings-row"><label>자동 기본 공격<small>가까운 적에게 기본 공격을 반복합니다. 이동은 직접 조작합니다.</small></label><button class="btn small" data-act="auto">${autoAttack?'끄기':'켜기'}</button></div>
       <div class="settings-row"><label>키 설정<small>이동·공격·기술·메뉴의 주 키와 보조 키를 변경합니다.</small></label><button class="btn small primary" data-act="keybindings">키 설정 열기</button></div>
       <div class="settings-row"><label>칭호<small>다른 모험가에게 표시되는 이름</small></label><select id="title-select">${p.titles.map(t=>`<option ${t===p.title?'selected':''}>${esc(t)}</option>`).join('')}</select></div>
-      <div class="settings-actions"><button class="btn small primary" data-act="openAppearance">✨ 외형·꾸미기 공방</button><button class="btn small primary" data-act="save">지금 저장</button><button class="btn small" data-act="guide">조작 도움말</button><button class="btn small" data-act="account">계정 연결</button><button class="btn small" data-act="copyLink">주소 복사</button><button class="btn small danger" data-act="logout">나가기</button></div>
+      <div class="settings-actions"><button class="btn small primary" data-act="openAppearance">✨ 외형 공방 바로 가기</button><button class="btn small primary" data-act="save">지금 저장</button><button class="btn small" data-act="guide">조작 도움말</button><button class="btn small" data-act="account">계정 연결</button><button class="btn small" data-act="copyLink">주소 복사</button><button class="btn small danger" data-act="logout">나가기</button></div>
       <p class="small muted" style="margin:20px 0 0">v2.0.0 · ${config.devGuest?'로컬 개발 저장소':'Supabase 영구 저장'} · ${money(p.kills)}마리 처치 · 보스 ${p.bossKills}회<br>저장은 30초마다, 주요 거래 후와 접속 종료 시 시도합니다.</p>`;
   }else if(modal==='guide'){
     title='첫 모험을 위한 작은 안내';eyebrow='HOW TO FIND YOUR WAY';
@@ -494,7 +498,7 @@ function renderPanel(){
     $('modal-content').querySelectorAll('details').forEach((d,i)=>{if(expanded[i]!==undefined)d.open=expanded[i];});
     if(focused?.act)[...$('modal-content').querySelectorAll('[data-act]')].find(b=>b.dataset.act===focused.act&&b.dataset.id===focused.id)?.focus({preventScroll:true});
   }else{$('modal-content').innerHTML=html;lastModalSignature='';}
-  if(modal==='appearance')refreshPortraitPreview();
+  if(modal==='appearance'){refreshPortraitPreview();renderVanityPreviews($('modal-content'));}
   if(modal==='map')requestAnimationFrame(()=>{$('large-map')&&renderer.minimap($('large-map'),true);});
   attachForms();
 }
@@ -546,6 +550,8 @@ function attachForms(){
   for(const key of ['sfx','music','effects','lowPower','shake'])$('setting-'+key)?.addEventListener('change',e=>{settings[key]=e.target.checked;sound.start();applySettings();});
   $('setting-zoom')?.addEventListener('input',e=>{settings.zoom=Number(e.target.value);applySettings();});
   $('title-select')?.addEventListener('change',e=>action({type:'title',title:e.target.value}));
+  $('vanity-search-input')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('modal-content').querySelector('[data-act="vanitySearch"]')?.click();}});
+  $('vanity-owned-only')?.addEventListener('change',()=>{$('modal-content').querySelector('[data-act="vanitySearch"]')?.click();});
   $('portrait-file')?.addEventListener('change',async e=>{
     const f=e.target.files?.[0];if(!f)return;
     const preview=$('pixel-preview');if(preview)preview.textContent='이미지를 도트로 변환하는 중…';
@@ -557,10 +563,24 @@ document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-act]');if(!b||b.disabled)return;
   const type=b.dataset.act,id=b.dataset.id;
   if(type==='openAppearance'){openPanel('appearance');return;}
-  if(type==='openShop'){notice('마을의 여행 상인 모라에게 다가가 F로 말을 걸면 변경권과 변환권을 구매할 수 있습니다.');return;}
+  if(type==='openShop'){openPanel('shop');notice('일반 물품은 모라 근처에서 구매할 수 있습니다. 공방 이용권은 공방 화면에서 어디서나 살 수 있습니다.');return;}
+  if(type==='vanityPage'){vanityPage=Math.max(0,Number(id)||0);renderPanel();return;}
+  if(type==='vanitySearch'){vanitySearch=$('vanity-search-input')?.value?.trim()||'';vanityOwnedOnly=!!$('vanity-owned-only')?.checked;vanityPage=0;renderPanel();return;}
   if(type==='cosmeticBuy'||type==='cosmeticEquip'){
     b.disabled=true;
-    await action({type, id:type==='cosmeticEquip'?(id||null):id, slot:b.dataset.slot});
+    const result=await action({type, id:type==='cosmeticEquip'?(id||null):id, slot:b.dataset.slot});
+    if(result.ok&&profile?.vanity){
+      if(type==='cosmeticBuy'&&result.owned&&!profile.vanity.owned.includes(result.owned))profile.vanity.owned.push(result.owned);
+      if(type==='cosmeticBuy'&&result.slot)profile.vanity.slots[result.slot]=result.owned;
+      if(type==='cosmeticEquip'&&result.slot)profile.vanity.slots[result.slot]=result.equipped;
+      if(Number.isFinite(result.gold))profile.gold=result.gold;
+      renderPanel();
+    }
+    if(b.isConnected)b.disabled=false;uiRefreshNeeded=true;return;
+  }
+  if(type==='studioTicketBuy'){
+    b.disabled=true;const result=await action({type,id});
+    if(result.ok&&profile){profile.gold=result.gold;Object.assign(profile.inventory,result.inventory||{});renderPanel();}
     if(b.isConnected)b.disabled=false;uiRefreshNeeded=true;return;
   }
   if(type==='avatarApply'){
@@ -625,7 +645,7 @@ document.addEventListener('click',async e=>{
   }
   if(type==='honorFilter'){changeHonorView({filter:id});renderPanel();return;}
   if(type==='honorPage'){changeHonorView({page:Math.floor(Number(id))});renderPanel();return;}
-  if(type==='tab'){modalTab=id;renderPanel();return;}
+  if(type==='tab'){modalTab=id;if(modal==='appearance')vanityPage=0;renderPanel();return;}
   if(type==='selectItem'){if(id){selectedItem=id;if(modalTab!=='all')modalTab='all';renderPanel();}return;}
   if(type==='close'){closeModal();return;}
   if(type==='reload'){location.reload();return;}
@@ -659,7 +679,7 @@ document.addEventListener('click',async e=>{
     const result=await action({type,id,tier:Number(b.dataset.tier||0),checkpoint:['true','1'].includes(b.dataset.checkpoint)});
     if(b.isConnected)b.disabled=false;if(result.ok)closeModal();return;
   }
-  if(['challengeExit','challengeInteract','challengeShop','challengeWard'].includes(type)){
+  if(['challengeExit','challengeInteract','challengeShop','challengeWard','challengeBuild','trialInteract'].includes(type)){
     b.disabled=true;const result=await action({type,id});
     if(b.isConnected)b.disabled=false;
     if(result.ok&&type==='challengeExit')closeModal();uiRefreshNeeded=true;return;
@@ -923,7 +943,8 @@ function updateHUD(){
     $('target-info').title=info?.hint||'';
   }
   const interactables=[
-    ...(state.challenge?.markers||[]).filter(m=>['rune','seal','crystal'].includes(m.kind)).map(m=>({...m,label:m.label+' · '+keybindings.primaryLabel('interact')+' 작동'})),
+    ...(state.fieldTrial?.markers||[]).map(m=>({...m,label:m.label+' · '+keybindings.primaryLabel('interact')+' 봉인 해제'})),
+    ...(state.challenge?.markers||[]).filter(m=>['rune','seal','crystal','tower_gate','anchor','beacon','turret'].includes(m.kind)).map(m=>({...m,label:m.label+' · '+keybindings.primaryLabel('interact')+' 작동'})),
     ...(state.dungeon?.markers||[]).filter(m=>['pillar','rune','conduit','revive'].includes(m.kind)).map(m=>({...m,label:m.label+' · '+keybindings.primaryLabel('interact')+' 작동'})),
     ...(state.soul?[{...state.soul,label:'내 영혼 흔적 · 손실 회수'}]:[]),
     ...renderer.map.npcs.map(x=>({...x,label:x.name+' · '+x.role})),
@@ -936,6 +957,11 @@ function updateHUD(){
   show('interact-hint',!!interactables.length&&!modal&&s.hp>0);
   if(interactables.length)$('interact-hint').querySelector('span').textContent=interactables[0].label;
   for(const element of document.querySelectorAll('[data-countdown]'))element.textContent=element.dataset.countdownMode+' '+timeLeft(Number(element.dataset.countdown)-now);
+  show('field-trial-hud',!!state.fieldTrial);
+  if(state.fieldTrial){
+    const view=fieldTrialHUD(state.fieldTrial,now,keybindings.primaryLabel('interact'));
+    if($('field-trial-hud').innerHTML!==view)$('field-trial-hud').innerHTML=view;
+  }
   const activeEvent=eventList.find(e=>e.status==='active'),nextEvent=eventList.filter(e=>e.start>now).sort((a,b)=>a.start-b.start)[0];
   const event=activeEvent||nextEvent;
   if($('world-status')){$('world-status').textContent=state.fieldTrial?`기억의 시련 ${state.fieldTrial.wave}/3 · 남은 적 ${state.fieldTrial.alive} · ${timeLeft(state.fieldTrial.ends-now)}`:event?`${activeEvent?'출현 중':'다음 월드 보스'} · ${event.name.split(' · ')[0]} · ${timeLeft((activeEvent?event.end:event.start)-now)}  [${keybindings.primaryLabel('events')}]`:`월드 보스 시간표 [${keybindings.primaryLabel('events')}]`;}

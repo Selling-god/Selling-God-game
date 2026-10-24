@@ -61,18 +61,28 @@ export function challengeHUD(challenge, now = Date.now(), { keyLabel = fallbackK
   let html = `<div class="challenge-hud-heading"><div><span class="small muted">${esc(c.tierName)} 난이도</span><h3>${esc(c.name)}</h3></div><strong class="challenge-timer">${phase}</strong></div>
     <div class="challenge-hud-summary"><b>${stage}</b>${c.mode !== 'runes' ? `<span>남은 적 ${number(c.alive)}</span>` : `<span>실수 ${c.mistakes}/3</span>`}</div>
     <p class="challenge-hint">${esc(c.hint)}</p>`;
+  if(c.mode==='tower'&&c.towerGate){
+    html+=`<div class="challenge-extra">⚙ 회전 관문 ${c.towerGate.step}/3 · 순서 ${c.towerGate.order.map(i=>i+1).join(' → ')} · 남은 시간 ${time(c.towerGate.expires-now)}</div>`;
+  }
+  if(c.mode==='survival'){
+    html+=`<div class="challenge-extra">✦ 불씨 ${c.beaconsLit||0}/3${c.beaconOpen?` · 점화까지 ${time(c.beaconOpen.until-now)}`:''}</div>`;
+  }
   if (c.mode === 'runes') {
     if (c.sequence) html += `<div class="challenge-sequence" aria-label="기억할 문양 순서">${c.sequence.map((rune, index) => `<span><small>${index + 1}</small>${esc(rune)}</span>`).join('<i aria-hidden="true">→</i>')}</div><p class="small">${time(c.peekUntil - now)} 뒤 순서가 사라집니다.</p>`;
-    else if (c.runeGoal) html += `<p class="small">${c.runeReverse?'↶ 역순으로 해독 · ':''}현재 순서 ${c.runeStep}/${c.runeGoal} · 파수꾼 ${c.runeGuards||0}명 · 함정에 맞으면 시간 −4초</p>`;
+    else if(c.runeGoal)html+=`<p class="small">${esc(c.runeTransform||'')} · 순서 ${c.runeStep}/${c.runeGoal} · 파수꾼 ${c.runeGuards||0}명 · 시간 닻 ${c.anchorStep||0}/2 ${c.anchorStep===1?'('+time(c.anchorUntil-now)+' 남음)':''}</p>`;
   }
   if (c.mode === 'defense') html += `<div class="challenge-crystal-status"><div class="objective"><span>수정 내구도</span><b>${Math.ceil(c.crystalHp / 10)}% · 빛 ${c.charge}</b></div>${meter(c.crystalHp, 1000, '수정 내구도')}
     ${c.wardUntil > now ? `<p class="small">수정 보호막 ${time(c.wardUntil - now)}</p>` : ''}</div>`;
   if (c.channelUntil > now) html += `<p class="challenge-urgent">붕괴까지 ${time(c.channelUntil - now)} · 방해꾼 둘을 처치하세요!</p>`;
   html += `<div class="settings-actions challenge-controls">`;
-  if (c.mode === 'runes' || (c.mode === 'boss_rush' && c.stage === 1)) html += button(`장치 작동 · ${esc(keyLabel('interact', 'F'))}`, 'challengeInteract');
+  if(['runes','tower','survival'].includes(c.mode)||(c.mode==='boss_rush'&&c.stage===1))html+=button(`장치 작동 · ${esc(keyLabel('interact','F'))}`,'challengeInteract');
   if (c.mode === 'defense') {
     html += button(`수정 수리 · ${esc(keyLabel('interact', 'F'))} · 빛 3`, 'challengeInteract', 'crystal', c.charge < 3 || c.crystalHp >= 1000 ? 'disabled' : '');
     html += button(`6초 보호막 · 빛 5${c.wardReady > now ? ` · ${time(c.wardReady - now)}` : ''}`, 'challengeWard', '', c.charge < 5 || c.wardReady > now ? 'disabled' : '');
+    for(let i=0;i<2;i++){
+      const lvl=c.turrets?.[i]||0,cost=[4,6,9][lvl];
+      html+=button(lvl>=3?`${i?'동':'서'} 포탑 완성`:`${i?'동':'서'} 포탑 Lv.${lvl} → ${lvl+1} · 빛 ${cost}`,'challengeBuild',String(i),lvl>=3||c.charge<cost?'disabled':'');
+    }
   }
   html += button('도전 나가기', 'challengeExit') + '</div>';
   return html;
@@ -100,6 +110,12 @@ export function drawChallengeOverlay(renderer, challenge, t) {
       const radius = m.radius || 42;
       c.globalAlpha = m.kind === 'safe' ? .2 : m.active ? .25 + pulse * .12 : .1;
       c.beginPath(); c.arc(0, 0, radius, 0, Math.PI * 2); c.fill();
+      if(['turret','beacon','anchor','tower_gate'].includes(m.kind)){
+        c.globalAlpha=.9;c.fillStyle=m.color;
+        const r=Math.max(20,Math.min(35,radius));
+        c.fillRect(-r/3,-r/3,2*r/3,2*r/3);c.fillStyle='#172934';c.fillRect(-r/5,-r/5,2*r/5,2*r/5);
+        c.strokeStyle=m.color;
+      }
       c.globalAlpha = m.active || m.kind === 'safe' ? 1 : .6; c.lineWidth = m.kind === 'safe' ? 4 : 2;
       c.beginPath(); c.arc(0, 0, radius, 0, Math.PI * 2); c.stroke();
       c.beginPath(); c.moveTo(0, -radius * .66); c.lineTo(radius * .66, 0); c.lineTo(0, radius * .66); c.lineTo(-radius * .66, 0); c.closePath(); c.stroke();

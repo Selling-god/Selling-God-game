@@ -1,6 +1,7 @@
 import {GroundChunks} from './ground-chunks.js';
 import {followCamera} from '../shared/camera.js';
 import {drawChallengeOverlay} from './challenges-ui.js';
+import {drawFieldTrialMarkers} from './field-trial-ui.js';
 import {drawBossMechanics,drawBossObjective} from './boss-mechanics-ui.js';
 import {drawDungeonOverlay} from './dungeons-ui.js';
 import {drawRealmOverlay} from './realms-ui.js';
@@ -193,6 +194,7 @@ export class Renderer {
       this.label(portal.level>1?`Lv.${portal.level}+ · F 이동`:'F 이동',portal.x,portal.y-54,'#bbc5b8',8);
     }
     drawChallengeOverlay(this,s.challenge,t);
+    drawFieldTrialMarkers(this,s.fieldTrial,t);
     drawDungeonOverlay(this,s,t,'ground');
     drawRealmOverlay(this,s.realm,t,'ground');
     drawBossMechanics(this,s.bossMechanics,t,'ground');
