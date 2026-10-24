@@ -47,8 +47,16 @@ for(const slot of categoryKeys){
     });
   }
 }
+// Permanent catalogue price adjustment (2026-10): five to ten times the
+// original amount depending on rarity; keep intentional starter gifts free.
+export function luxuryCosmeticPrice(base){
+  if(!Number.isFinite(base)||base<=0)return 0;
+  const multiplier=5+Math.min(5,Math.floor(base/1700));
+  return Math.ceil(base*multiplier/50)*50;
+}
 export const COSMETICS=Object.fromEntries(catalogue.map(v=>[v.id,{
-  ...v,desc:`${FORMS[v.slot][v.design.form]}의 독립적인 도트 실루엣과 ${DETAILS[v.design.motif]} 장식 · 능력치 변화 없음`
+  ...v,price:luxuryCosmeticPrice(v.price),
+  desc:`${FORMS[v.slot][v.design.form]}의 독립적인 도트 실루엣과 ${DETAILS[v.design.motif]} 장식 · 능력치 변화 없음`
 }]));
 export const COSMETIC_SLOTS=Object.keys(COSMETIC_GROUPS);
 export const COSMETIC_COUNT=Object.freeze(Object.fromEntries(COSMETIC_SLOTS.map(slot=>[slot,catalogue.filter(v=>v.slot===slot).length])));

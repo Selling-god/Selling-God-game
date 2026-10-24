@@ -183,6 +183,6 @@ for(const [id,zone]of Object.entries(ZONES))zone.id=id;
 
 // Add claimable region/bestiary/profession honor milestones after all content has installed.
 ACHIEVEMENTS.push(...makeHonorAchievements({CLASSES,MONSTERS,ZONES}));
-ITEMS.rename_ticket={name:'닉네임 변경권',type:'token',icon:'charm',rarity:'rare',buy:2200,sell:100,desc:'외형 작업실에서 캐릭터 이름을 한 번 변경합니다. 이름 중복 여부는 서버에서 검사합니다.'};
-ITEMS.portrait_ticket={name:'초상화 변환권',type:'token',icon:'orb',rarity:'epic',buy:1500,sell:100,desc:'PNG/JPG/WebP 이미지를 24×32 도트 외형으로 바꾸어 한 번 등록합니다.'};
+ITEMS.rename_ticket={name:'닉네임 변경권',type:'token',icon:'charm',rarity:'rare',buy:17600,sell:100,desc:'외형 작업실에서 캐릭터 이름을 한 번 변경합니다. 이름 중복 여부는 서버에서 검사합니다.'};
+ITEMS.portrait_ticket={name:'초상화 변환권',type:'token',icon:'orb',rarity:'epic',buy:10500,sell:100,desc:'PNG/JPG/WebP 이미지를 24×32 도트 외형으로 바꾸어 한 번 등록합니다.'};
 SHOP.push('rename_ticket','portrait_ticket');
