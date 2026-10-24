@@ -63,7 +63,7 @@ export function challengeHUD(challenge, now = Date.now(), { keyLabel = fallbackK
     <p class="challenge-hint">${esc(c.hint)}</p>`;
   if (c.mode === 'runes') {
     if (c.sequence) html += `<div class="challenge-sequence" aria-label="기억할 문양 순서">${c.sequence.map((rune, index) => `<span><small>${index + 1}</small>${esc(rune)}</span>`).join('<i aria-hidden="true">→</i>')}</div><p class="small">${time(c.peekUntil - now)} 뒤 순서가 사라집니다.</p>`;
-    else if (c.runeGoal) html += `<p class="small">현재 순서 ${c.runeStep}/${c.runeGoal} · 함정에 맞으면 시간 −4초</p>`;
+    else if (c.runeGoal) html += `<p class="small">${c.runeReverse?'↶ 역순으로 해독 · ':''}현재 순서 ${c.runeStep}/${c.runeGoal} · 파수꾼 ${c.runeGuards||0}명 · 함정에 맞으면 시간 −4초</p>`;
   }
   if (c.mode === 'defense') html += `<div class="challenge-crystal-status"><div class="objective"><span>수정 내구도</span><b>${Math.ceil(c.crystalHp / 10)}% · 빛 ${c.charge}</b></div>${meter(c.crystalHp, 1000, '수정 내구도')}
     ${c.wardUntil > now ? `<p class="small">수정 보호막 ${time(c.wardUntil - now)}</p>` : ''}</div>`;

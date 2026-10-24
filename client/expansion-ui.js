@@ -1,6 +1,8 @@
 import {CLASSES,ZONES,MONSTERS} from '../shared/content.js';
 import {encounterDescription} from './encounters-ui.js';
 import {JOB_TIERS,DAILY_TASKS,ACHIEVEMENTS,RELICS} from '../shared/expansion.js';
+let honorPage=0,honorFilter='all';
+export function changeHonorView({filter,page}={}){if(filter){honorFilter=filter;honorPage=0;}if(Number.isInteger(page))honorPage=Math.max(0,page);}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const stamp=t=>new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(t));
 const dungeonEntry='<div class="dungeon-entry"><div><b>동료와 풀어내는 세 가지 보스의 계약</b><p>2~4인 협동 던전 · 역할과 순서를 기억하고, 실패를 다음 공략의 단서로</p></div><button class="btn small primary" data-act="openDungeons">파티 던전</button></div>';
@@ -54,9 +56,24 @@ export function expansionPanel(name,{profile:p,tab,book,events=[],now=Date.now()
     return `<article class="card"><span class="badge">${m.worldBoss?'월드 보스':m.boss?'지역 보스':'몬스터'} · Lv.${m.level}</span><h3>${n?esc(m.name):'미발견'}</h3><p>${n?`${n}회 처치 · 체력 ${m.hp}${region?' · '+esc(region.name):''}`:'탐험과 전투를 통해 이름을 기록하세요.'}</p>${n&&info?`<p><strong>${esc(info.name)}</strong><br>${esc(info.hint)}</p>`:''}</article>`;
    }).join('')+'</div>';
   }else if(tab==='achievements'){
-   html+=`<div class="card-list">${ACHIEVEMENTS.map(a=>{
+   const filters=[['all','전체'],['ready','수령 가능'],['unclaimed','미수령'],['bonus','능력치 칭호']];
+   const total=ACHIEVEMENTS.length;
+   let filtered=ACHIEVEMENTS.filter(a=>{
+     const value=p.achievementProgress?.[a.id]||0,claimed=p.discovery.claims.includes(a.id);
+     return honorFilter==='ready'?value>=a.goal&&!claimed:honorFilter==='unclaimed'?!claimed:honorFilter==='bonus'?!!a.stats:true;
+   });
+   filtered.sort((a,b)=>{
+     const score=x=>{const v=p.achievementProgress?.[x.id]||0,claimed=p.discovery.claims.includes(x.id);return v>=x.goal&&!claimed?0:!claimed?1:2;};
+     return score(a)-score(b)||a.goal-b.goal||a.id.localeCompare(b.id);
+   });
+   const pages=Math.max(1,Math.ceil(filtered.length/36));honorPage=Math.min(honorPage,pages-1);
+   html+=`<div class="info-box"><b>칭호·업적 ${total}종</b> · 직업 숙련·지역 방문·몬스터 도감·보스·제작 기록으로 획득합니다.<br>어려운 칭호에는 작은 능력치 보너스가 있으며, <b>설정 → 칭호에서 실제 장착</b>해야 적용됩니다.</div>
+    <div class="tabs honor-tabs">${filters.map(([id,label])=>`<button class="tab ${honorFilter===id?'active':''}" data-act="honorFilter" data-id="${id}">${label}</button>`).join('')}</div>
+    <div class="honor-pages"><button class="btn small" data-act="honorPage" data-id="${honorPage-1}" ${honorPage===0?'disabled':''}>◀ 이전</button><span>${honorPage+1} / ${pages}페이지 · ${filtered.length}개</span><button class="btn small" data-act="honorPage" data-id="${honorPage+1}" ${honorPage===pages-1?'disabled':''}>다음 ▶</button></div>`;
+   html+=`<div class="card-list">${filtered.slice(honorPage*36,(honorPage+1)*36).map(a=>{
     const value=p.achievementProgress?.[a.id]||0,claimed=p.discovery.claims.includes(a.id),done=value>=a.goal;
-    return `<article class="card"><div class="card-head"><h3>${esc(a.name)}</h3><span class="badge ${done?'good':''}">${Math.min(value,a.goal)}/${a.goal}</span></div><p>${a.gold} G · 같은 이름의 칭호</p><button class="btn small ${done?'primary':''}" data-act="achievement" data-id="${a.id}" ${!done||claimed?'disabled':''}>${claimed?'수령 완료':'보상 받기'}</button></article>`;
+    const bonus=a.stats?Object.entries(a.stats).map(([k,n])=>({atk:'공격',def:'방어',hp:'체력',mp:'마나',crit:'치명타'}[k]||k)+' +'+n).join(' · '):'';
+    return `<article class="card"><div class="card-head"><h3>${esc(a.name)}</h3><span class="badge ${done?'good':''}">${Math.min(value,a.goal)}/${a.goal}</span></div><p>${esc(a.desc||a.metric)} · ${a.gold} G${bonus?` · ✧ 장착 효과 ${esc(bonus)}`:''}</p><button class="btn small ${done?'primary':''}" data-act="achievement" data-id="${a.id}" ${!done||claimed?'disabled':''}>${claimed?'수령 완료':'칭호·보상 받기'}</button></article>`;
    }).join('')}</div>`;
   }else{
    html+=`<div class="info-box">${esc(p.daily.key)} 의뢰 · 한국 시간 자정 초기화 · 보상은 마을에서 수령합니다.</div><div class="card-list">${DAILY_TASKS.map(t=>{
