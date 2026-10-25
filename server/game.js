@@ -1,3 +1,5 @@
+import {distributedSpawn} from '../shared/spawn-distribution.js';
+import {useKitUtility,beforeKitAttack,kitVictims,kitDamage,onKitHit,afterKitAttack,tickCombatFields} from './kit-mechanics.js';
 import {insideVillage} from '../shared/village-layout.js';
 import {fieldRespawnDelay} from '../shared/respawn.js';
 import {prepareStories,storyAction,recordStory,storyTracker} from './stories.js';
@@ -81,31 +83,17 @@ export class Game {
       const types=z.mobTypes||(id==='forest'?['slime','slime','beetle','wolf']:id==='ruins'?['skeleton','skeleton','wisp','golem']:['imp','ash_knight','ash_knight']);
       const count=z.mobCount||(id==='forest'?34:id==='ruins'?28:24);
       for(let i=0;i<count;i++){
-        let pt;
-        if(map.encounters?.length){
-          const anchor=map.encounters[i%map.encounters.length];
-          for(let tries=0;tries<25;tries++){
-            const angle=rand()*Math.PI*2,r=25+rand()*80;
-            pt={x:anchor.x+Math.cos(angle)*r,y:anchor.y+Math.sin(angle)*r};
-            if(!isBlocked(map,pt.x,pt.y,16))break;
-          }
-          if(!pt||isBlocked(map,pt.x,pt.y,16))pt=anchor;
-        }else pt=spawnPoint(map,rand);
-        // The village is a rest hub: ordinary mobs must not start inside its
-        // NPC plaza. Re-sample without changing monster counts or boss spawns.
-        if(insideVillage(map,pt.x,pt.y,55)){
-          for(let attempt=0;attempt<90;attempt++){
-            const next=spawnPoint(map,rand);
-            if(!insideVillage(map,next.x,next.y,55)){pt=next;break;}
-          }
-        }
-        if(insideVillage(map,pt.x,pt.y,55))continue; // Never spawn in an occupied village.
+        // Spread mobs across each field. Encounter anchors are only weak hints:
+        // spawns must not pile up within a few pixels of each other.
+        const anchor=map.encounters?.length?map.encounters[i%map.encounters.length]:null;
+        const pt=distributedSpawn(map,world.mobs,rand,{anchor,boss:BOSS_SPAWNS[id],seed:i+1});
+        if(!pt)continue; // Never force a spawn into a blocked or protected tile.
         world.mobs.push(this.makeMob(`${id}_m${i}`,types[i%types.length],pt.x,pt.y));
       }
       if(id==='forest')for(let i=0;i<5;i++){
-        const x=(i%2?19:41)*TILE+16,y=(28-Math.floor(i/2)*3)*TILE+16;
-        const spot=findSafePosition(map,{x,y},14);
-        if(spot&&!insideVillage(map,spot.x,spot.y,55))world.mobs.push(this.makeMob(`forest_intro${i}`,'slime',spot.x,spot.y));
+        const anchor={x:(i%2?19:41)*TILE+16,y:(28-Math.floor(i/2)*3)*TILE+16};
+        const spot=distributedSpawn(map,world.mobs,rand,{anchor,boss:BOSS_SPAWNS[id],seed:i+101});
+        if(spot)world.mobs.push(this.makeMob(`forest_intro${i}`,'slime',spot.x,spot.y));
       }
       const b=BOSS_SPAWNS[id];
       if(b?.type)world.mobs.push(this.makeMob(`${id}_boss`,b.type,b.x,b.y));
@@ -250,7 +238,8 @@ export class Game {
       if(skill.heal)p.hp=Math.min(this.stats(p).maxHp,p.hp+this.stats(p).maxHp*skill.heal*(1+(c.passive?.healBonus||0)));
       restored+=Math.max(0,p.hp-beforeHeal);
       if(skill.haste||c.identity==='haste')p.speedUntil=this.now+4500;
-      onSupport(this,p);
+      if(skill.role)useKitUtility(this,p,skill);
+      else onSupport(this,p);
       if(skill.partyHeal){
         const party=this.parties.get(p.partyId);
         for(const id of party?.members||[]){
@@ -265,9 +254,18 @@ export class Game {
       if(restored>0){recordProgress(this,p,'heal','any',1);recordStory(this,p,{kind:'restore',target:'any'});}
       // Buffs without an actual combat target do not satisfy offensive practice.
 
-      this.fx(p.zone,{type:'skill',id:p.id,job:p.classId,skill:skillId,x:p.x,y:p.y,tx:p.x,ty:p.y,color:c.color});this.mark(p);return {ok:true};
+      if(!skill.role)this.fx(p.zone,{type:'skill',id:p.id,job:p.classId,skill:skillId,x:p.x,y:p.y,tx:p.x,ty:p.y,color:c.color});this.mark(p);return {ok:true};
     }
     const target=this.getTarget(p,skill.range);
+    // Healers and commanders can use their ultimate as a genuine battlefield
+    // support action, even when there is no enemy to target.
+    if(!target&&skillId==='ultimate'&&['healing','command'].includes(skill.role)){
+      p.mp-=skill.mp;p.cooldowns[skillId]=this.now+skill.cd;
+      afterKitAttack(this,p,skill,p);
+      this.fx(p.zone,{type:'skill',id:p.id,job:p.classId,skill:skillId,role:skill.role,
+        x:p.x,y:p.y,tx:p.x,ty:p.y,color:c.color});
+      this.mark(p);return {ok:true};
+    }
     if(!target)return {ok:false,quiet:skillId==='basic',error:'공격할 적에게 조금 더 가까이 다가가세요.'};
     if(!this.canDamage(p,target))return {ok:false,error:target.dungeonRun?'던전의 협동 기믹을 해결해 보스의 보호막을 해제하세요.':'봉인을 해제하거나 소환수를 처치해야 수호자를 공격할 수 있습니다.'};
     const w=this.worlds.get(p.zone);
@@ -275,17 +273,20 @@ export class Game {
     p.attackUntil=this.now+300;p.lastCombat=this.now;
     const dx=target.x-p.x,dy=target.y-p.y;
     p.dir=Math.abs(dx)>Math.abs(dy)?(dx>0?'e':'w'):(dy>0?'s':'n');
+    beforeKitAttack(this,p,skill,target);
     const center=skill.center==='self'||!skill.center&&(c.family||p.classId)==='guardian'?p:target;
     const signature=beforeStrike(this,p,skillId,target);
-    const victims=skill.radius?w.mobs.filter(m=>m.alive&&this.canDamage(p,m)&&dist(m,center)<=skill.radius&&lineOfSight(w.map,p,m)):[target];
-    this.fx(p.zone,{type:'attack',id:p.id,classId:c.family||p.classId,job:p.classId,center:skill.center||((c.family||p.classId)==='guardian'?'self':'target'),skill:skillId,x:p.x,y:p.y,tx:target.x,ty:target.y,radius:skill.radius,color:c.color});
+    const standardVictims=skill.radius?w.mobs.filter(m=>m.alive&&this.canDamage(p,m)&&dist(m,center)<=skill.radius&&lineOfSight(w.map,p,m)):[target];
+    const victims=kitVictims(this,p,skill,target,standardVictims);
+    this.fx(p.zone,{type:'attack',id:p.id,classId:c.family||p.classId,job:p.classId,role:skill.role,center:skill.center||((c.family||p.classId)==='guardian'?'self':'target'),skill:skillId,x:p.x,y:p.y,tx:target.x,ty:target.y,radius:skill.radius,color:c.color});
     if(victims.length)recordStory(this,p,{kind:skillId==='basic'?'hit':'skill',target:c.family||p.classId,skill:skillId});
     // Chain effects search only nearby, valid enemies; they cannot ignore instance shields.
     if(signature.chain)for(const m of w.mobs.filter(x=>x.alive&&!victims.includes(x)&&this.canDamage(p,x)&&dist(x,target)<240&&lineOfSight(w.map,p,x)).slice(0,signature.chain))victims.push(m);
     for(const m of victims){
       const crit=this.random()*100<Math.min(95,this.stats(p).crit+signature.crit);
       const rawDamage=Math.max(1,Math.round((this.stats(p).atk*skill.power*signature.scale-this.mobSpec(m).def*.65*(1-Math.min(1,(c.passive?.armorPierce||0)+signature.pierce)))*(0.92+this.random()*.16)*(crit?1.65:1)*bossDamageMultiplier(m)));
-      const damage=m.dungeonRun?this.dungeons.damageAmount(m,rawDamage):this.encounters.damageAmount(m,rawDamage);
+      const adjustedDamage=kitDamage(this,p,skill,m,rawDamage);
+      const damage=m.dungeonRun?this.dungeons.damageAmount(m,adjustedDamage):this.encounters.damageAmount(m,adjustedDamage);
       const actual=Math.min(m.hp,damage);
       m.hp=Math.max(0,m.hp-damage);m.contributors.set(p.id,this.now);m.damageLog.set(p.id,(m.damageLog.get(p.id)||0)+actual);m.target=p.id;
       const drain=(c.passive?.lifesteal||0)+(skill.lifesteal||0);
@@ -297,10 +298,12 @@ export class Game {
         m.dots.push({by:p.id,kind:skill.dot.kind,left:skill.dot.ticks,next:this.now+1000,damage:Math.max(1,Math.round(this.stats(p).atk*skill.dot.power))});
       }
       afterStrike(this,p,m,skillId,signature,actual);
+      onKitHit(this,p,skill,m,actual);
       if(skillId==='ultimate'||((c.family||p.classId)==='mage'&&skillId==='skill1'))m.slowUntil=this.now+2500;
       this.fx(p.zone,{type:'hit',id:m.id,x:m.x,y:m.y-22,amount:damage,crit,kind:'monster',by:p.id});
       if(m.hp<=0)this.killMob(p.zone,m);
     }
+    afterKitAttack(this,p,skill,target);
     this.mark(p);return {ok:true};
   }
   killMob(zone,m){
@@ -635,6 +638,12 @@ export class Game {
         p.dir=Math.abs(v.x)>Math.abs(v.y)?(v.x>0?'e':'w'):(v.y>0?'s':'n');
         p.dirty=true;recordStory(this,p,{kind:'walk',target:'any',count:Math.hypot(p.x-oldX,p.y-oldY)/TILE});
       }
+      // Bounded, runtime-only combat history for chronomancer E.
+      p.combatHistory ||= [];
+      if(!p.combatHistory.length||now-p.combatHistory.at(-1).at>700){
+        p.combatHistory.push({at:now,zone:p.zone,x:p.x,y:p.y,hp:p.hp,mp:p.mp});
+        if(p.combatHistory.length>12)p.combatHistory.shift();
+      }
       revealTerrain(this,p);
       if(now-p.lastRegen>=1000){
         p.lastRegen=now;const s=this.stats(p);
@@ -645,6 +654,7 @@ export class Game {
         if(before!==p.hp+p.mp||p.playSeconds%60===0)this.mark(p);
       }
     }
+    tickCombatFields(this,now);
     this.challenges.tick(dt);
     this.dungeons.tick(dt);
     const zonePlayers=new Map();
@@ -660,11 +670,21 @@ export class Game {
         if(w.fieldTrial)this.cancelFieldTrial(w);
         continue;
       }
+      // Village immunity is stable for a tick. Reuse the same exposed players
+      // for all monsters instead of allocating/filtering the list per mob.
+      const exposedPlayers=inZone.filter(player=>!insideVillage(w.map,player.x,player.y));
       for(const m of w.mobs){
         if(m.challengeRun||m.dungeonRun)continue;
         const spec=MONSTERS[m.type];
         if(!m.alive){
-          if(!m.worldKey&&m.respawnAt<=now){Object.assign(m,this.makeMob(m.id,m.type,m.homeX,m.homeY));}
+          if(!m.worldKey&&m.respawnAt<=now){
+            const companions=w.mobs.filter(other=>other!==m&&other.alive);
+            const respawnSpot=distributedSpawn(w.map,companions,()=>this.random(),{
+              anchor:{x:m.homeX,y:m.homeY},players:inZone,boss:BOSS_SPAWNS[zone],seed:Number(m.id.match(/\d+$/)?.[0]||0)+Math.floor(now/60000)
+            });
+            if(respawnSpot)Object.assign(m,this.makeMob(m.id,m.type,respawnSpot.x,respawnSpot.y));
+            else m.respawnAt=now+15000; // Never stack respawns at the previous crowded spot.
+          }
           continue;
         }
         m.moving=false;
@@ -692,7 +712,7 @@ export class Game {
         m.dots=(m.dots||[]).filter(e=>e.left>0);
         if(!m.alive||m.stunUntil>now)continue;
         if(m.mechanicObjective||m.bossMechanic?.active)continue;
-        if(this.encounters.tickMob(w,m,inZone.filter(p=>!insideVillage(w.map,p.x,p.y)),dt)){
+        if(this.encounters.tickMob(w,m,exposedPlayers,dt)){
           if(insideVillage(w.map,m.x,m.y,18))this.relocateVillageMob(w,m);
           continue;
         }
@@ -700,7 +720,15 @@ export class Game {
         let target=inZone.find(p=>p.id===m.target&&dist(p,m)<440);
         if(target&&Math.hypot(m.x-m.homeX,m.y-m.homeY)>440)target=null;
         if(target&&insideVillage(w.map,target.x,target.y))target=null;
-        if(!target)target=inZone.filter(p=>!insideVillage(w.map,p.x,p.y)&&dist(p,m)<spec.aggro&&lineOfSight(w.map,m,p)).sort((a,b)=>dist(a,m)-dist(b,m))[0];
+        if(!target){
+          let nearestSq=spec.aggro*spec.aggro;
+          for(const candidate of exposedPlayers){
+            const dx=candidate.x-m.x,dy=candidate.y-m.y,d2=dx*dx+dy*dy;
+            if(d2<nearestSq&&lineOfSight(w.map,m,candidate)){
+              nearestSq=d2;target=candidate;
+            }
+          }
+        }
         if(target&&Math.hypot(m.x-m.homeX,m.y-m.homeY)>480)target=null;
         m.target=target?.id||null;
         if(target){
@@ -739,7 +767,7 @@ export class Game {
         if(cast.challengeRun||cast.dungeonRun)continue;
         const owner=w.mobs.find(m=>m.id===cast.owner);
         if(!owner?.alive)continue;
-        if(this.encounters.resolveCast(w,cast,inZone.filter(p=>!insideVillage(w.map,p.x,p.y))))continue;
+        if(this.encounters.resolveCast(w,cast,exposedPlayers))continue;
         for(const p of inZone){
           const dx=p.x-cast.x,dy=p.y-cast.y,d=Math.hypot(dx,dy);
           let hit=cast.shape==='ring'?(d<=cast.radius+8&&d>=cast.inner-8):d<=cast.radius+8;
