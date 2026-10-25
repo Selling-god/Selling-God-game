@@ -3,6 +3,7 @@
  * Gameplay uses server-authoritative unlock conditions in server/progression.js.
  */
 import {xpRequired,MAX_LEVEL} from './rpg.js';
+import {SPECIALTIES} from './class-specialties.js';
 export const JOB_TIERS = {
   common: {name:'일반',color:'#9ecbb2'}, rare:{name:'희귀',color:'#83b9e8'},
   epic:{name:'영웅',color:'#c4a3ea'}, hidden:{name:'히든',color:'#efc481'}
@@ -44,7 +45,9 @@ const JOB_ROWS = [
  ['phoenix_heir','불사조의 계승자','mage','hidden','재와 불과 잊힌 이름을 잇는 여정.','불사조 날개','재생의 불씨','다시 뜨는 태양','burn'],
  ['tide_oracle','심해의 예언자','mage','hidden','바다가 숨긴 문장들은 순서대로 읽어야 한다.','심해의 파동','해류의 치유','만조의 예언','healer'],
  ['starweaver','별을 엮는 자','mage','hidden','흩어진 별의 기록이 하나가 될 때.','성운 직조','별실의 결계','새벽의 직물','mana'],
- ['nameless_king','이름 없는 왕','guardian','hidden','모든 땅과 네 거인을 기억하는 자에게 왕관은 이름을 묻는다.','이름 없는 검','왕의 맹세','만왕의 새벽','shield']
+ ['nameless_king','이름 없는 왕','guardian','hidden','모든 땅과 네 거인을 기억하는 자에게 왕관은 이름을 묻는다.','이름 없는 검','왕의 맹세','만왕의 새벽','shield'],
+ ['dawn_architect','여명의 설계자','mage','hidden','흩어진 여덟 세계의 기록을 모아 빛의 기계를 완성한다.','태양 기어','광휘 장벽','창세 재설계','mana'],
+ ['abyss_shepherd','심연의 목동','ranger','hidden','경계의 이름을 모두 외우고도 빈 곳을 지키는 자.','혼령의 고리','그림자 인도','침묵의 무리','drain']
 ];
 export const JOB_HINTS=Object.fromEntries(JOB_ROWS.map(r=>[r[0],r[4]]));
 // The original routes and every profession story retain their existing gates.
@@ -169,7 +172,8 @@ export function installExpansion({CLASSES,ITEMS,MONSTERS,ZONES,NPCS,QUESTS,RECIP
    s.desc=s.power===0?`자신의 체력을 ${Math.round(s.heal*100)}% 회복${s.partyHeal?'하고 가까운 파티원도 치유합니다.':'.'}${s.shield?' 5초간 피해 감소.':''}${s.haste?' 4.5초간 이동 가속.':''}`:
     `${s.radius?'범위':'단일'} 공격 · 공격력 ${Math.round(s.power*100)}%${s.dot?' · '+(identity==='burn'?'화상':'독')+' 지속 피해':''}${s.slow?' · 둔화':''}${s.stun?' · 짧은 기절(보스 제외)':''}${s.lifesteal?' · 흡혈':''}`;
   }
-  CLASSES[id]={...b,name,short:name,sprite:id,family,tier,color:colors[index],motto:hint,
+  if(SPECIALTIES[id]){skills[1].desc+=' · '+SPECIALTIES[id][1];skills[2].desc+=' · '+SPECIALTIES[id][0]+' 연계';skills[3].desc+=' · '+SPECIALTIES[id][0]+' 강화';}
+  CLASSES[id]={...b,name,short:name,sprite:id,family,tier,color:colors[index],motto:hint,mechanic: SPECIALTIES[id]?.[0],mechanicDesc:SPECIALTIES[id]?.[1],
     desc:passiveText+' · '+(melee?'근접 전투':family==='ranger'?'원거리 사격':'원거리 마법'),
     hp:b.hp+grade*8,mp:b.mp+grade*5,atk:b.atk+grade,def:b.def,speed:b.speed,identity,passive,passiveText,skills};
  });

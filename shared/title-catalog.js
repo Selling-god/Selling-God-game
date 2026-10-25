@@ -208,7 +208,8 @@ export const TITLE_CATALOG=Object.freeze(series.flatMap(({theme,metric,goal,desc
 const hiddenNames=[
  '잠들지 않는 북극성','황혼의 악장','검 끝에 맺힌 새벽','모루가 기억하는 이름',
  '금빛 침묵의 계약자','한 장 남은 세계지도','검은 별의 그림자',
- '역행하는 시간의 증인','열 번째 불꽃의 주인','종말을 거절한 사람'
+ '역행하는 시간의 증인','열 번째 불꽃의 주인','종말을 거절한 사람',
+ '새벽을 재단하는 손','누구도 버리지 않는 목자'
 ];
 export const HIDDEN_TITLES=Object.freeze(hiddenNames.map((name,i)=>Object.freeze({
  id:`hidden_${String(i+1).padStart(2,'0')}`,name,theme:'히든 칭호',hidden:true,rarity:i>=6?'legendary':'epic',

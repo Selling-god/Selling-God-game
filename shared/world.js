@@ -10,6 +10,7 @@ import { buildRealmMap, decorateRealmEntrance, REALM_BOSS_SPAWNS } from './realm
 import { REALM_ZONES } from './realms.js';
 import {applyTerrainLayout,SURFACES} from './terrain-layouts.js';
 import { TILE, ZONES, NPCS } from './content.js';
+import { addVillage } from './villages.js';
 
 export function seeded(seed) {
   let a=seed|0;
@@ -87,6 +88,7 @@ function remember(id,map){
  decorateDungeonEntrance(map,ZONES[id]);
  decorateRealmEntrance(map,ZONES[id]);
  applyTerrainLayout(map,ZONES[id],{boss:BOSS_SPAWNS[id]});
+ addVillage(map,ZONES[id]);
  indexScenery(map);
  cache.delete(id);cache.set(id,map);
  while(cache.size>10)cache.delete(cache.keys().next().value);
@@ -108,7 +110,7 @@ export function createMap(id) {
     (id==='forest'&&Math.abs(y-18)<=1&&x>=29&&x<=52)||
     (id==='ruins'&&Math.abs(y-15)<=1&&x>=27&&x<=48)||
     (id==='citadel'&&Math.hypot(x-28,y-13)<7);
-  const isArena=(x,y)=>id!=='town'&&Math.hypot(x-BOSS_SPAWNS[id].x/TILE,y-BOSS_SPAWNS[id].y/TILE)<6;
+  const isArena=(x,y)=>id!=='town'&&!!BOSS_SPAWNS[id]&&Math.hypot(x-BOSS_SPAWNS[id].x/TILE,y-BOSS_SPAWNS[id].y/TILE)<6;
   const ponds=id==='town'?[[10,12,5,4]]:id==='forest'?[[13,13,6,4],[48,34,5,4]]:id==='ruins'?[[12,14,4,5]]:[[12,17,5,6],[45,27,5,5]];
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
     const idx=y*w+x, border=x<2||y<2||x>=w-2||y>=h-2;

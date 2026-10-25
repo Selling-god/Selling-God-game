@@ -30,7 +30,9 @@ const ROWS={
  warlord:['holy','sweep','banner','banner'],voidwalker:['void','rift','rift','blackhole'],
  eclipse_reaper:['shadow','scythe','eclipse','eclipse'],phoenix_heir:['fire','wings','wings','phoenix'],
  tide_oracle:['water','wave','bubbles','tide'],starweaver:['star','threads','stars','weave'],
- nameless_king:['holy','crossSlash','crown','crown']
+ nameless_king:['holy','crossSlash','crown','crown'],
+ dawn_architect:['holy','gear','barrier','supernova'],
+ abyss_shepherd:['void','soul','spirits','blackhole']
 };
 export function skillVisual(job,skill='basic'){
  const [theme,q,e,r]=ROWS[job]||ROWS.novice;

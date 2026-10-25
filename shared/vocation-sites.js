@@ -18,11 +18,13 @@ export const VOCATION_LOCATIONS={
  warlord:['깃발 없는 렌',expeditionId('sky',5)],
  voidwalker:['경계 밖의 목소리',expeditionId('abyss',8)],eclipse_reaper:['잠든 달의 집행자',expeditionId('observatory',3)],
  phoenix_heir:['꺼지지 않은 깃털',expeditionId('desert',8)],tide_oracle:['마지막 물결의 아이',expeditionId('coast',8)],
- starweaver:['새벽의 직조자',expeditionId('observatory',8)],nameless_king:['왕좌를 비운 자',expeditionId('abyss',7)]
+ starweaver:['새벽의 직조자',expeditionId('observatory',8)],nameless_king:['왕좌를 비운 자',expeditionId('abyss',7)],
+ dawn_architect:['새벽의 톱니지기',expeditionId('observatory',7)],
+ abyss_shepherd:['먼 어둠의 목자',expeditionId('abyss',6)]
 };
 export const VOCATION_SITES=Object.entries(VOCATION_LOCATIONS).map(([job,[name,zone]],i)=>{
  const z=ZONES[zone],common=CLASSES[job].tier==='common';
  return {id:'mentor_'+job,job,kind:'mentor',zone,name,hidden:CLASSES[job].tier==='hidden',
-  x:(common?8+i*4:20+(i%3)*4)*32+16,y:(common?31:z.height-21-(i%2)*3)*32+16,
+  x:(common?13+(i%5)*7:20+(i%3)*4)*32+16,y:(common?33+Math.floor(i/5)*7:z.height-21-(i%2)*3)*32+16,
   sprite:(CLASSES[job].family==='mage'?'healer':CLASSES[job].family==='ranger'?'merchant':'smith')+'_s_0'};
 });

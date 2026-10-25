@@ -1,6 +1,7 @@
 import { cleanAttributes, enhancementBonus } from './rpg.js';
 import { titleStatBonus } from './title-catalog.js';
 import { installExtraItems } from './extra-items.js';
+import { installMasterworks } from './masterworks.js';
 export { MAX_LEVEL, xpRequired } from './rpg.js';
 import { installBossGear } from './visuals.js';
 import { installExpeditions } from './expeditions.js';
@@ -57,7 +58,9 @@ export const RARITIES = {
   uncommon: { name: '고급', color: '#77cba0' },
   rare: { name: '희귀', color: '#79b6ef' },
   epic: { name: '영웅', color: '#b698ed' },
-  legendary: { name: '전설', color: '#edbb70' }
+  legendary: { name: '전설', color: '#edbb70' },
+  mythic: { name: '신화', color: '#fc9ccb' },
+  ancient: { name: '태고', color: '#a3eeed' }
 };
 export const ITEMS = {
   potion: { name: '붉은 이슬 물약', type: 'consumable', icon: 'potion', rarity: 'common', desc: '최대 체력의 45%를 회복합니다. 재사용 5초.', buy: 20, sell: 5 },
@@ -81,17 +84,17 @@ export const ITEMS = {
   star_sword: { name: '성흔의 맹세', type: 'gear', slot: 'weapon', class: 'guardian', icon: 'sword', rarity: 'epic', atk: 22, crit: 5, level: 7, sell: 240 },
   star_bow: { name: '성흔의 메아리', type: 'gear', slot: 'weapon', class: 'ranger', icon: 'bow', rarity: 'epic', atk: 22, crit: 5, level: 7, sell: 240 },
   star_staff: { name: '성흔의 속삭임', type: 'gear', slot: 'weapon', class: 'mage', icon: 'staff', rarity: 'epic', atk: 25, crit: 5, level: 7, sell: 240 },
-  dawn_sword: { name: '새벽을 여는 검', type: 'gear', slot: 'weapon', class: 'guardian', icon: 'sword', rarity: 'legendary', atk: 36, crit: 10, level: 11, sell: 550 },
+  dawn_sword: { name: '새벽을 여는 검', type: 'gear', slot: 'weapon', class: 'guardian', icon: 'sword', rarity: 'legendary', atk: 36, crit: 10, level: 20, sell: 550 },
   dawn_bow: { name: '새벽을 부르는 활', type: 'gear', slot: 'weapon', class: 'ranger', icon: 'bow', rarity: 'legendary', atk: 36, crit: 10, level: 11, sell: 550 },
-  dawn_staff: { name: '새벽을 밝히는 지팡이', type: 'gear', slot: 'weapon', class: 'mage', icon: 'staff', rarity: 'legendary', atk: 40, crit: 10, level: 11, sell: 550 },
+  dawn_staff: { name: '새벽을 밝히는 지팡이', type: 'gear', slot: 'weapon', class: 'mage', icon: 'staff', rarity: 'legendary', atk: 40, crit: 10, level: 20, sell: 550 },
   tunic: { name: '여행자의 망토', type: 'gear', slot: 'armor', icon: 'armor', rarity: 'common', def: 2, hp: 12, level: 1, sell: 15 },
   leather: { name: '숲지기의 외투', type: 'gear', slot: 'armor', icon: 'armor', rarity: 'uncommon', def: 5, hp: 32, level: 3, buy: 180, sell: 60 },
   moon_robe: { name: '달잠의 예복', type: 'gear', slot: 'armor', icon: 'armor', rarity: 'epic', def: 9, hp: 65, mp: 20, level: 7, sell: 220 },
-  dawn_armor: { name: '새벽 수호의', type: 'gear', slot: 'armor', icon: 'armor', rarity: 'legendary', def: 14, hp: 100, level: 11, sell: 450 },
+  dawn_armor: { name: '새벽 수호의', type: 'gear', slot: 'armor', icon: 'armor', rarity: 'legendary', def: 14, hp: 100, level: 20, sell: 450 },
   charm: { name: '작은 별의 부적', type: 'gear', slot: 'charm', icon: 'charm', rarity: 'uncommon', hp: 15, mp: 15, level: 2, buy: 140, sell: 45 },
   moss_charm: { name: '숲의 심장 부적', type: 'gear', slot: 'charm', icon: 'charm', rarity: 'rare', hp: 30, atk: 4, level: 4, sell: 150 },
   moon_charm: { name: '달의 눈물 목걸이', type: 'gear', slot: 'charm', icon: 'charm', rarity: 'epic', hp: 40, mp: 30, crit: 6, level: 7, sell: 260 },
-  dawn_charm: { name: '마지막 별의 약속', type: 'gear', slot: 'charm', icon: 'charm', rarity: 'legendary', hp: 65, atk: 10, crit: 8, level: 11, sell: 500 }
+  dawn_charm: { name: '마지막 별의 약속', type: 'gear', slot: 'charm', icon: 'charm', rarity: 'legendary', hp: 65, atk: 10, crit: 8, level: 20, sell: 500 }
 };
 export const weaponFor = (tier, cls) => `${tier}_${(CLASSES[cls]?.family||cls) === 'guardian' ? 'sword' : (CLASSES[cls]?.family||cls) === 'ranger' ? 'bow' : 'staff'}`;
 export const RECIPES = [
@@ -102,8 +105,8 @@ export const RECIPES = [
   { id: 'moss', name: '숲의 심장 부적', output: 'moss_charm', count: 1, gold: 100, cost: { heart: 1, ore: 3 }, level: 4 },
   { id: 'star_weapon', name: '내 직업의 성흔 무기', weaponTier: 'star', count: 1, gold: 220, cost: { heart: 1, shard: 6, ore: 5 }, level: 7 },
   { id: 'moon_robe', name: '달잠의 예복', output: 'moon_robe', count: 1, gold: 240, cost: { moon: 1, pelt: 5, shard: 4 }, level: 7 },
-  { id: 'dawn_weapon', name: '내 직업의 새벽 무기', weaponTier: 'dawn', count: 1, gold: 500, cost: { dragon: 1, ember: 8, ore: 8 }, level: 11 },
-  { id: 'dawn_armor', name: '새벽 수호의', output: 'dawn_armor', count: 1, gold: 420, cost: { dragon: 1, ember: 6, pelt: 6 }, level: 11 }
+  { id: 'dawn_weapon', name: '내 직업의 새벽 무기', weaponTier: 'dawn', count: 1, gold: 500, cost: { dragon: 1, ember: 8, ore: 8 }, level: 20 },
+  { id: 'dawn_armor', name: '새벽 수호의', output: 'dawn_armor', count: 1, gold: 420, cost: { dragon: 1, ember: 6, pelt: 6 }, level: 20 }
 ];
 export const MONSTERS = {
   slime: { name: '이슬 슬라임', sprite: 'slime', level: 1, hp: 45, atk: 7, def: 0, xp: 20, gold: [5, 10], speed: 62, range: 35, aggro: 115, material: 'gel' },
@@ -126,11 +129,11 @@ export const QUESTS = [
   { id: 'lost_stars', name: '별불이 기억하는 것', chapter: '05', npc: 'lia', level: 6, requires: 'moon_gate', desc: '길 잃은 별불 7마리와 무너진 석상 3기를 쓰러뜨려 유적의 길을 밝혀주세요.', objectives: [{ kind: 'kill', target: 'wisp', count: 7 }, { kind: 'kill', target: 'golem', count: 3 }], xp: 650, gold: 320, weaponTier: 'star', end: '그 빛 속에 마녀의 마지막 말이 담겨 있었어요. “별을 돌려보내 줘.” 이제 마녀를 만나야 해요.' },
   { id: 'moon_tears', name: '달이 잠들지 못한 이유', chapter: '06', npc: 'lia', level: 7, requires: 'lost_stars', desc: '달잠 유적 북동쪽 제단에서 마녀 셀레네를 구해주세요. 바닥에 새겨지는 원을 피하는 것이 중요해요.', objectives: [{ kind: 'kill', target: 'moon_witch', count: 1 }], xp: 850, gold: 400, items: { moon_charm: 1, moon_robe: 1, potion: 5 }, end: '셀레네가 남긴 별의 지도가 성채를 가리키고 있어요. 마지막 별은 아직 꺼지지 않았어요.' },
   { id: 'ash_road', name: '재가 된 맹세', chapter: '07', npc: 'lia', level: 9, requires: 'moon_tears', desc: '재의 성채에서 재빛 맹세기사 8마리와 불씨 도깨비 6마리를 물리쳐주세요.', objectives: [{ kind: 'kill', target: 'ash_knight', count: 8 }, { kind: 'kill', target: 'imp', count: 6 }], xp: 1200, gold: 550, items: { potion: 8, mana: 5 }, end: '성채의 불꽃이 조금씩 잦아들고 있어요. 이제 당신을 믿고 마지막 부탁을 할게요.' },
-  { id: 'last_star', name: '마지막 별의 약속', chapter: '08', npc: 'lia', level: 11, requires: 'ash_road', desc: '성채 북쪽에서 별을 삼킨 용 녹스를 쓰러뜨려주세요. 적색 경고를 피해, 잃어버린 새벽을 되찾아 주세요.', objectives: [{ kind: 'kill', target: 'eclipse_dragon', count: 1 }], xp: 1800, gold: 1000, items: { dawn_charm: 1 }, weaponTier: 'dawn', title: '새벽을 되찾은 자', end: '봐요, 하늘이 밝아지고 있어요. 당신이 돌아올 이 마을을 지키고 있을게요. 우리의 다음 모험도 여기서 시작해요.' },
+  { id: 'last_star', name: '마지막 별의 약속', chapter: '08', npc: 'lia', level: 11, requires: 'ash_road', desc: '성채 북쪽에서 별을 삼킨 용 녹스를 쓰러뜨려주세요. 적색 경고를 피해, 잃어버린 새벽을 되찾아 주세요.', objectives: [{ kind: 'kill', target: 'eclipse_dragon', count: 1 }], xp: 1800, gold: 1000, items: { moon_charm: 1 }, weaponTier: 'star', title: '새벽을 되찾은 자', end: '봐요, 하늘이 밝아지고 있어요. 당신이 돌아올 이 마을을 지키고 있을게요. 우리의 다음 모험도 여기서 시작해요.' },
   { id: 'bounty', name: '모험가 길드의 의뢰', chapter: '반복', npc: 'lia', level: 1, repeatable: true, desc: '어느 지역이든 몬스터 12마리를 처치해 주세요. 완료한 뒤 다시 받을 수 있어요.', objectives: [{ kind: 'kill', target: 'any', count: 12 }], xp: 140, gold: 100, items: { potion: 3 }, end: '또 한 번 길이 안전해졌네요. 다음 의뢰도 부탁할게요.' }
 ];
 export const ZONES = {
-  town: { name: '별여울 마을', subtitle: '불빛이 남아 있는 곳', minLevel: 1, width: 48, height: 36, theme: 'town', color: '#edbc76', spawn: [24, 21], weather: 'fireflies', music: 'town' },
+  town: { name: '별여울 마을', subtitle: '불빛이 남아 있는 곳', minLevel: 1, width: 60, height: 54, theme: 'town', color: '#edbc76', spawn: [24, 21], weather: 'fireflies', music: 'town' },
   forest: { name: '속삭이는 숲', subtitle: '낙성의 흔적을 따라서', minLevel: 1, width: 64, height: 46, theme: 'forest', color: '#88cca5', spawn: [30, 40], weather: 'leaves', music: 'forest' },
   ruins: { name: '달잠 유적', subtitle: '깨어나지 못한 기억', minLevel: 5, width: 60, height: 44, theme: 'ruins', color: '#b2a4ef', spawn: [28, 38], weather: 'stars', music: 'ruins' },
   citadel: { name: '재의 성채', subtitle: '마지막 별이 잠든 밤', minLevel: 9, width: 58, height: 44, theme: 'citadel', color: '#e9a280', spawn: [28, 38], weather: 'embers', music: 'citadel' }
@@ -180,6 +183,19 @@ installDungeons({ZONES,MONSTERS,ITEMS});
 installRealms({ZONES,MONSTERS,ITEMS});
 installEncounterIdentities({MONSTERS,ZONES,QUESTS});
 installExtraItems({ITEMS,RECIPES});
+installMasterworks({ITEMS,RECIPES});
+// Each major adventure region has a staffed waystation instead of a single distant town.
+for(const [zoneId,z]of Object.entries(ZONES)){
+ if(zoneId==='town'||z.expedition||z.dungeon||z.challenge||z.secretRealm)continue;
+ const base=`${zoneId}_village`,cy=z.spawn[1]-4,cx=z.spawn[0];
+ for(const [key,name,kind,sprite,offset] of [
+  ['merchant','역참 보급상','shop','merchant',-4],
+  ['smith','유랑 대장장이','craft','smith',4],
+  ['healer','마을 치유사','heal','healer',0]]){
+  NPCS.push({id:base+'_'+key,name:z.name+' · '+name,role:name,kind,sprite,zone:zoneId,
+   x:(cx+offset)*TILE+16,y:(cy-2)*TILE+16,dialog:'여행자여, 이곳에서 준비를 마치고 떠나세요.'});
+ }
+}
 
 // Combat pacing (applied once at startup to canonical monster definitions).
 // Increase incoming damage; keep HP, armor, patterns, speed, XP, drops and IDs.
