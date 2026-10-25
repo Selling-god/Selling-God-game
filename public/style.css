@@ -306,3 +306,12 @@
 .title-card .title-bonus{border-radius:4px;padding:7px 9px;background:#122631af;color:#d8eabb;font-size:10px;line-height:1.65}
 .title-award{animation-fill-mode:forwards}.title-award-hide{display:none!important}
 @media(max-width:700px){.sell-recipe{display:flex;flex-wrap:wrap;gap:8px}.sell-recipe .recipe-body{flex-basis:calc(100% - 62px)}.sell-actions{gap:6px}.sell-input-label input{width:80px}}
+
+/* Readable chat without shrinking text at tablet and phone breakpoints. */
+.chat{width:min(365px,calc(100vw - 24px))}
+.chat #chat-messages{font-size:14px;line-height:1.65;min-height:112px}
+.chat-head,.chat input,.chat select{font-size:13px}
+.chat input{padding:9px 7px;min-width:0}
+.inventory-layout .item-details{position:sticky;top:0;z-index:2;background:#152a32;border:1px solid #c3bc8f66;padding:12px;border-radius:8px;margin:10px 0}
+.inventory-layout .bag-grid{max-height:45vh;overflow-y:auto}
+@media(max-width:950px){.chat{width:min(310px,calc(100vw - 24px))}.chat #chat-messages{font-size:13px;min-height:100px;height:100px}.chat input,.chat select{font-size:13px}}
