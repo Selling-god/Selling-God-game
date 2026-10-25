@@ -335,7 +335,31 @@ const ROWS=[
    '첫 번째 책임|제단을 통과해라. 가장 어려운 자리를 다른 이에게 미루지 마라.',
    '왕좌 없는 시련|마지막 제단을 넘어라. 승리한 뒤에도 부상자를 살피는 자로 남아라.',
    '이름 없는 서약|빈 왕좌가 묻는다. 네 이름이 남지 않아도 이 길을 지키겠는가.'],
-  '왕관은 이름을 묻지 않았다. 함께 돌아갈 이름들을 기억하는 순간, 이미 머리 위에 놓여 있었다.']
+  '왕관은 이름을 묻지 않았다. 함께 돌아갈 이름들을 기억하는 순간, 이미 머리 위에 놓여 있었다.'],
+ ['dawn_architect','태양 없는 세상에서 시계를 짓다','observatory','톱니지기는 빛을 재는 기계보다 빛을 나누는 약속이 먼저라고 말했다.',
+  ['버려진 설계도|천문대 끝의 작업장으로 들어가 기록을 모아라.',
+   '별빛의 한 면|흩어진 관측 문장을 살피고 오차를 기록해라.',
+   '천 번의 톱니|마법 기본 공격을 반복하며 별빛의 간격을 익혀라.',
+   '오래된 감시자|흩어진 성운의 방해를 걷어내라.',
+   '중심축의 재료|별의 핵을 준비해라. 빛도 그릇이 필요하다.',
+   '기계 밖의 하늘|먼 하늘의 관측 기록을 읽고 돌아와라.',
+   '바늘의 교차|정시 빙하의 심장과 마주해라.',
+   '첫 설계 검증|기억의 제단에서 설계를 시험해라.',
+   '마지막 조율|가장 높은 제단에서 마지막 오차를 바로잡아라.',
+   '새벽의 열쇠|톱니지기에게 새로운 세계의 이름을 약속해라.'],
+  '톱니는 멈추지 않았다. 그는 이제 다른 사람의 시간을 지키는 설계자가 되었다.'],
+ ['abyss_shepherd','아무도 부르지 않는 이름을 찾아','abyss','그림자 목자는 모든 사람에게 이름이 돌아올 때까지 바깥으로 나가지 않았다.',
+  ['검은 초원의 길|심연 깊은 길에서 잃은 자를 찾으라.',
+   '돌에 새긴 약속|심연에 남겨진 마지막 증언을 읽으라.',
+   '천 번의 귀환|멀리 떨어진 사냥감을 정확히 맞혀라.',
+   '빈 갑주의 그림자|경계 사냥개를 물리쳐 길을 열어라.',
+   '보호의 인장|공허의 파편을 모아 길의 표식을 만들어라.',
+   '먼 땅의 이름|늪의 관측 표식을 찾아 증언을 읽으라.',
+   '침묵의 주인|정시 경계의 포식자에게 맞서라.',
+   '첫 무리의 기억|기억의 제단을 돌파하라.',
+   '끝없는 야행|마지막 제단까지 길을 인도하라.',
+   '목자의 호명|먼 어둠의 목자에게 돌아와 이름을 완성하라.'],
+  '그림자에서 이름이 들렸다. 목자는 마지막 사람까지 함께 돌아왔다.']
 ];
 
 const parent={
@@ -345,7 +369,7 @@ const parent={
  alchemist:['herbalist'],engineer:['miner'],rune_knight:['spellblade'],shadowdancer:['rogue'],stormcaller:['pyromancer'],
  necromancer:['druid'],chronomancer:['cryomancer'],spiritwalker:['priest','druid'],dragonknight:['berserker'],
  stargazer:['mage'],warlord:['sentinel'],voidwalker:['shadowdancer','ranger'],eclipse_reaper:['shadowdancer'],
- phoenix_heir:['pyromancer'],tide_oracle:['priest'],starweaver:['stargazer'],nameless_king:['warlord']
+ phoenix_heir:['pyromancer'],tide_oracle:['priest'],starweaver:['stargazer'],nameless_king:['warlord'],dawn_architect:['stargazer','engineer'],abyss_shepherd:['necromancer','beastwarden']
 };
 const levels={common:2,rare:8,epic:17,hidden:26};
 const material={meadow:'pelt',coast:'salt',desert:'sand',swamp:'spore_dust',frost:'ice',sky:'thunder',abyss:'void',observatory:'astral'};
@@ -356,7 +380,9 @@ export const SECRET_PATHS={
  phoenix_heir:[pt('desert',5),pt('frost',6),pt('desert',8)],
  tide_oracle:[pt('coast',2),pt('coast',7),pt('abyss',7)],
  starweaver:[pt('sky',5),pt('observatory',2),pt('observatory',8)],
- nameless_king:[pt('desert',8,'watch'),pt('observatory',6),pt('abyss',5)]
+ nameless_king:[pt('desert',8,'watch'),pt('observatory',6),pt('abyss',5)],
+ dawn_architect:[pt('sky',7,'watch'),pt('observatory',4),pt('observatory',7,'watch')],
+ abyss_shepherd:[pt('swamp',8,'watch'),pt('abyss',4),pt('abyss',6,'watch') ]
 };
 const commonGoals={
  guardian:[[visit('forest')],[hit('any',40)],[deliver('herb',5)],[kill('wolf',5)]],
@@ -396,19 +422,21 @@ function goalsFor(id,p,tier,family){
   if(id==='warlord')sixth=[shield(30)];
   return [[read(pt(p,4,'watch'))],practice,third,[read(pt(p,5))],[deliver(mat,35)],sixth,[trial(p,6)],[read(pt(p,8))]];
  }
- const type={voidwalker:'abyss_wolf',eclipse_reaper:'hollow_knight',phoenix_heir:'sand_wraith',tide_oracle:'siren',starweaver:'astral_wisp',nameless_king:'hollow_knight'}[id];
- const worldId={voidwalker:'eclipse',eclipse_reaper:'eclipse',phoenix_heir:'tempest',tide_oracle:'leviathan',starweaver:'glacier',nameless_king:'eclipse'}[id];
+ const type={voidwalker:'abyss_wolf',eclipse_reaper:'hollow_knight',phoenix_heir:'sand_wraith',tide_oracle:'siren',starweaver:'astral_wisp',nameless_king:'hollow_knight',dawn_architect:'astral_wisp',abyss_shepherd:'abyss_wolf'}[id];
+ const worldId={voidwalker:'eclipse',eclipse_reaper:'eclipse',phoenix_heir:'tempest',tide_oracle:'leviathan',starweaver:'glacier',nameless_king:'eclipse',dawn_architect:'glacier',abyss_shepherd:'eclipse'}[id];
  const remote={voidwalker:pt('frost',5,'watch'),eclipse_reaper:pt('swamp',4,'watch'),phoenix_heir:pt('frost',6,'watch'),
- tide_oracle:pt('abyss',7,'watch'),starweaver:pt('sky',5,'watch'),nameless_king:pt('observatory',6,'watch')}[id];
- const mat={eclipse_reaper:'shard',phoenix_heir:'ember',nameless_king:'ore'}[id]||material[p];
+ tide_oracle:pt('abyss',7,'watch'),starweaver:pt('sky',5,'watch'),nameless_king:pt('observatory',6,'watch'),dawn_architect:pt('sky',7,'watch'),abyss_shepherd:pt('swamp',8,'watch')}[id];
+ const mat={eclipse_reaper:'shard',phoenix_heir:'ember',nameless_king:'ore',dawn_architect:'astral',abyss_shepherd:'void'}[id]||material[p];
  return [[visit(area(p,8))],[read(pt(p,8))],[hit(family,1000)],[kill(type,60)],[deliver(mat,50)],[read(remote)],
   [world(worldId)],[trial(p,7)],[trial(p,8)],[speak('mentor_'+id)]];
 }
 export const STORIES=Object.fromEntries(ROWS.map(([id,title,province,intro,beats,ending])=>{
  const c=CLASSES[id],site=VOCATION_SITES.find(s=>s.job===id),tier=c.tier,goals=goalsFor(id,province,tier,c.family);
+ const loreCount={common:2,rare:3,epic:4,hidden:5}[tier];
+ const lore=Array.from({length:loreCount},(_,i)=>pt(province,i%9,i%2?'watch':'tablet'));
  const minLevel=tier==='common'?2:Math.max(levels[tier],{cryomancer:13,necromancer:23,chronomancer:25,stargazer:25,starweaver:28,nameless_king:30,tide_oracle:26}[id]||0);
  return [id,{id,title,province,tier,mentor:site.name,site:site.id,zone:site.zone,minLevel,parents:parent[id]||[],
-  intro,ending,secret:SECRET_PATHS[id]||[],steps:beats.map((beat,i)=>{
+  intro,ending,lore,secret:SECRET_PATHS[id]||[],steps:beats.map((beat,i)=>{
    const [title,text]=beat.split('|');
    return {id:`${id}_${i}`,title,text,objectives:goals[i],report:site.id,
     gold:({common:40,rare:90,epic:160,hidden:240}[tier]),xp:({common:50,rare:160,epic:300,hidden:450}[tier]),

@@ -5,7 +5,7 @@ export class CharacterStore {
   constructor({url,key,local=false,dir='.local-data'}={}){
     this.url=(url||'').replace(/\/$/,'');this.key=key||'';
     this.online=Boolean(this.url&&this.key);this.local=local&&!this.online;
-    this.dir=dir;this.queues=new Map();this.errors=0;
+    this.dir=dir;this.queues=new Map();this.errors=0;this.latestSaved=new Map();
   }
   async request(route,{method='GET',body,token,headers={}}={}){
     const h={apikey:this.key,'Content-Type':'application/json',...headers};
@@ -50,6 +50,7 @@ export class CharacterStore {
     const copy=JSON.parse(JSON.stringify(state)),id=copy.id;
     const previous=this.queues.get(id)||Promise.resolve();
     const next=previous.catch(()=>{}).then(async()=>{
+      if(Number(copy.revision||0)<Number(this.latestSaved.get(id)||0))return;
       if(this.online){
         try{
           await this.request('/rest/v1/starfall_characters?on_conflict=user_id',{
@@ -62,6 +63,7 @@ export class CharacterStore {
         const f=path.join(this.dir,id+'.json'),tmp=f+'.tmp';
         await fs.writeFile(tmp,JSON.stringify(copy));await fs.rename(tmp,f);
       }else throw new Error('저장소 미설정');
+      this.latestSaved.set(id,Math.max(this.latestSaved.get(id)||0,copy.revision||0));
     });
     this.queues.set(id,next);
     next.finally(()=>{if(this.queues.get(id)===next)this.queues.delete(id);}).catch(()=>{});

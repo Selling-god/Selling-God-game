@@ -16,6 +16,7 @@ import {prepareRealms} from '../shared/realms.js';
 import {combatExperience} from '../shared/rpg.js';
 import {syncProgressTitles} from '../shared/title-catalog.js';
 import {syncHiddenTitles} from './hidden-titles.js';
+import {onSupport,beforeStrike,afterStrike,survive,mechanicInfo} from './class-combat.js';
 import {extraDropsForLevel} from '../shared/extra-items.js';
 import {ACHIEVEMENTS} from '../shared/expansion.js';
 import { randomUUID } from 'node:crypto';
@@ -88,11 +89,20 @@ export class Game {
           }
           if(!pt||isBlocked(map,pt.x,pt.y,16))pt=anchor;
         }else pt=spawnPoint(map,rand);
+        // The village is a rest hub: ordinary mobs must not start inside its
+        // NPC plaza. Re-sample without changing monster counts or boss spawns.
+        if(map.villageStone&&dist(pt,map.villageStone)<295){
+          for(let attempt=0;attempt<28;attempt++){
+            const next=spawnPoint(map,rand);
+            if(dist(next,map.villageStone)>=295){pt=next;break;}
+          }
+        }
         world.mobs.push(this.makeMob(`${id}_m${i}`,types[i%types.length],pt.x,pt.y));
       }
       if(id==='forest')for(let i=0;i<5;i++){
-        const x=(i%2?27:33)*TILE+16,y=(37-Math.floor(i/2)*3)*TILE+16;
-        if(!isBlocked(map,x,y,14))world.mobs.push(this.makeMob(`forest_intro${i}`,'slime',x,y));
+        const x=(i%2?19:41)*TILE+16,y=(28-Math.floor(i/2)*3)*TILE+16;
+        const spot=findSafePosition(map,{x,y},14);
+        if(spot&&(!map.villageStone||dist(spot,map.villageStone)>=295))world.mobs.push(this.makeMob(`forest_intro${i}`,'slime',spot.x,spot.y));
       }
       const b=BOSS_SPAWNS[id];
       if(b?.type)world.mobs.push(this.makeMob(`${id}_boss`,b.type,b.x,b.y));
@@ -136,7 +146,7 @@ export class Game {
   }
   privatePlayer(p){
     return {...serialize(p),atlas:privateAtlas(p),realms:this.realms.profile(p),storyTracker:storyTracker(p),stats:this.stats(p),cooldowns:{...p.cooldowns},target:p.target,partyId:p.partyId,
-      shieldUntil:p.shieldUntil,respawnAt:p.respawnAt,lastCombat:p.lastCombat,
+      shieldUntil:p.shieldUntil,respawnAt:p.respawnAt,lastCombat:p.lastCombat,mechanic:mechanicInfo(p),
       soul:p.soul&&p.soul.expires>this.now?p.soul:null,achievementProgress:Object.fromEntries(ACHIEVEMENTS.map(a=>[a.id,metric(p,a.metric)]))};
   }
   snapshot(p,full=false){
@@ -147,7 +157,7 @@ export class Game {
       t:this.now,zone:p.zone,self:{...this.publicPlayer(p),mp:Math.round(p.mp),maxMp:this.stats(p).maxMp,
         cooldowns:p.cooldowns,target:p.target,revision:p.revision,respawnAt:p.respawnAt,
         inputSeq:p.inputSeq||0,motionId:p.motionId||0,speed:this.stats(p).speed,
-        speedUntil:p.speedUntil,dashUntil:p.dashUntil,dashVector:p.dashVector||{x:0,y:0},pathing:p.path.length>0},
+        speedUntil:p.speedUntil,dashUntil:p.dashUntil,dashVector:p.dashVector||{x:0,y:0},pathing:p.path.length>0,mechanic:mechanicInfo(p)},
       players:[...this.players.values()].filter(x=>x.active&&x.id!==p.id&&x.zone===p.zone&&this.sameInstance(p,x)&&dist(x,p)<near+200).map(x=>this.publicPlayer(x)),
       mobs:w.mobs.filter(m=>m.alive&&this.canSeeEntity(p,m)&&dist(m,p)<near).map(m=>({id:m.id,type:m.type,name:m.name||MONSTERS[m.type].name,dungeonObjective:m.dungeonObjective,level:this.mobSpec(m).level,x:Math.round(m.x*10)/10,y:Math.round(m.y*10)/10,hp:m.hp,maxHp:m.maxHp,dir:m.dir,moving:m.moving,casting:m.castUntil>this.now,slow:m.slowUntil>this.now,phase:Math.max(0,(m.encounterPhase||1)-1),encounterPose:this.encounters.viewMob(m),encounterForm:m.encounterForm,dot:m.dots?.[0]?.kind,challengeShield:!!(m.challengeShield||m.dungeonShield||m.encounterTransition?.ends>this.now),mechanicObjective:m.mechanicObjective})),
       nodes:w.nodes.filter(n=>dist(n,p)<near).map(n=>({...n,ready:n.readyAt<=this.now})),
@@ -193,6 +203,7 @@ export class Game {
     }
     if(p.level===MAX_LEVEL)p.xp=Math.min(p.xp,xpRequired(p.level));
     if(levelled){
+      this.mark(p);this.save(p); // Critical milestone: request persistence even in a long uninterrupted combat session.
       const s=this.stats(p);p.hp=s.maxHp;p.mp=s.maxMp;
       this.fx(p.zone,{type:'level',id:p.id,x:p.x,y:p.y,level:p.level});
       this.toast(p,`레벨 ${p.level}! 능력치 포인트가 추가되었습니다. 능력치 메뉴에서 배분하세요.`,'success');
@@ -233,6 +244,7 @@ export class Game {
       if(skill.heal)p.hp=Math.min(this.stats(p).maxHp,p.hp+this.stats(p).maxHp*skill.heal*(1+(c.passive?.healBonus||0)));
       restored+=Math.max(0,p.hp-beforeHeal);
       if(skill.haste||c.identity==='haste')p.speedUntil=this.now+4500;
+      onSupport(this,p);
       if(skill.partyHeal){
         const party=this.parties.get(p.partyId);
         for(const id of party?.members||[]){
@@ -258,12 +270,15 @@ export class Game {
     const dx=target.x-p.x,dy=target.y-p.y;
     p.dir=Math.abs(dx)>Math.abs(dy)?(dx>0?'e':'w'):(dy>0?'s':'n');
     const center=skill.center==='self'||!skill.center&&(c.family||p.classId)==='guardian'?p:target;
+    const signature=beforeStrike(this,p,skillId,target);
     const victims=skill.radius?w.mobs.filter(m=>m.alive&&this.canDamage(p,m)&&dist(m,center)<=skill.radius&&lineOfSight(w.map,p,m)):[target];
     this.fx(p.zone,{type:'attack',id:p.id,classId:c.family||p.classId,job:p.classId,center:skill.center||((c.family||p.classId)==='guardian'?'self':'target'),skill:skillId,x:p.x,y:p.y,tx:target.x,ty:target.y,radius:skill.radius,color:c.color});
     if(victims.length)recordStory(this,p,{kind:skillId==='basic'?'hit':'skill',target:c.family||p.classId,skill:skillId});
+    // Chain effects search only nearby, valid enemies; they cannot ignore instance shields.
+    if(signature.chain)for(const m of w.mobs.filter(x=>x.alive&&!victims.includes(x)&&this.canDamage(p,x)&&dist(x,target)<240&&lineOfSight(w.map,p,x)).slice(0,signature.chain))victims.push(m);
     for(const m of victims){
-      const crit=this.random()*100<this.stats(p).crit;
-      const rawDamage=Math.max(1,Math.round((this.stats(p).atk*skill.power-this.mobSpec(m).def*.65*(1-(c.passive?.armorPierce||0)))*(0.92+this.random()*.16)*(crit?1.65:1)*bossDamageMultiplier(m)));
+      const crit=this.random()*100<Math.min(95,this.stats(p).crit+signature.crit);
+      const rawDamage=Math.max(1,Math.round((this.stats(p).atk*skill.power*signature.scale-this.mobSpec(m).def*.65*(1-Math.min(1,(c.passive?.armorPierce||0)+signature.pierce)))*(0.92+this.random()*.16)*(crit?1.65:1)*bossDamageMultiplier(m)));
       const damage=m.dungeonRun?this.dungeons.damageAmount(m,rawDamage):this.encounters.damageAmount(m,rawDamage);
       const actual=Math.min(m.hp,damage);
       m.hp=Math.max(0,m.hp-damage);m.contributors.set(p.id,this.now);m.damageLog.set(p.id,(m.damageLog.get(p.id)||0)+actual);m.target=p.id;
@@ -275,6 +290,7 @@ export class Game {
         m.dots=m.dots.filter(d=>d.by!==p.id||d.kind!==skill.dot.kind);
         m.dots.push({by:p.id,kind:skill.dot.kind,left:skill.dot.ticks,next:this.now+1000,damage:Math.max(1,Math.round(this.stats(p).atk*skill.dot.power))});
       }
+      afterStrike(this,p,m,skillId,signature,actual);
       if(skillId==='ultimate'||((c.family||p.classId)==='mage'&&skillId==='skill1'))m.slowUntil=this.now+2500;
       this.fx(p.zone,{type:'hit',id:m.id,x:m.x,y:m.y-22,amount:damage,crit,kind:'monster',by:p.id});
       if(m.hp<=0)this.killMob(p.zone,m);
@@ -322,8 +338,9 @@ export class Game {
         if(spec.signatureCore){this.addItem(p,spec.signatureCore);drops.push({id:spec.signatureCore,count:1});}
       }
       if(spec.boss){
-        const reward=spec.gearCharm||(m.type==='moss_guardian'?'moss_charm':m.type==='moon_witch'?'moon_robe':spec.level>=16?'relic_charm':spec.level>=9?'dawn_charm':'moss_charm');
-        this.addItem(p,reward);drops.push({id:reward,count:1});
+        const reward=spec.gearCharm||(m.type==='moss_guardian'?'moss_charm':m.type==='moon_witch'?'moon_robe':spec.level>=25?'relic_charm':spec.level>=9?'moon_charm':'moss_charm');
+        const balancedReward=spec.level<20&&ITEMS[reward]?.rarity==='legendary'?'moon_charm':reward;
+        this.addItem(p,balancedReward);drops.push({id:balancedReward,count:1});
         if(!p.titles.includes('수호자의 벗'))p.titles.push('수호자의 벗');
       }else if(this.random()<.065){
         const reward=spec.gearTier?weaponFor(spec.gearTier,p.classId):spec.level>=9?weaponFor('star',p.classId):spec.level>=5?'leather':(this.random()>.5?'ore':'potion');
@@ -363,7 +380,7 @@ export class Game {
     if(p.shieldUntil>this.now){const before=damage;damage=Math.max(1,Math.round(damage*.45));if(before>damage)recordStory(this,p,{kind:'guard',target:'any'});}
     p.hp=Math.max(0,p.hp-damage);p.lastCombat=this.now;
     this.fx(p.zone,{type:'hit',id:p.id,x:p.x,y:p.y-25,amount:damage,kind:'player'});
-    if(p.hp<=0){
+    if(p.hp<=0&&!survive(this,p)){
       if(!this.dungeons.onDeath(p)&&!this.challenges.onDeath(p)){
         p.path=[];p.input={x:0,y:0};p.respawnAt=this.now+3500;
         onDeath(this,p);
@@ -400,7 +417,7 @@ export class Game {
       ...w.map.chests.filter(n=>!p.opened.includes(n.id)).map(n=>({...n,entity:'chest'})),
       ...(w.map.relics||[]).map(n=>({...n,entity:'relic'})),
       ...(w.map.storyPoints||[]).map(n=>({...n,entity:'storyPoint'}))
-    ].filter(n=>dist(p,n)<95&&(!id||n.id===id)).sort((a,b)=>dist(p,a)-dist(p,b));
+    ].filter(n=>dist(p,n)<((n.entity==='storyPoint'||n.entity==='npc')?165:95)&&(!id||n.id===id)).sort((a,b)=>dist(p,a)-dist(p,b));
     const obj=options[0];if(!obj)return {ok:false,error:'가까이 다가가서 상호작용해 주세요.'};
     p.lastInteract=this.now;
     if(obj.entity==='soul')return recoverSoul(this,p,obj.id);
@@ -669,6 +686,8 @@ export class Game {
         let target=inZone.find(p=>p.id===m.target&&dist(p,m)<440);
         if(target&&Math.hypot(m.x-m.homeX,m.y-m.homeY)>440)target=null;
         if(!target)target=inZone.filter(p=>dist(p,m)<spec.aggro&&lineOfSight(w.map,m,p)).sort((a,b)=>dist(a,m)-dist(b,m))[0];
+        // Normal enemies abandon pursuit when the player reaches a town hub.
+        if(target&&!spec.boss&&w.map.villageStone&&dist(target,w.map.villageStone)<205)target=null;
         if(target&&Math.hypot(m.x-m.homeX,m.y-m.homeY)>480)target=null;
         m.target=target?.id||null;
         if(target){

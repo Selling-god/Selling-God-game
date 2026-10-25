@@ -11,7 +11,9 @@ const firstHints={
  phoenix_heir:'유실된 태양왕로 깊은 곳, 해가 지지 않는 옛길의 명부에서 불씨의 첫 이름을 찾으세요.',
  tide_oracle:'일곱조수 군도에서 서쪽 끝 파도를 지켜보던 사람이 남긴 편지가 시작입니다.',
  starweaver:'천공 유랑환도의 부서진 시계섬에는 하늘을 잇는 실의 기록이 남아 있습니다.',
- nameless_king:'태양왕로의 가장 먼 관측 표식에서 왕이 명령하지 않은 마지막 일을 찾아보세요.'
+ nameless_king:'태양왕로의 가장 먼 관측 표식에서 왕이 명령하지 않은 마지막 일을 찾아보세요.',
+ dawn_architect:'하늘섬의 종 없는 종탑에서 잘못된 시간이 무엇인지 확인하세요.',
+ abyss_shepherd:'잊힌 거목의 마지막 감시 기록에서 아무도 불러주지 않는 이름을 찾으세요.'
 };
 function hiddenHint(p,id){
  const index=p.journey.signs[id]||0,next=STORY_POINTS.get(SECRET_PATHS[id]?.[index]);
@@ -40,7 +42,8 @@ function prerequisites(p,s){
  return [
   {label:'필요 레벨',value:p.level,goal:Math.max(s.minLevel,ZONES[s.zone].minLevel)},
   ...s.parents.map(id=>({label:CLASSES[id].name+'의 길',value:+(owned||p.discovery.jobs.includes(id)),goal:1})),
-  ...(s.secret.length?[{label:'순서대로 읽은 숨은 기록',value:owned?s.secret.length:p.journey.signs[s.id]||0,goal:s.secret.length}]:[])
+  ...(s.secret.length?[{label:'순서대로 읽은 숨은 기록',value:owned?s.secret.length:p.journey.signs[s.id]||0,goal:s.secret.length}]:[]),
+  {label:'직업 전승 자료 수집 (야영지 기록)',value:(s.lore||[]).filter(k=>p.atlas?.pages?.includes(k)).length,goal:(s.lore||[]).length}
  ];
 }
 export function canBeginStory(p,id){
@@ -169,10 +172,10 @@ export function storyAction(game,p,a){
   if(Object.values(j.quests).filter(x=>x.active).length>=3&&!q.active)return {ok:false,error:'수련은 세 이야기까지 동시에 진행할 수 있습니다. 다른 이야기를 잠시 멈추세요.'};
   q.active=true;j.tracked=a.id;game.mark(p);sync();return {ok:true};
  }
- if(p.zone!==site.zone||dist(p,site)>125)return {ok:false,error:`${ZONES[site.zone].name}의 ${site.name} 가까이에서 진행하세요.`};
+ if(p.zone!==site.zone||dist(p,site)>185)return {ok:false,error:`${ZONES[site.zone].name}의 전직 NPC ${site.name} 가까이에서 직접 퀘스트를 수락하고 보고하세요.`};
  if(a.type==='storyAccept'){
   if(q||j.completed.includes(a.id))return {ok:false,error:'이미 시작했거나 끝낸 이야기입니다.'};
-  if(!canBeginStory(p,a.id))return {ok:false,error:'전승의 시작 조건과 먼저 배워야 할 직업을 확인하세요.'};
+  if(!canBeginStory(p,a.id))return {ok:false,error:'전직 스승의 퀘스트를 받으려면 먼저 필요한 전승 기록을 모두 수집하고 레벨·선행직업 조건을 충족해야 합니다.'};
   if(Object.values(j.quests).filter(x=>x.active).length>=3)return {ok:false,error:'동시에 세 이야기까지 수련할 수 있습니다. 다른 이야기를 잠시 멈추세요.'};
   j.quests[a.id]={chapter:0,progress:s.steps[0].objectives.map(()=>0),active:true,notified:false,startedAt:game.now};
   if(!j.discovered.includes(a.id))j.discovered.push(a.id);

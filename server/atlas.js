@@ -5,6 +5,7 @@ import {STORY_POINTS,openMentor,readSecret,recordStory} from './stories.js';
 
 export const atlasDay=now=>new Date(now+9*3600000).toISOString().slice(0,10);
 const validZone=id=>Object.prototype.hasOwnProperty.call(ZONES,id)&&ZONES[id].expedition;
+const villageZone=id=>Object.prototype.hasOwnProperty.call(ZONES,id)&&!ZONES[id].expedition&&!ZONES[id].dungeon&&!ZONES[id].challenge&&!ZONES[id].secretRealm;
 function grantReward(game,p,zone,kind){
  const reward=expeditionRewards(zone,kind);
  p.gold+=reward.gold||0;
@@ -15,7 +16,7 @@ function grantReward(game,p,zone,kind){
 }
 export function prepareAtlas(p){
  const a=p.atlas||{};
- p.atlas={version:1,waypoints:[...new Set(a.waypoints||[])].filter(validZone),
+ p.atlas={version:1,townStones:[...new Set(['town',...(a.townStones||[])])].filter(villageZone),waypoints:[...new Set(a.waypoints||[])].filter(validZone),
   pages:[...new Set(a.pages||[])].filter(id=>STORY_POINTS.has(id)),
   fog:structuredClone(a.fog||{}),contracts:structuredClone(a.contracts||{}),
   reputation:{...(a.reputation||{})},trialClaims:{...(a.trialClaims||{})},
@@ -36,13 +37,32 @@ export function privateAtlas(p){
    rep:a.reputation[r.id]||0,claimed:a.surveyClaims.includes(r.id)
   }]))};
 }
+function unreachableFogChunks(map){
+ if(map.unreachableFog)return map.unreachableFog;
+ const W=map.w,H=map.h,seen=new Uint8Array(W*H),todo=[];
+ const z=ZONES[map.id],sx=Math.floor(z.spawn[0]),sy=Math.floor(z.spawn[1]);
+ const start=sy*W+sx;if(!map.blocked[start]){seen[start]=1;todo.push(start);}
+ for(let n=0;n<todo.length;n++){const at=todo[n],x=at%W,y=Math.floor(at/W);
+  for(const [dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]]){const xx=x+dx,yy=y+dy,i=yy*W+xx;
+   if(xx<0||yy<0||xx>=W||yy>=H||seen[i]||map.blocked[i])continue;seen[i]=1;todo.push(i);
+  }
+ }
+ const cols=Math.ceil(W/8),rows=Math.ceil(H/8),unreachable=[];
+ for(let cy=0;cy<rows;cy++)for(let cx=0;cx<cols;cx++){
+  let reachable=false;for(let y=cy*8;y<Math.min((cy+1)*8,H)&&!reachable;y++)
+   for(let x=cx*8;x<Math.min((cx+1)*8,W);x++)if(seen[y*W+x]){reachable=true;break;}
+  if(!reachable)unreachable.push(cy*cols+cx);
+ }
+ return map.unreachableFog=unreachable;
+}
 export function revealTerrain(game,p){
  const z=ZONES[p.zone];if(!z?.expedition||game.now<(p.nextSurveyAt||0))return;
  p.nextSurveyAt=game.now+650;
  const cols=Math.ceil(z.width/8),rows=Math.ceil(z.height/8),cx=Math.floor(p.x/256),cy=Math.floor(p.y/256);
  const list=p.atlas.fog[p.zone]||(p.atlas.fog[p.zone]=[]),seen=new Set(list);
  let changed=false;
- for(let y=Math.max(0,cy-1);y<=Math.min(rows-1,cy+1);y++)for(let x=Math.max(0,cx-1);x<=Math.min(cols-1,cx+1);x++){
+ for(const i of unreachableFogChunks(game.worlds.get(p.zone).map)){if(!seen.has(i)){list.push(i);seen.add(i);changed=true;}}
+ for(let y=Math.max(0,cy-2);y<=Math.min(rows-1,cy+2);y++)for(let x=Math.max(0,cx-2);x<=Math.min(cols-1,cx+2);x++){
   const i=y*cols+x;if(!seen.has(i)){list.push(i);seen.add(i);changed=true;}
  }
  if(changed)game.mark(p);
@@ -65,6 +85,13 @@ export function atlasScene(game,p,point,signals=[]){
 }
 export function interactPoint(game,p,point){
  if(point.kind==='mentor')return openMentor(game,p,point);
+ if(point.kind==='warpstone'){
+  if(!p.atlas.townStones.includes(p.zone))p.atlas.townStones.push(p.zone);
+  game.mark(p);
+  game.send(p.id,'warpstoneView',{here:p.zone,
+   destinations:p.atlas.townStones.filter(villageZone).map(id=>({id,name:ZONES[id].name,level:ZONES[id].minLevel}))});
+  return {ok:true};
+ }
  let signals=[];
  if(point.kind==='camp'){
   if(!p.atlas.waypoints.includes(p.zone)){
@@ -134,10 +161,22 @@ export function tickFieldTrial(game,w){
  cancelFieldTrial(game,w,'세 번의 기억이 하나의 길로 이어졌습니다. 시련을 마쳤습니다.');
 }
 export function atlasAction(game,p,a){
- if(!['waypoint','contractAccept','contractClaim','trialStart','surveyClaim'].includes(a.type))return null;
+ if(!['waypoint','contractAccept','contractClaim','trialStart','surveyClaim','villageWarp'].includes(a.type))return null;
  const z=ZONES[p.zone],w=game.worlds.get(p.zone),camp=w.map.camp;
  const atCamp=camp&&dist(p,camp)<=130;
  const sync=point=>game.send(p.id,'atlasScene',atlasScene(game,p,point));
+ if(a.type==='villageWarp'){
+  const stone=w.map.villageStone,dest=ZONES[a.id];
+  if(!stone||dist(p,stone)>165)return {ok:false,error:'마을 중앙의 귀환석 가까이에서 이용하세요.'};
+  if(typeof a.id!=='string'||!villageZone(a.id)||!p.atlas.townStones.includes(a.id)||!dest)return {ok:false,error:'먼저 해당 지역 마을의 귀환석을 발견해야 합니다.'};
+  if(p.level<dest.minLevel)return {ok:false,error:`이 지역은 레벨 ${dest.minLevel} 이상부터 이동할 수 있습니다.`};
+  if(game.now-p.lastCombat<8000)return {ok:false,error:'전투를 마친 후 8초 뒤에 이동하세요.'};
+  if((p.cooldowns.villageWarp||0)>game.now)return {ok:false,error:'귀환석 재사용 대기 시간입니다.'};
+  const target=game.worlds.get(a.id).map.villageStone;
+  if(!target)return {ok:false,error:'지역의 귀환석을 찾지 못했습니다.'};
+  if(!game.teleport(p,a.id,target.x,target.y+80))return {ok:false,error:'이동 가능한 안전한 장소가 없습니다.'};
+  p.cooldowns.villageWarp=game.now+15000;game.mark(p);return {ok:true,message:`${dest.name} 마을로 이동했습니다.`};
+ }
  if(a.type==='waypoint'){
   const dest=ZONES[a.id];
   if(!dest||a.id!== 'town'&&!p.atlas.waypoints.includes(a.id))return {ok:false,error:'먼저 해당 야영지의 귀환석을 직접 깨워야 합니다.'};

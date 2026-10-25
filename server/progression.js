@@ -37,7 +37,9 @@ export const JOB_REQUIREMENTS={
  phoenix_heir:[level(26),req('sequence:phoenix_heir',4,'불사조의 문장'),job('pyromancer'),req('kill:eclipse_dragon',3,'별을 삼킨 용 처치')],
  tide_oracle:[level(23),req('sequence:tide_oracle',4,'바다의 문장'),job('priest'),req('world:leviathan',2,'해류의 지배자 처치')],
  starweaver:[level(28),job('stargazer'),req('relics',20,'모든 유물 발견'),req('quest:last_star',1,'마지막 별의 약속 완료')],
- nameless_king:[level(30),req('visited',12,'모든 지역 발견'),req('worldKinds',4,'서로 다른 월드 보스 처치'),relic('observatory_crown'),boss(20)]
+ nameless_king:[level(30),req('visited',12,'모든 지역 발견'),req('worldKinds',4,'서로 다른 월드 보스 처치'),relic('observatory_crown'),boss(20)],
+ dawn_architect:[level(45),job('stargazer'),job('engineer'),req('crafted',50,'장비 제작'),req('relics',15,'유물 탐사')],
+ abyss_shepherd:[level(45),job('necromancer'),job('beastwarden'),boss(35),req('visited',15,'지역 탐사')]
 };
 export const SEQUENCES={
  voidwalker:['meadow_song','ruins_rune','frost_clock','abyss_gate'],

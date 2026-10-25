@@ -71,6 +71,7 @@ const io=new WireServer(server,{
 });
 const sockets=new Map(),joining=new Set(),saveTimers=new Map();
 const game=new Game({
+  save:p=>scheduleSave(p),
   eventStore:configured||devGuest?store:null,
   send:(id,event,data)=>sockets.get(id)?.emit(event,data),
   broadcast:(zone,event,data)=>{
@@ -82,12 +83,18 @@ const game=new Game({
 async function persist(p){
   if(!p)return;
   const snapshot=serialize(p),storyStamp=p.storySaveStamp||0;
+  // Never acknowledge an older revision after a newer one is already persisted.
+  if(snapshot.revision<=(p.lastSavedRevision||-1)&&!p.dirty)return;
   try{
     await store.save(snapshot);
+    p.lastSavedRevision=Math.max(p.lastSavedRevision||0,snapshot.revision||0);
     if(p.revision===snapshot.revision&&(p.storySaveStamp||0)===storyStamp)p.dirty=false;
+    else scheduleSave(p); // Snapshot changed while awaiting the database; flush the latest revision.
     sockets.get(p.id)?.emit('saved',{at:Date.now(),revision:snapshot.revision,local:devGuest});
   }catch(err){
-    p.dirty=true;console.error('Save failed:',err.message);
+    p.dirty=true;console.error('Save failed:',err.message,'level:',p.level,'revision:',snapshot.revision);
+    // Active players keep retrying quickly even if the next periodic timer has not fired.
+    const retry=setTimeout(()=>scheduleSave(p),6000);retry.unref();
     sockets.get(p.id)?.emit('saveError',{message:'저장 연결이 불안정합니다. 자동으로 다시 시도합니다. 연결 상태가 회복될 때까지 창을 닫지 마세요.'});
   }
 }
@@ -222,7 +229,7 @@ const saver=setInterval(()=>{
   for(const p of game.players.values())if(p.dirty)persist(p);
   for(const[id,p]of game.players)if(!p.active&&Date.now()-(p.disconnectedAt||0)>300000&&!p.dirty){game.leaveParty(p);game.players.delete(id);}
   for(const[id,s]of sockets)if(!devGuest&&Date.now()-s.data.authAt>3700000){s.emit('authExpired');s.disconnect(true);}
-},30000);
+},10000);
 const port=parseInt(process.env.PORT||'3000',10);
 server.listen(port,'0.0.0.0',()=>{
   console.log(`Starfall Online ${VERSION} listening on ${port}; persistence=${configured?'Supabase':devGuest?'LOCAL DEVELOPMENT ONLY':'NOT CONFIGURED'}`);
@@ -234,8 +241,8 @@ async function shutdown(){
   clearInterval(ticker);clearInterval(snapshotter);clearInterval(saver);
   for(const timer of saveTimers.values())clearTimeout(timer);
   game.broadcast(null,'system',{message:'서버가 재시작됩니다. 기록을 저장하고 있으니 재접속 안내를 확인해 주세요.'});
+  const limit=setTimeout(()=>{console.error('Persistence shutdown grace period expired.');process.exit(1);},19000);limit.unref();
   await Promise.allSettled([...game.players.values()].map(p=>persist(p)));
-  await store.flush();io.close();server.close(()=>process.exit(0));
-  setTimeout(()=>process.exit(0),4000).unref();
+  await store.flush();clearTimeout(limit);io.close();server.close(()=>process.exit(0));
 }
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);

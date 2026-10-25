@@ -12,7 +12,9 @@ const achievementChecks=[
  p=>Object.values(p.discovery?.worldKills||{}).reduce((a,b)=>a+b,0)>=22&&(p.bossKills||0)>=70,
  p=>(p.playSeconds||0)>=40*3600&&(p.level||1)>=110,
  p=>Object.values(p.enhancements||{}).some(n=>n>=10)&&(p.discovery?.crafted||0)>=95,
- p=>(p.level||1)>=180&&(p.bossKills||0)>=120&&Object.values(p.discovery?.worldKills||{}).reduce((a,b)=>a+b,0)>=35
+ p=>(p.level||1)>=180&&(p.bossKills||0)>=120&&Object.values(p.discovery?.worldKills||{}).reduce((a,b)=>a+b,0)>=35,
+ p=>p.discovery?.jobs?.includes('dawn_architect')&&(p.discovery?.crafted||0)>=130&&(p.atlas?.pages?.length||0)>=65,
+ p=>p.discovery?.jobs?.includes('abyss_shepherd')&&(p.bossKills||0)>=100&&(p.journey?.completed?.length||0)>=20
 ];
 
 export function syncHiddenTitles(player){
