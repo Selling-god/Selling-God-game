@@ -1,3 +1,4 @@
+import {applyCombatKits} from './combat-kits.js';
 import {villageLayout} from './village-layout.js';
 import { cleanAttributes, enhancementBonus } from './rpg.js';
 import { titleStatBonus } from './title-catalog.js';
@@ -185,6 +186,8 @@ installRealms({ZONES,MONSTERS,ITEMS});
 installEncounterIdentities({MONSTERS,ZONES,QUESTS});
 installExtraItems({ITEMS,RECIPES});
 installMasterworks({ITEMS,RECIPES});
+// V5: distinct Q/E/R combat loops per profession; keep IDs and saves stable.
+applyCombatKits(CLASSES);
 // Farther-spaced service points surround the new central obelisk.
 // Keep identifiers and NPC kinds stable for interaction and saved quest data.
 for(const [zoneId,z]of Object.entries(ZONES)){
