@@ -1,3 +1,4 @@
+import {drawClassCombatVFXV7} from './combat-vfx-v7.js';
 import {drawClassCombatVFX} from './combat-vfx-v6.js';
 import {drawTacticalSkill} from './tactical-skill-fx.js?v=v5-smooth';
 import {jobArtProfile} from './job-signatures.js';
@@ -243,6 +244,7 @@ export function drawSkillEffect(renderer,e,t){
  // A selectable classic fallback makes visual updates reversible without
  // rolling back the authoritative V5 combat, inventory or saves.
  if(isSkill&&renderer.fxStyle==='classic'&&drawPixelSkillSprite(renderer,e,f))return true;
+ if(isSkill&&renderer.fxStyle==='v7'&&drawClassCombatVFXV7(renderer,e,f))return true;
  if(isSkill&&renderer.fxStyle!=='classic'&&drawClassCombatVFX(renderer,e,f))return true;
  if(isSkill&&drawPixelSkillSprite(renderer,e,f))return true;
  if(isSkill&&drawTacticalSkill(renderer,e,f))return true;

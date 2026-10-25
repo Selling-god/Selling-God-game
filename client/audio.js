@@ -1,8 +1,52 @@
 export class Sound {
-  constructor(){this.ctx=null;this.sfx=.28;this.music=0;this.step=0;this.zone='town';this.timer=null;}
+  constructor(){
+    this.ctx=null;
+    this.sfx=.28;
+    this._music=0;
+    this.zone='town';
+    this.bgm=null;
+    this._visibilityBound=false;
+  }
+  get music(){return this._music;}
+  set music(value){
+    const n=Number(value);
+    this._music=Number.isFinite(n)?Math.max(0,Math.min(1,n)):0;
+    this.syncMusic();
+  }
   start(){
-    if(this.ctx){this.ctx.resume().catch(()=>{});return;}
-    try{this.ctx=new (window.AudioContext||window.webkitAudioContext)();this.timer=setInterval(()=>this.musicTick(),650);}catch{}
+    // The start button/settings switch is the required user gesture for browsers.
+    if(!this.ctx){
+      try{this.ctx=new (window.AudioContext||window.webkitAudioContext)();}catch{}
+    }else if(this.ctx.state==='suspended'){
+      try{this.ctx.resume()?.catch(()=>{});}catch{}
+    }
+    if(!this.bgm){
+      try{
+        this.bgm=new Audio('/assets/bgm_starfall_20261025.mp3');
+        this.bgm.loop=true;
+        this.bgm.preload='none';
+        this.bgm.volume=this._music;
+        if(!this._visibilityBound){
+          document.addEventListener('visibilitychange',()=>this.syncMusic());
+          this._visibilityBound=true;
+        }
+      }catch{this.bgm=null;}
+    }
+    this.syncMusic();
+  }
+  syncMusic(){
+    if(!this.bgm)return;
+    this.bgm.volume=this._music;
+    if(!this._music||document.hidden){
+      this.bgm.pause();
+      return;
+    }
+    if(this.bgm.paused){
+      try{
+        const request=this.bgm.play();
+        if(request&&typeof request.catch==='function')request.catch(()=>{});
+      }catch{} // Some browsers block playback until a user interacts.
+    }
   }
   tone(freq,duration=.15,type='sine',volume=.2,delay=0){
     if(!this.ctx||this.ctx.state!=='running')return;
@@ -20,16 +64,5 @@ export class Sound {
     if(name==='level')for(let i=0;i<4;i++)this.tone([392,494,587,784][i],.55,'triangle',this.sfx*.22,i*.1);
     if(name==='boss'){this.tone(65,.8,'triangle',this.sfx*.23);this.tone(98,.7,'sine',this.sfx*.18,.1);}
     if(name==='click')this.tone(440,.06,'sine',this.sfx*.12);
-  }
-  musicTick(){
-    if(!this.music||document.hidden||!this.ctx)return;
-    const notes=this.zone==='town'?[196,246.94,293.66,392,293.66,246.94,220,293.66]:
-      this.zone==='forest'?[174.61,220,261.63,349.23,293.66,220,196,261.63]:
-      this.zone==='ruins'?[164.81,196,246.94,329.63,293.66,246.94,196,164.81]:
-      [146.83,174.61,220,293.66,261.63,220,174.61,146.83];
-    const n=notes[this.step++%notes.length];
-    this.tone(n,1.6,'sine',this.music*.08);
-    if(this.step%4===0)this.tone(n/2,2.4,'triangle',this.music*.06);
-    if(this.step%3===0)this.tone(n*2,.7,'sine',this.music*.05,.2);
   }
 }
