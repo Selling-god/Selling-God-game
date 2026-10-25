@@ -46,7 +46,7 @@ test('bad batch sale quantities and protected equipment never mutate inventory o
 
 test('harder milestone targets and rarer title rewards scale with achievement difficulty',()=>{
  assert.equal(TITLE_CATALOG.length,320);
- assert.equal(HIDDEN_TITLES.length,10);
+ assert.equal(HIDDEN_TITLES.length,12);
  assert.ok(TITLE_CATALOG.every(t=>t.goal>0&&t.bonus));
  const low=TITLE_CATALOG[0],high=TITLE_CATALOG[19];
  assert.ok(low.goal>=7&&high.goal>low.goal);
@@ -72,10 +72,10 @@ test('only the equipped, actually owned title can change server-calculated stati
  assert.equal(g.stats(p).maxHp,base.maxHp-(previous.hp||0));
 });
 
-test('all ten secret titles have server-only unlock checks; their user-facing gallery never exposes conditions',()=>{
+test('all twelve secret titles have server-only unlock checks; their user-facing gallery never exposes conditions',()=>{
  const {g,p}=trader();
  assert.ok(HIDDEN_TITLES.every(t=>t.hidden&&!('metric' in t)&&!('goal' in t)));
- assert.equal(new Set(HIDDEN_TITLES.map(t=>t.name)).size,10);
+ assert.equal(new Set(HIDDEN_TITLES.map(t=>t.name)).size,12);
  assert.ok(!source('shared/title-catalog.js').includes('achievementChecks'));
  assert.match(source('server/hidden-titles.js'),/achievementChecks/);
  assert.match(source('client/main.js'),/해금 방법 비공개/);

@@ -10,7 +10,7 @@ test('320 distinct hand-authored titles retain stable IDs and unique aliases',()
  assert.equal(new Set(TITLE_CATALOG.map(t=>t.name)).size,320);
  assert.equal(new Set(TITLE_CATALOG.map(t=>t.id)).size,320);
  assert.equal(TITLE_RENAMES.size,320);
- assert.equal(TITLE_BY_NAME.size,330);
+ assert.equal(TITLE_BY_NAME.size,332);
  assert.deepEqual(TITLE_CATALOG[0].id,'chronicle_01_01');
  assert.deepEqual(TITLE_CATALOG.at(-1).id,'chronicle_16_20');
  const ranks=['첫빛','작은씨앗','견습','새싹','초심','발견자','여행자','추적자','도전자','개척자','숙련자','길잡이','별지기','수호자','선봉','영웅','대가','전설','초월자','영원의별'];

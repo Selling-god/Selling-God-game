@@ -14,6 +14,8 @@ def bundle(entries,integrated=False):
   for m in re.finditer(r"import\s+\{([^}]+)\}\s+from\s+['\"]([^'\"]+)['\"]\s*;",src):
    if m.group(2).startswith('node:'):continue
    dep=((ROOT/rel).parent/m.group(2)).resolve().relative_to(ROOT).as_posix();visit(dep)
+  for m in re.finditer(r"export\s+\{([^}]+)\}\s+from\s+['\"]([^'\"]+)['\"]\s*;",src):
+   dep=((ROOT/rel).parent/m.group(2)).resolve().relative_to(ROOT).as_posix();visit(dep)
   order.append(rel)
  for e in entries:visit(e)
  chunks=["window.QAModules={};"]
@@ -26,6 +28,13 @@ def bundle(entries,integrated=False):
    return f"const {{{names}}}=QAModules[{json.dumps(dep)}];"
   src=re.sub(r"import\s+\{([^}]+)\}\s+from\s+['\"]([^'\"]+)['\"]\s*;",replace,src)
   names=re.findall(r"export\s+(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)",src)
+  reexports=re.findall(r"export\s+\{([^}]+)\}\s+from\s+['\"]([^'\"]+)['\"]\s*;",src)
+  for group,dependency in reexports:
+   dep=((ROOT/rel).parent/dependency).resolve().relative_to(ROOT).as_posix()
+   aliases=[v.strip() for v in group.split(',')]
+   names.extend([v.split(' as ')[-1].strip() for v in aliases])
+   src=re.sub(r"export\s+\{"+re.escape(group)+r"\}\s+from\s+['\"]"+re.escape(dependency)+r"['\"]\s*;",
+              f"const {{{','.join(aliases)}}}=QAModules[{json.dumps(dep)}];",src,count=1)
   src=re.sub(r"\bexport\s+(?=const|let|var|function|class)","",src)
   if integrated and rel=='client/main.js':
    src=src.replace("bootstrap();","""window.__ui={

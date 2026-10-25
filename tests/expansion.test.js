@@ -20,10 +20,10 @@ function setup(level=12,cls='novice'){
  const p=g.addPlayer(state);p.hp=g.stats(p).maxHp;p.mp=g.stats(p).maxMp;return {g,p,sent};
 }
 function forge(p){const n=NPCS.find(n=>n.kind==='craft');Object.assign(p,{zone:'town',x:n.x,y:n.y});for(const[id,i]of Object.entries(ITEMS))if(i.type==='material')p.inventory[id]=500;}
-test('36 discoverable professions plus novice with 9/12/9/6 tier distribution',()=>{
+test('38 discoverable professions plus novice with 9/12/9/8 tier distribution',()=>{
  const counts={};for(const c of Object.values(CLASSES))counts[c.tier]=(counts[c.tier]||0)+1;
- assert.deepEqual(counts,{common:9,novice:1,rare:12,epic:9,hidden:6});
- assert.equal(Object.keys(JOB_REQUIREMENTS).length,36);
+ assert.deepEqual(counts,{common:9,novice:1,rare:12,epic:9,hidden:8});
+ assert.equal(Object.keys(JOB_REQUIREMENTS).length,38);
  const p=newCharacter(randomUUID(),'Novice');assert.equal(p.classId,'novice');assert.deepEqual(p.discovery.jobs,['novice']);
 });
 test('legacy saves preserve class, equipment and grant retrospective level points',()=>{

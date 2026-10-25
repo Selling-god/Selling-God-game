@@ -23,6 +23,7 @@ function at(g,p,point){g.now+=1000;p.zone=point.zone;p.x=point.x;p.y=point.y;p.l
 function begin(g,p,id){
  const s=STORIES[id];p.discovery.jobs=[...new Set([...p.discovery.jobs,...s.parents])];
  p.journey.signs[id]=s.secret.length;
+ p.atlas.pages=[...new Set([...(p.atlas.pages||[]),...(s.lore||[])])]; // fixture earned all prerequisite records
  at(g,p,STORY_POINTS.get(s.site));
  return g.action(p,{type:'storyAccept',id});
 }
@@ -33,9 +34,9 @@ function readyStage(g,p,id){
   else for(let i=0;i<o.count;i++)recordStory(g,p,{kind:o.kind,target:o.target,skill:o.basic?'basic':'skill1',count:1});
  }
 }
-test('36 authored storylines have 240 chapters with unique chapter titles per path and six 1000-action trials',()=>{
- assert.equal(Object.keys(STORIES).length,36);
- assert.equal(Object.values(STORIES).reduce((n,s)=>n+s.steps.length,0),240);
+test('38 authored storylines have 260 chapters with unique chapter titles and eight hidden 1000-action trials',()=>{
+ assert.equal(Object.keys(STORIES).length,38);
+ assert.equal(Object.values(STORIES).reduce((n,s)=>n+s.steps.length,0),260);
  for(const s of Object.values(STORIES)){
   assert.equal(s.steps.length,{common:4,rare:6,epic:8,hidden:10}[s.tier]);
   assert.equal(new Set(s.steps.map(x=>x.title)).size,s.steps.length,s.id);
@@ -63,7 +64,7 @@ test('every objective, mentor, equipment recipe and hidden trail resolves to an 
 test('profession prerequisite graph has no cycles and common professions are available to novice training',()=>{
  const visited=new Set(),active=new Set();
  function visit(id){assert.ok(!active.has(id),'cycle '+id);if(visited.has(id))return;active.add(id);for(const p of STORIES[id].parents)visit(p);active.delete(id);visited.add(id);}
- Object.keys(STORIES).forEach(visit);assert.equal(visited.size,36);
+ Object.keys(STORIES).forEach(visit);assert.equal(visited.size,38);
  for(const s of Object.values(STORIES).filter(x=>x.tier==='common')){
   assert.equal(s.parents.length,0);
   assert.ok(s.steps.every(st=>st.objectives.every(o=>o.kind!=='hit'||o.target==='any')));
@@ -130,7 +131,7 @@ test('reporting consumes donated materials once and rejects stale chapter index 
  assert.equal(g.action(p,{type:'storyClaim',id:'guardian',chapter:2}).ok,true);assert.equal(p.inventory.herb,2);assert.equal(q.chapter,3);assert.ok(p.gold>gold);
  const after=p.gold;assert.equal(g.action(p,{type:'storyClaim',id:'guardian',chapter:2}).ok,false);assert.equal(p.gold,after);
 });
-test('all 240 server-validated stages can be completed in order with correct targets; no inaccessible final state',()=>{
+test('all 260 server-validated stages can be completed in order with correct targets; no inaccessible final state',()=>{
  for(const s of Object.values(STORIES)){
   const {g,p}=setup();assert.equal(begin(g,p,s.id).ok,true,s.id);
   for(let chapter=0;chapter<s.steps.length;chapter++){
@@ -161,7 +162,7 @@ test('hidden final vow is required, and is stored rather than giving an invisibl
 });
 test('story objectives, paused state, ordered clues, atlas and fog persist across save hydration',()=>{
  const {g,p}=setup();begin(g,p,'guardian');p.journey.quests.guardian.progress[0]=1;p.journey.quests.guardian.active=false;
- p.journey.signs.voidwalker=2;p.atlas.waypoints.push('meadow_reach_0');p.atlas.pages.push('meadow_reach_0_tablet');p.atlas.fog.meadow_reach_0=[0,1,3];
+ p.journey.signs.voidwalker=2;p.atlas.waypoints.push('meadow_reach_0');p.atlas.pages=[...new Set([...p.atlas.pages,'meadow_reach_0_tablet'])];p.atlas.fog.meadow_reach_0=[0,1,3];
  const q=hydrate(serialize(p));assert.deepEqual(q.journey,p.journey);assert.deepEqual(q.atlas,p.atlas);
 });
 test('164 public regions include 144 level-progressive sectors beyond the original mapped area',()=>{
