@@ -75,7 +75,7 @@ test('ordinary monsters spawn and recover outside village borders, including liv
  const g=new Game({random:()=>.5});const p=g.addPlayer(newCharacter('safe-mob','Visitor','guardian'));
  for(const [id]of hubs.filter(([id])=>id!=='town')){
   const w=g.worlds.get(id);
-  for(const m of w.mobs.filter(m=>!m.bossMechanic&&!m.type.includes('warden'))){
+  for(const m of w.mobs.filter(m=>!m.trainingDummy&&!m.bossMechanic&&!m.type.includes('warden'))){
    assert.equal(insideVillage(w.map,m.x,m.y,18),false,`${id}: ${m.type} born inside settlement`);
   }
  }

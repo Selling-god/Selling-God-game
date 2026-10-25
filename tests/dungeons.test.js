@@ -66,7 +66,7 @@ function exposeStars(ctx, r) {
   for (const [i, conduit] of r.conduits.entries()) assert.equal(interact(g, g.players.get(conduit.owner), { ...conduit, id: `conduit_${i}` }).ok, true);
   advance(g, 1201); assert.equal(r.phase, 'vulnerable');
 }
-function expose(ctx, r) { ({ concord_forge: exposeForge, memory_archive: exposeMemory, fallen_observatory: exposeStars })[r.dungeon](ctx, r); }
+function expose(ctx, r) { ({ moon_quarry: exposeForge, concord_forge: exposeForge, memory_archive: exposeMemory, fallen_observatory: exposeStars })[r.dungeon](ctx, r); }
 // Drive an authoritative damage result, keeping all mandatory HP gates intact.
 // Other tests below exercise the actual Game.attack and DoT damage paths.
 function hitGate(ctx, r) {
@@ -78,7 +78,7 @@ function complete(ctx) { const r = ctx.g.dungeons.runFor(ctx.p); for (let i = 0;
 function leaveComplete(ctx) { for (const p of ctx.people) assert.equal(ctx.g.action(p, { type: 'dungeonExit' }).ok, true); }
 
 test('three distinct dungeons register actual field entrances, private geometry, boss names and first-clear equipment', () => {
-  assert.equal(DUNGEONS.length, 3); assert.deepEqual(DUNGEONS.map(d => d.level), [35, 80, 140]);
+  assert.equal(DUNGEONS.length, 4); assert.deepEqual(DUNGEONS.map(d => d.level), [25, 35, 80, 140]);
   assert.ok(ZONES[DUNGEON_ZONE].dungeon);
   const map = createMap(DUNGEON_ZONE);
   for (const point of [{ x: 704, y: 904 }, { x: 474, y: 604 }, { x: 934, y: 604 }, { x: 704, y: 294 }, { x: 904, y: 544 }]) {

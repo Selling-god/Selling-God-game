@@ -8,7 +8,7 @@ import { dungeonHUD } from '../client/dungeons-ui.js';
 
 const C = { x: 704, y: 544 }, ENTRY = { x: 704, y: 904 };
 const cardinal = [{ x: 704, y: 294 }, { x: 954, y: 544 }, { x: 704, y: 794 }, { x: 454, y: 544 }];
-function setup(index = 0, game = null, prefix = `d${index}_`) {
+function setup(index = 1, game = null, prefix = `d${index}_`) {
   const g = game || new Game({ random: () => .5 }); if (!game) g.now = Date.parse('2026-10-24T03:11:00Z');
   const def = DUNGEONS[index], gate = createMap(def.entryZone).dungeonEntrance; g.worlds.get(def.entryZone).mobs = [];
   const people = [0, 1].map(i => { const p = g.addPlayer(newCharacter(`${prefix}${i}`, `Pilot${i}`, i ? 'mage' : 'guardian')); p.level = def.level; const s = getStats(p); p.hp = s.maxHp; p.mp = s.maxMp; g.teleport(p, def.entryZone, gate.x + i * 20, gate.y); return p; });
@@ -39,7 +39,7 @@ function walkRoute(map, from, goal) {
 }
 
 test('dungeons have separate authoritative maps, raised terrain and all mechanism routes fit a real character', () => {
-  assert.equal(DUNGEONS[0].zone, DUNGEON_ZONE); assert.equal(new Set(DUNGEONS.map(d => d.zone)).size, 3);
+  assert.equal(DUNGEONS.find(d=>d.id==='concord_forge').zone, DUNGEON_ZONE); assert.equal(new Set(DUNGEONS.map(d => d.zone)).size, 4);
   const signatures = new Set();
   for (const [i, d] of DUNGEONS.entries()) {
     const map = createMap(d.zone); assert.equal(ZONES[d.zone].dungeonId, d.id); assert.equal(map.dungeonId, d.id);
@@ -49,15 +49,15 @@ test('dungeons have separate authoritative maps, raised terrain and all mechanis
     assert.ok(new Set(map.terrain.elevation).size >= 3); assert.ok(map.terrain.features.length >= 9);
     for (let n = 0; n < map.blocked.length; n++) assert.equal(!!map.blocked[n], [2, 3, 6, 7].includes(map.terrain.surface[n]));
     let goals = [C, { x: 704, y: 444 }, ...cardinal];
-    if (i === 0) goals.push({ x: 474, y: 604 }, { x: 934, y: 604 }, { x: 504, y: 404 }, { x: 904, y: 404 }, { x: 704, y: 324 }, { x: 704, y: 764 });
-    if (i === 1) for (const side of [-1, 1]) {
+    if (d.id === 'concord_forge') goals.push({ x: 474, y: 604 }, { x: 934, y: 604 }, { x: 504, y: 404 }, { x: 904, y: 404 }, { x: 704, y: 324 }, { x: 704, y: 764 });
+    if (d.id === 'memory_archive') for (const side of [-1, 1]) {
       const prism = { x: C.x + side * 200, y: C.y }, angle = Math.atan2(280, side * 200), goal = { x: prism.x + Math.cos(angle) * 125, y: prism.y + Math.sin(angle) * 125 };
       goals.push(prism, goal, { x: C.x - side * 200, y: C.y + 160 }); assert.equal(lineOfSight(map, { x: 704, y: 264 }, goal), true, 'prism light channel remains unobstructed');
     }
-    if (i === 2) goals.push({ x: 514, y: 484 }, { x: 894, y: 484 }, { x: 1089, y: 544 }, { x: 704, y: 929 }, { x: 319, y: 544 });
+    if (d.id === 'fallen_observatory') goals.push({ x: 514, y: 484 }, { x: 894, y: 484 }, { x: 1089, y: 544 }, { x: 704, y: 929 }, { x: 319, y: 544 });
     for (const goal of goals) { assert.equal(isBlocked(map, goal.x, goal.y, 12), false); walkRoute(map, ENTRY, goal); }
   }
-  assert.equal(signatures.size, 3);
+  assert.equal(signatures.size, 4);
 });
 
 test('archive bookshelves and observatory void force useful detours instead of a reskinned open rectangle', () => {
@@ -70,7 +70,7 @@ test('archive bookshelves and observatory void force useful detours instead of a
 });
 
 test('all private zone ids isolate parties, reject public travel and recover saved positions after restart', () => {
-  const first = setup(0), second = setup(1, first.g), third = setup(2, first.g);
+  const first = setup(1), second = setup(2, first.g), third = setup(3, first.g);
   for (const ctx of [first, second, third]) {
     assert.equal(ctx.p.zone, ctx.def.zone); assert.equal(ctx.g.dungeons.world(ctx.r).id, ctx.def.zone);
     assert.deepEqual(ctx.g.snapshot(ctx.p).mobs.map(m => m.id), [ctx.boss.id]);
@@ -84,20 +84,20 @@ test('all private zone ids isolate parties, reject public travel and recover sav
 
 test('each boss opens normal combat with a distinct motion, attack name and actionable HUD hint', () => {
   const keys = [], poses = [];
-  for (const i of [0, 1, 2]) {
+  for (const i of [1, 2, 3]) {
     const { g, r, p, boss } = setup(i); g.dungeons.expose(r); p.x = 784; p.y = 544;
     const origin = { x: boss.x, y: boss.y }; g.dungeons.beginBossAction(r, boss, p);
     const a = r.bossAction; keys.push(a.key); poses.push(boss.encounterPose.kind);
     const hud = dungeonHUD(g.dungeons.view(p), g.now); assert.ok(hud.includes(a.name)); assert.ok(hud.includes(a.hint));
-    if (i === 0) { g.now = a.windupEnd + 400; g.dungeons.tickBoss(r, boss, p, g.dungeons.players(r, true), .1); assert.ok(dist(origin, boss) > 30); assert.ok(boss.encounterPose.height > 60); }
-    if (i === 1) { assert.ok(dist(origin, boss) > 50); const cast = g.dungeons.world(r).casts.find(c => c.name.includes('금서의 광선')); const angle = cast.angle; p.x -= 100; g.now += 500; g.dungeons.tickBoss(r, boss, p, g.dungeons.players(r, true), .1); assert.equal(cast.angle, angle); assert.ok(cast.cover); }
-    if (i === 2) { const before = dist(p, a.point); g.now = a.windupEnd + 50; g.dungeons.tickBoss(r, boss, p, g.dungeons.players(r, true), .1); assert.ok(dist(p, a.point) < before - 4); }
+    if (i === 1) { g.now = a.windupEnd + 400; g.dungeons.tickBoss(r, boss, p, g.dungeons.players(r, true), .1); assert.ok(dist(origin, boss) > 30); assert.ok(boss.encounterPose.height > 60); }
+    if (i === 2) { assert.ok(dist(origin, boss) > 50); const cast = g.dungeons.world(r).casts.find(c => c.name.includes('금서의 광선')); const angle = cast.angle; p.x -= 100; g.now += 500; g.dungeons.tickBoss(r, boss, p, g.dungeons.players(r, true), .1); assert.equal(cast.angle, angle); assert.ok(cast.cover); }
+    if (i === 3) { const before = dist(p, a.point); g.now = a.windupEnd + 50; g.dungeons.tickBoss(r, boss, p, g.dungeons.players(r, true), .1); assert.ok(dist(p, a.point) < before - 4); }
   }
   assert.deepEqual(keys, ['forge_leap', 'archive_ray', 'observatory_pull']); assert.equal(new Set(poses).size, 3);
 });
 
 test('normal combat in every phase contains more than one signature and a readable recovery opening', () => {
-  for (const index of [0, 1, 2]) {
+  for (const index of [1, 2, 3]) {
     const { g, r, p, boss } = setup(index); g.dungeons.expose(r);
     for (let stage = 0; stage < 3; stage++) {
       r.stage = stage; r.attackCount = 0; const seen = new Set();
@@ -114,7 +114,7 @@ test('normal combat in every phase contains more than one signature and a readab
 });
 
 test('shelves clip a beam telegraph and shield the player behind it while its exposed segment still damages', () => {
-  const { g, r, p, q } = setup(1); g.dungeons.expose(r);
+  const { g, r, p, q } = setup(2); g.dungeons.expose(r);
   p.x = 576; p.y = 624; q.x = 688; q.y = 624; p.invulnerableUntil = q.invulnerableUntil = 0;
   const protectedHp = p.hp, exposedHp = q.hp;
   const cast = g.dungeons.cast(r, { x: 704, y: 624, shape: 'beam', angle: Math.PI, length: 700, width: 60, radius: 700, cover: true, damageRate: .2 }, 100);
@@ -131,7 +131,7 @@ test('heat stays dangerous for its advertised pulses and is removed before any c
 });
 
 test('phase 2 and 3 transformations clear attacks, protect the party, expose unique forms, then resume mechanics', () => {
-  for (const index of [0, 1, 2]) {
+  for (const index of [1, 2, 3]) {
     const { g, r, p, boss, def } = setup(index);
     for (const stage of [1, 2]) {
       g.dungeons.expose(r); boss.hp = Math.floor(boss.maxHp * (stage === 1 ? .7 : .35));
@@ -156,7 +156,7 @@ test('disconnect grace shifts a boss action, pose and persistent warning without
 
 test('dungeon reinforcements have different combat geometry and bodies, and stay in their own run', () => {
   const types = [], signatures = [];
-  for (const index of [0, 1, 2]) {
+  for (const index of [1, 2, 3]) {
     const { g, r, p } = setup(index); g.dungeons.spawnAdds(r, 1); const add = g.dungeons.mobs(r).find(m => m.dungeonRole === 'add');
     assert.ok(add); types.push(add.type); p.x = C.x + 60; p.y = C.y + 120; add.x = C.x; add.y = C.y + 80; add.nextAttack = 0;
     g.dungeons.clearCasts(r); g.dungeons.tickAdd(r, add, p, .1);
