@@ -1,11 +1,12 @@
 import {ZONES,MONSTERS} from '../shared/content.js';
 import {PROVINCES,LANDMARKS,expeditionRewards} from '../shared/expeditions.js';
 import {dist} from '../shared/world.js';
+import {hasVillage} from '../shared/village-layout.js';
 import {STORY_POINTS,openMentor,readSecret,recordStory} from './stories.js';
 
 export const atlasDay=now=>new Date(now+9*3600000).toISOString().slice(0,10);
 const validZone=id=>Object.prototype.hasOwnProperty.call(ZONES,id)&&ZONES[id].expedition;
-const villageZone=id=>Object.prototype.hasOwnProperty.call(ZONES,id)&&!ZONES[id].expedition&&!ZONES[id].dungeon&&!ZONES[id].challenge&&!ZONES[id].secretRealm;
+const villageZone=id=>Object.prototype.hasOwnProperty.call(ZONES,id)&&hasVillage({...ZONES[id],id});
 function grantReward(game,p,zone,kind){
  const reward=expeditionRewards(zone,kind);
  p.gold+=reward.gold||0;
@@ -16,7 +17,7 @@ function grantReward(game,p,zone,kind){
 }
 export function prepareAtlas(p){
  const a=p.atlas||{};
- p.atlas={version:1,townStones:[...new Set(['town',...(a.townStones||[])])].filter(villageZone),waypoints:[...new Set(a.waypoints||[])].filter(validZone),
+ p.atlas={version:1,townStones:[...new Set(['town',...(a.townStones||[])])].filter(id=>Object.prototype.hasOwnProperty.call(ZONES,id)),waypoints:[...new Set(a.waypoints||[])].filter(validZone),
   pages:[...new Set(a.pages||[])].filter(id=>STORY_POINTS.has(id)),
   fog:structuredClone(a.fog||{}),contracts:structuredClone(a.contracts||{}),
   reputation:{...(a.reputation||{})},trialClaims:{...(a.trialClaims||{})},
