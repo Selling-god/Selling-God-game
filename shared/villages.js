@@ -17,9 +17,9 @@ export function addVillage(map,zone){
   const plaza=Math.abs(x-cx)<=3||Math.abs(y-cy)<=2;
   put(x,y,plaza?3:1);
  }
- const targets=[...(map.npcs||[]),...(map.storyPoints||[])];
+ const targets=[...(map.npcs||[]),...(map.storyPoints||[]),...(map.portals||[])];
  if(zone.spawn)targets.push({x:zone.spawn[0]*TILE+16,y:zone.spawn[1]*TILE+16});
- // Three-tile-wide paths connect service NPCs, professions and spawn to town.
+ // Roads connect exits, service NPCs, professions and spawn to the distant hub.
  for(const t of targets){
   const tx=Math.floor(t.x/TILE),ty=Math.floor(t.y/TILE);
   if(tx<2||ty<2||tx>=map.w-2||ty>=map.h-2)continue;
