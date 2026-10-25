@@ -323,3 +323,12 @@
 .ability[data-skill="skill2"] .role-tag{color:#f0dba3}
 .ability[data-skill="ultimate"] .role-tag{color:#e8bddf}
 @media(pointer:coarse),(max-width:700px){.ability[data-skill="skill1"],.ability[data-skill="skill2"],.ability[data-skill="ultimate"]{height:60px}.ability .role-tag{font-size:7px;line-height:10px}}
+
+/* V6: skill keys share the exact swatches of their in-world effects.
+   Preserve neutral controls for potions/dash; colored accents only for skills. */
+.ability[data-skill="basic"],.ability[data-skill="skill1"],.ability[data-skill="skill2"],.ability[data-skill="ultimate"]{border-color:color-mix(in srgb,var(--skill-fx) 62%,#122733);background:linear-gradient(180deg,color-mix(in srgb,var(--skill-deep) 33%,#182830),#18272e);box-shadow:inset 0 2px 0 color-mix(in srgb,var(--skill-fx) 24%,transparent)}
+.ability[data-skill="basic"] .key,.ability[data-skill="skill1"] .key,.ability[data-skill="skill2"] .key,.ability[data-skill="ultimate"] .key{color:var(--skill-light)}
+.ability[data-skill="skill1"] .role-tag,.ability[data-skill="skill2"] .role-tag,.ability[data-skill="ultimate"] .role-tag{color:var(--skill-fx)}
+.ability[data-skill="basic"]:hover,.ability[data-skill="skill1"]:hover,.ability[data-skill="skill2"]:hover,.ability[data-skill="ultimate"]:hover{border-color:var(--skill-light);box-shadow:0 0 10px color-mix(in srgb,var(--skill-fx) 35%,transparent),inset 0 0 0 1px var(--skill-fx)}
+.ability img{image-rendering:pixelated}
+#setting-fxStyle{width:min(275px,100%);min-height:34px;padding:5px 9px;border:1px solid #8f9e8477;border-radius:6px;background:#152934;color:#ede7d4}
