@@ -1,10 +1,11 @@
 import {CLASSES,ITEMS,MONSTERS,ZONES} from '../shared/content.js';
 import {RELICS} from '../shared/expansion.js';
 import {LANDMARKS} from '../shared/expeditions.js';
-import {VOCATION_SITES} from '../shared/vocation-sites.js';
+import {ALL_VOCATION_SITES,HIDDEN_VOCATION_RELICS} from '../shared/vocation-sites.js';
 import {STORIES,SECRET_PATHS} from './story-data.js';
 import {dist} from '../shared/world.js';
 
+const HIDDEN_RELIC_BY_JOB=Object.fromEntries(HIDDEN_VOCATION_RELICS.map(p=>[p.job,p]));
 const firstHints={
  voidwalker:'바람목 대평원에서 쓰러진 깃발 곁의 돌판을 읽은 여행자가 경계를 이야기했습니다.',
  eclipse_reaper:'뿌리기억 대습원의 중간 순찰로에는 낮에도 달 그림자가 남는 관측 표식이 있습니다.',
@@ -20,7 +21,7 @@ function hiddenHint(p,id){
  return index&&next?`이미 읽은 문장은 보관되어 있습니다. 다음 문장은 「${ZONES[next.zone].name}」의 기록에서 찾으세요.`:firstHints[id];
 }
 const own=(o,k)=>Object.prototype.hasOwnProperty.call(o||{},k);
-export const STORY_POINTS=new Map([...LANDMARKS,...VOCATION_SITES].map(p=>[p.id,p]));
+export const STORY_POINTS=new Map([...LANDMARKS,...ALL_VOCATION_SITES].map(p=>[p.id,p]));
 export function prepareStories(p){
  const j=p.journey||{};
  p.journey={version:1,quests:structuredClone(j.quests||{}),completed:[...(j.completed||[])].filter(id=>own(STORIES,id)),
@@ -102,7 +103,8 @@ export function storyDetail(p,id){
  if(hidden)return {id,sealed:true,name:'봉인된 전승',intro:'이 사람은 아직 당신에게 이름을 알려 주지 않습니다. 대륙에 남은 문장들을 순서대로 읽고 돌아와야 합니다.',
   signs:p.journey.signs[id]||0,totalSigns:s.secret.length,hint:hiddenHint(p,id)};
  const completed=p.journey.completed.includes(id),chapter=q?s.steps[q.chapter]:s.steps[0];
- return {id,name:CLASSES[id].name,tier:s.tier,title:s.title,mentor:s.mentor,zone:s.zone,site:STORY_POINTS.get(s.site),intro:s.intro,
+ return {id,name:CLASSES[id].name,tier:s.tier,title:s.title,mentor:s.mentor,zone:s.zone,site:STORY_POINTS.get(s.site),artifactSite:HIDDEN_RELIC_BY_JOB[id]||null,
+  lorePages:(s.lore||[]).map(page=>({id:page,name:STORY_POINTS.get(page)?.name||page,zone:STORY_POINTS.get(page)?.zone,done:!!p.atlas?.pages?.includes(page)})),intro:s.intro,
   total:s.steps.length,owned:p.discovery.jobs.includes(id),inherited:p.journey.inherited.includes(id),completed,
   eligible:canBeginStory(p,id),requirements:prerequisites(p,s),active:!!q?.active,started:!!q,tracked:p.journey.tracked===id,
   history:s.steps.slice(0,completed?s.steps.length:q?.chapter||0).map((a,i)=>({number:i+1,title:a.title,text:a.text})),
@@ -148,6 +150,10 @@ export function readSecret(game,p,point){
  }
  return signals;
 }
+export function openHiddenArtifact(game,p,point){
+ const s=STORIES[point.job];if(!s||s.tier!=='hidden')return {ok:false,error:'봉인되지 않은 유물입니다.'};
+ game.send(p.id,'storyView',storyDetail(p,s.id));return {ok:true};
+}
 export function openMentor(game,p,point){
  const s=STORIES[point.job];if(!s)return {ok:false};
  recordStory(game,p,{kind:'read',target:point.id});
@@ -172,7 +178,10 @@ export function storyAction(game,p,a){
   if(Object.values(j.quests).filter(x=>x.active).length>=3&&!q.active)return {ok:false,error:'수련은 세 이야기까지 동시에 진행할 수 있습니다. 다른 이야기를 잠시 멈추세요.'};
   q.active=true;j.tracked=a.id;game.mark(p);sync();return {ok:true};
  }
- if(p.zone!==site.zone||dist(p,site)>185)return {ok:false,error:`${ZONES[site.zone].name}의 전직 NPC ${site.name} 가까이에서 직접 퀘스트를 수락하고 보고하세요.`};
+ const relic=s.tier==='hidden'?HIDDEN_RELIC_BY_JOB[a.id]:null;
+ const nearMentor=p.zone===site.zone&&dist(p,site)<=185;
+ const nearRelic=!!relic&&p.zone===relic.zone&&dist(p,relic)<=185;
+ if(!nearMentor&&!nearRelic)return {ok:false,error:s.tier==='hidden'?'해당 직업의 전직 스승이나 봉인 유물 가까이에서 상호작용하세요.':`${ZONES[site.zone].name}의 전직 NPC ${site.name} 가까이에서 직접 퀘스트를 수락하고 보고하세요.`};
  if(a.type==='storyAccept'){
   if(q||j.completed.includes(a.id))return {ok:false,error:'이미 시작했거나 끝낸 이야기입니다.'};
   if(!canBeginStory(p,a.id))return {ok:false,error:'전직 스승의 퀘스트를 받으려면 먼저 필요한 전승 기록을 모두 수집하고 레벨·선행직업 조건을 충족해야 합니다.'};

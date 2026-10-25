@@ -276,7 +276,7 @@ export class DungeonManager {
     r.bossId = m.id; r.nextAttack = this.game.now + 4000; r.attackCount = 0; this.world(r).mobs.push(m);
   }
   spawnAdds(r, count) {
-    const type = r.dungeon === 'concord_forge' ? 'dungeon_cinder' : r.dungeon === 'memory_archive' ? 'dungeon_echo' : 'dungeon_satellite';
+    const type = ['concord_forge', 'moon_quarry'].includes(r.dungeon) ? 'dungeon_cinder' : r.dungeon === 'memory_archive' ? 'dungeon_echo' : 'dungeon_satellite';
     for (let i = 0; i < count; i++) {
       const angle = (i + .5) / count * Math.PI * 2, point = findSafePosition(this.world(r).map, { x: C.x + Math.cos(angle) * 180, y: C.y + Math.sin(angle) * 170 }, 12);
       if (!point) continue;
@@ -322,7 +322,7 @@ export class DungeonManager {
     boss.dungeonShield = true; boss.x = C.x; boss.y = C.y - 100; boss.moving = false;
     boss.encounterPhase = r.stage + 1; boss.encounterForm = DUNGEON_BY_ID[r.dungeon].phases[r.stage].form; r.phaseTransition = null;
     r.holdSince = 0; r.tether = null; r.nextHazard = this.game.now + 6000; r.phaseStarted = this.game.now; r.assignments = {};
-    if (r.dungeon === 'concord_forge') {
+    if (['concord_forge', 'moon_quarry'].includes(r.dungeon)) {
       r.phase = 'balance'; r.phaseEnds = this.game.now + 30000 - r.stage * 3000;
       r.balancePads = r.stage === 2 ? [{ x: C.x, y: C.y - 220 }, { x: C.x, y: C.y + 220 }]
         : [{ x: C.x + (r.stage ? 230 : -230), y: C.y + 60 }, { x: C.x + (r.stage ? -230 : 230), y: C.y + 60 }];
@@ -502,7 +502,7 @@ export class DungeonManager {
     if (now >= r.phaseEnds) { this.mechanicFail(r, r.phase === 'balance' ? '서로 다른 문양 발판을 전원이 함께 2초 유지하지 못했습니다.' : r.phase === 'pillars' ? '제한 시간 안에 두 기둥을 목표 방향으로 맞추지 못했습니다.' : r.phase === 'memory_input' ? '문양 순서를 제한 시간 안에 완성하지 못했습니다.' : '두 차단기를 2초 안에 맞추고 유지하지 못했습니다.'); return; }
     if (now >= r.nextHazard && ['balance', 'pillars', 'memory_input'].includes(r.phase)) {
       r.nextHazard = now + 8500 - r.stage * 700;
-      if (r.dungeon === 'concord_forge') {
+      if (['concord_forge', 'moon_quarry'].includes(r.dungeon)) {
         const target = this.players(r, true)[r.stage % r.actors.length];
         if (target) this.cast(r, { x: target.x, y: target.y, radius: 61, damageRate: .11, name: '발판 아래 용광로 분출' }, 2100);
       } else {
@@ -609,7 +609,9 @@ export class DungeonManager {
   }
   beginBossAction(r, m, target) {
     const now = this.game.now, phase = r.stage;
-    const order = r.dungeon === 'concord_forge'
+    const order = r.dungeon === 'moon_quarry'
+      ? phase === 0 ? ['quarry_shards','quarry_pulse'] : phase === 1 ? ['quarry_pulse','forge_leap','quarry_shards'] : ['quarry_shards','quarry_pulse','forge_slam','quarry_pulse']
+      : r.dungeon === 'concord_forge'
       ? phase === 0 ? ['forge_leap', 'forge_heat', 'forge_slam'] : phase === 1 ? ['forge_slam', 'forge_leap', 'forge_heat', 'forge_vent'] : ['forge_vent', 'forge_leap', 'forge_heat', 'forge_slam']
       : r.dungeon === 'memory_archive'
         ? phase === 0 ? ['archive_ray', 'archive_pages', 'archive_rewrite'] : phase === 1 ? ['archive_pages', 'archive_ray', 'archive_rewrite'] : ['archive_rewrite', 'archive_ray', 'archive_pages']
@@ -618,8 +620,22 @@ export class DungeonManager {
     const a = { key, starts: now, from: { x: m.x, y: m.y }, target: target.id, angle, nextPulse: now, pulses: 0 };
     const setup = (name, hint, kind, windup, strike, recovery) => Object.assign(a, { name, hint, kind, windupEnd: now + windup, strikeEnd: now + windup + strike, ends: now + windup + strike + recovery });
     const point = p => findSafePosition(this.world(r).map, p, 16) || { ...C };
-    if (key === 'forge_leap') {
-      setup('낙하 제련', '붉게 고정된 착지 원을 벗어나세요. 착지 뒤 식어 버린 망치가 긴 공격 기회입니다.', 'leap', 1100, 800, 2100);
+    if (key === 'quarry_shards') {
+      setup('공명 결정 낙하', '플레이어를 따라 찍힌 수정 표식이 순서대로 폭발합니다. 다음 표식이 생기기 전에 옆으로 이동하세요.', 'cast', 1300, 1800, 1900);
+      const all = this.players(r, true);
+      const targets = all.length ? all : [target];
+      for (let i = 0; i < 3 + phase; i++) {
+        const victim = targets[i % targets.length];
+        this.cast(r, { x: victim.x + Math.sin(i * 1.9) * 38, y: victim.y + Math.cos(i * 2.1) * 34, radius: 60 + phase * 4, damageRate: .10 + phase * .012, name: `공명 결정 낙하 ${i + 1}` }, 1300 + i * 320);
+      }
+      if (phase === 2) this.spawnAdds(r, 1);
+    } else if (key === 'quarry_pulse') {
+      setup('수정핵 동심파', '바깥과 안쪽의 고리 사이에는 안전한 틈이 있습니다. 순서대로 퍼지는 푸른 파동을 넘어서세요.', 'cast', 1300, 1200, 1800);
+      this.cast(r, { x: m.x, y: m.y, shape: 'ring', radius: 165, inner: 108, damageRate: .14, name: '공명 제1파' }, 1300);
+      this.cast(r, { x: m.x, y: m.y, shape: 'ring', radius: 250, inner: 195, damageRate: .15, name: '공명 제2파' }, 2100);
+      if (phase >= 1) this.cast(r, { x: m.x, y: m.y, shape: 'beam', angle: a.angle + Math.PI / 2, length: 340, width: 65, radius: 350, damageRate: .13, name: '균열의 일직선' }, 2200);
+    } else if (key === 'forge_leap') {
+      setup(r.dungeon === 'moon_quarry' ? '결정의 추락' : '낙하 제련', '붉게 고정된 착지 원을 벗어나세요. 착지 뒤 식어 버린 망치가 긴 공격 기회입니다.', 'leap', 1100, 800, 2100);
       a.point = point(target);
       this.cast(r, { ...a.point, radius: 124 + phase * 10, damageRate: .2, name: '낙하 제련 · 착지' }, 1900);
       if (phase > 0) this.cast(r, { ...a.point, shape: 'ring', radius: 225, inner: 155, damageRate: .13, name: '착지 후 바깥 충격파' }, 2550);
@@ -627,7 +643,7 @@ export class DungeonManager {
       setup('추격하는 용광로', '추격 대상은 불길을 바깥쪽에 남기세요. 이미 달아오른 자리는 세 번 타오릅니다.', 'charge', 800, 3200, 1800);
       a.nextPulse = a.windupEnd;
     } else if (key === 'forge_slam') {
-      setup(phase > 0 ? '쌍극의 연속 망치' : '주조 망치', '들어 올린 망치의 정면을 벗어나 옆구리로 이동하세요. 이후에는 보스가 잠시 멈춥니다.', 'slam', 1450, 500 + phase * 300, 2100);
+      setup(r.dungeon === 'moon_quarry' ? '결정 골렘의 연속 주먹' : phase > 0 ? '쌍극의 연속 망치' : '주조 망치', '들어 올린 망치의 정면을 벗어나 옆구리로 이동하세요. 이후에는 보스가 잠시 멈춥니다.', 'slam', 1450, 500 + phase * 300, 2100);
       this.cast(r, { x: m.x, y: m.y, shape: 'beam', angle, length: 250, width: 170, radius: 280, damageRate: .2, cover: true, name: '주조 망치 · 정면' }, 1450);
       if (phase > 0) this.cast(r, { x: m.x, y: m.y, shape: 'beam', angle: angle + Math.PI / 2, length: 250, width: 145, radius: 280, damageRate: .15, cover: true, name: '두 번째 망치 · 옆면' }, 2050);
     } else if (key === 'forge_vent') {

@@ -74,7 +74,7 @@ export function useKitUtility(g,p,skill){
    effect(g,p,skill,'charge',before.x,before.y,{tx:p.x,ty:p.y});break;
   }
   case 'aim':p.signature.aimUntil=g.now+8500;p.signature.stacks=clamp((p.signature.stacks||0)+2,0,8);break;
-  case 'fury':{const payment=Math.max(1,Math.round(s.maxHp*.08));p.hp=Math.max(1,p.hp-payment);p.signature.rageUntil=g.now+8500;p.signature.stacks=clamp((p.signature.stacks||0)+3,0,8);break;}
+  case 'fury':{p.signature.rageUntil=g.now+14000;p.signature.stacks=clamp((p.signature.stacks||0)+3,0,8);break;}
   case 'meditate':heal(g,p,.08);p.signature.stacks=clamp((p.signature.stacks||0)+3,0,8);p.signature.focusUntil=g.now+6000;break;
   case 'stance':{
    p.signature.stance=(p.signature.stance==='healing'?'striking':'healing');
@@ -139,6 +139,11 @@ export function kitDamage(g,p,skill,m,damage){
  m.kitMarks||={};
  const mark=m.kitMarks[p.id],hasMark=mark?.expires>g.now?mark.count:0;
  let n=damage;
+ // Berserker damage scales with missing HP ONLY while their blood oath is active.
+ if(p.classId==='berserker'&&p.signature?.rageUntil>g.now){
+   const ratio=clamp(p.hp/Math.max(1,g.stats(p).maxHp),0,1);
+   n*=1+(1-ratio)*1.45;
+ }
  if(role==='execute'&&m.hp/m.maxHp<.42)n*=1.55;
  if(role==='combo'&&skill.id==='ultimate')n*=1.3;
  if(role==='drain')n*=1.18;
@@ -158,6 +163,20 @@ export function onKitHit(g,p,skill,m,dealt){
   const state=m.kitMarks[p.id],count=(state?.expires>g.now?state.count:0)+1;
   m.kitMarks[p.id]={count:Math.min(4,count),expires:g.now+12000};
  }
+ // Character-specific status effects that persist in server tick calculations.
+ const status=skill.actionId||'';
+ if(['poison_vines','acid_flask','thorn_bloom','abyss_bind'].includes(status)){
+   m.dots=m.dots.filter(d=>d.by!==p.id||d.kind!=='poison');
+   m.dots.push({by:p.id,kind:'poison',left:5,next:g.now+1000,damage:Math.max(1,Math.round(g.stats(p).atk*.15))});
+ }
+ if(['ignite','firestorm','dragon_breath','flaming_wings','flame_mine'].includes(status)){
+   m.dots=m.dots.filter(d=>d.by!==p.id||d.kind!=='burn');
+   m.dots.push({by:p.id,kind:'burn',left:4,next:g.now+1000,damage:Math.max(1,Math.round(g.stats(p).atk*.18))});
+ }
+ if(['chain_lightning','thunder_domain','storm_rod'].includes(status)&&!MONSTERS[m.type].boss)
+   m.paralyzedUntil=Math.max(m.paralyzedUntil||0,g.now+900);
+ if(['shield_bash','rune_break','earthquake','royal_command'].includes(status)&&!MONSTERS[m.type].boss)
+   m.stunUntil=Math.max(m.stunUntil||0,g.now+800);
  if(role==='pull'||role==='push'){
   if(!MONSTERS[m.type].boss){const x=m.x-p.x,y=m.y-p.y,d=Math.max(1,Math.hypot(x,y));
    const sign=role==='pull'?-1:1;moveEntity(g.worlds.get(p.zone).map,m,sign*x/d*34,sign*y/d*34,10);}
@@ -194,7 +213,7 @@ export function tickCombatFields(g,now){
   const sk=skills.find(s=>s.id===f.skill)||skills[1];
   if(!sk)continue;
   if(f.healingRatio>0){for(const a of teammates(g,p,f.radius+15))if(dist(a,f)<f.radius)heal(g,a,f.healingRatio);}
-  if(f.damageRatio>0&&!insideVillage(w.map,f.x,f.y)){
+  if(f.damageRatio>0&&(!insideVillage(w.map,f.x,f.y)||w.mobs.some(m=>m.trainingDummy&&dist(m,f)<f.radius))){
    let count=0;
    for(const m of w.mobs){
     if(count>=((f.type==='turret'||f.type==='pet')?2:5))break;
@@ -218,4 +237,13 @@ export function tickCombatFields(g,now){
    effect(g,p,sk,f.type,f.x,f.y,{radius:f.radius,essential:false});
  }
  g.combatFields=g.combatFields.filter(f=>f.expires>now&&g.players.get(f.owner)?.active);
+}
+
+/** Spend 4% maximum HP on a real attack. Self-payment cannot kill or go below 30%. */
+export function spendBerserkerRageHp(g,p,skill){
+ if(p.classId!=='berserker'||skill.id==='skill2'||p.signature?.rageUntil<=g.now)return 0;
+ const max=g.stats(p).maxHp,floor=Math.ceil(max*.30),before=p.hp;
+ p.hp=Math.max(floor,p.hp-Math.max(1,Math.ceil(max*.04)));
+ p.hp=Math.min(before,p.hp); // if monster attacks already put HP below 30%, never heal it.
+ return Math.max(0,before-p.hp);
 }

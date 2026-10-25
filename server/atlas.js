@@ -2,7 +2,7 @@ import {ZONES,MONSTERS} from '../shared/content.js';
 import {PROVINCES,LANDMARKS,expeditionRewards} from '../shared/expeditions.js';
 import {dist} from '../shared/world.js';
 import {hasVillage} from '../shared/village-layout.js';
-import {STORY_POINTS,openMentor,readSecret,recordStory} from './stories.js';
+import {STORY_POINTS,openMentor,openHiddenArtifact,readSecret,recordStory} from './stories.js';
 
 export const atlasDay=now=>new Date(now+9*3600000).toISOString().slice(0,10);
 const validZone=id=>Object.prototype.hasOwnProperty.call(ZONES,id)&&ZONES[id].expedition;
@@ -86,6 +86,7 @@ export function atlasScene(game,p,point,signals=[]){
 }
 export function interactPoint(game,p,point){
  if(point.kind==='mentor')return openMentor(game,p,point);
+ if(point.kind==='hiddenArtifact')return openHiddenArtifact(game,p,point);
  if(point.kind==='warpstone'){
   if(!p.atlas.townStones.includes(p.zone))p.atlas.townStones.push(p.zone);
   game.mark(p);

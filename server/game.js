@@ -1,5 +1,5 @@
 import {distributedSpawn} from '../shared/spawn-distribution.js';
-import {useKitUtility,beforeKitAttack,kitVictims,kitDamage,onKitHit,afterKitAttack,tickCombatFields} from './kit-mechanics.js';
+import {useKitUtility,beforeKitAttack,kitVictims,kitDamage,onKitHit,afterKitAttack,tickCombatFields,spendBerserkerRageHp} from './kit-mechanics.js';
 import {insideVillage} from '../shared/village-layout.js';
 import {fieldRespawnDelay} from '../shared/respawn.js';
 import {prepareStories,storyAction,recordStory,storyTracker} from './stories.js';
@@ -27,6 +27,14 @@ import { randomUUID } from 'node:crypto';
 import { CLASSES, ITEMS, MONSTERS, QUESTS, ZONES, NPCS, RECIPES, SHOP, TILE, MAX_LEVEL, xpRequired, getStats, weaponFor } from '../shared/content.js';
 import { createMap, seeded, spawnPoint, findSafePosition, moveEntity, isBlocked, lineOfSight, findPath, clamp, dist, BOSS_SPAWNS } from '../shared/world.js';
 
+export function combatBuffList(p,now=Date.now()){
+ const list=[];const sig=p.signature||{};
+ for(const [name,key,desc] of [['광폭화','rageUntil','공격마다 체력 4% 소비 (최저 30%); 잃은 체력만큼 공격력 증가'],['조준','aimUntil','약점을 겨냥해 다음 공격 강화'],['역습','counterUntil','방어 이후 반격 위력 상승'],['사기 진작','moraleUntil','동료의 움직임과 전투 템포 강화'],['연금 촉매','catalystUntil','다음 스킬 피해량 상승'],['불사조의 불씨','rebirthUntil','치명적인 일격 저항']]){
+  if(sig[key]>now)list.push({name,detail:desc,remainingMs:Math.max(0,sig[key]-now)});
+ }
+ if(p.shieldUntil>now)list.push({name:'방어막',detail:'피해를 감소시킴',remainingMs:p.shieldUntil-now});
+ return list;
+}
 export function newCharacter(id,name,classId='novice'){
   const c=CLASSES[classId];if(!c)throw new Error('직업을 선택해 주세요.');
   const p={
@@ -98,6 +106,18 @@ export class Game {
       const b=BOSS_SPAWNS[id];
       if(b?.type)world.mobs.push(this.makeMob(`${id}_boss`,b.type,b.x,b.y));
     }
+    if(map.villageSafe){
+      // These are deliberate, static training targets, not monsters invading a sanctuary.
+      const base=map.villageSafe;
+      for(let i=0;i<2;i++){
+        const x=base.x+(i?110:-110),y=base.y+116;
+        const point=findSafePosition(map,{x,y},13);
+        if(point&&insideVillage(map,point.x,point.y,0)){
+          const dummy=this.makeMob(`${id}_practice_${i}`,'training_dummy',point.x,point.y);
+          dummy.trainingDummy=true;world.mobs.push(dummy);
+        }
+      }
+    }
     return world;
   }
   makeMob(id,type,x,y){
@@ -126,6 +146,7 @@ export class Game {
   stats(p){return getStats(p,this.now);}
   canSeeEntity(p,entity){return this.challenges.allows(p,entity)&&this.dungeons.allows(p,entity);}
   canDamage(p,m){
+    if(m.trainingDummy)return true; // Allow testing combat safely in the plaza.
     if(insideVillage(this.worlds.get(p.zone)?.map,p.x,p.y))return false;
     return this.encounters.canDamage(m)&&this.challenges.canDamage(p,m)&&this.dungeons.canDamage(p,m)&&this.realms.canDamage(p,m);
   }
@@ -141,6 +162,7 @@ export class Game {
   privatePlayer(p){
     return {...serialize(p),atlas:privateAtlas(p),realms:this.realms.profile(p),storyTracker:storyTracker(p),stats:this.stats(p),cooldowns:{...p.cooldowns},target:p.target,partyId:p.partyId,
       shieldUntil:p.shieldUntil,respawnAt:p.respawnAt,lastCombat:p.lastCombat,mechanic:mechanicInfo(p),
+      combatBuffs:combatBuffList(p,this.now),
       soul:p.soul&&p.soul.expires>this.now?p.soul:null,achievementProgress:Object.fromEntries(ACHIEVEMENTS.map(a=>[a.id,metric(p,a.metric)]))};
   }
   snapshot(p,full=false){
@@ -151,9 +173,9 @@ export class Game {
       t:this.now,zone:p.zone,self:{...this.publicPlayer(p),mp:Math.round(p.mp),maxMp:this.stats(p).maxMp,
         cooldowns:p.cooldowns,target:p.target,revision:p.revision,respawnAt:p.respawnAt,
         inputSeq:p.inputSeq||0,motionId:p.motionId||0,speed:this.stats(p).speed,
-        speedUntil:p.speedUntil,dashUntil:p.dashUntil,dashVector:p.dashVector||{x:0,y:0},pathing:p.path.length>0,mechanic:mechanicInfo(p)},
+        combatBuffs:combatBuffList(p,this.now),speedUntil:p.speedUntil,dashUntil:p.dashUntil,dashVector:p.dashVector||{x:0,y:0},pathing:p.path.length>0,mechanic:mechanicInfo(p)},
       players:[...this.players.values()].filter(x=>x.active&&x.id!==p.id&&x.zone===p.zone&&this.sameInstance(p,x)&&dist(x,p)<near+200).map(x=>this.publicPlayer(x)),
-      mobs:w.mobs.filter(m=>m.alive&&this.canSeeEntity(p,m)&&dist(m,p)<near).map(m=>({id:m.id,type:m.type,name:m.name||MONSTERS[m.type].name,dungeonObjective:m.dungeonObjective,level:this.mobSpec(m).level,x:Math.round(m.x*10)/10,y:Math.round(m.y*10)/10,hp:m.hp,maxHp:m.maxHp,dir:m.dir,moving:m.moving,casting:m.castUntil>this.now,slow:m.slowUntil>this.now,phase:Math.max(0,(m.encounterPhase||1)-1),encounterPose:this.encounters.viewMob(m),encounterForm:m.encounterForm,dot:m.dots?.[0]?.kind,challengeShield:!!(m.challengeShield||m.dungeonShield||m.encounterTransition?.ends>this.now),mechanicObjective:m.mechanicObjective})),
+      mobs:w.mobs.filter(m=>m.alive&&this.canSeeEntity(p,m)&&dist(m,p)<near).map(m=>({id:m.id,type:m.type,name:m.name||MONSTERS[m.type].name,dungeonObjective:m.dungeonObjective,level:this.mobSpec(m).level,x:Math.round(m.x*10)/10,y:Math.round(m.y*10)/10,hp:m.hp,maxHp:m.maxHp,dir:m.dir,moving:m.moving,casting:m.castUntil>this.now,slow:m.slowUntil>this.now,phase:Math.max(0,(m.encounterPhase||1)-1),encounterPose:this.encounters.viewMob(m),encounterForm:m.encounterForm,dot:m.dots?.[0]?.kind,status:m.paralyzedUntil>this.now?'paralysis':m.stunUntil>this.now?'stun':m.dots?.[0]?.kind||null,challengeShield:!!(m.challengeShield||m.dungeonShield||m.encounterTransition?.ends>this.now),mechanicObjective:m.mechanicObjective})),
       nodes:w.nodes.filter(n=>dist(n,p)<near).map(n=>({...n,ready:n.readyAt<=this.now})),
       casts:w.casts.filter(c=>this.canSeeEntity(p,c)&&c.ends>this.now&&dist(c,p)<near+350).map(({damage,owner,challengeOwner,challengeRun,...c})=>c),
       bosses:w.mobs.filter(m=>this.canSeeEntity(p,m)&&MONSTERS[m.type].boss).map(m=>({id:m.id,type:m.type,hp:m.hp,maxHp:m.maxHp,alive:m.alive,respawnAt:m.respawnAt})),
@@ -287,6 +309,7 @@ export class Game {
       const rawDamage=Math.max(1,Math.round((this.stats(p).atk*skill.power*signature.scale-this.mobSpec(m).def*.65*(1-Math.min(1,(c.passive?.armorPierce||0)+signature.pierce)))*(0.92+this.random()*.16)*(crit?1.65:1)*bossDamageMultiplier(m)));
       const adjustedDamage=kitDamage(this,p,skill,m,rawDamage);
       const damage=m.dungeonRun?this.dungeons.damageAmount(m,adjustedDamage):this.encounters.damageAmount(m,adjustedDamage);
+      if(m.trainingDummy)m.lastDummyHit=this.now;
       const actual=Math.min(m.hp,damage);
       m.hp=Math.max(0,m.hp-damage);m.contributors.set(p.id,this.now);m.damageLog.set(p.id,(m.damageLog.get(p.id)||0)+actual);m.target=p.id;
       const drain=(c.passive?.lifesteal||0)+(skill.lifesteal||0);
@@ -304,10 +327,12 @@ export class Game {
       if(m.hp<=0)this.killMob(p.zone,m);
     }
     afterKitAttack(this,p,skill,target);
+    if(victims.length)spendBerserkerRageHp(this,p,skill);
     this.mark(p);return {ok:true};
   }
   killMob(zone,m){
     if(!m.alive)return;
+    if(m.trainingDummy){m.hp=m.maxHp;m.alive=true;m.target=null;return;}
     if(this.encounters.mobKilled(this.worlds.get(zone),m))return;
     if(this.realms.mobKilled(m))return;
     if(this.dungeons.mobKilled(m))return;
@@ -676,6 +701,7 @@ export class Game {
       for(const m of w.mobs){
         if(m.challengeRun||m.dungeonRun)continue;
         const spec=MONSTERS[m.type];
+        if(m.trainingDummy){if(now-(m.lastDummyHit||0)>5000)m.hp=m.maxHp;m.target=null;continue;}
         if(!m.alive){
           if(!m.worldKey&&m.respawnAt<=now){
             const companions=w.mobs.filter(other=>other!==m&&other.alive);
@@ -710,7 +736,7 @@ export class Game {
           if(m.hp<=0){this.killMob(zone,m);break;}
         }
         m.dots=(m.dots||[]).filter(e=>e.left>0);
-        if(!m.alive||m.stunUntil>now)continue;
+        if(!m.alive||m.stunUntil>now||(m.paralyzedUntil||0)>now)continue;
         if(m.mechanicObjective||m.bossMechanic?.active)continue;
         if(this.encounters.tickMob(w,m,exposedPlayers,dt)){
           if(insideVillage(w.map,m.x,m.y,18))this.relocateVillageMob(w,m);
