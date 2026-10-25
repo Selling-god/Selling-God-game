@@ -9,8 +9,9 @@ import {drawCreature,creatureMetrics} from './creatures.js';
 import {drawEncounterOverlay,drawPhaseTransition} from './encounters-ui.js';
 import {nearbyScenery} from '../shared/spatial.js';
 import {EquipmentRenderer,drawBossGear} from './equipment.js';
-import {drawSkillEffect,effectLifetime} from './effects.js';
+import {drawSkillEffect,effectLifetime} from './effects.js?v=skillfx-v4';
 import {attackMotionPose} from './skill-formations.js';
+import {preloadPixelSkillJobs} from './pixel-skill-sprites.js';
 import {drawPixelTelegraph,clearPixelFX} from './pixel-effects.js';
 import { LocalMotion, SnapshotTrack } from './motion.js';
 import { createMap, moveEntity, clamp, dist, seeded } from '../shared/world.js';
@@ -63,6 +64,9 @@ export class Renderer {
       if(!this.positions.has(key))this.positions.set(key,new SnapshotTrack());
       this.positions.get(key).push(s.t,entity);
     }
+    // Avoid an entire 39-class GPU atlas on mobile. Preload only jobs
+    // belonging to the player and currently visible party/peers.
+    preloadPixelSkillJobs([s.self?.classId,s.self?.job,...s.players.map(p=>p.classId),...s.players.map(p=>p.job)]);
     const visible=new Set([...s.players.map(p=>'p'+p.id),...s.mobs.map(m=>'m'+m.id)]);
     for(const key of this.positions.keys())if(!visible.has(key))this.positions.delete(key);
   }

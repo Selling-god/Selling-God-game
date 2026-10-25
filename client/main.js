@@ -3,7 +3,7 @@ import {rpgPanel,enhancementRows} from './rpg-ui.js';
 import {freePoints,ATTRIBUTE_KEYS,MAX_ATTRIBUTE,resetPrice,spentPoints,enhancementBonus} from '../shared/rpg.js';
 import { expansionPanel, timeLeft } from './expansion-ui.js';
 import { Auth, Network } from './net.js';
-import { Renderer } from './render.js';
+import { Renderer } from './render.js?v=skillfx-v4';
 import { Sound } from './audio.js';
 import { CLASSES, ITEMS, RARITIES, MONSTERS, QUESTS, ZONES, NPCS, RECIPES, SHOP, xpRequired, objectiveLabel, weaponFor, MAX_LEVEL } from '../shared/content.js';
 import { dist, clamp } from '../shared/world.js';

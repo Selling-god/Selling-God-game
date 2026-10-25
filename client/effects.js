@@ -1,5 +1,6 @@
 import {jobArtProfile} from './job-signatures.js';
 import {paintCombatChoreography,skillEffectBounds} from './combat-vfx.js';
+import {drawPixelSkillSprite} from './pixel-skill-sprites.js';
 import {skillVisual} from '../shared/visuals.js';
 import {pixelLayer,pixelPalette,pixelEventKey,drawPixelImpact} from './pixel-effects.js';
 
@@ -235,6 +236,9 @@ export function drawSkillEffect(renderer,e,t){
  const phase=seed*17%stride,frame=Math.floor((age+phase)/stride),f=clamp((frame*stride-phase)/duration,0,1),fade=Math.min(1,(1-f)*3);
  const visual=skillVisual(e.job||e.classId||'novice',e.skill),v={...pixelPalette(e.theme||visual.theme),shape:visual.shape};
  const ultimate=e.skill==='ultimate',isSkill=e.type==='attack'||e.type==='skill',count=renderer.lowPower?6:ultimate?16:10;
+ // Dedicated frame-by-frame original pixel animation is drawn before the old
+ // generic painter. The latter remains only as an asset-load fallback.
+ if(isSkill&&drawPixelSkillSprite(renderer,e,f))return true;
  const radius=isSkill?Math.min(225,Math.max(e.skill==='basic'?55:90,e.radius||(ultimate?160:90))):110;
  const tx=isSkill?(e.tx??e.x):e.x,ty=isSkill?(e.ty??e.y):e.y;
  const box=isSkill?skillEffectBounds(e):{x:Math.min(e.x,tx)-radius-35,y:Math.min(e.y,ty)-(ultimate?245:160)-radius*.5,width:Math.abs(tx-e.x)+(radius+35)*2,height:Math.abs(ty-e.y)+(ultimate?245:160)+radius*1.5+35};
