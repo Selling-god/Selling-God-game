@@ -224,6 +224,7 @@ async function connectGame(){
       else openPanel('story',data);
     });
     net.on('atlasScene',data=>openPanel('atlasScene',data));
+    net.on('warpstoneView',data=>openPanel('warpstone',data));
     net.on('dungeonInfo',data=>openPanel('dungeons',data));
     net.on('dungeonResult',()=>{uiRefreshNeeded=true;sound.play('level');});
     net.on('realmScene',data=>{
@@ -352,7 +353,7 @@ function openPanel(name,data){
   cancelKeyCapture(false);
   if(name==='keybindings'){keyStatus='';keyStatusTone='';}
   resetControls();sound.play('click');lastFocused=document.activeElement;
-  modal=name;modalTab=name==='craft'?'recipes':name==='jobs'?'common':name==='titles'?'owned':'all';selectedItem=null;
+  modal=name;modalTab=name==='craft'?'recipes':name==='jobs'?'common':name==='titles'?'owned':name==='inventory'?'gear':'all';selectedItem=null;
   if(name==='titles')titleSearch='';
   if(name==='craft')showAllForgeRecipes=false;
   if(name==='stats')statDraft={};
@@ -464,20 +465,25 @@ function renderPanel(){
     ||(profile&&modal==='realms'&&realmsPanel({profile,state,now:Date.now()+renderer.clock,keyLabel,tab:modalTab,data}))
     ||(profile&&modal==='challenges'&&challengesPanel({profile,state,now:Date.now()+renderer.clock,keyLabel}))||adventure||rpg||(profile&&expansionPanel(modal,{profile,tab:modalTab,book:jobBookData,events:eventList,now:Date.now()+renderer.clock,data,keyLabel}));
   if(extra){({title,eyebrow,html}=extra);}
-  else if(modal==='inventory'){
+  else if(modal==='warpstone'){
+    title='마을 귀환석';eyebrow='WAYSTONE NETWORK · 발견한 마을끼리 이동';
+    html=`<div class="info-box">각 지역의 마을 중앙 귀환석에 먼저 다가가 활성화하세요. 전투 종료 8초 후 이동할 수 있습니다.</div><div class="card-list">${(data?.destinations||[]).map(z=>`<article class="card"><h3>${esc(z.name)}</h3><p>필요 레벨 ${z.level}${z.id===data.here?' · 현재 마을':''}</p><button class="btn primary" data-act="villageWarp" data-id="${esc(z.id)}" ${z.id===data.here||p.level<z.level?'disabled':''}>이 마을로 이동</button></article>`).join('')}</div>`;
+  }else if(modal==='inventory'){
     title='가방과 장비';eyebrow=`EQUIPMENT & INVENTORY · ${money(p.gold)} G`;
     const entries=Object.entries(p.inventory).filter(([id,n])=>n>0&&ITEMS[id]&&(modalTab==='all'||ITEMS[id].type===modalTab));
+    entries.sort(([a],[b])=>(Object.values(p.equipment).includes(b)?1:0)-(Object.values(p.equipment).includes(a)?1:0)||({'ancient':8,'mythic':7,'legendary':6,'epic':5,'rare':4,'uncommon':3,'common':2}[ITEMS[b].rarity]||0)-({'ancient':8,'mythic':7,'legendary':6,'epic':5,'rare':4,'uncommon':3,'common':2}[ITEMS[a].rarity]||0));
     if(!selectedItem||!entries.some(([id])=>id===selectedItem))selectedItem=entries[0]?.[0];
     const selected=ITEMS[selectedItem],s=p.stats;
     html=`<div class="inventory-layout"><aside class="equip-column"><div class="equip-portrait"><img src="${renderer.avatarURL(p)}" alt="현재 장비 외형"></div>
       ${[['weapon','무기'],['armor','방어구'],['charm','장신구']].map(([slot,name])=>{const id=p.equipment[slot],i=ITEMS[id];return `<button class="equip-slot" data-act="selectItem" data-id="${id||''}">${icon(i?.icon||'charm')}<span><small>${name}</small>${esc(i?.name||'미장착')}${p.enhancements[id]?' +'+p.enhancements[id]:''}</span></button>`;}).join('')}
       <div class="stat-grid"><span>직업</span><b>${c.name}</b><span>공격력</span><b>${s.atk}</b><span>방어력</span><b>${s.def}</b><span>치명타</span><b>${s.crit}%</b><span>최대 체력</span><b>${s.maxHp}</b><span>최대 마나</span><b>${s.maxMp}</b></div><button class="btn small primary" data-act="openStats">능력치 배분 · ${freePoints(p)} P</button></aside>
       <div><div class="tabs">${[['all','전체'],['gear','장비'],['consumable','소모품'],['material','재료']].map(([id,name])=>`<button class="tab ${modalTab===id?'active':''}" data-act="tab" data-id="${id}">${name}</button>`).join('')}</div>
-      <div class="bag-grid">${entries.map(([id,n])=>{const i=ITEMS[id];return `<button class="item-cell ${selectedItem===id?'selected':''}" style="border-color:${RARITIES[i.rarity].color}66" data-act="selectItem" data-id="${id}" title="${esc(i.name)}">${icon(i.icon)}<span class="count">${n}</span>${Object.values(p.equipment).includes(id)?'<span class="equipped">장착</span>':''}</button>`;}).join('')}</div>
       <div class="item-details">${selected?`<h3 style="color:${RARITIES[selected.rarity].color}">${esc(selected.name)}${p.enhancements[selectedItem]?' +'+p.enhancements[selectedItem]:''}</h3>
-      <p>${RARITIES[selected.rarity].name} ${selected.class?' · '+({guardian:'검 계열',ranger:'활 계열',mage:'마법 계열'})[selected.class]:''}${selected.level?' · 필요 레벨 '+selected.level:''}</p><p>${esc(selected.desc||'모험 속에서 얻은 소중한 장비입니다.')}</p>
-      <div class="item-stats">${gearStats(selected)}${p.enhancements[selectedItem]?` · 강화 보너스 ${gearStats(enhancementBonus(selected.slot,p.enhancements[selectedItem]))}`:''}</div>
-      ${selected.type==='gear'?`<button class="btn primary" data-act="equip" data-id="${selectedItem}">${Object.values(p.equipment).includes(selectedItem)?'장착 중':'장착하기'}</button>`:selected.type==='consumable'?`<button class="btn primary" data-act="use" data-id="${selectedItem}">사용하기</button>`:'<span class="small muted">마을의 대장장이에게 제작 재료로 사용할 수 있습니다.</span>'}`:'<p class="muted">이 분류의 아이템이 없습니다.</p>'}</div></div></div>`;
+      <p>${RARITIES[selected.rarity].name} ${selected.class?' · '+({guardian:'검 계열',ranger:'활 계열',mage:'마법 계열'})[selected.class]:''}${selected.level?' · 필요 레벨 '+selected.level:''}</p>
+      <div class="item-stats">${gearStats(selected)}${selected.type==='gear'&&p.equipment[selected.slot]&&p.equipment[selected.slot]!==selectedItem?`<span class="small muted"> · 현재 ${esc(ITEMS[p.equipment[selected.slot]]?.name||'미장착')} (${gearStats(ITEMS[p.equipment[selected.slot]])})</span>`:''}</div>
+      ${selected.type==='gear'?`<button class="btn primary" data-act="equip" data-id="${selectedItem}">${Object.values(p.equipment).includes(selectedItem)?'장착 중':'바로 장착'}</button>`:selected.type==='consumable'?`<button class="btn primary" data-act="use" data-id="${selectedItem}">바로 사용</button>`:''}`:'<p class="muted">소지한 물품이 없습니다.</p>'}</div>
+      <div class="bag-grid">${entries.map(([id,n])=>{const i=ITEMS[id];return `<button class="item-cell ${selectedItem===id?'selected':''}" style="border-color:${RARITIES[i.rarity].color}66" data-act="selectItem" data-id="${id}" title="${esc(i.name)}">${icon(i.icon)}<span class="count">${n}</span>${Object.values(p.equipment).includes(id)?'<span class="equipped">장착</span>':''}</button>`;}).join('')}</div>
+      </div></div>`;
   }else if(modal==='npcQuest'){
     title='별지기 리아';eyebrow='THE KEEPER OF LITTLE LIGHTS';
     html=npcIntro('lia')+`<div class="card-list">${questCards(true)}</div>`;
@@ -704,7 +710,7 @@ document.addEventListener('click',async e=>{
     else forgeCinema.abort(result.error||'강화 요청을 처리하지 못했습니다.');
     return;
   }
-  if(type==='selectItem'){if(id){selectedItem=id;if(modalTab!=='all')modalTab='all';renderPanel();}return;}
+  if(type==='selectItem'){if(id&&ITEMS[id]){selectedItem=id;if(modalTab!=='all'&&modalTab!==ITEMS[id].type)modalTab=ITEMS[id].type;const pos=$('modal-content').scrollTop;renderPanel();$('modal-content').scrollTop=pos;}return;}
   if(type==='close'){closeModal();return;}
   if(type==='reload'){location.reload();return;}
   if(type==='authMode'){accountMode=id;renderPanel();return;}
@@ -792,13 +798,13 @@ document.addEventListener('click',async e=>{
   if(type==='acceptQuest')request={type:'quest',mode:'accept',id};
   else if(type==='claimQuest')request={type:'quest',mode:'claim',id};
   else if(type==='buy5')request={type:'buy',id,count:5};
-  else if(['equip','use','buy','sell','craft','enhance','partyInvite','changeJob','dailyClaim','achievement','worldJoin','travel','waypoint','contractAccept','contractClaim','trialStart','surveyClaim'].includes(type))request={type,id};
+  else if(['equip','use','buy','sell','craft','enhance','partyInvite','changeJob','dailyClaim','achievement','worldJoin','travel','waypoint','villageWarp','contractAccept','contractClaim','trialStart','surveyClaim'].includes(type))request={type,id};
   else if(['partyAccept','partyLeave','return'].includes(type))request={type};
   if(request){
     b.disabled=true;const result=await action(request);if(b.isConnected)b.disabled=false;
     if(result.ok){
       if(type==='partyAccept'){b.closest('.notice')?.remove();notice('파티에 합류했습니다.','success');}
-      if(['return','travel','worldJoin','waypoint','trialStart'].includes(type))closeModal();
+      if(['return','travel','worldJoin','waypoint','villageWarp','trialStart'].includes(type))closeModal();
       uiRefreshNeeded=true;
     }
   }
@@ -820,6 +826,7 @@ function inputDirection(){
   const y=(keybindings.isHeld('moveDown',keys)?1:0)-(keybindings.isHeld('moveUp',keys)?1:0);
   const n=Math.hypot(x,y);return n?{x:x/n,y:y/n}:{x:0,y:0};
 }
+const interactRange=entity=>['mentor','warpstone','quest','shop','craft','heal','jobs'].includes(entity?.kind)?165:95;
 const editable=()=>{const el=document.activeElement;return !!el&&(['INPUT','TEXTAREA','SELECT'].includes(el.tagName)||el.isContentEditable);};
 function trapDialogTab(e,root){
   const f=[...root.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]')].filter(el=>el.offsetParent);
@@ -908,7 +915,7 @@ $('world').addEventListener('pointerdown',e=>{
   if(mobs.length){action({type:'target',id:mobs[0].id});cast('basic');return;}
   const interactables=[...(state.challenge?.markers||[]).filter(m=>['rune','seal','crystal'].includes(m.kind)),...(state.dungeon?.markers||[]).filter(m=>['pillar','rune','conduit','revive'].includes(m.kind)),...(state.soul?[state.soul]:[]),...renderer.map.npcs,...renderer.map.portals,...(renderer.map.relics||[]),...(renderer.map.storyPoints||[]),...state.nodes.filter(x=>x.ready),...renderer.map.chests.filter(x=>!profile.opened.includes(x.id))];
   const target=interactables.filter(x=>dist(point,x)<40).sort((a,b)=>dist(a,point)-dist(b,point))[0];
-  if(target&&dist(state.self,target)<95){action({type:'interact',id:target.id});return;}
+  if(target&&dist(state.self,target)<interactRange(target)){action({type:'interact',id:target.id});return;}
   if(target)pendingInteract={...target};
   else pendingInteract=null;
   renderer.pointerMark={...point,at:performance.now()};
@@ -925,7 +932,7 @@ renderer.onFrame=(dt,t)=>{
   }
   const attacking=(keybindings.isHeld('basic',keys)||attackHeld||autoAttack)&&!modal&&!editable()&&!document.hidden&&net?.connected&&state.self.hp>0&&!state.dungeon?.inputBlocked;
   if(attacking&&t-lastAttackAt>180&&(state.self.cooldowns.basic||0)<Date.now()+renderer.clock+20){lastAttackAt=t;action({type:'attack',skill:'basic'},{silent:true});}
-  if(pendingInteract&&dist(state.self,pendingInteract)<88&&t-lastInteractAt>900){
+  if(pendingInteract&&dist(state.self,pendingInteract)<interactRange(pendingInteract)-7&&t-lastInteractAt>900){
     lastInteractAt=t;const target=pendingInteract;pendingInteract=null;action({type:'interact',id:target.id});
   }
   if(t-lastHUD>100){lastHUD=t;updateHUD();}
@@ -1010,7 +1017,7 @@ function updateHUD(){
     ...(renderer.map.storyPoints||[]).map(x=>({...x,label:(x.hidden&&!profile.journey?.discovered?.includes(x.job)?'이름 없는 흔적':x.name)+' · '+keybindings.primaryLabel('interact')+' 대화'})),
     ...state.nodes.filter(x=>x.ready).map(x=>({...x,label:ITEMS[x.type].name+' 채집'})),
     ...renderer.map.chests.filter(x=>!p.opened.includes(x.id)).map(x=>({...x,label:'보물 상자 열기'}))
-  ].filter(x=>dist(s,x)<95).sort((a,b)=>dist(s,a)-dist(s,b));
+  ].filter(x=>dist(s,x)<interactRange(x)).sort((a,b)=>dist(s,a)-dist(s,b));
   show('interact-hint',!!interactables.length&&!modal&&s.hp>0);
   if(interactables.length)$('interact-hint').querySelector('span').textContent=interactables[0].label;
   for(const element of document.querySelectorAll('[data-countdown]'))element.textContent=element.dataset.countdownMode+' '+timeLeft(Number(element.dataset.countdown)-now);

@@ -20,14 +20,14 @@ export function storyTrackHTML(p){
 export function adventurePanel(name,{profile:p,tab,data,state,now=Date.now(),keyLabel=(_id,fallback='미지정')=>fallback}){
  if(name==='story'&&data){
   const d=data;
-  if(d.sealed)return {title:'이름 없는 전승',eyebrow:'SIX PATHS BEYOND THE MAP',html:`
+  if(d.sealed)return {title:'이름 없는 전승',eyebrow:'EIGHT PATHS BEYOND THE MAP',html:`
    <div class="story-sealed"><span>?</span><h3>아직 완성되지 않은 문장</h3><p>${esc(d.intro)}</p>${progress(d.signs,d.totalSigns)}<p>${d.signs}/${d.totalSigns}개의 문장</p><p>${esc(d.hint)}</p></div>
    <div class="settings-actions">${btn('직업 도감','openJobs')}${btn('대륙 지도','openAtlas')}</div>`};
   const q=p.journey?.quests[d.id],current=d.current;
   const live=current&&q?.chapter===current.index;
   const values=current?.objectives.map((o,i)=>live?(o.kind==='deliver'?Math.min(o.count,p.inventory[o.target]||0):Math.floor(q.progress[i]||0)):o.value)||[];
   const ready=current&&values.every((v,i)=>v>=current.objectives[i].count);
-  const near=p.zone===d.zone&&Math.hypot(p.x-d.site.x,p.y-d.site.y)<=125;
+  const near=p.zone===d.zone&&Math.hypot(p.x-d.site.x,p.y-d.site.y)<=185;
   let html=`<div class="story-layout"><aside class="story-aside"><img src="/assets/${d.id}_s_0.png" alt="">
    <span class="badge">${tiers[d.tier]} · ${d.total}장</span><h3>${esc(d.name)}</h3><p>${esc(d.mentor)}</p><p class="small muted">${esc(ZONES[d.zone].name)}</p>
    ${d.owned?'<span class="badge good">직업 보유</span>':''}
@@ -62,10 +62,10 @@ export function adventurePanel(name,{profile:p,tab,data,state,now=Date.now(),key
   const qs=Object.entries(p.journey?.quests||{}),done=p.journey?.completed||[];
   return {title:'내가 걸어온 직업 이야기',eyebrow:'THREE ACTIVE JOURNEYS · YOUR PROGRESS IS SAVED',html:`
    <div class="info-box">스승을 찾아 이야기를 시작하세요. 일반 4장 · 희귀 6장 · 영웅 8장 · 히든 10장. 동시에 세 이야기를 수련할 수 있고, 잠시 멈춰도 기록은 사라지지 않습니다. 이미 얻은 직업은 계속 사용할 수 있습니다.</div>
-   <div class="settings-actions">${btn('36개 직업 살펴보기','openJobs')}${btn('스승을 찾을 대륙 지도','openAtlas')}</div>
+   <div class="settings-actions">${btn('38개 직업 살펴보기','openJobs')}${btn('스승을 찾을 대륙 지도','openAtlas')}</div>
    ${!qs.length?`<div class="story-empty"><h3>첫 스승을 만나 보세요</h3><p>별여울 마을 남쪽의 수련길에 9명의 스승이 있습니다. ${esc(keyLabel('interact','F'))}로 대화하면 첫 이야기를 시작할 수 있습니다.</p></div>`:''}
    <div class="story-journal-grid">${qs.map(([id,q])=>`<article class="card"><span class="badge ${q.active?'good':''}">${q.active?'수련 중':'기록 보관'} · ${q.chapter+1}장</span><h3>${esc(CLASSES[id].name)}</h3><p>${p.journey.tracked===id?'현재 추적 중인 이야기입니다.':'각 장의 목표는 이야기를 펼치면 확인할 수 있습니다.'}</p>${btn('이야기 펼치기','storyView',id)}</article>`).join('')}</div>
-   ${done.length?`<h3>맺은 서약 ${done.length}/36</h3><div class="story-journal-grid">${done.map(id=>`<article class="card"><span class="badge good">완료</span><h3>${esc(CLASSES[id].name)}</h3>${btn('서약 다시 읽기','storyView',id)}</article>`).join('')}</div>`:''}`};
+   ${done.length?`<h3>맺은 서약 ${done.length}/38</h3><div class="story-journal-grid">${done.map(id=>`<article class="card"><span class="badge good">완료</span><h3>${esc(CLASSES[id].name)}</h3>${btn('서약 다시 읽기','storyView',id)}</article>`).join('')}</div>`:''}`};
  }
  if(name==='map'){
   const totals=atlasTotals(ZONES),current=ZONES[p.zone],chosen=PROVINCES.find(r=>r.id===tab)||null,showCore=!chosen;

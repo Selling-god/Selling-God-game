@@ -242,7 +242,7 @@ export class Renderer {
         if(this.showEffects&&point.kind!=='mentor'&&close)this.glow(point.x,point.y-20,45,color,.10);
         if(close){
           this.label(known?point.name:'이름 없는 흔적',point.x,point.y-97,color,10);
-          this.label(point.kind==='mentor'?'F 대화 · 전직 이야기':point.kind==='camp'?'F 야영지 · 귀환석':point.kind==='trial'?'F 기억의 시련':'F 기록 읽기',point.x,point.y-83,'#becbc2',9);
+          this.label(point.kind==='mentor'?'F 대화 · 전직 이야기':point.kind==='warpstone'?'F 마을 귀환석 · 이동':point.kind==='camp'?'F 야영지 · 귀환석':point.kind==='trial'?'F 기억의 시련':'F 기록 읽기',point.x,point.y-83,'#becbc2',9);
         }else if(point.kind==='mentor'&&known)this.label('◇',point.x,point.y-65,'#e4c697',16);
       }});
     }
