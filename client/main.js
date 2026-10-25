@@ -265,7 +265,7 @@ async function connectGame(){
 }
 function renderClasses(){
   selectedClass='novice';
-  $('class-list').innerHTML=`<div class="novice-intro"><img src="${imgHero('novice')}" alt="무직 모험가"><div><span class="badge">아직 정해지지 않은 36개의 가능성</span><h3>길 잃은 모험가</h3><p>처음에는 직업을 고르지 않습니다.<br>직접 싸우고, 채집하고, 유물을 발견하며 나만의 길을 찾으세요.</p><small>일반 9 · 희귀 12 · 영웅 9 · 히든 6<br>마을 남쪽의 스승을 찾아 첫 전직 이야기를 시작하세요.</small></div></div>`;
+  $('class-list').innerHTML=`<div class="novice-intro"><img src="${imgHero('novice')}" alt="무직 모험가"><div><span class="badge">아직 정해지지 않은 38개의 가능성</span><h3>길 잃은 모험가</h3><p>처음에는 직업을 고르지 않습니다.<br>직접 싸우고, 채집하고, 유물을 발견하며 나만의 길을 찾으세요.</p><small>일반 9 · 희귀 12 · 영웅 9 · 히든 8<br>마을 남쪽의 스승을 찾아 첫 전직 이야기를 시작하세요.</small></div></div>`;
 }
 $('class-list').addEventListener('click',e=>{const b=e.target.closest('[data-class]');if(b){selectedClass=b.dataset.class;renderClasses();sound.play('click');}});
 $('create-character').addEventListener('click',async()=>{

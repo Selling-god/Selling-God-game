@@ -10,9 +10,9 @@ export function expansionPanel(name,{profile:p,tab,book,events=[],now=Date.now()
  if(name==='jobs'){
   const selected=['all','common','rare','epic','hidden','owned'].includes(tab)?tab:'common';
   const list=(book||[]).filter(j=>selected==='all'||selected==='owned'&&j.owned||selected===j.tier);
-  const html=`<div class="exp-intro"><img src="/assets/${esc(p.classId)}_s_0.png" alt=""><div><span class="eyebrow">YOUR PATH IS YOURS</span><h3>${esc(CLASSES[p.classId].name)}</h3><p>38개의 길 · 발견 ${p.discovery.jobs.filter(id=>id!=='novice').length}/36 · 전직은 마을에서 무료<br>현재 직업 숙련 ${p.discovery.mastery[p.classId]||0} · 사냥·채집·의뢰로 축적</p></div></div>
-   <div class="info-box">모든 직업에는 스승과 전직 이야기가 있습니다. 일반 4장·희귀 6장·영웅 8장·히든 10장을 마치면 열립니다. 히든 직업은 새 원정 지역의 문장을 순서대로 읽어야 이름이 드러납니다. 전직해도 레벨과 장비, 각 직업 숙련은 유지됩니다. <button class="btn small" data-act="changeJob" data-id="novice" ${p.classId==='novice'?'disabled':''}>무직으로 돌아가기</button></div>
-   ${selected==='hidden'?realmEntry:''}<div class="tabs exp-tabs">${[['common','일반 9'],['rare','희귀 12'],['epic','영웅 9'],['hidden','히든 6'],['owned','해금한 직업'],['all','전체']].map(([id,label])=>`<button class="tab ${selected===id?'active':''}" data-act="tab" data-id="${id}">${label}</button>`).join('')}</div>
+  const html=`<div class="exp-intro"><img src="/assets/${esc(p.classId)}_s_0.png" alt=""><div><span class="eyebrow">YOUR PATH IS YOURS</span><h3>${esc(CLASSES[p.classId].name)}</h3><p>38개의 길 · 발견 ${p.discovery.jobs.filter(id=>id!=='novice').length}/38 · 모든 마을의 안전 구역에서 전직<br>현재 직업 숙련 ${p.discovery.mastery[p.classId]||0} · 사냥·채집·의뢰로 축적</p></div></div>
+   <div class="info-box">모든 직업에는 스승과 전직 이야기가 있습니다. 이야기를 끝낸 직업은 태초 마을뿐 아니라 어느 지역의 마을에서도 변경할 수 있습니다. 일반 4장·희귀 6장·영웅 8장·히든 10장을 마치면 열립니다. 히든 직업은 새 원정 지역의 문장을 순서대로 읽어야 이름이 드러납니다. 전직해도 레벨과 장비, 각 직업 숙련은 유지됩니다. <button class="btn small" data-act="changeJob" data-id="novice" ${p.classId==='novice'?'disabled':''}>무직으로 돌아가기</button></div>
+   ${selected==='hidden'?realmEntry:''}<div class="tabs exp-tabs">${[['common','일반 9'],['rare','희귀 12'],['epic','영웅 9'],['hidden','히든 8'],['owned','해금한 직업'],['all','전체']].map(([id,label])=>`<button class="tab ${selected===id?'active':''}" data-act="tab" data-id="${id}">${label}</button>`).join('')}</div>
    ${!book?'<p>길의 기록을 읽는 중…</p>':!list.length?'<div class="info-box">아직 이 분류의 직업을 얻지 못했습니다. 일반 직업부터 확인해 보세요.</div>':''}
    <div class="job-grid">${list.map(j=>{
     const c=CLASSES[j.id],tier=JOB_TIERS[j.tier],current=p.classId===j.id;
@@ -24,7 +24,7 @@ export function expansionPanel(name,{profile:p,tab,book,events=[],now=Date.now()
       <div class="story-actions"><button class="btn small primary" data-act="storyView" data-id="${j.id}">${j.story?.done?'이야기 다시 읽기':j.discovered?'전직 이야기':'숨겨진 문장'}</button>
       <button class="btn small ${j.owned?'primary':''}" data-act="changeJob" data-id="${j.id}" ${!j.owned||current?'disabled':''}>${current?'선택 중':j.owned?'이 직업으로 전직':'서약을 마쳐야 전직'}</button></div></article>`;
    }).join('')}</div>`;
-  return {title:'발견하는 직업 도감',eyebrow:'36 PATHS · COMMON / RARE / EPIC / HIDDEN',html};
+  return {title:'발견하는 직업 도감',eyebrow:'38 PATHS · COMMON / RARE / EPIC / HIDDEN',html};
  }
  if(name==='events'){
   return {title:'정시 월드 보스',eyebrow:'WORLD BOSSES · KOREA STANDARD TIME',html:`

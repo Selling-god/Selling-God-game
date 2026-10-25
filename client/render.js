@@ -83,6 +83,56 @@ export class Renderer {
     c.lineWidth=3;c.strokeStyle='#14232acc';c.strokeText(text,x,y);c.fillStyle=color;c.fillText(text,x,y);c.restore();
   }
   shadow(x,y,r=15){const c=this.ctx;c.fillStyle='#08161b55';c.beginPath();c.ellipse(x,y+2,r,r*.36,0,0,Math.PI*2);c.fill();}
+  // Tiny carved crystal pillar: never reuse the enormous world-boss portal art.
+  villageStone(x,y,t){
+    const c=this.ctx,hover=Math.sin(t/420)*3;
+    this.shadow(x,y,19);
+    c.save();c.translate(x,y);
+    c.fillStyle='#243c47';c.beginPath();c.ellipse(0,4,23,10,0,0,Math.PI*2);c.fill();
+    c.strokeStyle='#b4c9ba';c.lineWidth=3;c.beginPath();c.ellipse(0,4,20,8,0,0,Math.PI*2);c.stroke();
+    c.fillStyle='#506b76';c.fillRect(-10,-35,20,37);
+    c.fillStyle='#bfd0c1';c.fillRect(-10,-35,4,35);c.fillStyle='#1b3847';c.fillRect(5,-35,5,36);
+    c.fillStyle='#294957';c.beginPath();c.moveTo(-10,-35);c.lineTo(0,-49);c.lineTo(10,-35);c.closePath();c.fill();
+    const y0=-59+hover;
+    c.fillStyle='#173d59';c.beginPath();c.moveTo(0,y0-13);c.lineTo(10,y0);c.lineTo(0,y0+13);c.lineTo(-10,y0);c.closePath();c.fill();
+    c.strokeStyle='#b9e9ed';c.lineWidth=2;c.stroke();
+    c.fillStyle='#c9faff';c.beginPath();c.moveTo(0,y0-7);c.lineTo(5,y0);c.lineTo(0,y0+7);c.lineTo(-5,y0);c.closePath();c.fill();
+    // Four separated rune sockets, not a broad boss-summoning ring.
+    for(const a of [-1,1])for(const b of [-1,1]){
+      c.fillStyle=(Math.sin(t/550+a+b)>0?'#c2eefa':'#729da9');
+      c.fillRect(a*15-2,b*3-17,4,5);
+    }
+    c.restore();
+  }
+  queueWorldLabel(text,x,y,distance,hint='',priority=0){
+    if(distance>165)return;
+    this.worldLabels.push({text,x,y,distance,hint:distance<112?hint:'',priority});
+  }
+  flushWorldLabels(actors=[]){
+    const c=this.ctx,occupied=[];
+    for(const a of actors){
+      if(!a)continue;
+      occupied.push({x1:a.x-67,x2:a.x+67,y1:a.y-(a.title?103:78),y2:a.y-52});
+    }
+    const collides=r=>occupied.some(b=>r.x1<b.x2&&r.x2>b.x1&&r.y1<b.y2&&r.y2>b.y1);
+    const labels=this.worldLabels.sort((a,b)=>a.distance-b.distance||b.priority-a.priority);
+    let rendered=0;
+    for(const a of labels){
+      if(rendered>=11)break;
+      const height=a.hint?32:20,baseY=a.y-9;
+      c.save();c.font='600 10px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
+      const labelWidth=(str,size)=>{const measure=c.measureText(str);return Number.isFinite(measure?.width)?measure.width:str.length*size*.64;};
+      const w=Math.max(labelWidth(a.text,10),a.hint?labelWidth(a.hint,8):0)+20;
+      c.restore();
+      const bounds={x1:a.x-w/2,x2:a.x+w/2,y1:baseY-13,y2:baseY-13+height};
+      if(collides(bounds))continue;
+      occupied.push(bounds);rendered++;
+      c.save();c.fillStyle='#152a31d9';c.strokeStyle='#90b6bd77';c.lineWidth=1;
+      c.beginPath();c.roundRect(bounds.x1,bounds.y1,w,height,6);c.fill();c.stroke();c.restore();
+      this.label(a.text,a.x,baseY-(a.hint?3:0),'#f0e8cb',10);
+      if(a.hint)this.label(a.hint,a.x,baseY+12,'#bde9ea',8);
+    }
+  }
   interp(entity,key,dt){
     const track=this.positions.get(key);
     return track?.sample(Date.now()+this.clock-clamp(this.snapshotPeriod*1.35,100,290))||entity;
@@ -184,6 +234,7 @@ export class Renderer {
       const tx=Math.floor(x/TILE),ty=Math.floor(y/TILE);
       if(m.tiles[ty*m.w+tx]===2&&inView(x,y))c.fillRect(x+Math.sin(t/1500+j)*5,y,6+j%5,1);
     }
+    this.worldLabels=[];
     for(const portal of m.portals)if(inView(portal.x,portal.y)){
       const color=ZONES[portal.to].color;
       this.glow(portal.x,portal.y-15,60,color,.16);
@@ -192,8 +243,7 @@ export class Renderer {
       c.setLineDash([4,5]);c.lineDashOffset=t/180;c.beginPath();c.ellipse(0,1,24,9,0,0,Math.PI*2);c.stroke();c.setLineDash([]);
       c.globalAlpha=.65;c.beginPath();c.ellipse(0,-27,18,31,0,0,Math.PI*2);c.stroke();
       c.fillStyle=color+'25';c.fill();c.globalAlpha=1;c.restore();
-      this.label(portal.name,portal.x,portal.y-68,color,11);
-      this.label(portal.level>1?`Lv.${portal.level}+ · F 이동`:'F 이동',portal.x,portal.y-54,'#bbc5b8',8);
+      this.queueWorldLabel(portal.name,portal.x,portal.y-74,dist(target,portal),portal.level>1?`Lv.${portal.level}+ · F 이동`:'F 이동',1);
     }
     drawChallengeOverlay(this,s.challenge,t);
     drawDungeonOverlay(this,s,t,'ground');
@@ -229,27 +279,29 @@ export class Renderer {
       drawables.push({y:relic.y,draw:()=>{
         this.sprite('relic_stone',relic.x,relic.y,.75,known?.7:1);
         if(!known)this.glow(relic.x,relic.y-25,38,'#d5b4f2',.12);
-        if(dist(target,relic)<140){this.label(relic.name,relic.x,relic.y-56,'#d9c7ed',10);this.label(known?'F 문장 다시 읽기':'F 잊힌 기록 발견',relic.x,relic.y-43,'#bcc7bd',8);}
+        this.queueWorldLabel(relic.name,relic.x,relic.y-55,dist(target,relic),known?'F 문장 읽기':'F 기억 찾기',1);
       }});
     }
     for(const point of m.storyPoints||[])if(inView(point.x,point.y)){
       const known=!point.hidden||this.profile?.journey?.discovered?.includes(point.job)||this.profile?.discovery?.jobs?.includes(point.job);
       drawables.push({y:point.y,draw:()=>{
-        this.shadow(point.x,point.y,point.kind==='camp'?25:16);
-        this.sprite(known?point.sprite:'relic_stone',point.x,point.y,point.kind==='mentor'?.8:.75);
-        const close=dist(target,point)<160;
-        const color=point.kind==='camp'?'#a8d4b4':point.kind==='trial'?'#dba6b7':'#d7c7a2';
-        if(this.showEffects&&point.kind!=='mentor'&&close)this.glow(point.x,point.y-20,45,color,.10);
-        if(close){
-          this.label(known?point.name:'이름 없는 흔적',point.x,point.y-97,color,10);
-          this.label(point.kind==='mentor'?'F 대화 · 전직 이야기':point.kind==='warpstone'?'F 마을 귀환석 · 이동':point.kind==='camp'?'F 야영지 · 귀환석':point.kind==='trial'?'F 기억의 시련':'F 기록 읽기',point.x,point.y-83,'#becbc2',9);
-        }else if(point.kind==='mentor'&&known)this.label('◇',point.x,point.y-65,'#e4c697',16);
+        if(point.kind==='warpstone')this.villageStone(point.x,point.y,t);
+        else{
+          this.shadow(point.x,point.y,point.kind==='camp'?25:16);
+          this.sprite(known?point.sprite:'relic_stone',point.x,point.y,point.kind==='mentor'?.8:.75);
+        }
+        const range=dist(target,point);
+        const prompt=point.kind==='mentor'?'F 전직 스승과 대화':point.kind==='warpstone'?'F 마을 간 이동':point.kind==='camp'?'F 야영지 이동':point.kind==='trial'?'F 기억의 시련':'F 기록 읽기';
+        const caption=point.kind==='warpstone'?'✧ 귀환의 별기둥':known?point.name:'이름 없는 흔적';
+        this.queueWorldLabel(caption,point.x,point.y-(point.kind==='warpstone'?85:75),range,prompt,point.kind==='warpstone'?3:2);
+        if(point.kind==='mentor'&&range>=165&&known&&range<240)this.label('◇',point.x,point.y-63,'#e4c697',12);
       }});
     }
     for(const npc of m.npcs)if(inView(npc.x,npc.y))drawables.push({y:npc.y,draw:()=>{
       this.shadow(npc.x,npc.y);this.sprite(npc.sprite+'_s_'+Math.floor(t/500)%4,npc.x,npc.y,.8);
-      this.label(npc.name,npc.x,npc.y-60,'#ead2a1',11);this.label(npc.role,npc.x,npc.y-48,'#bbcbbe',8);
-      if(npc.kind==='quest')this.label('!',npc.x,npc.y-77+Math.sin(t/450)*2,'#f2d399',17);
+      const name=npc.name.includes(' · ')?npc.name.split(' · ').at(-1):npc.name;
+      this.queueWorldLabel(name,npc.x,npc.y-63,dist(target,npc),'F 대화 · '+npc.role,2);
+      if(npc.kind==='quest'&&dist(target,npc)<175)this.label('!',npc.x,npc.y-82+Math.sin(t/450)*2,'#f2d399',15);
     }});
     for(const mob of s.mobs)if(inView(mob.x,mob.y)){
       const q=this.interp(mob,'m'+mob.id,dt),def=MONSTERS[mob.type];
@@ -324,6 +376,11 @@ export class Renderer {
       }
     }
     this.drawEffects(t);
+    this.flushWorldLabels([...s.players,p].map(a=>{
+      if(!a)return null;
+      const q=a.id===p.id?this.local:this.interp(a,'p'+a.id,dt);
+      return q?{...q,title:a.title}:null;
+    }));
     // Gameplay boundaries stay above foliage, actors and cosmetic skill bursts.
     for(const cast of s.casts)this.drawCast(cast,t,'foreground');
     drawBossMechanics(this,s.bossMechanics,t,'foreground');

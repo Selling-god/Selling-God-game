@@ -1,3 +1,4 @@
+import {paintJobSignature,jobArtProfile} from './job-signatures.js';
 import {skillVisual} from '../shared/visuals.js';
 import {pixelLayer,pixelPalette,pixelEventKey,drawPixelImpact} from './pixel-effects.js';
 
@@ -88,8 +89,12 @@ function heart(p,x,y,scale,v){
 
 function paintBasic(p,e,v,f){
  const angle=Math.atan2((e.ty??e.y)-e.y,(e.tx??e.x)-e.x),family=e.classId||'guardian';
+ const weapon=jobArtProfile(e.job).weapon;
  if(family==='guardian'){
-  ribbon(p,e.x,e.y-13,angle,44+ease(f)*13,v,f);
+  if(/창|삼지창/.test(weapon))arrow(p,e.x+Math.cos(angle)*30,e.y-20+Math.sin(angle)*23,angle,v,56,5);
+  else if(/도끼|낫|곡괭이/.test(weapon))ribbon(p,e.x,e.y-13,angle,59+ease(f)*18,v,f);
+  else if(/쌍검|단검/.test(weapon)){ribbon(p,e.x-10,e.y-19,angle-.4,32+ease(f)*13,v,f);ribbon(p,e.x+10,e.y-13,angle+.4,35+ease(f)*13,v,f);}
+  else ribbon(p,e.x,e.y-13,angle,44+ease(f)*13,v,f);
   if(f>.3&&f<.85)p.spark(e.x+Math.cos(angle)*45,e.y-12+Math.sin(angle)*32,13*(1-f),v.primary,v.core);
  }else{
   const travel=ease(Math.min(1,f*1.9)),x=mix(e.x,e.tx??e.x,travel),y=mix(e.y-24,(e.ty??e.y)-14,travel);
@@ -244,6 +249,8 @@ export function drawSkillEffect(renderer,e,t){
    if(e.skill==='basic')paintBasic(p,e,v,f);
    else if(e.skill==='skill2')paintDefense(p,e,v,f,count);
    else paintOffense(p,e,v,f,count);
+   // Signature glyphs are different for all 38 professions and scale with rarity.
+   paintJobSignature(p,e,f,v);
   }else if(e.type==='dash'){
    const defaults={n:{x:0,y:-1},s:{x:0,y:1},e:{x:1,y:0},w:{x:-1,y:0}},d=defaults[e.direction]||{x:1,y:0};
    const dx=Number.isFinite(e.dx)?e.dx:d.x,dy=Number.isFinite(e.dy)?e.dy:d.y,angle=Math.atan2(dy,dx);
