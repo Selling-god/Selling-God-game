@@ -1,3 +1,4 @@
+import {REALM_BOSS_RESPAWN_MS} from '../shared/respawn.js';
 import {CLASSES,ITEMS,MONSTERS,ZONES,xpRequired} from '../shared/content.js';
 import {REALMS,REALM_BY_ID,REALM_ZONES,prepareRealms,realmPart,realmWeapon} from '../shared/realms.js';
 import {dist} from '../shared/world.js';
@@ -136,7 +137,7 @@ export class RealmManager{
   const id=MONSTERS[m.type]?.realmBoss;if(!id)return false;
   const g=this.game,r=REALM_BY_ID[id];
   if(!m.alive)return true;
-  m.alive=false;m.hp=0;m.respawnAt=g.now+90000;
+  m.alive=false;m.hp=0;m.respawnAt=g.now+REALM_BOSS_RESPAWN_MS;
   for(const [pid,damage]of m.damageLog){
    const p=g.players.get(pid),recent=m.contributors.get(pid);
    if(!p?.active||p.hp<=0||p.zone!==r.sanctum||dist(p,m)>850||!this.canEnter(p,p.zone)||

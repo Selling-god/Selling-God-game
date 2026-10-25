@@ -28,7 +28,7 @@ export class LazyWorldMap extends Map {
    if(now-(w.lastAccess||0)<90000)continue;
    const mobs=Object.fromEntries(w.mobs.filter(m=>!m.worldKey&&!m.trialKey&&!m.alive&&m.respawnAt>now&&Number.isFinite(m.respawnAt)).map(m=>[m.id,m.respawnAt]));
    const nodes=Object.fromEntries(w.nodes.filter(n=>n.readyAt>now).map(n=>[n.id,n.readyAt]));
-   if(Object.keys(mobs).length||Object.keys(nodes).length)this.residue.set(id,{mobs,nodes,expires:now+240000});
+   if(Object.keys(mobs).length||Object.keys(nodes).length)this.residue.set(id,{mobs,nodes,expires:Math.max(now+240000,...Object.values(mobs).filter(Number.isFinite)) + 30000});
    super.delete(id);
   }
   for(const [id,r]of this.residue)if(r.expires<now)this.residue.delete(id);

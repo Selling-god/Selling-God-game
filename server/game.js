@@ -1,4 +1,5 @@
 import {insideVillage} from '../shared/village-layout.js';
+import {fieldRespawnDelay} from '../shared/respawn.js';
 import {prepareStories,storyAction,recordStory,storyTracker} from './stories.js';
 import {prepareAtlas,privateAtlas,revealTerrain,interactPoint,atlasAction,trialView,tickFieldTrial,cancelFieldTrial,fieldTrialKill} from './atlas.js';
 import {LazyWorldMap} from './lazy-worlds.js';
@@ -310,7 +311,7 @@ export class Game {
     if(this.challenges.mobKilled(m))return;
     if(bossMechanicKilled(this,this.worlds.get(zone),m))return;
     if(m.trialKey&&fieldTrialKill(this,this.worlds.get(zone),m))return;
-    const spec=MONSTERS[m.type];m.alive=false;m.hp=0;m.respawnAt=m.worldKey?Infinity:this.now+(spec.boss?120000:18000+this.random()*10000);
+    const spec=MONSTERS[m.type];m.alive=false;m.hp=0;m.respawnAt=m.worldKey?Infinity:this.now+fieldRespawnDelay(spec,()=>this.random());
     if(m.worldKey)this.events.defeated(m);
     const eligible=new Set();
     for(const [id,at]of m.contributors){
@@ -774,7 +775,7 @@ export class Game {
       return true;
     }
     // In extremely blocked terrain a mob cannot remain active inside a safe hub.
-    m.alive=false;m.respawnAt=this.now+4000;
+    m.alive=false;m.respawnAt=this.now+fieldRespawnDelay(MONSTERS[m.type],()=>this.random());
     return false;
   }
   bossCast(w,m,target){
