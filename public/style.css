@@ -332,3 +332,10 @@
 .ability[data-skill="basic"]:hover,.ability[data-skill="skill1"]:hover,.ability[data-skill="skill2"]:hover,.ability[data-skill="ultimate"]:hover{border-color:var(--skill-light);box-shadow:0 0 10px color-mix(in srgb,var(--skill-fx) 35%,transparent),inset 0 0 0 1px var(--skill-fx)}
 .ability img{image-rendering:pixelated}
 #setting-fxStyle{width:min(275px,100%);min-height:34px;padding:5px 9px;border:1px solid #8f9e8477;border-radius:6px;background:#152934;color:#ede7d4}
+
+/* Detailed ability glossary and current buff badges. Keeps buttons unchanged. */
+#skill-details-tooltip{position:fixed;z-index:2500;width:min(310px,calc(100vw - 16px));padding:14px 16px;border-radius:10px;background:#14252ef7;border:1px solid var(--tip-accent,#b9cbaa);box-shadow:0 6px 26px #070e16cb;pointer-events:none;font-size:12px;line-height:1.6;color:#e3e9df;overflow-wrap:anywhere}
+#skill-details-tooltip[hidden]{display:none}#skill-details-tooltip strong{display:block;font-size:16px;color:var(--tip-accent,#e6d3a2)}#skill-details-tooltip .tip-kind{font-size:11px;color:#b8bdb3}#skill-details-tooltip p{margin:9px 0;line-height:1.7}#skill-details-tooltip footer{border-top:1px solid #a9b8ac39;padding-top:8px;margin-top:9px;font-size:11px;color:#d3c3a0}
+#skill-details-tooltip .tip-tags{display:flex;flex-wrap:wrap;gap:4px}#skill-details-tooltip .tip-tags span{border:1px solid #96aeaf68;background:#25414b88;border-radius:4px;padding:1px 5px;font-size:10px}
+.combat-buffs{position:absolute;bottom:109px;left:50%;transform:translateX(-50%);display:flex;gap:5px;max-width:470px;flex-wrap:wrap;justify-content:center;pointer-events:none}.combat-buffs span{padding:4px 7px;border:1px solid #b18c6977;background:#1b2d34d9;color:#ead29b;font-size:10px;border-radius:5px;white-space:nowrap}
+@media(max-width:700px){.combat-buffs{bottom:250px;left:auto;right:14px;transform:none;max-width:210px}.combat-buffs span{font-size:8px;padding:2px 4px}}

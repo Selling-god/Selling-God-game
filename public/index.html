@@ -7,7 +7,7 @@
   <meta name="description" content="잔별의 숲: Starfall Online. 함께 탐험하고, 길을 밝히고, 마지막 별을 되찾는 도트 액션 RPG.">
   <title>잔별의 숲 · STARFALL ONLINE</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png">
-  <link rel="stylesheet" href="/style.css?v=20261025-bgm-v7-art">
+  <link rel="stylesheet" href="/style.css?v=20261025-v8-dungeon-effects">
 </head>
 <body>
   <canvas id="world" aria-label="게임 세계"></canvas>
@@ -21,7 +21,7 @@
       <p class="landing-desc">숲을 탐험하고, 잊힌 수호자를 만나세요.<br>당신의 다음 모험은 작은 마을의 불빛에서 시작됩니다.</p>
       <div class="landing-actions"><button id="start" class="btn primary large" disabled>모험 시작 <span>↗</span></button><button id="login-open" class="btn glass">계정 로그인</button></div>
       <p id="start-note" class="small muted">게임 리소스를 준비하고 있습니다.</p>
-      <div class="feature-tags"><span>164개 지역 · 숨겨진 세계 6곳</span><span>최고 Lv.200 · 발견하는 36개 직업</span><span>협동 던전 3종 · 개인 도전 5종</span></div>
+      <div class="feature-tags"><span>164개 지역 · 숨겨진 세계 6곳</span><span>최고 Lv.200 · 발견하는 36개 직업</span><span>협동 던전 4종 · 개인 도전 5종</span></div>
     </main>
     <div class="landing-bottom"><span>CHAPTER III <b>아득한 길의 서약</b></span><span>PC · MOBILE <b>v3.0.0</b></span></div>
   </section>
@@ -57,7 +57,7 @@
     <div id="notices" class="notices" aria-live="polite"></div>
     <div id="loot-feed" class="loot-feed"></div>
     <button id="interact-hint" class="interact-hint hidden"><kbd>F</kbd> <span></span></button>
-    <div id="abilities" class="abilities"></div>
+    <div id="abilities" class="abilities"></div><div id="combat-buffs" class="combat-buffs" aria-live="off"></div>
     <button id="world-status" class="world-status" data-panel="events">월드 보스 시간표 [B]</button>
     <div class="hud-dock">
       <button data-panel="jobs" title="전직 도감 (C)"><img src="/assets/icon_sword.png" alt=""><span>직업</span><kbd>C</kbd></button>
@@ -93,6 +93,6 @@
   </section>
   <div id="confirm" class="overlay hidden"></div>
   <noscript><div class="noscript">이 게임은 JavaScript가 필요합니다. 브라우저 설정에서 JavaScript를 허용해 주세요.</div></noscript>
-  <script type="module" src="/client/main.js?v=20261025-bgm-v7-art"></script>
+  <script type="module" src="/client/main.js?v=20261025-v8-dungeon-effects"></script>
 </body>
 </html>
