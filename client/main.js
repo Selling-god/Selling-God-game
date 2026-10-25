@@ -467,7 +467,7 @@ function renderPanel(){
   if(extra){({title,eyebrow,html}=extra);}
   else if(modal==='warpstone'){
     title='마을 귀환석';eyebrow='WAYSTONE NETWORK · 발견한 마을끼리 이동';
-    html=`<div class="info-box">각 지역의 마을 중앙 귀환석에 먼저 다가가 활성화하세요. 전투 종료 8초 후 이동할 수 있습니다.</div><div class="card-list">${(data?.destinations||[]).map(z=>`<article class="card"><h3>${esc(z.name)}</h3><p>필요 레벨 ${z.level}${z.id===data.here?' · 현재 마을':''}</p><button class="btn primary" data-act="villageWarp" data-id="${esc(z.id)}" ${z.id===data.here||p.level<z.level?'disabled':''}>이 마을로 이동</button></article>`).join('')}</div>`;
+    html=`<div class="info-box">여러 지역을 건너야 만나는 거점 마을의 귀환석을 먼저 활성화하세요. 전투 종료 8초 후 이동할 수 있습니다.</div><div class="card-list">${(data?.destinations||[]).map(z=>`<article class="card"><h3>${esc(z.name)}</h3><p>필요 레벨 ${z.level}${z.id===data.here?' · 현재 마을':''}</p><button class="btn primary" data-act="villageWarp" data-id="${esc(z.id)}" ${z.id===data.here||p.level<z.level?'disabled':''}>이 마을로 이동</button></article>`).join('')}</div>`;
   }else if(modal==='inventory'){
     title='가방과 장비';eyebrow=`EQUIPMENT & INVENTORY · ${money(p.gold)} G`;
     const entries=Object.entries(p.inventory).filter(([id,n])=>n>0&&ITEMS[id]&&(modalTab==='all'||ITEMS[id].type===modalTab));

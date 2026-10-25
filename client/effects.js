@@ -1,4 +1,5 @@
-import {paintJobSignature,jobArtProfile} from './job-signatures.js';
+import {jobArtProfile} from './job-signatures.js';
+import {paintCombatChoreography,skillEffectBounds} from './combat-vfx.js';
 import {skillVisual} from '../shared/visuals.js';
 import {pixelLayer,pixelPalette,pixelEventKey,drawPixelImpact} from './pixel-effects.js';
 
@@ -236,22 +237,22 @@ export function drawSkillEffect(renderer,e,t){
  const ultimate=e.skill==='ultimate',isSkill=e.type==='attack'||e.type==='skill',count=renderer.lowPower?6:ultimate?16:10;
  const radius=isSkill?Math.min(225,Math.max(e.skill==='basic'?55:90,e.radius||(ultimate?160:90))):110;
  const tx=isSkill?(e.tx??e.x):e.x,ty=isSkill?(e.ty??e.y):e.y;
- const box={x:Math.min(e.x,tx)-radius-35,y:Math.min(e.y,ty)-(ultimate?245:160)-radius*.5,width:Math.abs(tx-e.x)+(radius+35)*2,height:Math.abs(ty-e.y)+(ultimate?245:160)+radius*1.5+35};
+ const box=isSkill?skillEffectBounds(e):{x:Math.min(e.x,tx)-radius-35,y:Math.min(e.y,ty)-(ultimate?245:160)-radius*.5,width:Math.abs(tx-e.x)+(radius+35)*2,height:Math.abs(ty-e.y)+(ultimate?245:160)+radius*1.5+35};
  pixelLayer(renderer,`skill:${eventKey}:${frame}`,box,p=>{
+  if(isSkill){
+   // The old job icon was painted ON TOP of a giant shared attack (and could
+   // hide the character as a dark rectangular pillar). One restrained bespoke
+   // weapon/element choreography now owns each job's entire attack silhouette.
+   paintCombatChoreography(p,e,f,v,{lowPower:renderer.lowPower,showEffects:renderer.showEffects});
+   return;
+  }
   if(!renderer.showEffects){
-   if(isSkill&&e.skill==='basic')paintBasic(p,e,v,f);
-   else if(e.type==='dash')p.outline([[e.x-24,e.y],[e.x-6,e.y-8],[e.x+12,e.y]],v.primary,3,false);
+   if(e.type==='dash')p.outline([[e.x-24,e.y],[e.x-6,e.y-8],[e.x+12,e.y]],v.primary,3,false);
    else if(e.skill==='skill2'||e.type==='buff'||e.type==='soulRecover')cross(p,e.x,e.y-32-f*20,10,v);
    else{ground(p,tx,ty,22+f*25,v);p.spark(tx,ty-12,10*(1-f),v.light,v.core);}
    return;
   }
-  if(isSkill){
-   if(e.skill==='basic')paintBasic(p,e,v,f);
-   else if(e.skill==='skill2')paintDefense(p,e,v,f,count);
-   else paintOffense(p,e,v,f,count);
-   // Signature glyphs are different for all 38 professions and scale with rarity.
-   paintJobSignature(p,e,f,v);
-  }else if(e.type==='dash'){
+  if(e.type==='dash'){
    const defaults={n:{x:0,y:-1},s:{x:0,y:1},e:{x:1,y:0},w:{x:-1,y:0}},d=defaults[e.direction]||{x:1,y:0};
    const dx=Number.isFinite(e.dx)?e.dx:d.x,dy=Number.isFinite(e.dy)?e.dy:d.y,angle=Math.atan2(dy,dx);
    for(let i=0;i<(renderer.lowPower?3:5);i++){
