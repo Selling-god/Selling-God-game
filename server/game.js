@@ -1,3 +1,4 @@
+import {insideVillage} from '../shared/village-layout.js';
 import {prepareStories,storyAction,recordStory,storyTracker} from './stories.js';
 import {prepareAtlas,privateAtlas,revealTerrain,interactPoint,atlasAction,trialView,tickFieldTrial,cancelFieldTrial,fieldTrialKill} from './atlas.js';
 import {LazyWorldMap} from './lazy-worlds.js';
@@ -91,18 +92,19 @@ export class Game {
         }else pt=spawnPoint(map,rand);
         // The village is a rest hub: ordinary mobs must not start inside its
         // NPC plaza. Re-sample without changing monster counts or boss spawns.
-        if(map.villageStone&&dist(pt,map.villageStone)<295){
-          for(let attempt=0;attempt<28;attempt++){
+        if(insideVillage(map,pt.x,pt.y,55)){
+          for(let attempt=0;attempt<90;attempt++){
             const next=spawnPoint(map,rand);
-            if(dist(next,map.villageStone)>=295){pt=next;break;}
+            if(!insideVillage(map,next.x,next.y,55)){pt=next;break;}
           }
         }
+        if(insideVillage(map,pt.x,pt.y,55))continue; // Never spawn in an occupied village.
         world.mobs.push(this.makeMob(`${id}_m${i}`,types[i%types.length],pt.x,pt.y));
       }
       if(id==='forest')for(let i=0;i<5;i++){
         const x=(i%2?19:41)*TILE+16,y=(28-Math.floor(i/2)*3)*TILE+16;
         const spot=findSafePosition(map,{x,y},14);
-        if(spot&&(!map.villageStone||dist(spot,map.villageStone)>=295))world.mobs.push(this.makeMob(`forest_intro${i}`,'slime',spot.x,spot.y));
+        if(spot&&!insideVillage(map,spot.x,spot.y,55))world.mobs.push(this.makeMob(`forest_intro${i}`,'slime',spot.x,spot.y));
       }
       const b=BOSS_SPAWNS[id];
       if(b?.type)world.mobs.push(this.makeMob(`${id}_boss`,b.type,b.x,b.y));
@@ -134,7 +136,10 @@ export class Game {
   }
   stats(p){return getStats(p,this.now);}
   canSeeEntity(p,entity){return this.challenges.allows(p,entity)&&this.dungeons.allows(p,entity);}
-  canDamage(p,m){return this.encounters.canDamage(m)&&this.challenges.canDamage(p,m)&&this.dungeons.canDamage(p,m)&&this.realms.canDamage(p,m);}
+  canDamage(p,m){
+    if(insideVillage(this.worlds.get(p.zone)?.map,p.x,p.y))return false;
+    return this.encounters.canDamage(m)&&this.challenges.canDamage(p,m)&&this.dungeons.canDamage(p,m)&&this.realms.canDamage(p,m);
+  }
   sameInstance(a,b){return this.challenges.sameInstance(a,b)&&this.dungeons.sameInstance(a,b);}
   mobSpec(m){return m.dungeonRun?this.dungeons.mobSpec(m):this.challenges.mobSpec(m);}
   publicPlayer(p){
@@ -368,6 +373,9 @@ export class Game {
   }
   damagePlayer(p,amount,{monster=false}={}){
     if(p.hp<=0||!(amount>0))return 0;
+    // A town shelter blocks monster damage from every AI subsystem, including
+    // lingering projectiles/hazards fired before the character entered town.
+    if(monster&&insideVillage(this.worlds.get(p.zone)?.map,p.x,p.y))return 0;
     if(p.invulnerableUntil>this.now){this.blockedHitFeedback(p,p.dashUntil>this.now?'회피':'무적');return 0;}
     if(this.encounters.protects(p)){this.blockedHitFeedback(p,'전환 중 보호');return 0;}
     const defense=this.stats(p).def*.65;
@@ -659,6 +667,8 @@ export class Game {
           continue;
         }
         m.moving=false;
+        // Live-update safety: even a previously spawned mob must leave a newly built village.
+        if(insideVillage(w.map,m.x,m.y,18)){this.relocateVillageMob(w,m);if(!m.alive)continue;}
         // Server-authoritative interest management: keep nearby encounters alive,
         // but do not run distant wandering, LOS, targeting and spell calculations.
         if(!m.target&&!m.dots?.length&&!m.trialKey&&!inZone.some(p=>dist(p,m)<1120)){
@@ -681,13 +691,15 @@ export class Game {
         m.dots=(m.dots||[]).filter(e=>e.left>0);
         if(!m.alive||m.stunUntil>now)continue;
         if(m.mechanicObjective||m.bossMechanic?.active)continue;
-        if(this.encounters.tickMob(w,m,inZone,dt))continue;
+        if(this.encounters.tickMob(w,m,inZone.filter(p=>!insideVillage(w.map,p.x,p.y)),dt)){
+          if(insideVillage(w.map,m.x,m.y,18))this.relocateVillageMob(w,m);
+          continue;
+        }
         if(!inZone.length){m.target=null;continue;}
         let target=inZone.find(p=>p.id===m.target&&dist(p,m)<440);
         if(target&&Math.hypot(m.x-m.homeX,m.y-m.homeY)>440)target=null;
-        if(!target)target=inZone.filter(p=>dist(p,m)<spec.aggro&&lineOfSight(w.map,m,p)).sort((a,b)=>dist(a,m)-dist(b,m))[0];
-        // Normal enemies abandon pursuit when the player reaches a town hub.
-        if(target&&!spec.boss&&w.map.villageStone&&dist(target,w.map.villageStone)<205)target=null;
+        if(target&&insideVillage(w.map,target.x,target.y))target=null;
+        if(!target)target=inZone.filter(p=>!insideVillage(w.map,p.x,p.y)&&dist(p,m)<spec.aggro&&lineOfSight(w.map,m,p)).sort((a,b)=>dist(a,m)-dist(b,m))[0];
         if(target&&Math.hypot(m.x-m.homeX,m.y-m.homeY)>480)target=null;
         m.target=target?.id||null;
         if(target){
@@ -705,6 +717,7 @@ export class Game {
           }else if(d>spec.range*.8&&m.castUntil<=now){
             const speed=spec.speed*(m.slowUntil>now? .5:1),ox=m.x,oy=m.y;
             if(d>0)moveEntity(w.map,m,dx/d*speed*dt,dy/d*speed*dt,12);
+            if(insideVillage(w.map,m.x,m.y,18)){m.x=ox;m.y=oy;m.target=null;}
             m.moving=dist(m,{x:ox,y:oy})>.05;
           }
         }else{
@@ -713,7 +726,10 @@ export class Game {
             m.hp=Math.min(m.maxHp,m.hp+dt*m.maxHp*.05);
           }else if(!spec.boss){
             if(m.wanderAt<now){const a=this.random()*Math.PI*2;m.walkDir=this.random()>.45?{x:Math.cos(a),y:Math.sin(a)}:{x:0,y:0};m.wanderAt=now+2200+this.random()*2000;}
-            moveEntity(w.map,m,m.walkDir.x*spec.speed*.22*dt,m.walkDir.y*spec.speed*.22*dt,12);m.moving=Math.hypot(m.walkDir.x,m.walkDir.y)>.1;
+            const ox=m.x,oy=m.y;
+            moveEntity(w.map,m,m.walkDir.x*spec.speed*.22*dt,m.walkDir.y*spec.speed*.22*dt,12);
+            if(insideVillage(w.map,m.x,m.y,18)){m.x=ox;m.y=oy;m.walkDir={x:0,y:0};}
+            m.moving=dist(m,{x:ox,y:oy})>.05;
           }
         }
       }
@@ -722,7 +738,7 @@ export class Game {
         if(cast.challengeRun||cast.dungeonRun)continue;
         const owner=w.mobs.find(m=>m.id===cast.owner);
         if(!owner?.alive)continue;
-        if(this.encounters.resolveCast(w,cast,inZone))continue;
+        if(this.encounters.resolveCast(w,cast,inZone.filter(p=>!insideVillage(w.map,p.x,p.y))))continue;
         for(const p of inZone){
           const dx=p.x-cast.x,dy=p.y-cast.y,d=Math.hypot(dx,dy);
           let hit=cast.shape==='ring'?(d<=cast.radius+8&&d>=cast.inner-8):d<=cast.radius+8;
@@ -730,7 +746,7 @@ export class Game {
             const along=dx*Math.cos(cast.angle)+dy*Math.sin(cast.angle),across=-dx*Math.sin(cast.angle)+dy*Math.cos(cast.angle);
             hit=along>=-10&&along<=cast.length&&Math.abs(across)<cast.width/2+8;
           }
-          if(hit)this.damagePlayer(p,cast.damage,{monster:true});
+          if(hit&&!insideVillage(w.map,p.x,p.y))this.damagePlayer(p,cast.damage,{monster:true});
         }
         this.fx(zone,{type:'impact',castId:cast.id,owner:cast.owner,x:cast.x,y:cast.y,radius:cast.radius,shape:cast.shape,inner:cast.inner,angle:cast.angle,length:cast.length,width:cast.width,boss:cast.boss,theme:cast.theme,monster:cast.monster});
       }
@@ -741,6 +757,26 @@ export class Game {
   }
   tickFieldTrial(w){tickFieldTrial(this,w);}
   cancelFieldTrial(w){cancelFieldTrial(this,w);}
+  relocateVillageMob(world,m){
+    const map=world.map,area=map.villageSafe;
+    if(!area||!insideVillage(map,m.x,m.y,18))return false;
+    const options=[];
+    const pad=34;
+    for(let k=-10;k<=10;k++){
+      const step=k*32;
+      for(const x of [area.x-area.width/2-pad,area.x+area.width/2+pad])options.push({x,y:area.y+step});
+      for(const y of [area.y-area.height/2-pad,area.y+area.height/2+pad])options.push({x:area.x+step,y});
+    }
+    options.sort((a,b)=>dist(a,m)-dist(b,m));
+    const place=options.find(point=>!insideVillage(map,point.x,point.y,20)&&!isBlocked(map,point.x,point.y,14));
+    if(place){m.x=place.x;m.y=place.y;m.target=null;m.castUntil=0;m.moving=false;
+      if(insideVillage(map,m.homeX,m.homeY,18)){m.homeX=place.x;m.homeY=place.y;}
+      return true;
+    }
+    // In extremely blocked terrain a mob cannot remain active inside a safe hub.
+    m.alive=false;m.respawnAt=this.now+4000;
+    return false;
+  }
   bossCast(w,m,target){
     if(this.encounters.startBoss(w,m,target))return;
     const spec=MONSTERS[m.type],phase=m.phase++%3;

@@ -1,3 +1,4 @@
+import {insideVillage} from '../shared/village-layout.js';
 import {storyBook,recordStory} from './stories.js';
 import {recordAtlas} from './atlas.js';
 import {CLASSES,ITEMS,ZONES,getStats} from '../shared/content.js';
@@ -129,7 +130,8 @@ export function readRelic(game,p,relic){
 export function changeJob(game,p,id){
  const c=CLASSES[id];
  if(!c||!p.discovery.jobs.includes(id))return {ok:false,error:'먼저 탐험을 통해 이 직업을 해금해야 합니다.'};
- if(p.zone!=='town')return {ok:false,error:'전직은 안전한 별여울 마을에서만 가능합니다.'};
+ const region=game.worlds.get(p.zone)?.map;
+ if(p.zone!=='town'&&!insideVillage(region,p.x,p.y))return {ok:false,error:'전직은 각 지역 마을의 안전 구역에서 가능합니다. 전직 안내인 가까이로 이동하세요.'};
  if(game.now-p.lastCombat<8000)return {ok:false,error:'전투 종료 8초 후 전직할 수 있습니다.'};
  if((p.cooldowns.job||0)>game.now)return {ok:false,error:'전직 후 15초 동안은 다른 직업으로 바꿀 수 없습니다.'};
  if(p.classId===id)return {ok:false,error:'이미 사용 중인 직업입니다.'};
