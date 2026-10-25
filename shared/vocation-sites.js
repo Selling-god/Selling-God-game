@@ -28,3 +28,13 @@ export const VOCATION_SITES=Object.entries(VOCATION_LOCATIONS).map(([job,[name,z
   x:(common?13+(i%5)*7:20+(i%3)*4)*32+16,y:(common?33+Math.floor(i/5)*7:z.height-21-(i%2)*3)*32+16,
   sprite:(CLASSES[job].family==='mage'?'healer':CLASSES[job].family==='ranger'?'merchant':'smith')+'_s_0'};
 });
+
+/** Alternate interaction objects for hidden-class stories; authoritative story prerequisites still apply. */
+const HIDDEN_RELIC_NAMES={voidwalker:'공허의 파편',eclipse_reaper:'검은 달의 낫',phoenix_heir:'불멸의 불씨',tide_oracle:'밀물의 조개',starweaver:'운명의 베틀',nameless_king:'비어 있는 왕관',dawn_architect:'새벽의 태엽',abyss_shepherd:'심연의 양치기 종'};
+export const HIDDEN_VOCATION_RELICS=VOCATION_SITES.filter(s=>s.hidden).map((s,i)=>({
+  id:`hidden_relic_${s.job}`,kind:'hiddenArtifact',job:s.job,zone:s.zone,hidden:true,
+  name:HIDDEN_RELIC_NAMES[s.job]||'봉인된 유물',
+  x:s.x+((i%2===0)?96:-96),y:s.y+((i%3)-1)*64,
+  sprite:'relic_stone',text:'숨겨진 전직의 유물입니다. 필요한 기록을 모은 뒤 직접 조사해 전직 이야기를 시작하세요.'
+}));
+export const ALL_VOCATION_SITES=[...VOCATION_SITES,...HIDDEN_VOCATION_RELICS];

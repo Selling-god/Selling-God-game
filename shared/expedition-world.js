@@ -1,11 +1,11 @@
 import {TILE} from './content.js';
 import {LANDMARKS} from './expeditions.js';
-import {VOCATION_SITES} from './vocation-sites.js';
+import {ALL_VOCATION_SITES} from './vocation-sites.js';
 
 const randFor=seed=>()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
 export function buildExpedition(id,z,portals){
  const w=z.width,h=z.height,rand=randFor(z.seed),tiles=new Uint8Array(w*h),blocked=new Uint8Array(w*h),reserved=new Uint8Array(w*h);
- const points=[...LANDMARKS.filter(p=>p.zone===id),...VOCATION_SITES.filter(p=>p.zone===id)];
+ const points=[...LANDMARKS.filter(p=>p.zone===id),...ALL_VOCATION_SITES.filter(p=>p.zone===id)];
  const props=[],resources=[],chests=[],encounters=[];
  const camp=points.find(p=>p.kind==='camp'),shrine=points.find(p=>p.kind==='trial');
  const cx=Math.floor(w/2),cy=Math.floor(h/2),ponds=Array.from({length:8},()=>[8+rand()*(w-16),8+rand()*(h-16),3+rand()*9,3+rand()*6]);

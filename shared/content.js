@@ -224,3 +224,7 @@ for(const enemy of Object.values(MONSTERS)){
 
 // Every region, including the original four, has a stable UI/save identifier.
 for(const [id,zone]of Object.entries(ZONES))zone.id=id;
+
+// Non-farming training targets used at settlement practice fields.
+MONSTERS.training_dummy={...MONSTERS.golem,name:'수련용 허수아비',sprite:'golem',skin:'golem',
+ level:1,hp:120000,atk:0,def:0,speed:0,aggro:0,range:0,xp:0,gold:[0,0],material:'ore',boss:false};

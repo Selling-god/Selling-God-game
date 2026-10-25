@@ -1,7 +1,25 @@
 export const DUNGEON_ZONE = 'party_dungeon';
-export const DUNGEON_ZONE_IDS = [DUNGEON_ZONE, 'party_archive', 'party_observatory'];
+export const DUNGEON_ZONE_IDS = [DUNGEON_ZONE, 'party_archive', 'party_observatory', 'party_quarry'];
 export const DUNGEON_RULES = { minMembers: 2, maxMembers: 4, readyMs: 90000, reconnectMs: 30000, reviveMs: 3000, revives: 2 };
 export const DUNGEONS = [
+  {
+    id: 'moon_quarry', zone: 'party_quarry', name: '공명의 수정광산', level: 25, entryZone: 'ruins', minutes: 10,
+    boss: 'dungeon_geode', bossName: '수정핵 수호자 · 제오', skin: 'golem', color: '#9ac7d8', theme: 'frost',
+    subtitle: '갈라진 수정벽 사이에서 두 공명석이 같은 음으로 울린다.', reward: 'quarry_pendant',
+    layout: '수정 수로로 나뉜 광산의 양쪽 채굴장과 세 개의 연결 다리. 떨어지지 않도록 우회로를 찾습니다.',
+    combat: '제오는 공명 파동으로 위치를 고정한 뒤 낙하하는 수정 주먹으로 공격합니다. 채굴 기계 뒤에 숨으세요.',
+    phases: [
+      {title:'잠든 수정핵',form:'sealed_geode',description:'바닥에 번지는 공명 파동을 읽으세요.'},
+      {title:'균열의 채굴자',form:'shattered_geode',description:'수정 외피가 깨지며 연속 주먹과 두 갈래 파동이 나옵니다.'},
+      {title:'청백색 공명의 심장',form:'resonant_core',description:'수정핵이 노출됩니다. 연속 파동을 피한 뒤 과열된 핵을 노리세요.'}
+    ],
+    mechanics: [
+      '서로 다른 두 파티원이 해·달 공명 발판에 올라 2초 동안 함께 버텨야 합니다.',
+      '수정 기둥을 돌려 공명 방향을 맞추고, 거대한 주먹이 내려오는 자리에서 벗어나세요.',
+      '보스 체력 70%·35%에서 수정이 깨지며 공격 패턴이 바뀝니다.'
+    ],
+    title:'첫 공명을 울린 자'
+  },
   {
     id: 'concord_forge', zone: DUNGEON_ZONE, name: '쌍월의 용광로', level: 35, entryZone: 'sunscar', minutes: 12,
     boss: 'dungeon_arke', bossName: '쌍극의 감시자 · 아르케', skin: 'moss_guardian', color: '#e6b976', theme: 'fire',
@@ -70,16 +88,16 @@ export const dungeonDay = now => new Date(now + 9 * 3600000).toISOString().slice
 
 export function installDungeons({ ZONES, MONSTERS, ITEMS }) {
   for (const d of DUNGEONS) ZONES[d.zone] = { id: d.zone, name: d.name, subtitle: d.subtitle, minLevel: d.level,
-    width: 44, height: 34, theme: d.id === 'concord_forge' ? 'volcano' : d.id === 'memory_archive' ? 'ruins' : 'abyss', color: d.color,
+    width: 44, height: 34, theme: d.id === 'concord_forge' ? 'volcano' : d.id === 'moon_quarry' ? 'frost' : d.id === 'memory_archive' ? 'ruins' : 'abyss', color: d.color,
     spawn: [22, 28], weather: d.id === 'concord_forge' ? 'embers' : 'stars', music: 'ruins', dungeon: true, dungeonId: d.id, mobTypes: [], mobCount: 0 };
   for (const d of DUNGEONS) MONSTERS[d.boss] = { ...MONSTERS[d.skin], name: d.bossName, sprite: d.skin, skin: d.skin,
     level: d.level, hp: 1, atk: 1, def: 1, xp: 0, gold: [0, 0], material: 'ore', boss: true, dungeonBoss: true, worldBoss: false, pattern: 'dungeon' };
   MONSTERS.dungeon_echo = { ...MONSTERS.wisp, name: '흩어진 기억의 잔영', sprite: 'wisp', skin: 'wisp', xp: 0, gold: [0, 0], material: 'ore', boss: false };
   MONSTERS.dungeon_cinder = { ...MONSTERS.golem, name: '굴러가는 화로 파편', sprite: 'golem', skin: 'golem', xp: 0, gold: [0, 0], material: 'ore', boss: false };
   MONSTERS.dungeon_satellite = { ...MONSTERS.wisp, name: '궤도를 잃은 관측 위성', sprite: 'wisp', skin: 'wisp', xp: 0, gold: [0, 0], material: 'ore', boss: false };
-  for (const [index, d] of DUNGEONS.entries()) ITEMS[d.reward] = { name: ['쌍월의 공명 목걸이', '잊지 않는 서고의 약속', '낙성을 묶는 서약'][index],
-    type: 'gear', slot: 'charm', icon: 'charm', rarity: 'legendary', level: d.level, hp: 130 + d.level * 6,
-    atk: Math.round(12 + d.level * 1.05), mp: 45 + d.level * 2, crit: 6 + index * 2,
+  for (const [index, d] of DUNGEONS.entries()) ITEMS[d.reward] = { name: ['광산의 첫 공명석', '쌍월의 공명 목걸이', '잊지 않는 서고의 약속', '낙성을 묶는 서약'][index],
+    type: 'gear', slot: 'charm', icon: 'charm', rarity: d.level <= 25 ? 'epic' : 'legendary', level: d.level, hp: 130 + d.level * 6,
+    atk: Math.round(12 + d.level * 1.05), mp: 45 + d.level * 2, crit: d.id === 'moon_quarry' ? 4 : 6 + (index - 1) * 2,
     sell: 0, visualTheme: d.theme, visualSet: d.id, visualBase: 'relic_charm', desc: `${d.name} 첫 완주 보상. 파티의 협력을 기억하는 성물입니다.` };
 }
 

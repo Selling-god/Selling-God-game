@@ -1,5 +1,5 @@
 import { EXPEDITION_ZONES } from './expeditions.js';
-import { VOCATION_SITES } from './vocation-sites.js';
+import { ALL_VOCATION_SITES } from './vocation-sites.js';
 import { buildExpedition } from './expedition-world.js';
 import { indexScenery } from './spatial.js';
 import { FRONTIER, RELICS } from './expansion.js';
@@ -102,7 +102,30 @@ export function createMap(id) {
   if(z.dungeon)return remember(id,buildDungeonMap(id,z));
   if(z.challenge)return remember(id,buildChallengeMap(id,z));
   if(z.expedition)return remember(id,buildExpedition(id,z,PORTALS[id]));
-  if(z.seed){const map=buildFrontier(id,z,PORTALS[id],NPCS.filter(n=>n.zone===id));map.storyPoints=VOCATION_SITES.filter(s=>s.zone===id);return remember(id,map);}
+  if(z.seed){
+    const map=buildFrontier(id,z,PORTALS[id],NPCS.filter(n=>n.zone===id));
+    map.storyPoints=ALL_VOCATION_SITES.filter(s=>s.zone===id);
+    // Two hidden vocation shrines used to fall inside generated walls. Build
+    // narrow, traversable links to their existing mentors without moving them.
+    for(const relic of map.storyPoints.filter(s=>s.kind==='hiddenArtifact')){
+      const mentor=map.storyPoints.find(s=>s.job===relic.job&&s.kind==='mentor');if(!mentor)continue;
+      const start={x:Math.floor(relic.x/TILE),y:Math.floor(relic.y/TILE)};
+      const end={x:Math.floor(mentor.x/TILE),y:Math.floor(mentor.y/TILE)};
+      const unlock=(x,y)=>{
+        if(x<3||y<3||x>=map.w-3||y>=map.h-3)return;
+        const at=y*map.w+x;map.blocked[at]=0;map.tiles[at]=1;
+        if(map.terrain?.surface){map.terrain.surface[at]=1;map.terrain.elevation[at]=1;}
+      };
+      let x=start.x,y=start.y;
+      for(let guard=0;guard<35&&(x!==end.x||y!==end.y);guard++){
+        for(let yy=-1;yy<=1;yy++)for(let xx=-1;xx<=1;xx++)unlock(x+xx,y+yy);
+        if(x!==end.x)x+=Math.sign(end.x-x);else y+=Math.sign(end.y-y);
+      }
+      for(let yy=-2;yy<=2;yy++)for(let xx=-2;xx<=2;xx++)unlock(start.x+xx,start.y+yy);
+      map.props=(map.props||[]).filter(o=>Math.hypot(o.x-relic.x,o.y-relic.y)>50);
+    }
+    return remember(id,map);
+  }
   const {width:w,height:h}=z, seed={town:73,forest:928,ruins:1049,citadel:5408}[id], rand=seeded(seed);
   const tiles=new Uint8Array(w*h), blocked=new Uint8Array(w*h), props=[], resources=[], chests=[];
   const center=id==='town'?24:id==='forest'?30:28;
@@ -189,7 +212,7 @@ export function createMap(id) {
     for(let x=Math.min(tx,center);x<=Math.max(tx,center);x++)clearAt(x*TILE+16,ty*TILE+16,1);
     clearAt(target.x,target.y,1);
   }
-  map.storyPoints=VOCATION_SITES.filter(s=>s.zone===id);
+  map.storyPoints=ALL_VOCATION_SITES.filter(s=>s.zone===id);
   for(const point of map.storyPoints){
     const tx=Math.floor(point.x/TILE),ty=Math.floor(point.y/TILE);
     for(let x=Math.min(tx,center);x<=Math.max(tx,center);x++)clearAt(x*TILE+16,ty*TILE+16,1);

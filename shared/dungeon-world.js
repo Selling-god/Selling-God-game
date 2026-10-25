@@ -9,8 +9,8 @@ export function buildDungeonMap(id = DUNGEON_ZONE, zone = { width: 44, height: 3
   const w = zone.width, h = zone.height, tiles = new Uint8Array(w * h), blocked = new Uint8Array(w * h).fill(1);
   const surface = new Uint8Array(w * h), elevation = new Uint8Array(w * h), features = [];
   const def = DUNGEONS.find(d => d.zone === id) || DUNGEONS[0];
-  const forge = def.id === 'concord_forge', archive = def.id === 'memory_archive';
-  surface.fill(forge ? S.LAVA : archive ? S.WALL : S.VOID); tiles.fill(2);
+  const forge = def.id === 'concord_forge' || def.id === 'moon_quarry', archive = def.id === 'memory_archive', quarry = def.id === 'moon_quarry';
+  surface.fill(quarry ? S.WATER : forge ? S.LAVA : archive ? S.WALL : S.VOID); tiles.fill(2);
   const paint = (x, y, width, height, kind = S.GROUND, level = 2, name = '', feature = 'room') => {
     for (let yy = y; yy < y + height; yy++) for (let xx = x; xx < x + width; xx++) {
       if (xx < 3 || yy < 3 || xx >= w - 3 || yy >= h - 3) continue;
@@ -33,6 +33,13 @@ export function buildDungeonMap(id = DUNGEON_ZONE, zone = { width: 44, height: 3
     paint(32, 19, 3, 3, S.WALL, 0, '우측 제련기', 'furnace');
     paint(9, 20, 3, 2, S.WALL, 0, '광석 압축기', 'furnace');
     paint(33, 10, 3, 2, S.WALL, 0, '식은 주형', 'furnace');
+    if(quarry){
+      // Echo mine has tangible crystal columns and a second route, not a lava
+      // arena with a different color. Keep the cooperative plates reachable.
+      paint(7, 9, 3, 4, S.WALL, 0, '서쪽 수정 기둥', 'crystal');
+      paint(34, 20, 3, 3, S.WALL, 0, '동쪽 수정 기둥', 'crystal');
+      paint(17, 24, 11, 3, S.BRIDGE, 2, '숨겨진 광산 우회로', 'bridge');
+    }
   } else if (archive) {
     paint(16, 11, 13, 10, S.GROUND, 2, '중앙 광선실', 'room');
     paint(18, 6, 8, 5, S.GROUND, 3, '해의 기록실', 'room');
@@ -76,7 +83,7 @@ export function buildDungeonMap(id = DUNGEON_ZONE, zone = { width: 44, height: 3
   // Every entry configuration has room for four characters and an exit step.
   paint(20, 27, 5, 3, forge ? S.PATH : S.GROUND, forge ? 2 : 1);
   const map = { id, w, h, width: w * 32, height: h * 32, tiles, blocked, props: [], resources: [], chests: [], portals: [], npcs: [], relics: [], storyPoints: [],
-    terrain: { id: def.id, name: def.name, style: forge ? 'forge' : archive ? 'archive' : 'observatory', surface, elevation, features },
+    terrain: { id: def.id, name: def.name, style: quarry ? 'quarry' : forge ? 'forge' : archive ? 'archive' : 'observatory', surface, elevation, features },
     dungeonArena: { x: 704, y: 544 }, dungeonId: def.id };
   return map;
 }
