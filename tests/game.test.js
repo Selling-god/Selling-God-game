@@ -149,9 +149,14 @@ test('every boss generates telegraphed patterns before damage and respawns',()=>
     }
     assert.ok(wasHit);p.hp=getStats(p).maxHp;
     m.contributors.set(p.id,g.now);g.killMob(zone,m);assert.equal(m.alive,false);
-    p.active=false;g.tick(.05,g.now+121000);
+    const due=m.respawnAt;
+    assert.equal(due-g.now,MONSTERS[m.type].realmBoss?225000:300000,'boss timer must be 2.5x previous cycle');
+    p.active=false;g.tick(.05,due-2000);
+    p.active=true;const resumed=g.worlds.get(zone);g.tick(.05,due-1000);
+    assert.equal(resumed.mobs.find(x=>x.id===m.id).alive,false,'cannot spawn at old 120s timer');
+    p.active=false;g.tick(.05,due+1000);
     // Empty regions sleep. The first returning player resumes a due respawn.
-    p.active=true;const resumed=g.worlds.get(zone);g.tick(.05,g.now+50);
+    p.active=true;g.tick(.05,due+1050);
     assert.equal(resumed.mobs.find(x=>x.id===m.id).alive,true);
   }
 });
