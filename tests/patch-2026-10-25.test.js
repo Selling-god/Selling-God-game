@@ -7,6 +7,7 @@ import {Game,newCharacter,hydrate,serialize} from '../server/game.js';
 import {CharacterStore} from '../server/store.js';
 import {CLASSES,ZONES,NPCS,ITEMS,RECIPES,QUESTS,getStats} from '../shared/content.js';
 import {createMap,isBlocked,dist} from '../shared/world.js';
+import {SETTLEMENT_IDS} from '../shared/village-layout.js';
 import {STORY_POINTS,canBeginStory} from '../server/stories.js';
 import {STORIES} from '../server/story-data.js';
 import {VOCATION_SITES} from '../shared/vocation-sites.js';
@@ -22,14 +23,18 @@ const create=(cls='novice')=>{
 };
 const mainRegions=()=>Object.values(ZONES).filter(z=>!z.expedition&&!z.dungeon&&!z.challenge&&!z.secretRealm);
 
-test('each main region has a traversable settlement, warpstone, blacksmith, trader and medic',()=>{
+test('distant fast-travel hubs offer service while intervening adventure regions have no town',()=>{
  assert.ok(mainRegions().length>=20);
- for(const z of mainRegions()){
-  const m=createMap(Object.entries(ZONES).find(([,v])=>v===z)[0]);
-  assert.ok(m.villageStone,z.name);
-  assert.ok(!isBlocked(m,m.villageStone.x,m.villageStone.y,9),z.name+' central warp collision');
+ assert.equal(SETTLEMENT_IDS.length,6);
+ for(const [id,z]of Object.entries(ZONES)){
+  if(z.expedition||z.dungeon||z.challenge||z.secretRealm)continue;
+  const m=createMap(id),hub=SETTLEMENT_IDS.includes(id);
+  assert.equal(!!m.villageStone,hub,`${z.name}: unexpected settlement`);
+  if(!hub){assert.ok(!m.npcs.some(n=>n.id.startsWith(id+'_village')));continue;}
+  assert.ok(!isBlocked(m,m.villageStone.x,m.villageStone.y,9),z.name+' stone collision');
   assert.ok(m.storyPoints.some(s=>s.id===m.villageStone.id),z.name);
-  for(const kind of ['shop','craft','heal']){
+  if(id==='town')continue;
+  for(const kind of ['shop','craft','heal','jobs']){
    const npc=m.npcs.find(n=>n.kind===kind);
    assert.ok(npc,`${z.name}: ${kind} NPC missing`);
    assert.ok(!isBlocked(m,npc.x,npc.y,9),`${z.name}: ${kind} NPC obstructed`);
@@ -64,15 +69,15 @@ test('story records alone never unlock a job; actual mentor accepts multi-stage 
 
 test('attuned village stones move players between main areas and reject unknown destinations',()=>{
  const {g,p,sent}=create();
- const forest=g.worlds.get('forest').map.villageStone;
- assert.equal(g.teleport(p,'forest',forest.x,forest.y+20),true);
+ const forest=g.worlds.get('frost').map.villageStone;
+ assert.equal(g.teleport(p,'frost',forest.x,forest.y+20),true);
  assert.equal(g.action(p,{type:'interact',id:forest.id}).ok,true);
- assert.ok(p.atlas.townStones.includes('forest'));
- assert.ok(sent.some(x=>x.event==='warpstoneView'&&x.data.destinations.some(v=>v.id==='forest')));
- assert.equal(g.action(p,{type:'villageWarp',id:'abyss'}).ok,false);
+ assert.ok(p.atlas.townStones.includes('frost'));
+ assert.ok(sent.some(x=>x.event==='warpstoneView'&&x.data.destinations.some(v=>v.id==='frost')));
+ assert.equal(g.action(p,{type:'villageWarp',id:'forest'}).ok,false);
  const back=g.action(p,{type:'villageWarp',id:'town'});
  assert.equal(back.ok,true,JSON.stringify(back));assert.equal(p.zone,'town');
- assert.equal(g.action(p,{type:'villageWarp',id:'forest'}).ok,false,'reuse cooldown');
+ assert.equal(g.action(p,{type:'villageWarp',id:'frost'}).ok,false,'reuse cooldown');
 });
 
 test('all 38 specialized classes have different authoritative mechanic labels and new hidden careers',()=>{

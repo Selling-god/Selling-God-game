@@ -3,15 +3,15 @@ import assert from 'node:assert/strict';
 import {Game,newCharacter} from '../server/game.js';
 import {CLASSES,ZONES} from '../shared/content.js';
 import {createMap,isBlocked} from '../shared/world.js';
-import {insideVillage,villageLayout} from '../shared/village-layout.js';
+import {insideVillage,villageLayout,SETTLEMENT_IDS} from '../shared/village-layout.js';
 import {JOB_ART_PROFILES,paintJobSignature} from '../client/job-signatures.js';
 import {pixelPalette} from '../client/pixel-effects.js';
 import {skillVisual} from '../shared/visuals.js';
 
-const hubs=Object.entries(ZONES).filter(([,z])=>!z.expedition&&!z.challenge&&!z.dungeon&&!z.secretRealm);
+const hubs=Object.entries(ZONES).filter(([id])=>SETTLEMENT_IDS.includes(id));
 
 test('hubs have a separate obelisk, four spread services, readable nameplate distances and unobstructed tiles',()=>{
- assert.ok(hubs.length>=20);
+ assert.equal(hubs.length,6);
  for(const [id,z]of hubs){
   const map=createMap(id),stone=map.villageStone;
   assert.ok(stone,`${id} must have a teleport obelisk`);
@@ -36,9 +36,9 @@ test('hubs have a separate obelisk, four spread services, readable nameplate dis
 });
 
 test('safe hub does not overlap dragon/boss arena and its geography is deterministic',()=>{
- const {x,y}=createMap('citadel').villageStone;
- assert.equal(insideVillage(createMap('citadel'),28*32+16,13*32+16,28),false);
- assert.ok(Math.hypot(x-28*32-16,y-13*32-16)>260);
+ const {x,y}=createMap('frost').villageStone;
+ assert.equal(insideVillage(createMap('frost'),42*32+16,12*32+16,28),false);
+ assert.ok(Math.hypot(x-42*32-16,y-12*32-16)>300);
  for(const [id,z]of hubs)assert.deepEqual(villageLayout({...z,id}),villageLayout({...z,id}));
 });
 
@@ -54,19 +54,19 @@ test('every regional settlement lets you switch already unlocked jobs; wildernes
   assert.ok(result.ok,`${id}: ${result.error}`);
   assert.equal(p.classId,target);
  }
- p.zone='forest';p.x=30*32+16;p.y=40*32+16;p.cooldowns.job=0;p.lastCombat=0;
+ p.zone='forest';p.x=28*32+16;p.y=37*32+16;p.cooldowns.job=0;p.lastCombat=0;
  assert.equal(insideVillage(game.worlds.get('forest').map,p.x,p.y),false);
  assert.equal(game.action(p,{type:'changeJob',id:p.classId==='guardian'?'ranger':'guardian'}).ok,false);
 });
 
 test('server damage guard blocks ordinary and encounter monster hits inside towns but not outside',()=>{
  const g=new Game({random:()=>.5});const p=g.addPlayer(newCharacter('safe-dmg','Protected','guardian'));
- const stone=g.worlds.get('forest').map.villageStone;
- p.zone='forest';p.x=stone.x;p.y=stone.y;p.invulnerableUntil=0;
+ const stone=g.worlds.get('frost').map.villageStone;
+ p.zone='frost';p.x=stone.x;p.y=stone.y;p.invulnerableUntil=0;
  const initial=p.hp;
  assert.equal(g.damagePlayer(p,80,{monster:true}),0);
  assert.equal(p.hp,initial);
- p.x=30*32+16;p.y=40*32+16;
+ p.x=28*32+16;p.y=37*32+16;
  const damage=g.damagePlayer(p,80,{monster:true});
  assert.ok(damage>0);assert.ok(p.hp<initial);
 });
@@ -79,8 +79,8 @@ test('ordinary monsters spawn and recover outside village borders, including liv
    assert.equal(insideVillage(w.map,m.x,m.y,18),false,`${id}: ${m.type} born inside settlement`);
   }
  }
- const w=g.worlds.get('forest'),stone=w.map.villageStone;
- p.zone='forest';p.x=stone.x;p.y=stone.y;
+ const w=g.worlds.get('frost'),stone=w.map.villageStone;
+ p.zone='frost';p.x=stone.x;p.y=stone.y;
  const m=g.makeMob('stray-village-entrant','slime',stone.x,stone.y);
  w.mobs.push(m);g.tick(.05,g.now+1000);
  assert.ok(!m.alive||!insideVillage(w.map,m.x,m.y,18),'stray mob safely relocated');
