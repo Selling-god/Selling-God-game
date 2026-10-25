@@ -27,11 +27,13 @@ export function adventurePanel(name,{profile:p,tab,data,state,now=Date.now(),key
   const live=current&&q?.chapter===current.index;
   const values=current?.objectives.map((o,i)=>live?(o.kind==='deliver'?Math.min(o.count,p.inventory[o.target]||0):Math.floor(q.progress[i]||0)):o.value)||[];
   const ready=current&&values.every((v,i)=>v>=current.objectives[i].count);
-  const near=p.zone===d.zone&&Math.hypot(p.x-d.site.x,p.y-d.site.y)<=185;
+  const near=p.zone===d.zone&&(Math.hypot(p.x-d.site.x,p.y-d.site.y)<=185||(d.artifactSite&&Math.hypot(p.x-d.artifactSite.x,p.y-d.artifactSite.y)<=185));
+  const acceptingPlace=d.artifactSite?'전직 스승이나 봉인 유물':'전직 스승';
   let html=`<div class="story-layout"><aside class="story-aside"><img src="/assets/${d.id}_s_0.png" alt="">
    <span class="badge">${tiers[d.tier]} · ${d.total}장</span><h3>${esc(d.name)}</h3><p>${esc(d.mentor)}</p><p class="small muted">${esc(ZONES[d.zone].name)}</p>
    ${d.owned?'<span class="badge good">직업 보유</span>':''}
    ${d.inherited?'<p class="small">기존에 얻은 직업은 유지됩니다. 이야기는 별도로 체험할 수 있습니다.</p>':''}
+   ${d.artifactSite?`<p class="small">🔮 히든 전직은 스승 또는 「${esc(d.artifactSite.name)}」 유물에서도 시작·보고할 수 있습니다.</p>`:''}
    <div class="story-steps">${Array.from({length:d.total},(_,i)=>`<i class="${d.completed||i<(current?.index||0)?'done':i===current?.index?'current':''}">${i+1}</i>`).join('')}</div>
    ${btn('진행 중인 전승','openStories')}${btn('대륙 지도','openAtlas')}
    </aside><div class="story-paper"><span class="eyebrow">A PATH EARNED, NOT CHOSEN</span><h2>${esc(d.title)}</h2><p class="story-prose">${esc(d.intro)}</p>`;
@@ -45,13 +47,14 @@ export function adventurePanel(name,{profile:p,tab,data,state,now=Date.now(),key
     <div class="reward-line">${current.gold} G · ${current.xp} EXP${current.final?' · 직업의 서약과 길손의 증표':''}</div>`;
    if(!d.started){
     html+=`<div class="story-requirements">${d.requirements.map(r=>`<div class="objective ${r.value>=r.goal?'done':''}"><span>${esc(r.label)}</span><b>${r.value}/${r.goal}</b></div>`).join('')}</div>
-     <button class="btn primary" data-act="storyAccept" data-id="${d.id}" ${!near||!d.eligible?'disabled':''}>${!near?'스승 가까이에서 시작':'첫 장을 시작한다'}</button>`;
+     ${d.lorePages?.length?`<details class="lore-guide" open><summary>직업 전승 자료란? ${d.lorePages.filter(p=>p.done).length}/${d.lorePages.length}</summary><p>각 지역 야영지 주변의 돌판·감시 표식을 찾아 F로 조사하면 탐험 수첩(atlas.pages)에 기록됩니다. 직접 조사해야 수집량이 늘어납니다.</p>${d.lorePages.map(p=>`<div class="objective ${p.done?'done':''}"><span>${p.done?'✓':'○'} ${esc(p.name)} · ${esc(ZONES[p.zone]?.name||p.zone)}</span><b>${p.done?'수집':'미수집'}</b></div>`).join('')}</details>`:''}
+     <button class="btn primary" data-act="storyAccept" data-id="${d.id}" ${!near||!d.eligible?'disabled':''}>${!near?acceptingPlace+' 가까이에서 시작':'첫 장을 시작한다'}</button>`;
    }else{
     html+=`<div class="story-actions">${btn('이 이야기를 추적','storyTrack',d.id)}${btn(d.active?'잠시 멈추기':'수련 이어가기',d.active?'storyPause':'storyResume',d.id)}</div>`;
     if(current.final&&d.tier==='hidden'){
      html+=`<p class="small">끝까지 걸어온 당신에게 묻습니다. 어떤 약속을 남기겠습니까? 어느 선택이든 같은 직업이 열리며 기록이 달라집니다.</p>
       <div class="story-actions">${['protect','remember'].map(v=>`<button class="btn primary" data-act="storyClaim" data-id="${d.id}" data-chapter="${current.index}" data-vow="${v}" ${!near||!ready||!d.active?'disabled':''}>${v==='protect'?'돌아올 길을 지킨다':'이름과 기억을 이어 간다'}</button>`).join('')}</div>`;
-    }else html+=`<button class="btn primary" data-act="storyClaim" data-id="${d.id}" data-chapter="${current.index}" ${!near||!ready||!d.active?'disabled':''}>${!near?'스승에게 돌아가 보고':ready?current.final?'마지막 서약을 맺는다':'이번 장을 마친다':'수련 진행 중'}</button>`;
+    }else html+=`<button class="btn primary" data-act="storyClaim" data-id="${d.id}" data-chapter="${current.index}" ${!near||!ready||!d.active?'disabled':''}>${!near?acceptingPlace+' 근처에서 보고':ready?current.final?'마지막 서약을 맺는다':'이번 장을 마친다':'수련 진행 중'}</button>`;
    }
    html+=`<p class="small muted">동시 수련은 3개까지 · 각 장을 수락한 이후의 실제 행동만 기록됩니다. 창을 열어도 전투는 멈추지 않습니다.</p></section>`;
   }
@@ -61,7 +64,7 @@ export function adventurePanel(name,{profile:p,tab,data,state,now=Date.now(),key
  if(name==='stories'){
   const qs=Object.entries(p.journey?.quests||{}),done=p.journey?.completed||[];
   return {title:'내가 걸어온 직업 이야기',eyebrow:'THREE ACTIVE JOURNEYS · YOUR PROGRESS IS SAVED',html:`
-   <div class="info-box">스승을 찾아 이야기를 시작하세요. 일반 4장 · 희귀 6장 · 영웅 8장 · 히든 10장. 동시에 세 이야기를 수련할 수 있고, 잠시 멈춰도 기록은 사라지지 않습니다. 이미 얻은 직업은 계속 사용할 수 있습니다.</div>
+   <div class="info-box">일반 직업은 스승에게, 히든 직업은 스승 또는 봉인 유물에게 이야기를 시작할 수 있습니다. 전승 자료는 지역 야영지 주변의 돌판·감시 표식(F 조사)입니다. 일반 4장 · 희귀 6장 · 영웅 8장 · 히든 10장. 동시에 세 이야기를 수련할 수 있고, 잠시 멈춰도 기록은 사라지지 않습니다. 이미 얻은 직업은 계속 사용할 수 있습니다.</div>
    <div class="settings-actions">${btn('38개 직업 살펴보기','openJobs')}${btn('스승을 찾을 대륙 지도','openAtlas')}</div>
    ${!qs.length?`<div class="story-empty"><h3>첫 스승을 만나 보세요</h3><p>별여울 마을 남쪽의 수련길에 9명의 스승이 있습니다. ${esc(keyLabel('interact','F'))}로 대화하면 첫 이야기를 시작할 수 있습니다.</p></div>`:''}
    <div class="story-journal-grid">${qs.map(([id,q])=>`<article class="card"><span class="badge ${q.active?'good':''}">${q.active?'수련 중':'기록 보관'} · ${q.chapter+1}장</span><h3>${esc(CLASSES[id].name)}</h3><p>${p.journey.tracked===id?'현재 추적 중인 이야기입니다.':'각 장의 목표는 이야기를 펼치면 확인할 수 있습니다.'}</p>${btn('이야기 펼치기','storyView',id)}</article>`).join('')}</div>

@@ -1,3 +1,4 @@
+import {drawHeldWeapon} from './held-weapons.js';
 import {clearClassCombatVFXV7} from './combat-vfx-v7.js';
 import {clearClassCombatVFX} from './combat-vfx-v6.js';
 import {GroundChunks} from './ground-chunks.js';
@@ -320,7 +321,7 @@ export class Renderer {
           this.sprite(known?point.sprite:'relic_stone',point.x,point.y,point.kind==='mentor'?.8:.75);
         }
         const range=dist(target,point);
-        const prompt=point.kind==='mentor'?'F 전직 스승과 대화':point.kind==='warpstone'?'F 마을 간 이동':point.kind==='camp'?'F 야영지 이동':point.kind==='trial'?'F 기억의 시련':'F 기록 읽기';
+        const prompt=point.kind==='hiddenArtifact'?'F 봉인 유물 조사':point.kind==='mentor'?'F 전직 스승과 대화':point.kind==='warpstone'?'F 마을 간 이동':point.kind==='camp'?'F 야영지 이동':point.kind==='trial'?'F 기억의 시련':'F 기록 읽기';
         const caption=point.kind==='warpstone'?'✧ 귀환의 별기둥':known?point.name:'이름 없는 흔적';
         this.queueWorldLabel(caption,point.x,point.y-(point.kind==='warpstone'?85:75),range,prompt,point.kind==='warpstone'?3:2);
         if(point.kind==='mentor'&&range>=165&&known&&range<240)this.label('◇',point.x,point.y-63,'#e4c697',12);
@@ -338,12 +339,30 @@ export class Renderer {
         if(drawBossObjective(this,mob,q,t))return;
         this.shadow(q.x,q.y,def.creature?creatureMetrics(def).shadow:def.boss?38:15);
         if(p.target===mob.id){c.strokeStyle='#e7c786';c.lineWidth=1.5;c.beginPath();c.ellipse(q.x,q.y+2,def.boss?43:22,def.boss?17:9,0,0,Math.PI*2);c.stroke();}
+        if(mob.type==='training_dummy'){
+          c.save();c.translate(Math.round(q.x),Math.round(q.y));
+          c.fillStyle='#72523c';c.fillRect(-3,-43,6,43);c.fillRect(-19,-28,38,5);
+          c.fillStyle='#b69a65';c.fillRect(-15,-45,30,21);c.fillRect(-12,-50,24,9);
+          c.fillStyle='#dfc58b';for(let i=0;i<5;i++){c.fillRect(-13+i*6,-45+(i%2)*3,3,11);}
+          c.strokeStyle='#a34743';c.lineWidth=3;c.beginPath();c.arc(0,-35,8,0,Math.PI*2);c.stroke();
+          c.fillStyle='#514237';c.fillRect(-8,-13,16,5);c.restore();
+        }else{
         let humanoid=['skeleton','ash_knight'].includes(def.skin||mob.type);
         let key=humanoid?`${def.sprite}_s_${Math.floor(t/(mob.moving?160:450))%4}`:`${def.sprite}_${Math.floor(t/(mob.moving?150:350))%4}`;
         const articulated=drawCreature(this,mob,def,q.x,q.y,t,this.flash.get(mob.id)>t?.55:1);
         if(!articulated)this.sprite(key,q.x,q.y,def.boss?1:.8,this.flash.get(mob.id)>t?.55:1);
         if(def.boss&&!articulated)drawBossGear(this,mob,def,q.x,q.y,t);
-        if(mob.dot&&this.showEffects){c.fillStyle=mob.dot==='burn'?'#ffae65':'#b6d480';c.fillRect(q.x-3,q.y-38+Math.sin(t/120)*4,5,7);}
+        }
+        if(mob.status&&this.showEffects){
+          // Pixel-sized elemental/status silhouettes, never oversized rectangles.
+          c.save();c.translate(Math.round(q.x),Math.round(q.y-48));
+          const beat=Math.floor(t/180)%4,el=mob.status;
+          if(el==='burn'){c.fillStyle='#f19d56';for(let i=0;i<4;i++)c.fillRect((i-2)*8,-(i%2)*9-beat*2,4,9);c.fillStyle='#ffe39a';c.fillRect(-2,-7-beat*2,3,6);}
+          else if(el==='poison'){c.fillStyle='#b1d583';for(let i=0;i<4;i++)c.fillRect((i-2)*8,Math.round(Math.sin(t/190+i)*7)-beat*2,4,4);}
+          else if(el==='stun'){c.fillStyle='#fce9a2';for(let i=0;i<3;i++){const angle=i*2.09+t/450;c.fillRect(Math.round(Math.cos(angle)*16)-3,Math.round(Math.sin(angle)*9)-9,6,5);}}
+          else if(el==='paralysis'){c.strokeStyle='#a6dff4';c.lineWidth=2;c.beginPath();c.moveTo(-14,-14);c.lineTo(-4,-2);c.lineTo(-9,4);c.lineTo(10,13);c.stroke();c.fillStyle='#e9f8ff';c.fillRect(12,-5,4,4);}
+          c.restore();
+        }
         const hh=def.creature?creatureMetrics(def).height:def.boss?((def.skin||mob.type)==='eclipse_dragon'?129:110):58;
         if(def.boss||mob.hp<mob.maxHp||p.target===mob.id){
           const width=def.boss?76:32;
@@ -368,7 +387,8 @@ export class Renderer {
         const pose=strike?attackMotionPose(strike.job,strike.skill,t-strike.born,(strike.tx??strike.x)-strike.x,(strike.ty??strike.y)-strike.y):{active:false};
         const frame=pose.active?pose.frame:other.attacking?Math.floor(t/80)%4:moving?Math.floor(t/130)%4:Math.floor(t/800)%2*2;
         if(other.dead){c.save();c.translate(q.x,q.y);c.rotate(-Math.PI/2);this.gear.draw(this,other,0,0,'s',0,.6,t);c.restore();}
-        else this.gear.draw(this,other,q.x+(pose.dx||0),q.y+(pose.dy||0),direction,frame,this.flash.get(other.id)>t?.55:1,t);
+        else {this.gear.draw(this,other,q.x+(pose.dx||0),q.y+(pose.dy||0),direction,frame,this.flash.get(other.id)>t?.55:1,t);
+          drawHeldWeapon(c,other,q.x+(pose.dx||0),q.y+(pose.dy||0),direction,pose,t);}
         if(other.shield){c.strokeStyle='#b8d8df99';c.lineWidth=1.5;c.beginPath();c.ellipse(q.x,q.y-25,23,35,0,0,Math.PI*2);c.stroke();}
         this.label(other.name,q.x,q.y-62,self?'#f2dbab':other.partyId&&other.partyId===p.partyId?'#b2dfba':'#c2d6da',10);
         if(other.title){

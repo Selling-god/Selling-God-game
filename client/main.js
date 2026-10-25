@@ -1,3 +1,4 @@
+import {skillGuide} from '../shared/skill-guides.js';
 import {skillButtonPalette} from './combat-vfx-v6.js';
 import {adventurePanel,storyTrackHTML} from './adventure-ui.js';
 import {rpgPanel,enhancementRows} from './rpg-ui.js';
@@ -299,10 +300,46 @@ syncKeyHints();
 const ROLE_LABELS={cone:'부채꼴',mark:'표식',blast:'폭파',dash:'돌진',combo:'연타',field:'장판',sunder:'방깎',spin:'회전',life:'흡혈',stagger:'경직',pierce:'관통',ignite:'점화',freeze:'빙결',resonance:'음률',chain:'연쇄',pull:'끌기',slow:'둔화',drain:'흡혈',push:'넉백',command:'지휘',delayed:'낙하',healing:'치유',execute:'처형',summon:'소환',counter:'반격',parry:'받기',bastion:'방벽',leap_trap:'덫',smoke:'연막',blink:'순간',aim:'조준',fury:'격노',meditate:'명상',stance:'전환',brew:'조합',rewind:'역행',rebirth:'부활',song:'노래',trap:'지뢰',pet:'소환',turret:'포탑',healing_field:'성역',frost_field:'빙벽',star_field:'별실',lightning_rod:'피뢰',charge:'돌파'};
 function renderAbilities(){
   if(!profile)return;
+  if(typeof hideSkillDetails==='function')hideSkillDetails();
   const c=CLASSES[profile.classId],all=[...c.skills,{id:'dash',name:'별걸음',key:'SHIFT',icon:'boot',unlock:1},{id:'potion',name:'체력',key:'1',icon:'potion',unlock:1},{id:'mana',name:'마나',key:'2',icon:'mana',unlock:1}];
-  $('abilities').innerHTML=all.map(s=>{const v=skillButtonPalette(profile.classId,s.id);return `<button class="ability ${s.id==='basic'?'basic':''}" style="--skill-fx:${v.primary};--skill-light:${v.light};--skill-deep:${v.dark}" data-skill="${s.id}" title="${esc(s.desc||s.name)} (${esc(keybindings.label(s.id))})">
+  $('abilities').innerHTML=all.map(s=>{const v=skillButtonPalette(profile.classId,s.id);return `<button class="ability ${s.id==='basic'?'basic':''}" style="--skill-fx:${v.primary};--skill-light:${v.light};--skill-deep:${v.dark}" data-skill="${s.id}" aria-label="${esc(s.name)} · ${esc(keybindings.label(s.id))} · 자세한 정보는 마우스를 올리거나 포커스하세요">
     <span class="key">${esc(keybindings.primaryLabel(s.id))}</span>${c.skills.some(v=>v.id===s.id)?`<img src="/assets/skill_${profile.classId}_${s.id}.png?v=v6-art" alt="">`:icon(s.icon)}<span class="skill-name">${esc(s.name)}</span>${s.role&&s.id!=='basic'?`<span class="role-tag">${esc(ROLE_LABELS[s.role]||s.role)}</span>`:''}<span class="count"></span><span class="cd-shade"></span><span class="cd-number"></span></button>`;}).join('');
 }
+// Single accessible skill glossary: reads the authoritative class skill and uses
+// the same palette as the button, never a generic tooltip for every profession.
+const skillTip=document.createElement('aside');
+skillTip.id='skill-details-tooltip';skillTip.hidden=true;skillTip.setAttribute('role','tooltip');
+document.body.appendChild(skillTip);
+let skillTipAnchor=null;
+function showSkillDetails(button){
+ if(!button||!profile)return;
+ const id=button.dataset.skill;
+ const skill=CLASSES[profile.classId]?.skills.find(s=>s.id===id);
+ const extra={dash:'순간적으로 이동하여 공격을 피합니다.',potion:'체력 회복 물약을 소모합니다.',mana:'마나 회복 물약을 소모합니다.'};
+ const guide=skill?skillGuide(skill,profile.classId):{summary:extra[id]||'',tags:[],mp:0,cd:id==='dash'?4000:5000,range:0};
+ const name=skill?.name||({dash:'별걸음',potion:'체력 물약',mana:'마나 물약'}[id]||id);
+ const cd=(guide.cd/1000).toFixed(guide.cd%1000?1:0);
+ const kind=id==='basic'?'기본 공격':id==='skill1'?'첫 번째 스킬':id==='skill2'?'두 번째 스킬':id==='ultimate'?'궁극기':'소모품 · 이동';
+ skillTip.innerHTML=`<div class="tip-kind">${esc(CLASSES[profile.classId].name)} · ${kind}</div><strong>${esc(name)}</strong><p>${esc(guide.summary)}</p><div class="tip-tags">${guide.tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div><footer>${esc(keybindings.label(id))} · 재사용 ${cd}초${guide.mp?' · MP '+guide.mp:''}${guide.range?' · 사거리 '+guide.range:''}${skill?.unlock?' · Lv.'+skill.unlock:''}</footer>`;
+ skillTip.style.setProperty('--tip-accent',button.style.getPropertyValue('--skill-fx')||'#e7d5af');
+ skillTip.hidden=false;skillTipAnchor=button;
+ const rect=button.getBoundingClientRect();
+ // Position above the hotbar, but stay inside mobile/short viewports.
+ const width=skillTip.offsetWidth,height=skillTip.offsetHeight;
+ const left=Math.min(window.innerWidth-width-8,Math.max(8,rect.left+rect.width/2-width/2));
+ const top=rect.top-height-10>=8?rect.top-height-10:Math.min(window.innerHeight-height-8,rect.bottom+8);
+ skillTip.style.left=Math.round(left)+'px';skillTip.style.top=Math.round(Math.max(8,top))+'px';
+}
+function hideSkillDetails(){skillTip.hidden=true;skillTipAnchor=null;}
+$('abilities').addEventListener('pointerover',e=>{
+ const b=e.target.closest('[data-skill]');if(b&&b!==skillTipAnchor)showSkillDetails(b);
+});
+$('abilities').addEventListener('pointerout',e=>{
+ const from=e.target.closest('[data-skill]');if(from&&from===skillTipAnchor&&!from.contains(e.relatedTarget))hideSkillDetails();
+});
+$('abilities').addEventListener('focusin',e=>{const b=e.target.closest('[data-skill]');if(b)showSkillDetails(b);});
+$('abilities').addEventListener('focusout',e=>{if(e.target.closest('[data-skill]')&&!$('abilities').contains(e.relatedTarget))hideSkillDetails();});
+window.addEventListener('keydown',e=>{if(e.key==='Escape')hideSkillDetails();});
 $('abilities').addEventListener('click',e=>{const b=e.target.closest('[data-skill]');if(b)cast(b.dataset.skill);});
 function cast(id){
   if(modal||!profile||!net?.connected||state?.dungeon?.inputBlocked)return;
@@ -992,6 +1029,10 @@ function updateHUD(){
     $('soul-status').textContent=remain>0?`쇠약 ${Math.ceil(remain/1000)}초 · 공격 −10% / 이동 −8%`:p.soul&&p.soul.expires>now?`영혼 회수 · ${ZONES[p.soul.zone].name} · ${timeLeft(p.soul.expires-now)}`:'';
   }
   setText('online-count',`${config.devGuest?'개발':'온라인'} ${state.online} · 지역 ${state.zoneOnline}`);
+  if($('combat-buffs')){
+    const buffs=Array.isArray(s.combatBuffs)?s.combatBuffs:[];
+    $('combat-buffs').innerHTML=buffs.map(b=>`<span title="${esc(b.detail||'')}">✦ ${esc(b.name)} ${Math.ceil(b.remainingMs/1000)}초</span>`).join('');
+  }
   for(const b of $('abilities').children){
     const id=b.dataset.skill,skill=c.skills.find(k=>k.id===id),remaining=Math.max(0,(s.cooldowns[id]||0)-now),cooldown=skill?.cd||(['potion','mana'].includes(id)?5000:4000),locked=skill&&p.level<skill.unlock;
     b.disabled=locked||!!state.dungeon?.inputBlocked;

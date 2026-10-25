@@ -279,6 +279,22 @@ function wings(a,x,y,f,scale=1){const {p}=a,s=Math.sin(PI*clamp(f));for(const d 
  }a.star(x,y-18,10,p.core,.8);
 }
 function qCast(a,e,f,ability,kind,rank){const {p}=a;const sx=e.x,sy=e.y-28,tx=e.tx??sx,ty=(e.ty??e.y)-24,seed=hash(e.job+':'+ability);
+ if(ability==='bloodspin'){
+  // Actual dual-rotation hammer instead of another regular axe slash.
+  const spin=f*Math.PI*4.5,rx=sx+Math.cos(spin)*54,ry=sy+Math.sin(spin)*31;
+  for(let j=0;j<15;j++){
+    const angle=spin-j*.22,rad=52-j*.9;
+    const x=sx+Math.cos(angle)*rad,y=sy+Math.sin(angle)*rad*.60;
+    a.disk(x,y,Math.max(1,7-j*.33),j%3===0?p.light:j%2?p.primary:p.dark,Math.max(.08,.65-j*.038));
+  }
+  a.line(sx,sy,rx,ry,p.dark,8);a.line(sx,sy,rx,ry,p.light,4);
+  const tangent=[-Math.sin(spin)*15,Math.cos(spin)*11];
+  a.line(rx-tangent[0],ry-tangent[1],rx+tangent[0],ry+tangent[1],p.dark,18);
+  a.line(rx-tangent[0],ry-tangent[1],rx+tangent[0],ry+tangent[1],p.core,10);
+  a.star(rx,ry,9,p.light);
+  if(f>.25&&f<.90)for(let j=0;j<4;j++)a.star(sx+Math.cos(spin+j*2)*60,sy+Math.sin(spin+j*2)*36,3,p.primary,.6);
+  return;
+ }
  if(qPhysical.has(ability)||weaponType(jobArtProfile(e.job).weapon)!=='magic'&&['soul_reap','rift_cut'].includes(ability)){
   weaponAction(a,e,f,'skill1',kind,rank);
   if(ability==='piercing_shot')flight(a,sx,sy,tx,ty,f,'arrow',seed,1.25);
