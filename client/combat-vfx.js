@@ -5,6 +5,7 @@
  * Server damage/radius/cooldowns are intentionally not changed here.
  */
 import {jobArtProfile} from './job-signatures.js';
+import {paintSkillFormation} from './skill-formations.js';
 const TAU=Math.PI*2;
 const clamp=(x,min,max)=>Math.max(min,Math.min(max,x));
 const ease=t=>1-(1-clamp(t,0,1))**3;
@@ -24,6 +25,11 @@ export function skillEffectBounds(e){
 }
 
 export function paintCombatChoreography(p,e,f,palette,{lowPower=false,showEffects=true}={}){
+ // Distinct Q/E/R choreography owns the whole effect; the job motif below
+ // is reserved for basic weapon attacks.
+ if(e.skill==='skill1'||e.skill==='skill2'||e.skill==='ultimate'){
+   return paintSkillFormation(p,e,f,palette,{lowPower,showEffects});
+ }
  const profile=jobEffectIdentity(e.job||'novice'),motif=profile.motif,level=TIERS[profile.tier]||0;
  const skill=['basic','skill1','skill2','ultimate'].includes(e.skill)?e.skill:'skill1';
  const ultimate=skill==='ultimate',defense=skill==='skill2',basic=skill==='basic';

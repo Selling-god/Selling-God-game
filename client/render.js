@@ -10,6 +10,7 @@ import {drawEncounterOverlay,drawPhaseTransition} from './encounters-ui.js';
 import {nearbyScenery} from '../shared/spatial.js';
 import {EquipmentRenderer,drawBossGear} from './equipment.js';
 import {drawSkillEffect,effectLifetime} from './effects.js';
+import {attackMotionPose} from './skill-formations.js';
 import {drawPixelTelegraph,clearPixelFX} from './pixel-effects.js';
 import { LocalMotion, SnapshotTrack } from './motion.js';
 import { createMap, moveEntity, clamp, dist, seeded } from '../shared/world.js';
@@ -21,7 +22,7 @@ export class Renderer {
   constructor(canvas){
     this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.w=0;this.h=0;
     this.atlas=null;this.meta=null;this.gear=new EquipmentRenderer();this.map=null;this.backgrounds=new Map();this.ground=new GroundChunks();this.state=null;this.profile=null;
-    this.local=null;this.positions=new Map();this.effects=[];this.criticalEffects=[];this.damage=[];this.flash=new Map();this.fxSequence=0;this.seenImpacts=new Map();
+    this.local=null;this.positions=new Map();this.strikePoses=new Map();this.effects=[];this.criticalEffects=[];this.damage=[];this.flash=new Map();this.fxSequence=0;this.seenImpacts=new Map();
     this.camera={x:0,y:0};this.zoom=1.65;this.zoomSetting=1;this.shake=0;this.showEffects=true;
     this.last=performance.now();this.clock=0;this.motion=new LocalMotion();this.snapshotPeriod=100;this.lastSnapshotTime=0;this.lowPower=false;this.shakeEnabled=false;this.lastInput={x:0,y:0};
     this.skyParticles=Array.from({length:55},(_,i)=>({x:(i*137.19)%1,y:(i*73.31)%1,s:.4+(i%7)*.13}));
@@ -44,7 +45,7 @@ export class Renderer {
     this.camera=followCamera(this.camera,this.map,target,{width:this.w,height:this.h,zoom:this.zoom},0,{snap:true});
   }
   setZone(id){
-    this.map=createMap(id);this.positions.clear();this.effects=[];this.criticalEffects=[];this.damage=[];this.seenImpacts.clear();clearPixelFX(this);this.mapCache=null;
+    this.map=createMap(id);this.positions.clear();this.strikePoses?.clear();this.effects=[];this.criticalEffects=[];this.damage=[];this.seenImpacts.clear();clearPixelFX(this);this.mapCache=null;
     if(this.state?.self)this.resetCamera();
     this.ground.clear();this.flash.clear();
   }
@@ -153,6 +154,13 @@ export class Renderer {
       if(this.seenImpacts.has(e.castId))return;
       this.seenImpacts.set(e.castId,now);
       while(this.seenImpacts.size>160)this.seenImpacts.delete(this.seenImpacts.keys().next().value);
+    }
+    // Every profession has a short weapon-specific avatar motion on attack.
+    // Keep it out of snapshots, character saves, hitboxes and world movement.
+    if((e.type==='attack'||e.type==='skill')&&e.id&&e.job){
+      if(!this.strikePoses)this.strikePoses=new Map();
+      this.strikePoses.set(e.id,{born:now,job:e.job,skill:e.skill,x:e.x,y:e.y,tx:e.tx,ty:e.ty});
+      if(this.strikePoses.size>60)this.strikePoses.delete(this.strikePoses.keys().next().value);
     }
     const effect={...e,born:now,_pixelId:++this.fxSequence};
     const important=(e.type==='impact'&&e.boss)||e.essential;
@@ -335,9 +343,11 @@ export class Renderer {
         const moving=self?(Math.hypot(this.motion.lastDelta.x,this.motion.lastDelta.y)>.05):other.moving;
         let direction=other.dir||'s';
         if(self&&Math.hypot(this.lastInput.x,this.lastInput.y)>.1){const v=this.lastInput;direction=Math.abs(v.x)>Math.abs(v.y)?(v.x>0?'e':'w'):(v.y>0?'s':'n');}
-        const frame=other.attacking?Math.floor(t/80)%4:moving?Math.floor(t/130)%4:Math.floor(t/800)%2*2;
+        const strike=this.strikePoses?.get(other.id);
+        const pose=strike?attackMotionPose(strike.job,strike.skill,t-strike.born,(strike.tx??strike.x)-strike.x,(strike.ty??strike.y)-strike.y):{active:false};
+        const frame=pose.active?pose.frame:other.attacking?Math.floor(t/80)%4:moving?Math.floor(t/130)%4:Math.floor(t/800)%2*2;
         if(other.dead){c.save();c.translate(q.x,q.y);c.rotate(-Math.PI/2);this.gear.draw(this,other,0,0,'s',0,.6,t);c.restore();}
-        else this.gear.draw(this,other,q.x,q.y,direction,frame,this.flash.get(other.id)>t?.55:1,t);
+        else this.gear.draw(this,other,q.x+(pose.dx||0),q.y+(pose.dy||0),direction,frame,this.flash.get(other.id)>t?.55:1,t);
         if(other.shield){c.strokeStyle='#b8d8df99';c.lineWidth=1.5;c.beginPath();c.ellipse(q.x,q.y-25,23,35,0,0,Math.PI*2);c.stroke();}
         this.label(other.name,q.x,q.y-62,self?'#f2dbab':other.partyId&&other.partyId===p.partyId?'#b2dfba':'#c2d6da',10);
         if(other.title){
@@ -375,6 +385,7 @@ export class Renderer {
         this.label(distance+'칸',px,py-16,'#ecd59f',8);
       }
     }
+    for(const [id,pose] of this.strikePoses||[])if(t-pose.born>1100)this.strikePoses.delete(id);
     this.drawEffects(t);
     this.flushWorldLabels([...s.players,p].map(a=>{
       if(!a)return null;
