@@ -1,3 +1,4 @@
+import {clearClassCombatVFX} from './combat-vfx-v6.js';
 import {GroundChunks} from './ground-chunks.js';
 import {followCamera} from '../shared/camera.js';
 import {drawChallengeOverlay} from './challenges-ui.js';
@@ -9,7 +10,7 @@ import {drawCreature,creatureMetrics} from './creatures.js';
 import {drawEncounterOverlay,drawPhaseTransition} from './encounters-ui.js';
 import {nearbyScenery} from '../shared/spatial.js';
 import {EquipmentRenderer,drawBossGear} from './equipment.js';
-import {drawSkillEffect,effectLifetime} from './effects.js?v=combat-kits-v5-smooth';
+import {drawSkillEffect,effectLifetime} from './effects.js?v=combat-kits-v6-art';
 import {attackMotionPose} from './skill-formations.js';
 import {clearTacticalFX} from './tactical-skill-fx.js';
 import {FrameQualityGovernor} from './frame-quality.js';
@@ -25,7 +26,7 @@ export class Renderer {
     this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.w=0;this.h=0;
     this.atlas=null;this.meta=null;this.gear=new EquipmentRenderer();this.map=null;this.backgrounds=new Map();this.ground=new GroundChunks();this.state=null;this.profile=null;
     this.local=null;this.vignette=null;this.glowCache=new Map();this.positions=new Map();this.strikePoses=new Map();this.effects=[];this.criticalEffects=[];this.damage=[];this.flash=new Map();this.fxSequence=0;this.seenImpacts=new Map();
-    this.camera={x:0,y:0};this.zoom=1.65;this.zoomSetting=1;this.shake=0;this.showEffects=true;
+    this.camera={x:0,y:0};this.zoom=1.65;this.zoomSetting=1;this.shake=0;this.showEffects=true;this.fxStyle='v6';
     this.last=performance.now();this.clock=0;this.motion=new LocalMotion();this.snapshotPeriod=100;this.lastSnapshotTime=0;this.lowPower=false;this.manualLowPower=false;this.quality=new FrameQualityGovernor();this.shakeEnabled=false;this.lastInput={x:0,y:0};
     this.skyParticles=Array.from({length:55},(_,i)=>({x:(i*137.19)%1,y:(i*73.31)%1,s:.4+(i%7)*.13}));
     this.rng=seeded(41);this.onFrame=()=>{};this.running=false;this.mapCache=null;this.pointerMark=null;
@@ -38,7 +39,7 @@ export class Renderer {
     this.manualLowPower=!!enabled;
     this.quality.reset();
     const effective=this.manualLowPower;
-    if(this.lowPower!==effective){this.lowPower=effective;clearPixelFX(this);clearTacticalFX(this);this.resize();}
+    if(this.lowPower!==effective){this.lowPower=effective;clearPixelFX(this);clearTacticalFX(this);clearClassCombatVFX(this);this.resize();}
   }
   resize(){
     this.w=window.innerWidth;this.h=window.innerHeight;
@@ -54,7 +55,7 @@ export class Renderer {
     this.camera=followCamera(this.camera,this.map,target,{width:this.w,height:this.h,zoom:this.zoom},0,{snap:true});
   }
   setZone(id){
-    this.map=createMap(id);this.positions.clear();this.strikePoses?.clear();this.effects=[];this.criticalEffects=[];this.damage=[];this.seenImpacts.clear();clearPixelFX(this);clearTacticalFX(this);this.mapCache=null;
+    this.map=createMap(id);this.positions.clear();this.strikePoses?.clear();this.effects=[];this.criticalEffects=[];this.damage=[];this.seenImpacts.clear();clearPixelFX(this);clearTacticalFX(this);clearClassCombatVFX(this);this.mapCache=null;
     if(this.state?.self)this.resetCamera();
     this.ground.clear();this.flash.clear();
   }
@@ -225,7 +226,7 @@ export class Renderer {
       if(this.quality.report(performance.now()-start,dt*1000,t,{visible:typeof document==='undefined'||!document.hidden,manual:this.manualLowPower})){
         const target=this.manualLowPower||this.quality.reduced;
         if(this.lowPower!==target){
-          this.lowPower=target;clearPixelFX(this);clearTacticalFX(this);
+          this.lowPower=target;clearPixelFX(this);clearTacticalFX(this);clearClassCombatVFX(this);
           this.resize(); // lower GPU pixel fill and ambient detail only after sustained load
         }
       }

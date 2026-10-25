@@ -1,9 +1,10 @@
+import {skillButtonPalette} from './combat-vfx-v6.js';
 import {adventurePanel,storyTrackHTML} from './adventure-ui.js';
 import {rpgPanel,enhancementRows} from './rpg-ui.js';
 import {freePoints,ATTRIBUTE_KEYS,MAX_ATTRIBUTE,resetPrice,spentPoints,enhancementBonus} from '../shared/rpg.js';
 import { expansionPanel, timeLeft } from './expansion-ui.js';
 import { Auth, Network } from './net.js';
-import { Renderer } from './render.js?v=combat-kits-v5-smooth';
+import { Renderer } from './render.js?v=combat-kits-v6-art';
 import { Sound } from './audio.js';
 import { CLASSES, ITEMS, RARITIES, MONSTERS, QUESTS, ZONES, NPCS, RECIPES, SHOP, xpRequired, objectiveLabel, weaponFor, MAX_LEVEL } from '../shared/content.js';
 import { dist, clamp } from '../shared/world.js';
@@ -29,7 +30,7 @@ const forgeCinema=new EnhancementCinema();
 let config,auth,net,profile=null,state=null,selectedClass='novice',inGame=false,modal=null,modalTab='all',selectedItem=null;
 let keys=new Set(),joystick={x:0,y:0},attackHeld=false,autoAttack=false,lastInputAt=0,lastAttackAt=0,lastHUD=0,lastMini=0;
 let pendingInteract=null,lastInteractAt=0,lastErrorAt=0,wasOnline=false,lastProfileSignature='',lastModalSignature='';
-let busy=new Set(),settings={sfx:true,music:false,effects:true,zoom:1,lowPower:false,shake:false},mutedPlayers=new Set();
+let busy=new Set(),settings={sfx:true,music:false,effects:true,fxStyle:'v6',zoom:1,lowPower:false,shake:false},mutedPlayers=new Set();
 let statDraft={},lastPortraitKey='',previousTitleNames=null,showAllForgeRecipes=false,titleSearch='';
 let jobBookData=null,eventList=[],lastSentInput={x:0,y:0},inputSeq=0;
 let accountMode='login',lastFocused=null,firstConnection=true,uiRefreshNeeded=false,lastStateAt=0;
@@ -39,7 +40,7 @@ try{settings={...settings,...JSON.parse(localStorage.getItem('starfall.settings'
 try{mutedPlayers=new Set(JSON.parse(localStorage.getItem('starfall.muted')||'[]'));}catch{}
 function applySettings(){
   sound.sfx=settings.sfx? .28:0;sound.music=settings.music? .6:0;
-  renderer.showEffects=settings.effects;renderer.setManualLowPower(!!settings.lowPower);renderer.shakeEnabled=!!settings.shake;renderer.zoomSetting=Number(settings.zoom)||1;renderer.resize();
+  renderer.showEffects=settings.effects;renderer.fxStyle=settings.fxStyle==='classic'?'classic':'v6';renderer.setManualLowPower(!!settings.lowPower);renderer.shakeEnabled=!!settings.shake;renderer.zoomSetting=Number(settings.zoom)||1;renderer.resize();
   try{localStorage.setItem('starfall.settings',JSON.stringify(settings));}catch{}
 }
 applySettings();
@@ -296,8 +297,8 @@ const ROLE_LABELS={cone:'부채꼴',mark:'표식',blast:'폭파',dash:'돌진',c
 function renderAbilities(){
   if(!profile)return;
   const c=CLASSES[profile.classId],all=[...c.skills,{id:'dash',name:'별걸음',key:'SHIFT',icon:'boot',unlock:1},{id:'potion',name:'체력',key:'1',icon:'potion',unlock:1},{id:'mana',name:'마나',key:'2',icon:'mana',unlock:1}];
-  $('abilities').innerHTML=all.map(s=>`<button class="ability ${s.id==='basic'?'basic':''}" data-skill="${s.id}" title="${esc(s.desc||s.name)} (${esc(keybindings.label(s.id))})">
-    <span class="key">${esc(keybindings.primaryLabel(s.id))}</span>${c.skills.some(v=>v.id===s.id)?`<img src="/assets/skill_${profile.classId}_${s.id}.png" alt="">`:icon(s.icon)}<span class="skill-name">${esc(s.name)}</span>${s.role&&s.id!=='basic'?`<span class="role-tag">${esc(ROLE_LABELS[s.role]||s.role)}</span>`:''}<span class="count"></span><span class="cd-shade"></span><span class="cd-number"></span></button>`).join('');
+  $('abilities').innerHTML=all.map(s=>{const v=skillButtonPalette(profile.classId,s.id);return `<button class="ability ${s.id==='basic'?'basic':''}" style="--skill-fx:${v.primary};--skill-light:${v.light};--skill-deep:${v.dark}" data-skill="${s.id}" title="${esc(s.desc||s.name)} (${esc(keybindings.label(s.id))})">
+    <span class="key">${esc(keybindings.primaryLabel(s.id))}</span>${c.skills.some(v=>v.id===s.id)?`<img src="/assets/skill_${profile.classId}_${s.id}.png?v=v6-art" alt="">`:icon(s.icon)}<span class="skill-name">${esc(s.name)}</span>${s.role&&s.id!=='basic'?`<span class="role-tag">${esc(ROLE_LABELS[s.role]||s.role)}</span>`:''}<span class="count"></span><span class="cd-shade"></span><span class="cd-number"></span></button>`;}).join('');
 }
 $('abilities').addEventListener('click',e=>{const b=e.target.closest('[data-skill]');if(b)cast(b.dataset.skill);});
 function cast(id){
@@ -548,7 +549,8 @@ function renderPanel(){
     html=`<div class="info-box">설정과 가방을 열어도 온라인 세계의 시간은 멈추지 않습니다. 안전하게 정비하려면 마을에서 이용하세요.</div>
       <div class="settings-row"><label for="setting-sfx">효과음<small>공격·획득·레벨 상승</small></label><input id="setting-sfx" type="checkbox" ${settings.sfx?'checked':''}></div>
       <div class="settings-row"><label for="setting-music">배경 음악<small>게임 내에서 합성하는 잔잔한 멜로디</small></label><input id="setting-music" type="checkbox" ${settings.music?'checked':''}></div>
-      <div class="settings-row"><label for="setting-effects">화면 효과<small>주변 입자·조명·화면 흔들림</small></label><input id="setting-effects" type="checkbox" ${settings.effects?'checked':''}></div>
+      <div class="settings-row"><label for="setting-effects">화면 효과<small>주변 입자·조명·타격 연출</small></label><input id="setting-effects" type="checkbox" ${settings.effects?'checked':''}></div>
+      <div class="settings-row"><label for="setting-fxStyle">스킬 연출 방식<small>전투 밸런스는 동일합니다. 원하는 버전으로 즉시 전환할 수 있습니다.</small></label><select id="setting-fxStyle"><option value="v6" ${settings.fxStyle!=='classic'?'selected':''}>새 도트 전투 연출 · V6</option><option value="classic" ${settings.fxStyle==='classic'?'selected':''}>이전 도트 연출 · 클래식</option></select></div>
       <div class="settings-row"><label for="setting-lowPower">가벼운 화면 모드<small>고해상도 렌더링과 주변 입자를 줄입니다.</small></label><input id="setting-lowPower" type="checkbox" ${settings.lowPower?'checked':''}></div>
       <div class="settings-row"><label for="setting-shake">타격 시 화면 흔들림<small>부드러운 이동을 위해 기본값은 꺼짐입니다.</small></label><input id="setting-shake" type="checkbox" ${settings.shake?'checked':''}></div>
       <div class="settings-row"><label for="setting-zoom">화면 배율<small>모바일에서는 작은 배율을 권장합니다.</small></label><input id="setting-zoom" type="range" min=".75" max="1.3" step=".05" value="${settings.zoom}"></div>
@@ -645,6 +647,7 @@ function attachForms(){
     catch(e){if($('auth-status'))$('auth-status').textContent=e.message;}finally{b.disabled=false;}
   });
   for(const key of ['sfx','music','effects','lowPower','shake'])$('setting-'+key)?.addEventListener('change',e=>{settings[key]=e.target.checked;sound.start();applySettings();});
+  $('setting-fxStyle')?.addEventListener('change',e=>{settings.fxStyle=e.target.value;applySettings();});
   $('setting-zoom')?.addEventListener('input',e=>{settings.zoom=Number(e.target.value);applySettings();});
   $('title-search')?.addEventListener('input',filterTitleGallery);
 }

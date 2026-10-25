@@ -1,3 +1,4 @@
+import {drawClassCombatVFX} from './combat-vfx-v6.js';
 import {drawTacticalSkill} from './tactical-skill-fx.js?v=v5-smooth';
 import {jobArtProfile} from './job-signatures.js';
 import {paintCombatChoreography,skillEffectBounds} from './combat-vfx.js';
@@ -239,8 +240,12 @@ export function drawSkillEffect(renderer,e,t){
  const ultimate=e.skill==='ultimate',isSkill=e.type==='attack'||e.type==='skill',count=renderer.lowPower?6:ultimate?16:10;
  // Dedicated frame-by-frame original pixel animation is drawn before the old
  // generic painter. The latter remains only as an asset-load fallback.
- if(isSkill&&drawTacticalSkill(renderer,e,f))return true;
+ // A selectable classic fallback makes visual updates reversible without
+ // rolling back the authoritative V5 combat, inventory or saves.
+ if(isSkill&&renderer.fxStyle==='classic'&&drawPixelSkillSprite(renderer,e,f))return true;
+ if(isSkill&&renderer.fxStyle!=='classic'&&drawClassCombatVFX(renderer,e,f))return true;
  if(isSkill&&drawPixelSkillSprite(renderer,e,f))return true;
+ if(isSkill&&drawTacticalSkill(renderer,e,f))return true;
  const radius=isSkill?Math.min(225,Math.max(e.skill==='basic'?55:90,e.radius||(ultimate?160:90))):110;
  const tx=isSkill?(e.tx??e.x):e.x,ty=isSkill?(e.ty??e.y):e.y;
  const box=isSkill?skillEffectBounds(e):{x:Math.min(e.x,tx)-radius-35,y:Math.min(e.y,ty)-(ultimate?245:160)-radius*.5,width:Math.abs(tx-e.x)+(radius+35)*2,height:Math.abs(ty-e.y)+(ultimate?245:160)+radius*1.5+35};
