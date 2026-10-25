@@ -9,6 +9,23 @@ export const JOB_TIERS = {
   epic:{name:'영웅',color:'#c4a3ea'}, hidden:{name:'히든',color:'#efc481'}
 };
 // id, name, family, tier, unlock hint, signature, defensive technique, ultimate, combat identity
+// Profession-bound starter attacks: the first skill is no longer the same
+// generic sword slash / arrow / orb under 38 different class portraits.
+const JOB_BASIC_NAMES=Object.freeze({
+ guardian:'서약검의 일격',ranger:'바람깃 사격',mage:'성흔 탄환',
+ rogue:'어둠의 쌍단검',priest:'성서의 광휘',lancer:'전장의 창끝',
+ monk:'철권 연타',herbalist:'가시씨앗',miner:'달철 곡괭이',
+ berserker:'광전사의 양손도끼',paladin:'축복의 성검',sentinel:'철벽 방패격',
+ sniper:'매의 눈 저격',beastwarden:'야수 송곳니',spellblade:'각인된 마검',
+ pyromancer:'응축 불씨',cryomancer:'서리창 투척',druid:'나무뿌리 찌르기',
+ bard:'현의 울림',alchemist:'비약 유리탄',engineer:'압축 톱니탄',
+ rune_knight:'고대 룬 대검',shadowdancer:'잔영 쌍검',stormcaller:'뇌광 찌르기',
+ necromancer:'망령 수확',chronomancer:'시곗바늘 파동',spiritwalker:'정령 인도 화살',
+ dragonknight:'용아 창격',stargazer:'성좌의 궤적',warlord:'지휘검의 일격',
+ voidwalker:'공허 발톱',eclipse_reaper:'월식 낫 베기',phoenix_heir:'불사조의 깃불',
+ tide_oracle:'심해 삼지창',starweaver:'별실 투사',nameless_king:'무명의 왕검',
+ dawn_architect:'새벽 설계탄',abyss_shepherd:'심연 목자 지팡이'
+});
 const JOB_ROWS = [
  ['guardian','서약기사','guardian','common','작은 생명을 위협하는 것들을 물리쳐 보세요.','반월 베기','별빛 수호','서약의 심판','shield'],
  ['ranger','바람추적자','ranger','common','숲에서 사냥의 발자국을 남겨 보세요.','바람 화살','숲의 숨결','유성우','haste'],
@@ -157,7 +174,7 @@ export function installExpansion({CLASSES,ITEMS,MONSTERS,ZONES,NPCS,QUESTS,RECIP
     identity==='mana'?{manaRegen:2+grade}:identity==='shield'?{reduction:.06+grade*.025}:identity==='haste'?{speed:8+grade*2}:identity==='pierce'?{armorPierce:.45}:identity==='stun'?{def:2+grade}:identity==='burn'?{atk:2+grade}:{hp:14+grade*6};
   const passiveText=identity==='crit'?`치명타 확률 +${passive.crit}%`:identity==='drain'?`준 피해의 ${Math.round(passive.lifesteal*100)}% 회복`:identity==='healer'?`회복 기술 강화 · 주변 파티원도 회복`:identity==='mana'?`초당 마나 회복 +${passive.manaRegen}`:identity==='shield'?`받는 피해 ${Math.round(passive.reduction*100)}% 감소`:identity==='haste'?`이동 속도 +${passive.speed}`:identity==='pierce'?'적 방어력의 45% 무시':identity==='stun'?`방어력 +${passive.def} · 기술에 짧은 기절`:identity==='burn'?`공격력 +${passive.atk} · 화상 기술`:`최대 체력 +${passive.hp} · 독 기술`;
   let skills=[
-   {...b.skills[0],name:family==='guardian'?'기본 검격':family==='ranger'?'정밀 사격':'마력 탄환',cd:family==='guardian'?560:family==='ranger'?620:700},
+   {...b.skills[0],name:JOB_BASIC_NAMES[id],cd:family==='guardian'?560:family==='ranger'?620:700},
    {...b.skills[1],name:q,cd:4400+(index%3)*300,power:1.8+grade*.12,mp:12+grade*2,range:melee?140:310,radius:identity==='crit'?0:melee?125:105,center:melee?'self':'target'},
    {...b.skills[2],name:e,cd:12500,mp:18+grade*2,heal:identity==='healer'?.32:.14,shield:['shield','stun','mana'].includes(identity)?.3:0,haste:['haste','crit','slow'].includes(identity)?1.28:0,partyHeal:identity==='healer',desc:''},
    {...b.skills[3],name:ult,cd:24000+(index%3)*900,power:3.2+grade*.23,mp:30+grade*3,range:melee?210:350,radius:identity==='crit'?55:185,center:melee?'self':'target'}

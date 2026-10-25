@@ -1,3 +1,4 @@
+import {villageLayout} from './village-layout.js';
 import { cleanAttributes, enhancementBonus } from './rpg.js';
 import { titleStatBonus } from './title-catalog.js';
 import { installExtraItems } from './extra-items.js';
@@ -184,16 +185,19 @@ installRealms({ZONES,MONSTERS,ITEMS});
 installEncounterIdentities({MONSTERS,ZONES,QUESTS});
 installExtraItems({ITEMS,RECIPES});
 installMasterworks({ITEMS,RECIPES});
-// Each major adventure region has a staffed waystation instead of a single distant town.
+// Farther-spaced service points surround the new central obelisk.
+// Keep identifiers and NPC kinds stable for interaction and saved quest data.
 for(const [zoneId,z]of Object.entries(ZONES)){
- if(zoneId==='town'||z.expedition||z.dungeon||z.challenge||z.secretRealm)continue;
- const base=`${zoneId}_village`,cy=z.spawn[1]-4,cx=z.spawn[0];
- for(const [key,name,kind,sprite,offset] of [
-  ['merchant','역참 보급상','shop','merchant',-4],
-  ['smith','유랑 대장장이','craft','smith',4],
-  ['healer','마을 치유사','heal','healer',0]]){
-  NPCS.push({id:base+'_'+key,name:z.name+' · '+name,role:name,kind,sprite,zone:zoneId,
-   x:(cx+offset)*TILE+16,y:(cy-2)*TILE+16,dialog:'여행자여, 이곳에서 준비를 마치고 떠나세요.'});
+ const pos=villageLayout({...z,id:zoneId});
+ if(!pos||zoneId==='town')continue;
+ const base=`${zoneId}_village`,{cx,cy}=pos;
+ for(const [key,name,role,kind,sprite,dx,dy] of [
+  ['merchant','보급상인','물자 · 상점','shop','merchant',-6,-4],
+  ['smith','유랑 대장장이','장비 · 제작','craft','smith',6,4],
+  ['healer','마을 치유사','휴식 · 치유','heal','healer',-6,4],
+  ['registrar','전직 안내인','직업 · 전직','jobs','lia',6,-4]]){
+  NPCS.push({id:base+'_'+key,name,role,kind,sprite,zone:zoneId,
+   x:(cx+dx)*TILE+16,y:(cy+dy)*TILE+16,dialog:'이 거점에서는 장비를 정비하고 해금한 직업으로 전직할 수 있습니다.'});
  }
 }
 
