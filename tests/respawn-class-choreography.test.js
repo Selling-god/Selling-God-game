@@ -17,13 +17,13 @@ function trace(job,skill,frame){
  return calls;
 }
 
-test('normal, field-boss and realm monster respawns are exactly 2.5x previous values',()=>{
- assert.equal(MOB_RESPAWN_MIN_MS,45_000);
- assert.equal(MOB_RESPAWN_VARIATION_MS,25_000);
+test('normal field monster respawns are 80-120 seconds, bosses remain 5 minutes',()=>{
+ assert.equal(MOB_RESPAWN_MIN_MS,80_000);
+ assert.equal(MOB_RESPAWN_VARIATION_MS,40_000);
  assert.equal(FIELD_BOSS_RESPAWN_MS,300_000);
  assert.equal(REALM_BOSS_RESPAWN_MS,225_000);
  for(const r of [0,.1,.5,.9,1]){
-  assert.equal(fieldRespawnDelay(MONSTERS.slime,()=>r),2.5*(18_000+r*10_000));
+  assert.equal(fieldRespawnDelay(MONSTERS.slime,()=>r),80_000+r*40_000);
   assert.equal(fieldRespawnDelay(MONSTERS.moss_guardian,()=>r),300_000);
  }
 });
@@ -32,7 +32,7 @@ test('normal field mob cannot respawn on old fast timer, then respawns when due'
  const g=new Game({random:()=>.4});const p=g.addPlayer(newCharacter('respawn-check','Tester','guardian'));
  const m=g.makeMob('a-slime','slime',900,880);g.worlds.get('forest').mobs=[m];
  m.contributors.set(p.id,g.now);g.killMob('forest',m);
- const due=m.respawnAt;assert.equal(due-g.now,55_000);
+ const due=m.respawnAt;assert.equal(due-g.now,96_000);
  p.zone='forest';p.x=900;p.y=880;
  g.tick(.05,due-1);assert.equal(m.alive,false);
  g.tick(.05,due+1);assert.equal(m.alive,true);
