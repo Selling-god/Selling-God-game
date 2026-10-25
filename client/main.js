@@ -3,7 +3,7 @@ import {rpgPanel,enhancementRows} from './rpg-ui.js';
 import {freePoints,ATTRIBUTE_KEYS,MAX_ATTRIBUTE,resetPrice,spentPoints,enhancementBonus} from '../shared/rpg.js';
 import { expansionPanel, timeLeft } from './expansion-ui.js';
 import { Auth, Network } from './net.js';
-import { Renderer } from './render.js?v=skillfx-v4';
+import { Renderer } from './render.js?v=combat-kits-v5-smooth';
 import { Sound } from './audio.js';
 import { CLASSES, ITEMS, RARITIES, MONSTERS, QUESTS, ZONES, NPCS, RECIPES, SHOP, xpRequired, objectiveLabel, weaponFor, MAX_LEVEL } from '../shared/content.js';
 import { dist, clamp } from '../shared/world.js';
@@ -39,7 +39,7 @@ try{settings={...settings,...JSON.parse(localStorage.getItem('starfall.settings'
 try{mutedPlayers=new Set(JSON.parse(localStorage.getItem('starfall.muted')||'[]'));}catch{}
 function applySettings(){
   sound.sfx=settings.sfx? .28:0;sound.music=settings.music? .6:0;
-  renderer.showEffects=settings.effects;renderer.lowPower=!!settings.lowPower;renderer.shakeEnabled=!!settings.shake;renderer.zoomSetting=Number(settings.zoom)||1;renderer.resize();
+  renderer.showEffects=settings.effects;renderer.setManualLowPower(!!settings.lowPower);renderer.shakeEnabled=!!settings.shake;renderer.zoomSetting=Number(settings.zoom)||1;renderer.resize();
   try{localStorage.setItem('starfall.settings',JSON.stringify(settings));}catch{}
 }
 applySettings();
@@ -292,11 +292,12 @@ $('interact-hint').addEventListener('click',()=>action({type:'interact'}));
 document.querySelectorAll('[data-panel]').forEach(b=>b.addEventListener('click',()=>openPanel(b.dataset.panel)));
 syncKeyHints();
 
+const ROLE_LABELS={cone:'부채꼴',mark:'표식',blast:'폭파',dash:'돌진',combo:'연타',field:'장판',sunder:'방깎',spin:'회전',life:'흡혈',stagger:'경직',pierce:'관통',ignite:'점화',freeze:'빙결',resonance:'음률',chain:'연쇄',pull:'끌기',slow:'둔화',drain:'흡혈',push:'넉백',command:'지휘',delayed:'낙하',healing:'치유',execute:'처형',summon:'소환',counter:'반격',parry:'받기',bastion:'방벽',leap_trap:'덫',smoke:'연막',blink:'순간',aim:'조준',fury:'격노',meditate:'명상',stance:'전환',brew:'조합',rewind:'역행',rebirth:'부활',song:'노래',trap:'지뢰',pet:'소환',turret:'포탑',healing_field:'성역',frost_field:'빙벽',star_field:'별실',lightning_rod:'피뢰',charge:'돌파'};
 function renderAbilities(){
   if(!profile)return;
   const c=CLASSES[profile.classId],all=[...c.skills,{id:'dash',name:'별걸음',key:'SHIFT',icon:'boot',unlock:1},{id:'potion',name:'체력',key:'1',icon:'potion',unlock:1},{id:'mana',name:'마나',key:'2',icon:'mana',unlock:1}];
   $('abilities').innerHTML=all.map(s=>`<button class="ability ${s.id==='basic'?'basic':''}" data-skill="${s.id}" title="${esc(s.desc||s.name)} (${esc(keybindings.label(s.id))})">
-    <span class="key">${esc(keybindings.primaryLabel(s.id))}</span>${c.skills.some(v=>v.id===s.id)?`<img src="/assets/skill_${profile.classId}_${s.id}.png" alt="">`:icon(s.icon)}<span class="skill-name">${esc(s.name)}</span><span class="count"></span><span class="cd-shade"></span><span class="cd-number"></span></button>`).join('');
+    <span class="key">${esc(keybindings.primaryLabel(s.id))}</span>${c.skills.some(v=>v.id===s.id)?`<img src="/assets/skill_${profile.classId}_${s.id}.png" alt="">`:icon(s.icon)}<span class="skill-name">${esc(s.name)}</span>${s.role&&s.id!=='basic'?`<span class="role-tag">${esc(ROLE_LABELS[s.role]||s.role)}</span>`:''}<span class="count"></span><span class="cd-shade"></span><span class="cd-number"></span></button>`).join('');
 }
 $('abilities').addEventListener('click',e=>{const b=e.target.closest('[data-skill]');if(b)cast(b.dataset.skill);});
 function cast(id){
@@ -936,7 +937,7 @@ renderer.onFrame=(dt,t)=>{
     lastInteractAt=t;const target=pendingInteract;pendingInteract=null;action({type:'interact',id:target.id});
   }
   if(t-lastHUD>100){lastHUD=t;updateHUD();}
-  if(t-lastMini>300){
+  if(t-lastMini>(renderer.lowPower?650:380)){
     lastMini=t;renderer.minimap($('minimap'));
     if($('large-map'))renderer.minimap($('large-map'),true);
     if(uiRefreshNeeded){uiRefreshNeeded=false;refreshPanel();}

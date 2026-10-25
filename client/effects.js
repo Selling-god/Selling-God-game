@@ -1,3 +1,4 @@
+import {drawTacticalSkill} from './tactical-skill-fx.js?v=v5-smooth';
 import {jobArtProfile} from './job-signatures.js';
 import {paintCombatChoreography,skillEffectBounds} from './combat-vfx.js';
 import {drawPixelSkillSprite} from './pixel-skill-sprites.js';
@@ -238,6 +239,7 @@ export function drawSkillEffect(renderer,e,t){
  const ultimate=e.skill==='ultimate',isSkill=e.type==='attack'||e.type==='skill',count=renderer.lowPower?6:ultimate?16:10;
  // Dedicated frame-by-frame original pixel animation is drawn before the old
  // generic painter. The latter remains only as an asset-load fallback.
+ if(isSkill&&drawTacticalSkill(renderer,e,f))return true;
  if(isSkill&&drawPixelSkillSprite(renderer,e,f))return true;
  const radius=isSkill?Math.min(225,Math.max(e.skill==='basic'?55:90,e.radius||(ultimate?160:90))):110;
  const tx=isSkill?(e.tx??e.x):e.x,ty=isSkill?(e.ty??e.y):e.y;

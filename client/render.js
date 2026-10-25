@@ -9,9 +9,10 @@ import {drawCreature,creatureMetrics} from './creatures.js';
 import {drawEncounterOverlay,drawPhaseTransition} from './encounters-ui.js';
 import {nearbyScenery} from '../shared/spatial.js';
 import {EquipmentRenderer,drawBossGear} from './equipment.js';
-import {drawSkillEffect,effectLifetime} from './effects.js?v=skillfx-v4';
+import {drawSkillEffect,effectLifetime} from './effects.js?v=combat-kits-v5-smooth';
 import {attackMotionPose} from './skill-formations.js';
-import {preloadPixelSkillJobs} from './pixel-skill-sprites.js';
+import {clearTacticalFX} from './tactical-skill-fx.js';
+import {FrameQualityGovernor} from './frame-quality.js';
 import {drawPixelTelegraph,clearPixelFX} from './pixel-effects.js';
 import { LocalMotion, SnapshotTrack } from './motion.js';
 import { createMap, moveEntity, clamp, dist, seeded } from '../shared/world.js';
@@ -23,9 +24,9 @@ export class Renderer {
   constructor(canvas){
     this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.w=0;this.h=0;
     this.atlas=null;this.meta=null;this.gear=new EquipmentRenderer();this.map=null;this.backgrounds=new Map();this.ground=new GroundChunks();this.state=null;this.profile=null;
-    this.local=null;this.positions=new Map();this.strikePoses=new Map();this.effects=[];this.criticalEffects=[];this.damage=[];this.flash=new Map();this.fxSequence=0;this.seenImpacts=new Map();
+    this.local=null;this.vignette=null;this.glowCache=new Map();this.positions=new Map();this.strikePoses=new Map();this.effects=[];this.criticalEffects=[];this.damage=[];this.flash=new Map();this.fxSequence=0;this.seenImpacts=new Map();
     this.camera={x:0,y:0};this.zoom=1.65;this.zoomSetting=1;this.shake=0;this.showEffects=true;
-    this.last=performance.now();this.clock=0;this.motion=new LocalMotion();this.snapshotPeriod=100;this.lastSnapshotTime=0;this.lowPower=false;this.shakeEnabled=false;this.lastInput={x:0,y:0};
+    this.last=performance.now();this.clock=0;this.motion=new LocalMotion();this.snapshotPeriod=100;this.lastSnapshotTime=0;this.lowPower=false;this.manualLowPower=false;this.quality=new FrameQualityGovernor();this.shakeEnabled=false;this.lastInput={x:0,y:0};
     this.skyParticles=Array.from({length:55},(_,i)=>({x:(i*137.19)%1,y:(i*73.31)%1,s:.4+(i%7)*.13}));
     this.rng=seeded(41);this.onFrame=()=>{};this.running=false;this.mapCache=null;this.pointerMark=null;
     window.addEventListener('resize',()=>this.resize());this.resize();
@@ -33,11 +34,18 @@ export class Renderer {
   async load(){
     [this.atlas,this.meta]=await Promise.all([loadImage('/assets/atlas.png?v=3.0.0'),fetch('/assets/atlas.json?v=3.0.0').then(r=>r.json())]);
   }
+  setManualLowPower(enabled){
+    this.manualLowPower=!!enabled;
+    this.quality.reset();
+    const effective=this.manualLowPower;
+    if(this.lowPower!==effective){this.lowPower=effective;clearPixelFX(this);clearTacticalFX(this);this.resize();}
+  }
   resize(){
     this.w=window.innerWidth;this.h=window.innerHeight;
     this.dpr=Math.min(window.devicePixelRatio||1,this.lowPower?1:1.5);
     this.canvas.width=Math.floor(this.w*this.dpr);this.canvas.height=Math.floor(this.h*this.dpr);
     this.canvas.style.width=this.w+'px';this.canvas.style.height=this.h+'px';
+    this.vignette=null;
     this.zoom=(this.w<700?1.28:this.w<1100?1.4:1.6)*this.zoomSetting;
     if(this.map&&this.state?.self)this.resetCamera();
   }
@@ -46,7 +54,7 @@ export class Renderer {
     this.camera=followCamera(this.camera,this.map,target,{width:this.w,height:this.h,zoom:this.zoom},0,{snap:true});
   }
   setZone(id){
-    this.map=createMap(id);this.positions.clear();this.strikePoses?.clear();this.effects=[];this.criticalEffects=[];this.damage=[];this.seenImpacts.clear();clearPixelFX(this);this.mapCache=null;
+    this.map=createMap(id);this.positions.clear();this.strikePoses?.clear();this.effects=[];this.criticalEffects=[];this.damage=[];this.seenImpacts.clear();clearPixelFX(this);clearTacticalFX(this);this.mapCache=null;
     if(this.state?.self)this.resetCamera();
     this.ground.clear();this.flash.clear();
   }
@@ -59,14 +67,13 @@ export class Renderer {
     const reset=!this.motion.position||this.motion.zone!==s.zone||this.motion.motionId!==(s.self.motionId||0)||dist(this.motion.position,s.self)>260;
     this.motion.accept(s.self,s.zone,now,this.map);this.local=this.motion.position;
     if(reset){this.resetCamera();this.pointerMark=null;}
-    for(const entity of [...s.players,...s.mobs]){
-      const key=(s.players.includes(entity)?'p':'m')+entity.id;
+    // A tactical skill has its own live renderer. Do not decode the old 39-class
+    // PNG library after every network packet; fallback assets load only on demand.
+    for(const [prefix,group] of [['p',s.players],['m',s.mobs]])for(const entity of group){
+      const key=prefix+entity.id;
       if(!this.positions.has(key))this.positions.set(key,new SnapshotTrack());
       this.positions.get(key).push(s.t,entity);
     }
-    // Avoid an entire 39-class GPU atlas on mobile. Preload only jobs
-    // belonging to the player and currently visible party/peers.
-    preloadPixelSkillJobs([s.self?.classId,s.self?.job,...s.players.map(p=>p.classId),...s.players.map(p=>p.job)]);
     const visible=new Set([...s.players.map(p=>'p'+p.id),...s.mobs.map(m=>'m'+m.id)]);
     for(const key of this.positions.keys())if(!visible.has(key))this.positions.delete(key);
   }
@@ -213,7 +220,15 @@ export class Renderer {
     const dt=Math.min(.09,Math.max(0,(t-this.last)/1000));this.last=t;
     this.onFrame(dt,t);
     if(this.state&&this.map&&this.atlas){
+      const start=performance.now();
       this.draw(dt,t);
+      if(this.quality.report(performance.now()-start,dt*1000,t,{visible:typeof document==='undefined'||!document.hidden,manual:this.manualLowPower})){
+        const target=this.manualLowPower||this.quality.reduced;
+        if(this.lowPower!==target){
+          this.lowPower=target;clearPixelFX(this);clearTacticalFX(this);
+          this.resize(); // lower GPU pixel fill and ambient detail only after sustained load
+        }
+      }
     }
     requestAnimationFrame(tt=>this.frame(tt));
   }
@@ -408,9 +423,23 @@ export class Renderer {
     c.setTransform(1,0,0,1,0,0);
   }
   glow(x,y,r,color,alpha){
+    if(this.lowPower&&alpha<.08)return;
+    // Store a handful of reusable radial sprites instead of allocating and
+    // filling a large gradient every render frame for each visible light.
+    const key=`${Math.round(r)}:${color}`;let sprite=this.glowCache.get(key);
+    if(!sprite){
+      const side=Math.max(2,Math.ceil(r*2));
+      sprite=typeof OffscreenCanvas!=='undefined'?new OffscreenCanvas(side,side):document.createElement('canvas');
+      sprite.width=side;sprite.height=side;
+      const context=sprite.getContext('2d',{alpha:true});
+      const g=context.createRadialGradient(r,r,0,r,r,r);
+      g.addColorStop(0,color);g.addColorStop(1,'transparent');
+      context.fillStyle=g;context.fillRect(0,0,side,side);
+      this.glowCache.set(key,sprite);
+      while(this.glowCache.size>20)this.glowCache.delete(this.glowCache.keys().next().value);
+    }
     const c=this.ctx;c.save();c.globalCompositeOperation='screen';c.globalAlpha=alpha;
-    const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color);g.addColorStop(1,'transparent');
-    c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2);c.restore();
+    c.drawImage(sprite,x-r,y-r);c.restore();
   }
   drawCast(cast,t,layer='all'){
     drawPixelTelegraph(this,cast,t,layer);
@@ -447,8 +476,13 @@ export class Renderer {
         c.fillRect(x,y,snow?3:sand?5:2,snow?3:2);
       }c.globalAlpha=1;
     }
-    const g=c.createRadialGradient(this.w/2,this.h/2,this.h*.3,this.w/2,this.h/2,Math.max(this.w,this.h)*.7);
-    g.addColorStop(0,'transparent');g.addColorStop(1,'#08121d88');c.fillStyle=g;c.fillRect(0,0,this.w,this.h);
+    if(!this.lowPower){
+      if(!this.vignette){
+        const g=c.createRadialGradient(this.w/2,this.h/2,this.h*.3,this.w/2,this.h/2,Math.max(this.w,this.h)*.7);
+        g.addColorStop(0,'transparent');g.addColorStop(1,'#08121d88');this.vignette=g;
+      }
+      c.fillStyle=this.vignette;c.fillRect(0,0,this.w,this.h);
+    }
   }
   minimap(canvas,big=false){
     if(!this.map||!this.state)return;

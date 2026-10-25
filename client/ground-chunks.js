@@ -2,7 +2,7 @@
 import {TILE,ZONES} from '../shared/content.js';
 import {drawTerrainCell} from './terrain-render.js';
 export class GroundChunks {
- constructor(){this.cache=new Map();this.size=512;this.limit=36;this.created=0;}
+ constructor(){this.cache=new Map();this.size=512;this.limit=36;this.created=0;this.deferred=0;this.lastNew=0;}
  clear(){this.cache.clear();}
  get(map,cx,cy,atlas,meta){
   const key=`${map.id}:${cx}:${cy}`,old=this.cache.get(key);
@@ -32,6 +32,29 @@ export class GroundChunks {
   const s=this.size,x0=Math.max(0,Math.floor((camera.x-halfX)/s)),y0=Math.max(0,Math.floor((camera.y-halfY)/s));
   const x1=Math.min(Math.ceil(map.width/s)-1,Math.floor((camera.x+halfX)/s));
   const y1=Math.min(Math.ceil(map.height/s)-1,Math.floor((camera.y+halfY)/s));
-  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)ctx.drawImage(this.get(map,x,y,atlas,meta),x*s,y*s);
+  // A new expedition used to synchronously rasterize every visible 512px
+  // chunk on its first frame. Spread the work across several render frames,
+  // starting under the player. No intervals/background workers or save changes.
+  const todo=[];
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)
+   todo.push({x,y,d:(x*s+s/2-camera.x)**2+(y*s+s/2-camera.y)**2});
+  todo.sort((a,b)=>a.d-b.d);
+  const started=typeof performance!=='undefined'?performance.now():0;
+  let created=0,deferred=0;
+  const buildLimit=lowPower?2:4,timeBudget=lowPower?7:11;
+  for(const {x,y}of todo){
+    const key=`${map.id}:${x}:${y}`,present=this.cache.has(key);
+    if(present||(created<buildLimit&&(!started||performance.now()-started<timeBudget))){
+      ctx.drawImage(this.get(map,x,y,atlas,meta),x*s,y*s);
+      if(!present)created++;
+    }else{
+      // Use a light base color during the brief first-map reveal rather than
+      // a black gap; the exact tile replaces it on following frames.
+      ctx.fillStyle=map.terrain?'#53615f':ZONES[map.id]?.color||'#56635c';
+      ctx.globalAlpha=.57;ctx.fillRect(x*s,y*s,s,s);ctx.globalAlpha=1;
+      deferred++;
+    }
+  }
+  this.lastNew=created;this.deferred=deferred;
  }
 }
